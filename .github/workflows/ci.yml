@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The scanner's own fixtures must pass before its verdict is trusted: a
+      # scanner that silently stopped matching would otherwise report "clean".
+      - name: Scanner self-test
+        run: python3 scripts/scan_secrets.py --self-test
+      # Fail-closed over the whole working tree, not just content/.
+      - name: Scan repository
+        run: python3 scripts/scan_secrets.py .
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Boot the production server and assert every URL this app owns resolves,
+      # the redirect and rewrites fire, and both llms corpora are complete.
+      # --no-live keeps CI independent of the deployed site.
+      - name: URL checks
+        run: |
+          PORT=3000 npm start &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          ready=""
+          for _ in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:3000/docs; then ready=1; break; fi
+            sleep 1
+          done
+          if [ -z "$ready" ]; then
+            echo "server did not become ready" >&2
+            exit 1
+          fi
+          node scripts/parity-check.mjs --local http://127.0.0.1:3000 --no-live
