@@ -6,6 +6,14 @@ const root = fileURLToPath(new URL(".", import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Both this app and the private web app sit on openphonex.com behind
+  // path-based ingress, and BOTH emit /_next/static/*. That path cannot be
+  // routed by prefix without breaking one of them, so this app's assets are
+  // published under /docs-assets, which ingress routes here while stripping
+  // the prefix (no preserve_path_prefix) so Next receives the /_next/... path
+  // it actually serves. Without this the pages render unstyled: the browser
+  // requests /_next/static/... and gets the OTHER app's build.
+  assetPrefix: "/docs-assets",
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   // The local app should present product feedback, not Next.js implementation
   // status. Runtime/build errors still surface normally in the error overlay.
