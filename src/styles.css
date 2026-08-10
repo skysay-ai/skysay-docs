@@ -1,0 +1,105 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
+/* Fumadocs UI theme (docs + blog). neutral.css registers the fd-* color
+   tokens; preset.css adds base styles, Shiki highlighting, typography, and the
+   layout CSS. Both are overridden to the Blueprint palette below. */
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+/* Let Tailwind scan Fumadocs' compiled components for class names. */
+@source "../node_modules/fumadocs-ui/dist";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Base palette. The app forces `.dark`, so both selectors carry the same
+   values. Only the tokens the docs and blog surfaces actually consume are
+   defined here: the page background/foreground, the radius scale, and the two
+   font families. */
+:root,
+.dark {
+  color-scheme: dark;
+  --background: #0e1420;
+  --foreground: #dbe4f0;
+  --radius: 0.75rem;
+}
+
+/* Blueprint theme for Fumadocs (docs + blog). Overrides the fd-* tokens
+   registered by fumadocs-ui/css/neutral.css to match the product palette. */
+:root,
+.dark {
+  --color-fd-background: #0e1420;
+  --color-fd-foreground: #dbe4f0;
+  --color-fd-muted: #1a2536;
+  --color-fd-muted-foreground: #8492a8;
+  --color-fd-popover: #141d2c;
+  --color-fd-popover-foreground: #dbe4f0;
+  --color-fd-card: #141d2c;
+  --color-fd-card-foreground: #dbe4f0;
+  --color-fd-border: rgba(219, 228, 240, 0.1);
+  --color-fd-primary: #37c9d8;
+  --color-fd-primary-foreground: #04121a;
+  --color-fd-secondary: #1a2536;
+  --color-fd-secondary-foreground: #dbe4f0;
+  --color-fd-accent: #20304a;
+  --color-fd-accent-foreground: #dbe4f0;
+  --color-fd-ring: #37c9d8;
+  --color-fd-overlay: rgba(4, 18, 26, 0.6);
+}
+
+/* The docs sidebar override in neutral.css re-lightens muted tokens; keep it
+   Blueprint. */
+.dark #nd-sidebar {
+  --color-fd-muted: #1a2536;
+  --color-fd-secondary: #1a2536;
+  --color-fd-muted-foreground: #8492a8;
+}
+
+/* Fumadocs sidebar items animate color/background-color on active-state
+   changes (`transition-colors` + `data-[active=true]:bg-…`). On client-side
+   navigation Chrome can create that background-color transition with a null
+   start time and never run it, freezing the PREVIOUS page's highlight in
+   place — the sidebar then shows two "active" items until a hard reload.
+   The active state must be a pure function of data-active, so drop the
+   transition entirely (the id selector outranks the utility classes). */
+#nd-sidebar a[data-active] {
+  transition: none;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
