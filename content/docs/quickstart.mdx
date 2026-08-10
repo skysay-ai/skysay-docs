@@ -1,0 +1,122 @@
+---
+title: Quickstart
+description: The five-minute path — install the OpenClaw connector, mint a scoped key, and have your agent place a trial call.
+---
+
+This is the full five-minute path from an empty checkout to your agent placing a
+trial call over MCP. The worked example uses the OpenClaw connector; any
+MCP-capable client follows the same three moves — install, mint, call.
+
+## Prerequisites
+
+- An **OpenPhonex organization** and a credential that can mint keys — a
+  dashboard session token (`opsess_…`) or a bootstrap key that holds
+  `api_keys:write`.
+- **Node 18+** (for the `.mjs` bridge) or Python 3.8+ (for the `.py` bridge).
+- An agent host that speaks MCP — an OpenClaw checkout with
+  `config/mcporter.json`, or any other MCP client.
+
+<Steps>
+
+<Step>
+
+### Install the connector
+
+Copy the connector into your agent checkout and register the hosted MCP
+endpoint.
+
+```bash
+cp -R connectors/openclaw skills/openphonex
+npx mcporter add openphonex --url https://api.openphonex.com/mcp
+```
+
+Full detail — the stdio bridge, the `.mjs` vs `.py` choice, and the
+remote-MCP shortcut — is in [Install the connector](/docs/install-connector).
+
+</Step>
+
+<Step>
+
+### Mint a scoped key
+
+Mint one org key with the agent scope set. Control-plane scopes
+(`api_keys:write`, `wallet:write`, `operator:*`, `provider_mutations:*`) are
+intentionally omitted, and requested scopes are clamped server-side to what your
+admin credential already holds — the key cannot self-escalate.
+
+```bash
+curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
+  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"organization_id":"org_...",
+       "name":"OpenClaw agent",
+       "scopes":["account:read","coverage:read","agents:write",
+                 "trial_calls:write","numbers:read","numbers:write",
+                 "calls:read","calls:write","recordings:read",
+                 "sms:read","sms:send","policy:evaluate"]}'
+```
+
+The response returns `token` (a `tai_…` key) **once** — store it immediately, it
+is never retrievable again. For a cautious tier, drop `sms:send`, `calls:write`,
+and `numbers:write` for a read + trial-only key. See
+[Authentication & keys](/docs/authentication) for the full scope model.
+
+</Step>
+
+<Step>
+
+### Wire the key into the MCP server
+
+Set the three env vars on the `openphonex` MCP server and restart your agent so
+`tools/list` picks up the tools.
+
+```json
+{
+  "mcpServers": {
+    "openphonex": {
+      "command": "node",
+      "args": ["skills/openphonex/bin/openphonex-mcp-bridge.mjs"],
+      "env": {
+        "OPENPHONEX_BASE_URL": "https://api.openphonex.com",
+        "OPENPHONEX_API_KEY": "tai_your_scoped_key",
+        "OPENPHONEX_ORGANIZATION_ID": "org_your_org"
+      }
+    }
+  }
+}
+```
+
+</Step>
+
+<Step>
+
+### Your agent calls the tools
+
+Ask the agent in plain language — it selects the right tool from `tools/list`.
+
+```text
+you › search GB number coverage, then place a trial call
+
+→ get_coverage(country="GB")       # coverage:read
+→ create_trial_call(...)           # trial_calls:write — returns a dial-in PIN
+✓ transcript + cost summarized back to you
+```
+
+</Step>
+
+</Steps>
+
+<Callout type="info" title="Safety by default">
+  Live outbound calls and SMS are policy-gated. Evaluate
+  `evaluate_outbound_policy` first, show the decision and cost, and wait for an
+  explicit human yes. Scopes fail closed — a `tools/call` for a tool whose
+  `required_scopes` are not on your key returns `missing MCP scopes`.
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card title="Wire an agent to a number" href="/docs/wire-an-agent" description="Connect an external or hosted agent and answer real calls." />
+  <Card title="Read call evidence" href="/docs/read-call-evidence" description="Recordings, waveforms, transcripts, and retention state." />
+  <Card title="MCP tool reference" href="/docs/tool-reference" description="Every tool, its scope, and its arguments." />
+</Cards>

@@ -1,0 +1,39 @@
+---
+title: Trial calls
+description: Place a shared-number trial call to hear a connected agent end to end, with no number provisioning.
+---
+
+A **trial call** is the fastest way to hear a connected agent on a real phone
+line. It uses a shared OpenPhonex number and a dial-in PIN, so you can validate
+an agent before requesting or assigning a number of your own.
+
+## Place a trial call
+
+```text
+you › create a shared-number trial for my agent
+→ create_trial_call(agent_id="ag_...")   # trial_calls:write
+✓ returns a dial-in number + PIN
+```
+
+`create_trial_call` returns a PIN you dial into from any phone. The agent answers
+on the shared number, and the call produces the same evidence as a production
+call — recording, waveform, transcript, and cost.
+
+## After the call
+
+Read what happened with the call-evidence tools:
+
+```text
+→ list_calls(...)             # calls:read
+→ get_call(call_id="cl_...")  # calls:read — status + recording state
+→ get_call_transcript(...)    # recordings:read
+```
+
+<Callout title="No provisioning required">
+  Trial calls need only `trial_calls:write` (and `agents:write` to have
+  connected the agent). You do not need a provisioned number, `numbers:write`,
+  or operator approval to run one.
+</Callout>
+
+See [Read call evidence](/docs/read-call-evidence) for recordings, transcripts,
+and retention detail.

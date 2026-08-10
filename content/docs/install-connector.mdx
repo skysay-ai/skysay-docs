@@ -1,0 +1,110 @@
+---
+title: Install the connector
+description: The OpenClaw connector in detail — skill, stdio bridge, mcporter registration, the remote-MCP shortcut, and the offline smoke test.
+---
+
+The OpenClaw connector is the reference way to give an agent OpenPhonex tools. It
+is two parts that work together: an OpenClaw **skill** (a `SKILL.md` playbook
+that makes the capability discoverable) and an **mcporter MCP registration** that
+points at OpenPhonex Cloud's hosted `POST /mcp`. The MCP entry runs a thin local
+**stdio bridge** that forwards each JSON-RPC call to `/mcp` with your scoped
+`tai_` key as a Bearer token. You need both — the skill makes it discoverable,
+the MCP entry makes it callable.
+
+<Callout title="What it is NOT">
+  Not billing, provider ordering, operator/compliance actions, or access to any
+  other tenant. Numbers, compliance, billing, and provider operations stay in
+  OpenPhonex Cloud. The scoped key is your permission boundary: capabilities you
+  were not granted fail closed, and every call is pinned to your organization
+  server-side. `request_number` creates a *request* — a live number still
+  requires an OpenPhonex operator.
+</Callout>
+
+## 1. Install the skill
+
+Copy this directory into your OpenClaw checkout as `skills/openphonex/` and make
+the bridge scripts executable.
+
+```bash
+cp -R connectors/openclaw /path/to/openclaw/skills/openphonex
+cd /path/to/openclaw
+chmod +x skills/openphonex/bin/openphonex-mcp-bridge.mjs \
+         skills/openphonex/bin/openphonex_mcp_bridge.py \
+         skills/openphonex/bin/openphonex-mint-key.sh
+```
+
+## 2. Register the MCP server
+
+Merge the `openphonex` block from `mcporter.template.json` into your
+`config/mcporter.json` under `mcpServers`, alongside any existing entries.
+
+```json
+{
+  "mcpServers": {
+    "openphonex": {
+      "command": "node",
+      "args": ["skills/openphonex/bin/openphonex-mcp-bridge.mjs"],
+      "env": {
+        "OPENPHONEX_BASE_URL": "https://api.openphonex.com",
+        "OPENPHONEX_API_KEY": "tai_your_scoped_key",
+        "OPENPHONEX_ORGANIZATION_ID": "org_your_org"
+      }
+    }
+  }
+}
+```
+
+The `OPENPHONEX_API_KEY` is a **secret** — keep it in the mcporter `env` block
+(or an env-var reference), never in `SKILL.md`, and git-ignore it the same way
+you would `.env`.
+
+### Prefer the Python bridge?
+
+Swap the command — the wire protocol is identical.
+
+```json
+"command": "python3",
+"args": ["skills/openphonex/bin/openphonex_mcp_bridge.py"]
+```
+
+### Remote-MCP shortcut
+
+If your mcporter build supports remote MCP directly, you can skip the local
+bridge entirely.
+
+```json
+"openphonex": {
+  "url": "https://api.openphonex.com/mcp",
+  "headers": { "Authorization": "Bearer tai_your_scoped_key" }
+}
+```
+
+The stdio bridge is the guaranteed-portable default because it matches the
+mcporter schema already in use. Restart OpenClaw / re-run mcporter so it picks up
+the new server; `tools/list` will then show the OpenPhonex tools.
+
+## 3. Verify
+
+Run the offline smoke test (no live Cloud needed) from the OpenPhonex repo.
+
+```bash
+PYTHONPATH=src python -m unittest discover -s connectors/openclaw/tests
+# or
+PYTHONPATH=src python -m pytest connectors/openclaw/tests
+```
+
+Then a live-ish check with the agent:
+
+- *"search coverage for GB and read the coverage matrix"* → `get_coverage`
+- *"create a shared-number trial"* → `create_trial_call`
+- *"show me the transcript for call X"* → `get_call_transcript`
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `missing MCP scopes: X` | The key lacks scope `X`. | Re-mint with the needed scope (within what your admin credential holds). |
+| `MCP organization mismatch` | A tool arg's `organization_id` differs from the key's org. | Pass your own `organization_id` (prefill from `OPENPHONEX_ORGANIZATION_ID`). |
+| `invalid or revoked API key` | The key was rotated/revoked, or is wrong. | Mint a fresh key and update the mcporter `env`. |
+| `bridge transport error` | The bridge can't reach `OPENPHONEX_BASE_URL`. | Check the URL, network egress, and that the instance is reachable. |
+| No OpenPhonex tools in `tools/list` | mcporter didn't pick up the new server. | Confirm the merge into `config/mcporter.json` and restart OpenClaw. |

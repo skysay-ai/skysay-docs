@@ -1,0 +1,50 @@
+---
+title: Wire an agent to a number
+description: Connect an external or hosted agent, set its voice stack, and answer real calls.
+---
+
+An OpenPhonex **agent** is the phone-side configuration that decides how a call
+is heard, thought about, and spoken. There are three modes:
+
+- `external_audio` — your own audio agent, connected over a webhook + audio
+  stream URL. Use `connect_external_agent` for the common case.
+- `external_text` — your own text agent; OpenPhonex handles STT/TTS around it.
+- `hosted` — OpenPhonex runs the whole STT/LLM/TTS stack for you.
+
+## 1. Create the agent
+
+```text
+you › connect my audio agent at wss://my-agent.example/stream
+→ connect_external_agent(...)        # agents:write
+```
+
+`create_agent` is the full form (mode, first message, system prompt, voice
+stack). `connect_external_agent` is the shortcut for an `external_audio` agent
+with webhook and audio-stream URLs.
+
+## 2. Choose a voice stack
+
+For hosted or external-text agents, pick STT / LLM / TTS providers from the
+catalog. `get_agent_catalog` lists selectable providers with cost, latency,
+languages, streaming, and runnability; filter by component and language (e.g.
+`language=et` surfaces the single Estonian TTS).
+
+```text
+→ get_agent_catalog(component="tts", language="et")   # coverage:read
+→ set_agent_voice_stack(agent_id="ag_...", ...)        # agents:write
+```
+
+`set_agent_voice_stack` validates your selection against the catalog and the
+Estonian `eleven_v3`-only TTS guard.
+
+## 3. Point a number at it
+
+Number rules decide what happens when someone calls a number and which agents
+can use it to place calls. Update them with `update_number_rules`
+(`numbers:write`); read them with `get_number_rules` (`numbers:read`).
+
+<Callout title="Trial first">
+  Before assigning a live number, place a shared-number
+  [trial call](/docs/trial-calls) to hear the agent end to end — no number
+  provisioning required.
+</Callout>

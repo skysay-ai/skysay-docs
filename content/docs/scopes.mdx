@@ -1,0 +1,51 @@
+---
+title: Scopes & permissions
+description: The scope catalog, prefix scopes, and fail-closed semantics that make a key a permission boundary.
+---
+
+A scope is the unit of permission on a `tai_` key. The key is the boundary: tools
+whose `required_scopes` are not present fail closed. Grant the fewest scopes an
+agent needs.
+
+## Scope catalog
+
+| Scope | Grants |
+| --- | --- |
+| `account:read` | Workspace overview — wallet, agents, numbers, calls, SMS, usage. |
+| `coverage:read` | Coverage, number catalog, agent catalog, requirements. |
+| `agents:write` | Create and configure agents; set voice stacks. |
+| `trial_calls:write` | Create shared-number trial calls. |
+| `numbers:read` | List numbers, read number rules, list phone servers. |
+| `numbers:write` | Request numbers, update rules, create/test phone servers. |
+| `calls:read` | List calls, read call status. |
+| `calls:write` | Place policy-gated outbound calls. |
+| `recordings:read` | Read recording metadata, disclosure, and transcripts. |
+| `sms:read` | Read SMS conversations. |
+| `sms:send` | Send policy-gated SMS. |
+| `policy:evaluate` | Evaluate outbound policy and authorize outbound. |
+| `onboarding:read` | Read the workspace risk envelope. |
+| `onboarding:write` | Request risk-envelope changes. |
+
+## Prefix scopes
+
+A prefix scope covers every leaf under it. `sms:*` grants both `sms:read` and
+`sms:send`; grant the leaf for least privilege, the prefix when the whole group
+is genuinely needed.
+
+## Control-plane scopes are off-limits
+
+Agent keys never carry `api_keys:write`, `wallet:write`, `operator:*`,
+`worker_jobs:write`, or `provider_mutations:*`. Requested scopes are clamped
+server-side to what the minting credential holds, so a key cannot self-escalate.
+
+## Fail-closed
+
+<Callout title="No partial execution">
+  A `tools/call` for a tool whose `required_scopes` are missing returns
+  `missing MCP scopes: X` and does nothing. There is no best-effort fallback.
+  Every call is also pinned to the key's organization — a mismatched
+  `organization_id` is rejected with `MCP organization mismatch`.
+</Callout>
+
+See [Authentication & keys](/docs/authentication) for minting, rotating, and
+revoking keys.

@@ -1,0 +1,113 @@
+---
+title: Introduction
+description: OpenPhonex is agent-native telephony — real phone numbers, calls, and SMS an AI agent runs on its own over MCP.
+---
+
+OpenPhonex is **agent-native telephony**: real phone numbers, calls, and SMS
+that an AI agent can run on its own. Because every capability is exposed over
+**MCP** and described in **llms.txt**, any MCP-capable agent already knows how to
+use it — no bespoke integration required.
+
+<Callout title="Already speak MCP?">
+  You are basically done. Point your client at `POST /mcp`, pass a scoped key as
+  a Bearer token, and the OpenPhonex tools show up in `tools/list`.
+</Callout>
+
+## What is OpenPhonex?
+
+OpenPhonex gives your agents the phone side of the world: search number
+coverage, wire an agent to a number, place a trial or outbound call, read
+recordings and transcripts, and send SMS — all behind one scoped API key that is
+also your permission boundary. Numbers, compliance, billing, and provider
+operations stay on the OpenPhonex side; your agent gets the capability tools and
+nothing else.
+
+## How your agent connects
+
+There is one universal path and two convenience wrappers around it. All three
+end at the same scoped tools.
+
+<Cards>
+  <Card title="Hosted MCP" href="/docs/mcp" description="01 · universal — any MCP client, one Bearer key. POST /mcp" />
+  <Card title="OpenClaw connector" href="/docs/install-connector" description="02 · reference — skill + stdio bridge + key mint. skills/openphonex" />
+  <Card title="REST + llms.txt" href="/docs/rest-endpoints" description="03 · fallback — no MCP? Call the JSON API. /openapi.json" />
+</Cards>
+
+## Quickstart
+
+Three steps from zero to your agent placing a trial call. This uses the OpenClaw
+connector as the worked example; any MCP client follows the same shape.
+
+<Steps>
+
+<Step>
+
+### Install the connector
+
+Drop the OpenPhonex skill into your agent and register the MCP server it ships
+with.
+
+```bash
+# copy the connector into your agent checkout
+cp -R connectors/openclaw skills/openphonex
+
+# register the hosted MCP endpoint (mcporter)
+npx mcporter add openphonex --url https://api.openphonex.com/mcp
+```
+
+</Step>
+
+<Step>
+
+### Mint a scoped key
+
+One org key with agent-facing scopes only. Control-plane scopes are omitted and
+clamped server-side, so the key cannot self-escalate.
+
+```bash
+curl -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"name":"my agent",
+       "scopes":["coverage:read","agents:write",
+                 "trial_calls:write","calls:read",
+                 "recordings:read"]}'
+# -> returns a tai_… key ONCE. Store it now.
+```
+
+</Step>
+
+<Step>
+
+### Your agent calls the tools
+
+Set the key in the MCP server env, restart, and ask your agent in plain
+language. It picks the right tool from `tools/list`.
+
+```text
+you › search GB number coverage, then place a trial call
+
+# the agent runs, over MCP:
+→ get_coverage(country="GB")
+→ create_trial_call(...)      # returns a dial-in PIN
+✓ transcript + cost summarized back to you
+```
+
+</Step>
+
+</Steps>
+
+<Callout type="info" title="Safety by default">
+  Live outbound calls and SMS are policy-gated: the agent evaluates
+  `evaluate_outbound_policy` and surfaces the decision and cost before anything
+  leaves the machine. Scopes fail closed.
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card title="Quickstart" href="/docs/quickstart" description="The full five-minute path, end to end." />
+  <Card title="Install the connector" href="/docs/install-connector" description="OpenClaw skill, bridge, and key mint in detail." />
+  <Card title="MCP tool reference" href="/docs/tool-reference" description="Every tool, its scope, and its arguments." />
+  <Card title="Knowledge Bases" href="/docs/knowledge-bases" description="Ground a hosted phone agent in your private business documents." />
+  <Card title="API reference" href="/docs/rest-endpoints" description="REST endpoints and the OpenAPI spec." />
+</Cards>

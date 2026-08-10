@@ -1,0 +1,43 @@
+---
+title: MCP overview
+description: The hosted MCP endpoint — POST /mcp, tools/list schemas with required_scopes, and prefix scopes.
+---
+
+OpenPhonex speaks **MCP** (Model Context Protocol). Any MCP-capable client points
+at one endpoint, passes a scoped key, and the OpenPhonex tools appear in
+`tools/list` — ready to call. This is the universal path; the
+[OpenClaw connector](/docs/install-connector) and the
+[REST API](/docs/rest-endpoints) are convenience wrappers around the same tools.
+
+## The endpoint
+
+```http
+POST https://api.openphonex.com/mcp
+Authorization: Bearer tai_your_scoped_key
+```
+
+Standard JSON-RPC: `tools/list` to discover, `tools/call` to invoke.
+
+## tools/list carries scopes
+
+Each tool in `tools/list` advertises its `required_scopes`. `tools/list` returns
+**all** tools regardless of your key, but a `tools/call` for a tool whose scopes
+are not on your key fails closed with `missing MCP scopes: X`. This lets an agent
+see the full surface while still being held to least privilege.
+
+## Prefix scopes
+
+Some scopes are grouped by prefix — for example `sms:*` covers both `sms:read`
+and `sms:send`. Grant the specific leaf scope for least privilege, or the prefix
+when an agent legitimately needs the whole group.
+
+<Cards>
+  <Card title="Tool reference" href="/docs/tool-reference" description="Every tool, its scope, and what it does." />
+  <Card title="Scopes & permissions" href="/docs/scopes" description="The full scope catalog and fail-closed rules." />
+</Cards>
+
+<Callout title="Superseded: /docs/agents">
+  This page replaces the old `/docs/agents` stub. Its MCP-endpoint, OpenAPI, and
+  scoped-key material now lives here and in
+  [Authentication & keys](/docs/authentication).
+</Callout>

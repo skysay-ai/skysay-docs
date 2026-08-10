@@ -1,0 +1,108 @@
+---
+title: Knowledge Bases
+description: Give a hosted OpenPhonex agent private business documents it can search during a live call.
+---
+
+Knowledge Bases let a hosted phone agent answer questions using your own
+business material: opening hours, services, policies, menus, product details,
+FAQs, booking rules, or internal operating instructions.
+
+The agent does not memorize the whole document or receive it on every call.
+When a caller asks a relevant question, the agent searches only the knowledge
+bases you attached to that agent and uses the matching passages to answer.
+
+<Callout type="info" title="Available to every workspace">
+  Knowledge Bases are included in the workspace. Open **Knowledge** in the
+  dashboard to create your first base; no operator activation is required.
+</Callout>
+
+## Set up a knowledge base
+
+<Steps>
+
+<Step>
+
+### Create a base
+
+Use one clear subject per base, such as `Customer handbook`, `Sauna bookings`,
+or `Product catalogue`. Keeping unrelated material separate makes agent access
+easier to understand and maintain.
+
+</Step>
+
+<Step>
+
+### Upload source documents
+
+Upload a TXT, Markdown, PDF, or DOCX file up to 20 MB. OpenPhonex stores the
+source privately, extracts its text asynchronously, and creates a searchable
+index. The document is usable when its status becomes **Ready**.
+
+</Step>
+
+<Step>
+
+### Choose which agent may use it
+
+Under **Agent access**, attach the ready base to one or more hosted agents. An
+agent can search only bases explicitly attached to it. Detaching a base removes
+it from future calls without deleting the source.
+
+</Step>
+
+<Step>
+
+### Test with a real question
+
+Call the agent and ask something answered by the document. Open the completed
+call in **Calls** to see the source titles used for the answer. OpenPhonex does
+not expose the caller's search query or raw retrieved passages in the dashboard.
+
+</Step>
+
+</Steps>
+
+## How retrieval works
+
+During an authorized LiveKit call, the model can invoke one bounded tool:
+
+```text
+search_knowledge_base(query="Are towels included with the sauna booking?")
+```
+
+OpenPhonex derives the workspace, agent, and allowed bases from the call. The
+model cannot choose another workspace, supply document identifiers, raise the
+result limit, or turn document text into another tool call. Retrieval returns
+at most five short, sourced passages.
+
+Uploaded content is treated as untrusted data. Text inside a document cannot
+change the agent's permissions, call another tool, send a message, or override
+the agent's system instructions.
+
+## Updating and deleting content
+
+- Upload a new source when business information changes.
+- Retry a failed document after correcting the source or provider problem.
+- Detach a base when one agent should stop using it.
+- Delete a document or base to hide it from new retrieval immediately; private
+  object and index cleanup then finishes asynchronously.
+
+## Privacy and processing
+
+Source files are Customer Content. They are stored in OpenPhonex private object
+storage, not published at a public URL. Google Gemini processes the source text
+and live search query needed to create embeddings and retrieve relevant
+passages. A source is available only to the hosted agents you attach to it.
+
+See the [Privacy Policy](/privacy) for the wider data-processing terms.
+
+## Current V1 boundaries
+
+The first release supports direct file uploads and hosted agents using Gemini.
+Website crawling, cloud-drive and CRM connectors, OCR, customer-configurable
+model providers, quotas, and knowledge-specific billing are planned follow-up
+capabilities rather than hidden behavior in this release.
+
+For API automation, see the Knowledge Base routes in the
+[OpenAPI reference](/docs/openapi), including `POST /v1/knowledge-bases`, the
+document upload routes, and `PATCH /v1/agents/{agent_id}/knowledge-bases`.

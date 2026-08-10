@@ -1,0 +1,30 @@
+---
+title: Send SMS
+description: Read SMS conversations and send policy-gated messages from your numbers.
+---
+
+OpenPhonex exposes SMS as two scoped capabilities: reading conversation history
+and sending messages. Sending is gated separately from reading so a read-only
+agent can follow a thread without ever being able to send.
+
+## Read conversations
+
+```text
+→ list_conversations(...)   # sms:read
+```
+
+Connects SMS history to the same customer workspace as calls and numbers.
+
+## Send a message
+
+```text
+→ send_sms(from_phone_number_id="pn_...", to_phone_number="+1555...", body="...")
+  # sms:send
+```
+
+<Callout type="warn" title="Sending is policy-gated">
+  `send_sms` requires the `sms:send` scope and is subject to the same outbound
+  policy as calls — blocked categories (telemarketing, mass outreach,
+  lead generation, and more) fail closed. Evaluate policy and get explicit human
+  approval before sending live. See [Policy & outbound](/docs/policy-and-outbound).
+</Callout>

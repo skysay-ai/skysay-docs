@@ -1,0 +1,42 @@
+---
+title: "Your agent already knows how to use OpenPhonex"
+description: The MCP + llms-full.txt thesis — why an agent-native telephony API needs no bespoke integration.
+date: 2026-07-04
+author: OpenPhonex Team
+tag: Engineering
+---
+
+Most APIs assume a human will read the docs and write an integration. An
+agent-native API assumes the opposite: the agent reads the surface and calls it
+directly. OpenPhonex is built for the second world.
+
+## MCP is the integration
+
+Every OpenPhonex capability is an **MCP tool** with a declared `required_scopes`
+contract. An agent points its MCP client at `POST /mcp`, passes a scoped `tai_`
+key as a Bearer token, and the tools appear in `tools/list` — coverage search,
+agent wiring, trial calls, call evidence, SMS, policy-gated outbound. There is no
+SDK to install per language, no glue code to maintain. The
+[MCP overview](/docs/mcp) has the shape; the
+[tool reference](/docs/tool-reference) has every tool and its scope.
+
+## llms-full.txt is the manual
+
+Point an agent at [`/llms-full.txt`](/llms-full.txt) and it pulls the entire docs
+and blog corpus in one request — every page's processed markdown, cross-linked to
+the API's own `/control-plane/openapi.json` and `/control-plane/llms.txt`. Every
+page is also available as raw markdown by appending `.md` to its URL, so an agent
+can fetch exactly the page it needs without scraping HTML.
+
+## Fail-closed keeps it safe
+
+"Works with any AI" does not mean "does anything". The scoped key is the
+permission boundary: a `tools/call` for a tool whose scopes are not on the key
+fails closed with `missing MCP scopes`, every call is pinned to the key's
+organization, and live outbound is policy-gated. An agent gets exactly the
+capabilities it was granted — and nothing else.
+
+## Try it
+
+The [Quickstart](/docs/quickstart) is three moves — install, mint, call — and
+about five minutes to your agent placing a trial call over MCP.

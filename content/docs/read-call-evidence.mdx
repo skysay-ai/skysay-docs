@@ -1,0 +1,37 @@
+---
+title: Read call evidence
+description: Recordings, waveform peaks, transcript turns, summaries, and retention/disclosure state for every call.
+---
+
+Every call — trial or production — attaches evidence to the session. An agent
+reads it back with the call and recording tools.
+
+## The evidence tools
+
+```text
+→ list_calls(...)                        # calls:read
+→ get_call(call_id="cl_...")             # calls:read — status + recording state
+→ get_call_recording(call_id="cl_...")   # recordings:read — metadata + disclosure
+→ get_call_transcript(call_id="cl_...")  # recordings:read — transcript turns
+```
+
+## What a recording contains
+
+A `recording` is the call's audio metadata plus:
+
+- **Waveform peaks** — for rendering a scrubbable waveform.
+- **Transcript turns** — speaker-attributed turns of the conversation.
+- **Retention / disclosure state** — how long the audio is kept and whether the
+  required call disclosure was made.
+
+`get_call` returns the call status and recording state; `get_call_recording`
+returns recording metadata and disclosure state; `get_call_transcript` returns
+the transcript turns. Recording reads require the `recordings:read` scope, which
+is distinct from `calls:read` so you can grant transcript access without call
+metadata, or vice versa.
+
+<Callout type="info" title="Retention">
+  Recording retention runs on the OpenPhonex side (dry-run or execute). The
+  disclosure state on each recording tells you whether the call was announced as
+  recorded — surface it when you summarize a call back to a human.
+</Callout>

@@ -1,0 +1,51 @@
+---
+title: Deployment modes
+description: Fully managed cloud vs managed numbers with a self-hosted gateway — who provides the brain, and where the media runs.
+---
+
+Every deployment answers two questions: **who provides the brain** (the LLM), and
+**where does the media run** (the gateway that carries call audio). OpenPhonex's
+two MVP launch paths differ only on the second.
+
+<img src="/diagrams/deployment-modes.svg" alt="OpenPhonex deployment modes: fully managed cloud versus managed numbers with a self-hosted gateway" />
+
+## `fully_managed_cloud`
+
+OpenPhonex Cloud runs everything: the API, the hosted **media gateway**, the
+carrier/provider account, numbers, credits, the compliance workflow, and abuse
+controls. You bring an agent and a scoped key; the phone side is entirely
+managed. This is the fastest path to a live line.
+
+## `managed_numbers_self_hosted_gateway`
+
+You run the **media gateway** yourself (Docker/media locally), while OpenPhonex
+Cloud still manages the API account, carrier/provider numbers, billing, the
+compliance workflow, and abuse controls. Use this when call media must stay in
+your own network but you still want OpenPhonex to own numbers, compliance, and
+provider operations.
+
+Every number and gateway response includes `provider_account_id` and
+`provider_account`, so you can always tell managed, customer-BYO,
+self-managed provider, and sandbox accounts apart.
+
+<Callout title="Later: fully self-hosted / BYO provider">
+  A fully self-hosted / bring-your-own-provider path (your own carrier or a future
+  provider account) is designed into the same open-source stack, but it is a
+  later path — not one of the two MVP launch modes.
+</Callout>
+
+## Picking a mode
+
+| | `fully_managed_cloud` | `managed_numbers_self_hosted_gateway` |
+| --- | --- | --- |
+| API account | OpenPhonex | OpenPhonex |
+| Numbers & provider ops | OpenPhonex | OpenPhonex |
+| Billing & compliance | OpenPhonex | OpenPhonex |
+| Media gateway | OpenPhonex (hosted) | **You** (Docker/media local) |
+| Fastest to live | Yes | — |
+| Media stays in your network | — | Yes |
+
+To scaffold the self-hosted path, the API returns an install plan:
+`GET /v1/self-hosted/install-plan?deployment_model_id=managed_numbers_self_hosted_gateway`
+lists the customer/operator steps, required env names, the compose command, and
+the doctor command.

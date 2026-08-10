@@ -1,0 +1,78 @@
+---
+title: Tool reference
+description: Every OpenPhonex MCP tool with its required scope, generated from the server's TOOL_SCOPES.
+---
+
+Every tool the agent can call, with the scope it requires. Scopes are
+authoritative on the server (`TOOL_SCOPES` in `src/telephony_ai/mcp.py`) — treat
+the live `tools/list` on your instance as canonical.
+
+## Account
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `account_overview` | `account:read` | Wallet, agents, numbers, calls, SMS conversations, and usage for a workspace. |
+
+## Coverage & catalog
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `get_coverage` | `coverage:read` | Supported countries with voice, SMS, registration, and onboarding speed. |
+| `get_number_catalog` | `coverage:read` | Number SKUs with setup/monthly price, capabilities, and onboarding terms. |
+| `get_agent_catalog` | `coverage:read` | Selectable STT/LLM/TTS providers with cost, latency, languages, streaming, runnability. |
+| `check_number_requirements` | `coverage:read` | Country and number-type onboarding requirements in plain terms. |
+
+## Agents
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `create_agent` | `agents:write` | Create a first-class agent in `external_audio`, `external_text`, or `hosted` mode. |
+| `connect_external_agent` | `agents:write` | Shortcut for an `external_audio` agent with webhook + audio-stream URLs. |
+| `set_agent_voice_stack` | `agents:write` | Set transcriber/model/voice, first message, system prompt, language. |
+
+## Trial calls
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `create_trial_call` | `trial_calls:write` | Create a shared-number trial call PIN for a connected agent. |
+
+## Numbers
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_numbers` | `numbers:read` | List phone numbers and registration status. |
+| `get_number_rules` | `numbers:read` | Get customer-facing number rules for one phone number. |
+| `list_phone_servers` | `numbers:read` | List customer phone servers for self-hosted media/calling. |
+| `request_number` | `numbers:write` | Create a managed number request (live ordering needs operator approval). |
+| `update_number_rules` | `numbers:write` | Update customer-facing number rules for one phone number. |
+| `create_phone_server` | `numbers:write` | Create a customer phone server (dry-run verify before assigning). |
+| `test_phone_server` | `numbers:write` | Dry-run verify a customer phone server before assigning a number. |
+
+## Calls & recordings
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_calls` | `calls:read` | List calls for a workspace. |
+| `get_call` | `calls:read` | Get call status and recording state. |
+| `get_call_recording` | `recordings:read` | Get recording metadata and disclosure state. |
+| `get_call_transcript` | `recordings:read` | Get transcript turns. |
+| `create_outbound_call` | `calls:write` | Place a policy-gated outbound call. |
+
+## SMS
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_conversations` | `sms:read` | List SMS conversations for a workspace. |
+| `send_sms` | `sms:send` | Send a policy-gated SMS message. |
+
+## Policy & onboarding
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `evaluate_outbound_policy` | `policy:evaluate` | Return the outbound policy decision and cost before anything leaves. |
+| `authorize_outbound` | `policy:evaluate` | Authorize a policy-approved outbound action. |
+| `get_risk_envelope` | `onboarding:read` | Read the workspace risk envelope (caps, gates). |
+| `request_risk_envelope` | `onboarding:write` | Request a risk-envelope change. |
+
+See [Scopes & permissions](/docs/scopes) for the full scope catalog and
+fail-closed semantics.

@@ -1,0 +1,63 @@
+---
+title: Policy & outbound
+description: How policy-gated outbound works — evaluate first, authorize, then place. Blocked categories and the broker example.
+---
+
+Live outbound calls and SMS never leave the machine unchecked. OpenPhonex makes
+the agent **evaluate policy first**, surface the decision and cost, and only then
+authorize and place. Scopes fail closed, and the policy engine blocks whole
+categories of outbound regardless of scope.
+
+## The outbound sequence
+
+<Steps>
+
+<Step>
+
+### Evaluate
+
+```text
+→ evaluate_outbound_policy(...)   # policy:evaluate
+```
+
+Returns the policy decision and cost estimate **before** anything leaves the
+machine. This is a read — it changes nothing.
+
+</Step>
+
+<Step>
+
+### Get explicit human approval
+
+Show the decision and cost to a human and wait for a clear yes. Never place a
+live call or send a live SMS on an implied approval.
+
+</Step>
+
+<Step>
+
+### Authorize and place
+
+```text
+→ authorize_outbound(...)    # policy:evaluate
+→ create_outbound_call(...)  # calls:write
+```
+
+</Step>
+
+</Steps>
+
+## Blocked categories
+
+The policy engine blocks outbound in these categories regardless of scope:
+healthcare, political, emergency, robocalling, mass outreach, telemarketing,
+lead generation, scraped / listed-contact broker campaigns, spoofing, and cold
+sales. Debt collection is not category-blocked — it is permitted subject to
+per-customer onboarding approval and the acceptable-use policy.
+
+<Callout type="warn" title="Broker example">
+  A Czech contact-broker campaign that dials a purchased list is a
+  scraped/listed-contact broker category — `evaluate_outbound_policy` returns a
+  blocked decision, and `create_outbound_call` fails closed. The agent should
+  report the block and stop, not retry.
+</Callout>

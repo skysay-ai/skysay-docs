@@ -1,0 +1,27 @@
+---
+title: Webhooks
+description: Call-lifecycle and carrier SMS delivery callbacks — where your call and SMS events land.
+---
+
+Webhooks deliver call-lifecycle and SMS events to your endpoint so your agent can
+react without polling. Configure the destination in the dashboard; the recent
+event stream is visible under **Webhooks** in the app.
+
+## Call lifecycle
+
+Call events fire as a call moves through its lifecycle — ringing, answered,
+recording available, transcript ready, ended — each carrying the call id so you
+can fetch full [evidence](/docs/read-call-evidence) with `get_call` /
+`get_call_transcript`.
+
+## SMS delivery (carrier callbacks)
+
+Inbound SMS and delivery-status callbacks arrive from the upstream carrier and
+are normalized into conversation events. Read the thread with `list_conversations`
+(`sms:read`).
+
+<Callout type="info" title="Evidence, not payloads">
+  Treat webhook bodies as signals to fetch authoritative state over MCP/REST
+  rather than the source of truth. The call and recording tools always return the
+  current, scope-checked view.
+</Callout>

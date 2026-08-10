@@ -1,0 +1,76 @@
+---
+title: Authentication & keys
+description: Scoped tai_ keys, Bearer auth, scope clamping and fail-closed semantics, org isolation, and rotate/revoke.
+---
+
+Every agent request authenticates with one scoped **`tai_` API key** passed as a
+Bearer token. The key is also your permission boundary — it decides which tools
+run and which organization they run against. Numbers, compliance, billing, and
+provider operations are never on the key; the agent gets capability tools and
+nothing else.
+
+## Bearer auth
+
+Pass the key on every call to `POST /mcp` (or the REST API):
+
+```http
+Authorization: Bearer tai_your_scoped_key
+```
+
+Over the OpenClaw connector the key lives in the mcporter `env` block as
+`OPENPHONEX_API_KEY`; the stdio bridge attaches it to each JSON-RPC call. It is a
+secret — never commit it, never put it in `SKILL.md`.
+
+## Minting a key
+
+```bash
+curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
+  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"organization_id":"org_...",
+       "name":"OpenClaw agent",
+       "scopes":["account:read","coverage:read","agents:write",
+                 "trial_calls:write","calls:read","recordings:read"]}'
+```
+
+The response returns `token` **once**. Store it immediately — it is never
+retrievable again.
+
+## Scope clamping (cannot self-escalate)
+
+Requested scopes are **clamped server-side** to what your admin credential
+already holds. A key can never grant itself more than its minter has. Control-
+plane scopes — `api_keys:write`, `wallet:write`, `operator:*`,
+`worker_jobs:write`, `provider_mutations:*` — are intentionally omitted from
+agent keys. The agent gets tools, never the control plane.
+
+## Fail-closed semantics
+
+`tools/list` returns every tool, but a `tools/call` for a tool whose
+`required_scopes` are not on your key fails with `missing MCP scopes: X`. There
+is no partial or best-effort execution — unauthorized calls fail closed. Mint
+only the scopes you need.
+
+<Callout title="Least privilege">
+  For a cautious agent, drop `sms:send`, `calls:write`, and `numbers:write` and
+  run a read + trial-only key: `account:read`, `coverage:read`, `agents:write`,
+  `trial_calls:write`, `calls:read`, `recordings:read`.
+</Callout>
+
+## Org isolation
+
+Every call runs pinned to the key's organization. A tool argument whose
+`organization_id` differs from the key's org is rejected with `MCP organization
+mismatch`. You cannot read or write another tenant.
+
+## Rotate / revoke
+
+Mint a new key, swap the mcporter `env`, then revoke the old one:
+
+```bash
+curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys/{key_id}/revoke" \
+  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN"
+```
+
+The bridge is stateless, so there is no downtime on the OpenPhonex side. See the
+full [scope catalog](/docs/scopes) for every scope and the tool it gates.

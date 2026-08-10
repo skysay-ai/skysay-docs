@@ -1,0 +1,52 @@
+---
+title: REST endpoints
+description: The key REST endpoints — agents, web/trial calls, numbers, calls, messages, and wallet/usage.
+---
+
+No MCP client? Every capability is also a plain JSON REST endpoint under `/v1`.
+Authenticate with the same scoped `tai_` key as a Bearer token. The
+[OpenAPI spec](/docs/openapi) is the machine-readable source of truth; this is
+the human map.
+
+## Agents
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/v1/agents` | Create an agent (`external_audio`, `external_text`, `hosted`). |
+| `POST` | `/v1/agents/{id}/voice-stack` | Set the STT/LLM/TTS stack. |
+
+## Calls
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/v1/trial-calls` | Create a shared-number trial call PIN. |
+| `POST` | `/v1/calls/outbound` | Place a policy-gated outbound call. |
+| `GET` | `/v1/calls` | List calls. |
+| `GET` | `/v1/calls/{id}` | Call status + recording state. |
+
+## Numbers
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/coverage` | Country coverage matrix. |
+| `POST` | `/v1/number-requests` | Request a managed number (operator-approved). |
+| `GET` | `/v1/numbers` | List numbers and registration status. |
+| `GET` `PUT` | `/v1/numbers/{id}/rules` | Read / update number rules. |
+
+## Messages
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/conversations` | List SMS conversations. |
+| `POST` | `/v1/messages` | Send a policy-gated SMS. |
+
+## Wallet & usage
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/account/overview` | Wallet, agents, numbers, usage rollup. |
+
+<Callout title="Keys & scopes are identical to MCP">
+  REST and MCP share the same scoped keys and the same fail-closed scope checks.
+  See [Authentication & keys](/docs/authentication).
+</Callout>
