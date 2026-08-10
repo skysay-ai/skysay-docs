@@ -138,6 +138,24 @@ function sitemapUrls(xml) {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => decodeEntities(m[1]));
 }
 
+// The live root sitemap is a <urlset> today, but becomes a <sitemapindex> once
+// SCH-334's private-side PR deploys (that app stops listing docs URLs directly
+// and points at this app's /docs/sitemap.xml instead). <loc> means a child
+// sitemap in an index and a page in a urlset, so resolve one level of
+// indirection rather than silently comparing pages against sitemap URLs — which
+// would report every docs page as "not in live sitemap".
+async function livePageUrls(rootUrl) {
+  const root = await request(rootUrl);
+  if (root.status !== 200) return [];
+  if (!/<sitemapindex[\s>]/i.test(root.body)) return sitemapUrls(root.body);
+  const pages = [];
+  for (const child of sitemapUrls(root.body)) {
+    const res = await request(child);
+    if (res.status === 200) pages.push(...sitemapUrls(res.body));
+  }
+  return pages;
+}
+
 function pathOf(url) {
   try {
     return new URL(url).pathname.replace(/\/$/, "") || "/";
@@ -248,8 +266,7 @@ async function main() {
   // Live sitemap, filtered to the prefixes this app serves.
   let liveOwnedPaths = [];
   if (CHECK_LIVE) {
-    const liveSitemap = await request(`${LIVE}/sitemap.xml`);
-    liveOwnedPaths = sitemapUrls(liveSitemap.body).map(pathOf).filter(isOwned);
+    liveOwnedPaths = (await livePageUrls(`${LIVE}/sitemap.xml`)).map(pathOf).filter(isOwned);
   }
 
   const allPages = [...new Set([...docPaths, "/blog", ...blogPaths, ...liveOwnedPaths, ...localSitemapPaths])].sort();
