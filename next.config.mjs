@@ -29,6 +29,28 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Next emits `s-maxage=31536000` on statically prerendered pages, which
+  // assumes the hosting platform purges its CDN on every deploy. DigitalOcean
+  // App Platform behind Cloudflare does not, so that default meant a published
+  // docs change could sit behind a year-old edge copy — defeating the whole
+  // point of deploying on push.
+  //
+  // Assets are excluded and keep Next's `max-age=31536000, immutable`: their
+  // filenames are content-hashed, so caching them forever is correct and is
+  // what makes the short HTML TTL cheap.
+  async headers() {
+    return [
+      {
+        source: "/((?!docs-assets|_next).*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       // Keep one canonical host for search engines and shared links. On
