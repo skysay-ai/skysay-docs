@@ -29,6 +29,19 @@ jobs:
       - name: Scan repository
         run: python3 scripts/scan_secrets.py .
 
+  api-reference:
+    name: Generated API reference
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      # This stays offline: the checked-in snapshot is generated from a reviewed
+      # application OpenAPI export, not fetched from a deployed environment.
+      - run: python3 scripts/generate_openapi_reference.py --check
+      - run: python3 -m unittest discover -s tests
+
   build:
     name: Build
     runs-on: ubuntu-latest

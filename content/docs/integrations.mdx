@@ -1,0 +1,217 @@
+---
+title: Integrations
+description: Let a hosted agent read current data from your CRM, calendar, billing system, or internal application during a call.
+---
+
+An Integration lets a hosted agent ask your application for a **current, bounded
+fact** during a call. It is for information that changes: an appointment slot,
+order status, customer eligibility, or a current balance. Put stable scripts,
+policies, and FAQs in a [Knowledge Base](/docs/knowledge-bases) instead.
+
+<Callout title="One endpoint, named actions">
+  An Integration is one public HTTPS adapter endpoint and one encrypted,
+  write-only signing secret. An **Action** is a named, typed read operation sent
+  to that endpoint. Giving an Action to an agent is the allowlist: the agent
+  cannot use any other operation merely because it shares the endpoint.
+</Callout>
+
+## The three parts
+
+| Part | What it is | Who controls it |
+| --- | --- | --- |
+| Integration | One public HTTPS endpoint plus its signing secret | Your workspace |
+| Action | A named operation with input and output JSON schemas | Your workspace |
+| Agent access | The explicit attachment that makes an Action available to one hosted agent | Your workspace |
+
+For example, one `https://app.example.com/openphonex/tools` Integration can
+have an `lookup_customer` Action and a `get_available_times` Action. Your
+adapter receives both at that URL and dispatches by `tool.name`; there is no
+one-URL-per-action requirement.
+
+## Set up a read Action
+
+In the Workspace, open **Integrations**, choose **Add integration**, enter the
+endpoint and secret, then define the first Action. Creating the Integration and
+its first Action is atomic: an Integration is not saved without an allowed
+Action.
+
+The REST equivalent is `POST /v1/integrations`. The generated
+[API reference](/docs/api-reference) is authoritative for the current schema;
+this example shows the shape deliberately:
+
+```json
+{
+  "organization_id": "org_123",
+  "project_id": "proj_123",
+  "name": "Customer system",
+  "endpoint_url": "https://app.example.com/openphonex/tools",
+  "signing_secret": "a-random-secret-stored-only-by-you-and-openphonex",
+  "initial_action": {
+    "name": "lookup_customer",
+    "description": "Read the safe customer status for a confirmed caller.",
+    "input_schema": {
+      "type": "object",
+      "properties": { "customer_id": { "type": "string" } },
+      "required": ["customer_id"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": { "status": { "type": "string" } },
+      "required": ["status"]
+    },
+    "operation_kind": "read",
+    "requires_confirmation": false,
+    "timeout_seconds": 5
+  }
+}
+```
+
+Add further Actions with `POST /v1/integrations/{integration_id}/actions`.
+Action names use lowercase letters, numbers, and underscores. Keep both schemas
+small and specific: the input schema is what the model may supply, and the
+output schema is the only shape OpenPhonex accepts back from your adapter.
+
+## What endpoint validation means
+
+At save time OpenPhonex checks that the endpoint has a credential-free `https`
+URL with a hostname that resolves to a public IP address. It rejects loopback,
+private, link-local, multicast, embedded-user/password, and otherwise unsafe
+addresses. It does **not** send a health request, discover operations, or call
+your endpoint when you save the Integration.
+
+That is why `https://www` fails: `www` is not a public DNS hostname. A complete
+URL such as `https://app.example.com/openphonex/tools` can pass this check yet
+still fail at call time if it does not implement the signed JSON protocol below.
+Save-time validation protects the network boundary; it is not a live integration
+test.
+
+## Attach an Action to a hosted agent
+
+In the Workspace, select an active hosted agent under **Agent access**, choose
+the Action, and save. Access is explicit and can be removed without deleting the
+Integration. Disabled Integrations are removed from the active worker allowlist.
+
+With the API, update the hosted agent using `PATCH /v1/agents/{agent_id}` and
+include the selected Action in its `tools` array:
+
+```json
+{
+  "tools": [
+    {
+      "type": "connection",
+      "connection_id": "conn_123",
+      "tool_id": "itool_123",
+      "name": "lookup_customer"
+    }
+  ]
+}
+```
+
+The target agent and your bearer token determine the workspace; do not send an
+organization or project ID in this update body. `tools` replaces the agent's
+complete allowlist, so include any Actions or built-in tools you intend to keep.
+
+Only the Action name, description, and input schema are available to the model.
+The endpoint URL and signing secret are never shown to the model.
+
+## What your adapter receives during a call
+
+When the model decides an attached Action is useful, it supplies only the
+business arguments allowed by that Action's input schema. OpenPhonex derives
+the rest from the canonical call and agent, then sends this JSON body to your
+Integration endpoint:
+
+```json
+{
+  "type": "openphonex.integration_tool_call",
+  "tool_call_id": "toolcall_123",
+  "tool": {
+    "id": "itool_123",
+    "name": "lookup_customer",
+    "operation_kind": "read"
+  },
+  "context": {
+    "organization_id": "org_123",
+    "project_id": "proj_123",
+    "call_id": "call_123",
+    "agent_id": "agent_123",
+    "external_reference": "case_456",
+    "external_group_reference": "batch_2026_08",
+    "call_context": { "locale": "en-GB" }
+  },
+  "arguments": { "customer_id": "cust_789" }
+}
+```
+
+`organization_id`, `project_id`, `call_id`, `agent_id`, external references,
+and `call_context` are injected by OpenPhonex, not accepted from the model.
+Treat them as inputs to verify against your own records. In particular, do not
+put current balances, changing case history, or credentials in `call_context`.
+
+### Verify the signature, then dispatch the Action
+
+OpenPhonex sends `Content-Type: application/json` plus these headers:
+
+| Header | Meaning |
+| --- | --- |
+| `X-Agent-Telco-Timestamp` | Unix timestamp used for freshness verification |
+| `X-Agent-Telco-Signature` | `sha256=<hex HMAC-SHA256>` of `timestamp + "." + raw request body` |
+
+Verify the HMAC over the exact raw request bytes before parsing or acting on the
+body. Reject stale timestamps (OpenPhonex uses a five-minute tolerance), invalid
+signatures, and a context that does not belong to your organization/project/case.
+Then dispatch `tool.name` to your CRM, Calendly, CMS, billing system, or
+database. Your adapter—not the model—owns that mapping and its credentials.
+
+Return one JSON object matching the Action's output schema. OpenPhonex bounds
+the response to 64 KiB and rejects a non-object or schema-invalid response. The
+validated object is returned to the call; do not return a full customer record
+when a small safe projection will answer the question.
+
+A timeout, non-2xx response, invalid JSON, oversized response, or schema
+mismatch is rejected as a failed tool result. Handle that condition honestly in
+the agent's instructions—ask the caller to try later or route to a human—rather
+than treating a failed lookup as an absent or zero value.
+
+```ts
+const expected = createHmac("sha256", process.env.OPENPHONEX_SIGNING_SECRET!)
+  .update(`${timestamp}.${rawBody}`)
+  .digest("hex");
+
+if (!timingSafeEqual(`sha256=${expected}`, request.headers["x-agent-telco-signature"])) {
+  return response.status(401).json({ error: "invalid signature" });
+}
+
+switch (body.tool.name) {
+  case "lookup_customer":
+    return response.json(await readSafeCustomerProjection(body.context, body.arguments));
+  default:
+    return response.status(400).json({ error: "unknown action" });
+}
+```
+
+## V1 is read-only
+
+Every V1 Integration Action has `operation_kind: "read"` and
+`requires_confirmation: false`. OpenPhonex intentionally refuses write actions
+today. A model instruction or transcript alone is not durable proof that the
+correct person consented to a specific business mutation with specific arguments.
+
+Future mutations need a server-owned, auditable confirmation boundary tied to a
+call, agent, exact action, argument hash, and one-time `tool_call_id`. Your
+application will still own its own correct-person checks, business rules,
+idempotency, and audit record. Do not rely on an Integration Action to update a
+CRM, charge a payment, change a booking, or perform another write in V1.
+
+## Production checklist
+
+- Keep the endpoint public HTTPS, but keep your CRM/API credentials only inside
+  your adapter.
+- Verify the raw-body signature and freshness before every dispatch.
+- Authorize the injected organization, project, call, and external reference
+  against your own records.
+- Return the smallest safe response that satisfies the Action output schema.
+- Use a separate read Action for each business capability and attach it only to
+  agents that need it.
+- Use [signed post-call events](/docs/post-call-results) to reconcile outcomes;
+  do not make a live Action response your only durable record.
