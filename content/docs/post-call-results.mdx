@@ -1,0 +1,121 @@
+---
+title: Post-call results
+description: Verify signed lifecycle and artifact events, then optionally read a bounded advisory summary from a completed call.
+---
+
+Use signed lifecycle events to reconcile what OpenPhonex did, and use the call
+evidence endpoints when you need the recording, transcript, or artifact itself.
+An optional post-call extraction is a convenience summary derived after a call;
+it is never the authoritative billing, policy, or customer-system record.
+
+## Configure an event endpoint
+
+In the Workspace, configure the agent/webhook endpoint and use **Send test
+event** before relying on it. The test travels through the real delivery
+pipeline and appears in the delivery feed.
+
+The REST routes are `POST /v1/agent-endpoints`, `GET /v1/agent-endpoints`, and
+`GET /v1/webhook-deliveries`; lifecycle controls are
+`POST /v1/agent-endpoints/{agent_endpoint_id}/pause`, `/resume`, and
+`/test-event`. The endpoint creation schema includes your `webhook_url` and
+`audio_stream_url`; save the returned `webhook_secret` immediately. It is
+revealed once and redacted on later reads. See the [generated API
+reference](/docs/api-reference) for the exact request schema and scopes.
+
+Endpoints receive the default call events. The catalog also includes these
+useful call/result signals:
+
+| Event | Use it for |
+| --- | --- |
+| `call.created`, `call.queued`, `call.dialing`, `call.answered`, `media.started` | Live lifecycle tracking |
+| `call.ended`, `call.failed`, `call.completed` | Terminal reconciliation |
+| `call.transcript.ready`, `call.recording.ready` | Fetching newly available evidence |
+| `call.extraction.ready`, `call.extraction.failed` | Reading optional advisory extraction status |
+
+`GET /v1/webhook-deliveries` is the scoped delivery feed: it shows each event,
+endpoint, retry status, and safe failure evidence. It is the operational view
+when an endpoint needs attention.
+
+## Verify every delivery
+
+OpenPhonex sends a canonical JSON envelope and the same HMAC headers described
+for [Integration Actions](/docs/integrations):
+
+```json
+{
+  "id": "evt_123",
+  "type": "call.completed",
+  "created_at": "2026-08-13T12:00:00Z",
+  "organization_id": "org_123",
+  "data": {
+    "call_id": "call_123",
+    "external_reference": "case_456"
+  }
+}
+```
+
+Verify `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature` over the exact
+raw body before parsing it. Reject stale or invalid signatures, persist the
+event `id`, and make your event handler idempotent. Deliveries are retried with
+backoff, so the same event can arrive more than once. A successful response from
+your endpoint is an acknowledgement, not permission to skip deduplication.
+
+Use terminal call events and the evidence endpoints as the OpenPhonex outcome
+record. The `data` body contains result context; fetch the scoped resource when
+you need the full artifact instead of relying on event bodies as a data export.
+
+## Read evidence and optional extraction
+
+After the relevant ready event, use the generated reference routes for:
+
+- `GET /v1/calls/{call_id}/recording`
+- `GET /v1/calls/{call_id}/transcript`
+- `GET /v1/calls/{call_id}/waveform`
+- `GET /v1/calls/{call_id}/artifacts`
+- `GET /v1/calls/{call_id}/post-call-extraction`
+
+Each read remains scoped to your organization and API key. Store only the
+evidence your policy and retention rules permit.
+
+## Optional post-call extraction
+
+Configure a hosted agent with
+`PATCH /v1/agents/{agent_id}/post-call-extraction`. The request has `enabled`
+and a JSON `schema`. When enabled, the schema must be an object with 1–24
+scalar properties (`string`, `number`, `integer`, or `boolean`), optional
+string enums, and no additional properties.
+
+```json
+{
+  "enabled": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "requested_callback": { "type": "boolean" },
+      "follow_up_reason": { "type": "string" }
+    }
+  }
+}
+```
+
+Every configuration edit creates an immutable version for future calls. After a
+completed call has a transcript, a separate worker may produce a result. Read
+it through `GET /v1/calls/{call_id}/post-call-extraction`; its status is one of
+`not_configured`, `pending`, `running`, `ready`, or `failed`.
+
+<Callout type="warn" title="Advisory, not an action">
+  Extraction never changes a call, policy decision, wallet, customer record, or
+  integration. It can support review and triage, but your application must
+  verify the source evidence before it performs a business action.
+</Callout>
+
+## Security and reliability checklist
+
+- Keep the reveal-once webhook secret in your secret manager; rotate by creating
+  a new endpoint if it is lost.
+- Verify raw-body HMACs and freshness before processing any event.
+- Deduplicate by event `id` and reconcile terminal status with call evidence.
+- Pause a failing endpoint, repair it, send a test event, then resume it.
+- Keep post-call extraction schemas short, neutral, and reviewable; do not use
+  them as a substitute for a verified customer decision.
