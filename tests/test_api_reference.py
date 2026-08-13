@@ -60,6 +60,30 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("/docs/post-call-results", guide_text["integrations"])
         self.assertIn("/docs/integrations", guide_text["customer-applications"])
 
+    def test_integration_attachment_guide_matches_the_openapi_agent_update(self) -> None:
+        patch = self.schema["paths"]["/v1/agents/{agent_id}"]["patch"]
+        self.assertEqual(patch["x-required-scopes"], ["agents:write"])
+        self.assertEqual(
+            patch["requestBody"]["content"]["application/json"]["schema"]["$ref"],
+            "#/components/schemas/AgentUpdate",
+        )
+        attachment = self.schema["components"]["schemas"]["IntegrationActionAttachment"]
+        self.assertEqual(
+            attachment["required"],
+            ["type", "name", "connection_id", "tool_id"],
+        )
+
+        integrations = (ROOT / "content" / "docs" / "integrations.mdx").read_text(encoding="utf-8")
+        attachment_section = integrations.split("## Attach an Action to a hosted agent", 1)[1].split(
+            "## What your adapter receives during a call", 1
+        )[0]
+        self.assertIn("`PATCH /v1/agents/{agent_id}`", attachment_section)
+        self.assertIn('"type": "connection"', attachment_section)
+        self.assertIn('"connection_id": "conn_123"', attachment_section)
+        self.assertIn('"tool_id": "itool_123"', attachment_section)
+        self.assertNotIn('"organization_id": "org_123"', attachment_section)
+        self.assertNotIn('"project_id": "proj_123"', attachment_section)
+
     def test_new_guide_links_resolve_to_docs_pages(self) -> None:
         docs_dir = ROOT / "content" / "docs"
         for slug in ("integrations", "customer-applications", "post-call-results", "api-reference"):

@@ -37,7 +37,7 @@
           },
           "tools": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AgentTool"
             },
             "type": "array"
           },
@@ -81,6 +81,78 @@
         ],
         "type": "object"
       },
+      "AgentTool": {
+        "description": "A legacy string placeholder, a built-in tool, a signed webhook tool, or an attached Integration Action.",
+        "oneOf": [
+          {
+            "description": "Legacy tool placeholder.",
+            "type": "string"
+          },
+          {
+            "$ref": "#/components/schemas/BuiltinAgentTool"
+          },
+          {
+            "$ref": "#/components/schemas/WebhookAgentTool"
+          },
+          {
+            "$ref": "#/components/schemas/IntegrationActionAttachment"
+          }
+        ]
+      },
+      "AgentUpdate": {
+        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary.",
+        "properties": {
+          "audio_stream_url": {
+            "type": "string"
+          },
+          "begin_message": {
+            "type": "string"
+          },
+          "first_message": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "mode": {
+            "enum": [
+              "external_audio",
+              "external_text",
+              "hosted"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recording_enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "system_prompt": {
+            "type": "string"
+          },
+          "tools": {
+            "description": "Complete agent tool allowlist. To attach an Integration Action, use an AgentTool object whose type is connection.",
+            "items": {
+              "$ref": "#/components/schemas/AgentTool"
+            },
+            "type": "array"
+          },
+          "voice": {
+            "type": "string"
+          },
+          "webhook_url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "BillingSettings": {
         "properties": {
           "auto_recharge_enabled": {
@@ -104,6 +176,32 @@
         },
         "required": [
           "organization_id"
+        ],
+        "type": "object"
+      },
+      "BuiltinAgentTool": {
+        "properties": {
+          "country": {
+            "type": "string"
+          },
+          "name": {
+            "enum": [
+              "end_call",
+              "send_sms",
+              "transfer_to_human"
+            ],
+            "type": "string"
+          },
+          "phone_number": {
+            "type": "string"
+          },
+          "type": {
+            "const": "builtin"
+          }
+        },
+        "required": [
+          "type",
+          "name"
         ],
         "type": "object"
       },
@@ -504,6 +602,30 @@
         },
         "required": [
           "to_phone_number"
+        ],
+        "type": "object"
+      },
+      "IntegrationActionAttachment": {
+        "description": "Explicitly attaches one existing Integration Action to this agent. The model cannot choose another action or endpoint.",
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tool_id": {
+            "type": "string"
+          },
+          "type": {
+            "const": "connection"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "connection_id",
+          "tool_id"
         ],
         "type": "object"
       },
@@ -1101,6 +1223,32 @@
           "project_id"
         ],
         "type": "object"
+      },
+      "WebhookAgentTool": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "type": {
+            "const": "webhook"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "url"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1278,20 +1426,57 @@
     },
     "/v1/agents/{agent_id}": {
       "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Agent"
           }
         },
-        "summary": "Get one agent"
+        "summary": "Get one agent",
+        "x-required-scopes": [
+          "agents:read"
+        ]
       },
       "patch": {
+        "description": "The authenticated workspace is resolved from the target agent. For an attached Integration Action, send a connection tool attachment; the model sees only the resolved action name and input schema, never the Integration endpoint or signing secret.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Agent"
           }
         },
-        "summary": "Update one agent"
+        "summary": "Update one agent",
+        "x-required-scopes": [
+          "agents:write"
+        ]
       }
     },
     "/v1/agents/{agent_id}/handoff": {
