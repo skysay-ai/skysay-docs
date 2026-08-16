@@ -1479,6 +1479,95 @@
         ]
       }
     },
+    "/v1/agents/{agent_id}/browser-sessions": {
+      "post": {
+        "description": "Workspace-authenticated only. Does not use the anonymous homepage demo budget. The selected snapshot is published or a validated draft overlay.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "draft": {
+                    "type": "object"
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "snapshot": {
+                    "enum": [
+                      "published",
+                      "draft"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "organization_id",
+                  "project_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Reservation and dispatch metadata for a LiveKit join token"
+          }
+        },
+        "summary": "Create an authenticated LiveKit browser-test session for one hosted agent",
+        "x-required-scopes": [
+          "agents:write",
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/browser-sessions/{session_id}/settle": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settled session"
+          }
+        },
+        "summary": "Settle one workspace browser-test reservation",
+        "x-required-scopes": [
+          "agents:write",
+          "calls:write"
+        ]
+      }
+    },
     "/v1/agents/{agent_id}/handoff": {
       "get": {
         "responses": {
@@ -1582,6 +1671,593 @@
           }
         },
         "summary": "Configure or disable bounded advisory post-call extraction",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow": {
+      "patch": {
+        "description": "Autosave endpoint for the canvas. Accepts a partial or full conversation_workflow.v1 draft plus optional layout (node positions/viewport/collapsed groups, never part of the compiled contract). An invalid intermediate state is allowed to save; the response's validation field reports errors/warnings without blocking the save. Send base_revision -- the revision field from the draft you edited -- to have a write refused when someone else has changed the draft since; the 409 body carries the current draft under 'current' so the caller can reconcile without another request. Omitting base_revision keeps last-write-wins.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "base_revision": {
+                    "description": "The revision this edit was based on. Omit for last-write-wins.",
+                    "type": "integer"
+                  },
+                  "layout": {
+                    "type": "object"
+                  },
+                  "workflow": {
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated workflow draft"
+          },
+          "404": {
+            "description": "Agent has no workflow yet"
+          },
+          "409": {
+            "description": "The draft was changed by someone else; body carries the current draft under 'current'"
+          }
+        },
+        "summary": "Update the agent's workflow draft",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      },
+      "post": {
+        "description": "Creates only a workflow draft: no publish, call, tool authorization, or number attachment. From a starter template (blank, payment_reminder, customer_support, receptionist), blank, or a natural-language 'brief' generated by AI. template_id and brief are mutually exclusive. A brief that the model returns unreadable fails closed (400) and creates nothing; a readable-but-invalid AI-generated graph is still created so the canvas can show what needs fixing. Fails with a conflict if this agent already has a workflow -- edit the existing draft instead.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "brief": {
+                    "maxLength": 4000,
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "template_id": {
+                    "enum": [
+                      "blank",
+                      "payment_reminder",
+                      "customer_support",
+                      "receptionist"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "description": "Created workflow draft"
+          },
+          "400": {
+            "description": "Both template_id and brief given, unknown template, or the AI generation provider is unavailable/unreadable"
+          },
+          "409": {
+            "description": "Agent already has a workflow"
+          }
+        },
+        "summary": "Create the one editable workflow draft for a hosted agent",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/ai-edit": {
+      "post": {
+        "description": "Given a free-text instruction, asks the AI generation provider to propose a replacement draft, then returns that proposal plus its validation -- it never writes to the draft. The caller (frontend) shows a diff and, only on explicit accept, PATCHes the existing update-draft route with the proposal, so an accepted AI edit is undoable through the same history as any manual edit. Rejects a proposal that changes more than 10 steps.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "instruction": {
+                    "maxLength": 1000,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "instruction"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Proposed draft, its validation, and the changed-step count"
+          },
+          "400": {
+            "description": "Missing instruction, the AI generation provider is unavailable/unreadable, or the proposal exceeds the bounded-edit step cap"
+          },
+          "404": {
+            "description": "Agent has no workflow yet"
+          }
+        },
+        "summary": "Propose a bounded AI edit to the agent's workflow draft",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/phone-pin": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{armed: false}, or the active pin's state including matched_count and last_run_id"
+          }
+        },
+        "summary": "Read this agent's current Phone pin status",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
+      "post": {
+        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is answered by a fresh run of the pinned draft or published workflow instead of the agent's normal configuration. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "from_e164": {
+                    "description": "The caller number this pin matches, in any recognizable phone format.",
+                    "type": "string"
+                  },
+                  "number_id": {
+                    "description": "The workspace number this test answers on. Must be attached to this agent and phone-test eligible.",
+                    "type": "string"
+                  },
+                  "pinned_source": {
+                    "default": "draft",
+                    "enum": [
+                      "draft",
+                      "published"
+                    ],
+                    "type": "string"
+                  },
+                  "ttl_seconds": {
+                    "default": 600,
+                    "maximum": 1800,
+                    "minimum": 60,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "number_id",
+                  "from_e164"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Pin armed"
+          },
+          "400": {
+            "description": "Missing from_e164 or number_id, a number that cannot answer this agent's phone test, or a draft workflow with validation errors"
+          },
+          "404": {
+            "description": "Agent has no workflow yet, no published version yet, or the number is not in this workspace"
+          }
+        },
+        "summary": "Arm Phone testing: pin one declared caller number to the workflow",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/phone-pin/disarm": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether an active pin was disarmed"
+          }
+        },
+        "summary": "Cancel this agent's active Phone pin early",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/publish": {
+      "post": {
+        "description": "Blocks with 400 if the compiled draft has validation errors, or if it has warnings the caller has not acknowledged -- warnings never block by themselves, but publishing an immutable version is where the author has to have seen them. The rejection lists the outstanding codes; send them back in acknowledged_warning_codes to proceed. Version numbering is monotonic per workflow; a call always pins the exact published version it started with.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "acknowledged_warning_codes": {
+                    "description": "Warning codes the author has reviewed and accepted. Codes that are not currently raised are ignored.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "base_revision": {
+                    "description": "The draft revision this publish was reviewed against. The 409 body carries the current draft under 'current'. Omit to publish whatever the draft currently is.",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "description": "New published version"
+          },
+          "400": {
+            "description": "Draft has validation errors, or unacknowledged warnings"
+          },
+          "404": {
+            "description": "Agent has no workflow yet"
+          },
+          "409": {
+            "description": "The draft was changed by someone else since base_revision; body carries the current draft under 'current'"
+          }
+        },
+        "summary": "Publish the current draft as a new immutable workflow version",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/runs": {
+      "post": {
+        "description": "Pins the exact compiled draft or published version this run tests, so a later draft edit never retroactively changes a run already in progress. Only mode=chat is accepted here, because this is the only run this route can also advance: Simulations are started through POST /v1/agents/{agent_id}/workflow/simulations, Talk via POST /v1/agents/{agent_id}/browser-sessions with workflow_mode=talk, and Phone via POST /v1/agents/{agent_id}/workflow/phone-pin -- each mints its own run through the path that actually drives it. Chat runs are capped per organization to bound concurrent model calls on the platform test credential.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "chat"
+                    ],
+                    "type": "string"
+                  },
+                  "pinned_source": {
+                    "default": "draft",
+                    "enum": [
+                      "draft",
+                      "published"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created test run"
+          },
+          "400": {
+            "description": "Invalid mode, no workflow, or the chat-run cap is full"
+          },
+          "404": {
+            "description": "Agent has no workflow yet"
+          }
+        },
+        "summary": "Start a Chat or Simulations test run of the agent's workflow",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/runs/{run_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run state and evidence"
+          },
+          "404": {
+            "description": "Run not found"
+          }
+        },
+        "summary": "Fetch one test run and its turn evidence",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/runs/{run_id}/turns": {
+      "post": {
+        "description": "The decision provider is selected by the server from the deployment's configured Chat model, never by the caller. Fails closed with 400 (not 500) when no model credential is configured, or when the model's response for this turn is malformed. Only valid for mode=chat runs.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "caller_input": {
+                    "maxLength": 2000,
+                    "nullable": true,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated run state and this turn's evidence"
+          },
+          "400": {
+            "description": "Not a chat-mode run, or the decision provider is unavailable"
+          },
+          "404": {
+            "description": "Run not found"
+          },
+          "409": {
+            "description": "Run already terminal, or a concurrent turn already advanced it"
+          }
+        },
+        "summary": "Advance one turn of a Chat test run",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/simulations": {
+      "post": {
+        "description": "Drives up to 20 named scenarios end-to-end synchronously (no network I/O -- scripted personas only) and reports a pass rate against each scenario's declared expected outcome. One broken scenario is reported as its own error entry rather than aborting the batch.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "pinned_source": {
+                    "default": "draft",
+                    "enum": [
+                      "draft",
+                      "published"
+                    ],
+                    "type": "string"
+                  },
+                  "scenario_ids": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "scenario_ids"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Batch pass/fail summary and per-scenario results"
+          },
+          "400": {
+            "description": "Empty or oversized scenario_ids list"
+          }
+        },
+        "summary": "Run a batch of scripted-persona Simulations to completion",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/workflow/versions/{version}/restore": {
+      "post": {
+        "description": "Overwrites the current draft with a past version's snapshot. Never mutates version history; existing published versions and their call evidence are unaffected. Send base_revision -- the revision of the draft you are replacing -- to be refused when someone else has changed it since; the 409 body carries the current draft under 'current'. Omitting it overwrites whatever the draft currently is.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "base_revision": {
+                    "description": "The draft revision being replaced. Omit to overwrite unconditionally.",
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Draft restored from the named version"
+          },
+          "404": {
+            "description": "Agent or version not found"
+          },
+          "409": {
+            "description": "The draft was changed by someone else since base_revision; body carries the current draft under 'current'"
+          }
+        },
+        "summary": "Restore a published version's content into the editable draft",
         "x-required-scopes": [
           "agents:write"
         ]
@@ -2027,6 +2703,45 @@
           }
         },
         "summary": "Read the bounded, customer-scoped hosted-agent editor aggregate",
+        "x-required-scopes": [
+          "account:read",
+          "agents:read",
+          "wallet:read"
+        ]
+      }
+    },
+    "/v1/dashboard/agent-workflow": {
+      "get": {
+        "description": "Returns one selected agent's workflow draft (with a live, in-memory validation summary), the currently published version summary if any, and a bounded version history. Distinguishes an agent with zero workflows (workflow: null) from an existing draft. It is bound to the dashboard session organization and selected project; it never compiles server-side for a side effect, calls a provider, or performs a write.",
+        "parameters": [
+          {
+            "description": "Canonical agent ID in the authenticated project.",
+            "in": "query",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional project in the authenticated organization.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workflow builder aggregate"
+          },
+          "404": {
+            "description": "Agent is not in the authenticated workspace"
+          }
+        },
+        "summary": "Read the bounded, customer-scoped Workflow builder aggregate",
         "x-required-scopes": [
           "account:read",
           "agents:read",
