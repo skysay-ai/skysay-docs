@@ -1,0 +1,104 @@
+---
+title: Agent workflows
+description: Design governed conversations on a visual canvas, compile them into a deterministic runtime contract, and test them by talking, typing, simulating, or phoning before you publish.
+---
+
+An agent workflow turns an open-ended voice agent into a governed conversation:
+a graph of typed steps with named routes, hard limits, and evidence for every
+turn. You build the graph visually — or describe it in plain language and let
+AI draft it — while OpenPhonex continuously compiles it into a versioned,
+server-validated runtime contract. The model phrases nothing on its own
+authority: it chooses between the routes you declared, and the server applies
+the transition.
+
+## The canvas
+
+Open any agent and choose **Workflow**. If the agent has no workflow yet you
+can start from a template (Payment reminder, Customer support, Receptionist),
+a blank canvas, or a natural-language brief that AI turns into an editable
+first draft. Creating a workflow creates only a private draft — no number is
+attached, no tool authorized, no call placed, nothing published.
+
+Each step is one governed unit:
+
+| Step | What it does |
+| --- | --- |
+| **Ask** | Speaks a question and waits for the caller. |
+| **Tell / Say** | Speaks approved information; may continue silently or end the turn. |
+| **Read tool** | Reads approved data from an attached read-only tool. Runs silently inside a turn. |
+| **Branch** | Chooses exactly one named route from the caller's answer. Cannot invent routes. |
+| **Outcome** | Records a structured result or review candidate. |
+| **Transfer** | Hands the live call to a configured destination, with a declared fallback. |
+| **End** | Speaks the farewell and closes the session. |
+
+Routes carry the labels you write ("Can pay", "Dispute"), and those labels are
+what the model reasons over; the compiled contract keeps stable ids underneath
+so renaming a label never changes execution identity. Moving nodes, zooming,
+or collapsing groups changes layout metadata only — the compiled contract is
+proven independent of everything visual.
+
+**Global interrupts** — wrong party, dispute, hardship, cease contact,
+callback, human request, language change — are configured once on a separate
+rail. They can preempt any ordinary step, and when a caller's utterance
+matches more than one, the server picks the highest-precedence interrupt from
+a fixed order; the model never decides precedence.
+
+Every semantic edit is also available from the form/list editor without
+drag-and-drop, and edits autosave to the draft only. If someone else edits the
+same draft, stale writes are refused with the current state rather than
+silently overwritten — saving, publishing, and restoring all carry the
+revision you reviewed.
+
+## Validation, then testing, then publishing
+
+Validation blocks testing and publishing on structural errors: dangling or
+type-invalid targets, unreachable required steps, cycles with no exit, missing
+interrupt targets, tool or language incompatibilities, blank spoken text,
+missing transfer destinations, and disclosure of account details before the
+right-party verification you declared succeeds. Warnings are separate and must
+be explicitly acknowledged before publishing.
+
+Four test modes run against the exact draft — its voice stack, knowledge,
+tools, and workflow:
+
+- **Talk** — a real-time microphone conversation in the browser, with the
+  active step and traversed routes highlighted live. Microphone permission is
+  requested only after you start.
+- **Chat** — the same draft as text, with no microphone or voice cost. The
+  reply you see is the step text you authored; the decision model in use is
+  always reported.
+- **Simulations** — repeatable synthetic personas with expected outcomes,
+  controlled tool mocks, pass rates, and step traces grouped by conversational
+  turn.
+- **Phone** — a controlled test call on an attached, eligible number. You arm
+  a short-lived pin for one declared caller number and one attached number;
+  while it is armed, calls from that caller run the pinned draft, and every
+  other caller continues to reach the published workflow. Pins expire on a
+  timer and after a bounded number of matches.
+
+Draft tests can never execute unapproved mutation tools and never publish
+anything implicitly. Runs record the exact pinned contract, each step, the
+chosen route, tool status, and the policy reason for every transition — no
+transcript secrets, no raw provider errors.
+
+Publishing creates an immutable version. Ordinary callers move to it only when
+you publish; drafts never affect live traffic. Restoring an old version copies
+it into a new draft — history is never rewritten — and version history shows
+what changed between versions.
+
+## Runtime guarantees
+
+The compiled contract enforces, server-side, on every turn:
+
+- only the active step, its allowed routes, and approved context reach the
+  model;
+- the model's structured decision is validated before anything executes;
+- only the declared read-only tool for that step may run;
+- per-step visit counts, a total turn budget, and a per-turn timeout are hard
+  limits;
+- unknown routes, malformed decisions, missing capabilities, and exhausted
+  budgets fail closed with a spoken, localized farewell rather than an open
+  line.
+
+The workflow API — drafts, publishing, versions, runs, simulations, and phone
+pins — is part of the [REST reference](/docs/api-reference).
