@@ -2673,7 +2673,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack, which components were actually configured, the same inbound-admission verdict the Agents list carries, the launch-supported component-metered catalog, a wallet projection, and a bounded metadata-only BYOK credential list. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
+        "description": "Returns one selected agent, its resolved stack, which components were actually configured, the same inbound-admission verdict the Agents list carries, the launch-supported component-metered catalog, a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -2706,7 +2706,10 @@
         "x-required-scopes": [
           "account:read",
           "agents:read",
-          "wallet:read"
+          "calls:read",
+          "wallet:read",
+          "knowledge:read",
+          "numbers:read"
         ]
       }
     },
@@ -2751,7 +2754,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: it lists the reasons the inbound call path would refuse a call, the conditions it could not evaluate before a call exists, and a readiness of blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: it lists the reasons the inbound call path would refuse a call, the conditions it could not evaluate before a call exists, and a readiness of blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -2800,6 +2803,77 @@
           }
         },
         "summary": "Internal Auth.js-to-control-plane bootstrap for human dashboard sessions"
+      }
+    },
+    "/v1/dashboard/calls": {
+      "get": {
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls.",
+        "parameters": [
+          {
+            "description": "Optional project in the authenticated organization.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional canonical call ID in the selected project; it is resolved and pinned even when older than the newest page.",
+            "in": "query",
+            "name": "call_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum calls in the returned page.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Set to 0 for a freshness poll: the selected call's observability and full workflow trace are omitted, the per-row workflow evidence is not.",
+            "in": "query",
+            "name": "detail",
+            "required": false,
+            "schema": {
+              "default": "1",
+              "enum": [
+                "0",
+                "1"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calls workspace aggregate"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Read the bounded, customer-scoped Calls aggregate",
+        "x-required-scopes": [
+          "account:read",
+          "calls:read",
+          "recordings:read",
+          "agents:read",
+          "knowledge:read",
+          "trial_calls:read",
+          "wallet:read"
+        ]
       }
     },
     "/v1/dashboard/calls/performance": {
