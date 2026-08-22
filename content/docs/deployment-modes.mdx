@@ -28,6 +28,37 @@ Every number and gateway response includes `provider_account_id` and
 `provider_account`, so you can always tell managed, customer-BYO,
 self-managed provider, and sandbox accounts apart.
 
+## Credentials for a self-hosted gateway
+
+The workspace creates two different secrets for this mode. Open **API Keys**
+only after the gateway deployment is registered:
+
+1. In the **Gateway Tokens** card, create the deployment-bound `tgw_` token.
+   Its one-time reveal includes this exact line for the gateway host:
+
+   ```dotenv
+   OPENPHONEX_GATEWAY_API_TOKEN=tgw_...
+   ```
+
+   The gateway validates this token only against its own deployment's
+   non-mutating number-rules read. A wrong, revoked, expired, cross-org, or
+   different-gateway token fails closed.
+2. In the separate regular **API Keys** card, select **Create self-host worker
+   key**. It creates the organization-scoped `tai_` key for the worker host:
+
+   ```dotenv
+   OPENPHONEX_WORKER_API_TOKEN=tai_...
+   ```
+
+   That key has `calls:write`, `worker_jobs:read`, and `worker_jobs:write` for
+   inbound routing, liveness, and the optional outbound profile. The smoke test
+   validates it separately through MCP `tools/list`; a `tgw_` token cannot be
+   used in its place.
+
+Both plaintext values are revealed only once and never appear in API-key or
+gateway-token list views. Revoke and replace an exposed value instead of
+expecting it to be shown again.
+
 <Callout title="Later: fully self-hosted / BYO provider">
   A fully self-hosted / bring-your-own-provider path (your own carrier or a future
   provider account) is designed into the same open-source stack, but it is a
