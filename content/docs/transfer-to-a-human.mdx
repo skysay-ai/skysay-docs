@@ -1,0 +1,54 @@
+---
+title: Transfer to a human
+description: Hand a live call to a person, and the destination rules OpenPhonex enforces before it will.
+---
+
+`transfer_to_human` is a built-in tool your AI agent can invoke mid-call to
+hand the caller to a person. You enable it on the agent and give it one
+destination number; the agent decides when to use it.
+
+## Configure the destination
+
+```json
+{
+  "type": "builtin",
+  "name": "transfer_to_human",
+  "phone_number": "+12025550100"
+}
+```
+
+`phone_number` is required whenever the tool is enabled, and must be full
+E.164 — a leading `+`, then the country code. A blank, partial, or
+non-dialable number is rejected when you create or update the agent, so a
+misconfigured transfer surfaces at save time instead of failing in front of a
+caller.
+
+Note that a bare national number is not accepted even when it looks
+unambiguous: `2025550100` is not the same request as `+12025550100`, and
+guessing a country code on your behalf is how a call ends up dialing a real
+number in a different country.
+
+## When the agent decides to transfer
+
+There is no fixed rule, hour, or condition that triggers a transfer. The agent
+calls the tool on its own judgment, from its instructions and the conversation
+so far — so **the way you steer transfers is the agent's own prompt**. If you
+want a transfer only for billing disputes, or only after the caller asks twice,
+say so in the instructions.
+
+The tool takes an optional `reason`, which the agent supplies to describe why
+it handed the call over.
+
+<Callout type="warn" title="Transfers are policy-gated">
+  Every transfer passes your workspace's outbound policy gate, with the
+  destination's country resolved from the number itself. A blocked destination
+  is refused even when the agent asks for it. See
+  [Policy & outbound](/docs/policy-and-outbound).
+</Callout>
+
+## What the tool reports back
+
+The tool returns once the transfer has been **requested** — that is not the
+same as a person having answered. Treat a successful tool call as "the handoff
+was started," and read [call evidence](/docs/read-call-evidence) for what
+actually happened on the call.
