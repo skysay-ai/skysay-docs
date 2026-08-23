@@ -43,6 +43,27 @@ class ApiReferenceTests(unittest.TestCase):
             _method, path = operation.split(" ", 1)
             self.assertIn(f"`{path}`", rendered)
 
+    def test_bootstrap_configuration_and_workflow_reads_are_publicly_documented(self) -> None:
+        covered = set(self.coverage["covered_customer_operations"])
+        expected = {
+            "GET /v1/workspace-context",
+            "GET /v1/agents/{agent_id}/voice-stack",
+            "PATCH /v1/agents/{agent_id}/voice-stack",
+            "GET /v1/agents/{agent_id}/workflow",
+        }
+        self.assertTrue(expected <= covered)
+        rendered = (ROOT / "content" / "docs" / "api-reference.mdx").read_text(encoding="utf-8")
+        for operation in expected:
+            _method, path = operation.split(" ", 1)
+            self.assertIn(f"`{path}`", rendered)
+
+        endpoints = (ROOT / "content" / "docs" / "rest-endpoints.mdx").read_text(encoding="utf-8")
+        workflows = (ROOT / "content" / "docs" / "agent-workflows.mdx").read_text(encoding="utf-8")
+        self.assertIn("component_credential_bindings", endpoints)
+        self.assertIn("never return a secret", endpoints)
+        self.assertIn("workflow_state: \"not_created\"", endpoints)
+        self.assertIn("no AI or provider call", workflows)
+
     def test_navigation_and_cross_links_expose_the_customer_guides(self) -> None:
         pages = json.loads((ROOT / "content" / "docs" / "meta.json").read_text(encoding="utf-8"))["pages"]
         for slug in ("integrations", "customer-applications", "post-call-results", "api-reference"):

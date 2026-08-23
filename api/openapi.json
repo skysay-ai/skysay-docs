@@ -153,6 +153,222 @@
         },
         "type": "object"
       },
+      "AgentVoiceStack": {
+        "description": "Safe read projection. It never includes component credential binding IDs, plaintext/ciphertext, nonce, fingerprint, or provider secrets.",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "cost": {
+            "type": "object"
+          },
+          "first_message": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "latency": {
+            "type": "object"
+          },
+          "model": {
+            "type": "object"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "selectable": {
+            "type": "boolean"
+          },
+          "system_prompt": {
+            "type": "string"
+          },
+          "transcriber": {
+            "type": "object"
+          },
+          "turn_taking": {
+            "type": "object"
+          },
+          "voice": {
+            "type": "object"
+          },
+          "voice_label": {
+            "type": "string"
+          },
+          "voice_polish": {
+            "type": "object"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_id",
+          "organization_id",
+          "project_id",
+          "language",
+          "transcriber",
+          "model",
+          "voice",
+          "cost",
+          "latency",
+          "selectable",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "AgentVoiceStackUpdate": {
+        "description": "Selection/update payload. It carries only selectors, existing credential IDs, tools, and tuning -- never provider secret material.",
+        "properties": {
+          "begin_message": {
+            "description": "Legacy alias for first_message.",
+            "type": "string"
+          },
+          "component_credential_bindings": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "description": "Optional stt/llm/tts map to existing hosted-AI credential IDs (or null to use platform-managed selection). References are validated; secret upload is a separate write-only API.",
+            "type": "object"
+          },
+          "first_message": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/VoiceComponentSelection"
+          },
+          "system_prompt": {
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/AgentTool"
+            },
+            "type": "array"
+          },
+          "transcriber": {
+            "$ref": "#/components/schemas/VoiceComponentSelection"
+          },
+          "turn_taking": {
+            "type": "object"
+          },
+          "voice": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VoiceComponentSelection"
+              },
+              {
+                "description": "Legacy voice label.",
+                "type": "string"
+              }
+            ]
+          },
+          "voice_polish": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "AgentWorkflowRead": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowVersionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version_count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowVersionSummary"
+            },
+            "type": "array"
+          },
+          "versions_page": {
+            "$ref": "#/components/schemas/OffsetPage"
+          },
+          "workflow": {
+            "description": "Editable draft/revision, validation, and safe canvas-only layout when workflow_state=draft; otherwise null.",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "draft": {
+                "type": "object"
+              },
+              "layout": {
+                "description": "Only positions, viewport, and collapsed_groups; arbitrary stored layout keys are not returned.",
+                "type": "object"
+              },
+              "name": {
+                "type": "string"
+              },
+              "revision": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "source": {
+                "type": "string"
+              },
+              "updated_at": {
+                "type": "string"
+              },
+              "validation": {
+                "type": "object"
+              },
+              "workflow_id": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "workflow_state": {
+            "enum": [
+              "not_created",
+              "draft"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "workflow_state",
+          "workflow",
+          "published",
+          "version_count",
+          "versions",
+          "versions_page"
+        ],
+        "type": "object"
+      },
       "BillingSettings": {
         "properties": {
           "auto_recharge_enabled": {
@@ -844,6 +1060,40 @@
         },
         "type": "object"
       },
+      "OffsetPage": {
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "limit": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "next_offset": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "offset": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "returned_count": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "offset",
+          "returned_count",
+          "has_more",
+          "next_offset"
+        ],
+        "type": "object"
+      },
       "OutboundCall": {
         "description": "recipient_type is optional and recorded, never enforced. Destination country is authorized against the org's approved risk envelope (authorize_outbound), not a fixed platform allowlist. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
         "properties": {
@@ -1194,6 +1444,29 @@
         ],
         "type": "object"
       },
+      "VoiceComponentSelection": {
+        "properties": {
+          "language": {
+            "description": "STT selection language when supplied.",
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "voice_id": {
+            "description": "TTS voice identifier when supplied.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model"
+        ],
+        "type": "object"
+      },
       "WebCall": {
         "properties": {
           "agent_endpoint_id": {
@@ -1247,6 +1520,81 @@
           "type",
           "name",
           "url"
+        ],
+        "type": "object"
+      },
+      "WorkflowVersionSummary": {
+        "description": "Safe immutable version metadata. The separate published field is null before the first explicit publish.",
+        "properties": {
+          "compiled_hash": {
+            "type": "string"
+          },
+          "published_at": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "WorkspaceContext": {
+        "properties": {
+          "organization": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "project_count": {
+            "description": "Exact number of projects in the bearer organization.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "projects": {
+            "items": {
+              "properties": {
+                "environment": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "environment"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "projects_page": {
+            "$ref": "#/components/schemas/OffsetPage"
+          }
+        },
+        "required": [
+          "organization",
+          "project_count",
+          "projects",
+          "projects_page"
         ],
         "type": "object"
       }
@@ -1676,7 +2024,140 @@
         ]
       }
     },
+    "/v1/agents/{agent_id}/voice-stack": {
+      "get": {
+        "description": "The target agent authorizes the tenant boundary. Returns selected/resolved STT, model, and TTS catalog metadata plus validation warnings, cost, latency, prompt, and tuning configuration. Platform-managed selections use the catalog's managed component estimate; a BYOK component selected on PATCH through an existing component credential ID has no OpenPhonex component charge. Credential binding IDs, plaintext, ciphertext, nonce, fingerprints, and provider secrets are never returned. This GET is a pure read: it makes no provider call, validation probe, compilation, repair, lazy creation, or write.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentVoiceStack"
+                }
+              }
+            },
+            "description": "Safe voice-stack projection"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        },
+        "summary": "Read a hosted agent's safe STT, model, and TTS configuration",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
+      "patch": {
+        "description": "The target agent defines the authenticated workspace. Select platform-managed components by provider/model/voice fields, or bind a component to an already-created hosted-AI credential by its ID in component_credential_bindings. The binding is a reference only: upload a BYOK secret through the separate write-only hosted-ai-credentials API; this route never accepts or returns secret material. Validation rejects unsupported provider/model/language combinations before the update.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentVoiceStackUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentVoiceStack"
+                }
+              }
+            },
+            "description": "Updated safe voice-stack projection"
+          },
+          "400": {
+            "description": "Invalid component selection, credential reference, language, or tuning"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        },
+        "summary": "Validate and update a hosted agent's STT, model, and TTS selections",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
     "/v1/agents/{agent_id}/workflow": {
+      "get": {
+        "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation, a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404/403.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version_limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version_offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentWorkflowRead"
+                }
+              }
+            },
+            "description": "Draft/not-created state and bounded version metadata"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        },
+        "summary": "Read an agent's editable workflow draft and bounded published-version summary",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
       "patch": {
         "description": "Autosave endpoint for the canvas. Accepts a partial or full conversation_workflow.v1 draft plus optional layout (node positions/viewport/collapsed groups, never part of the compiled contract). An invalid intermediate state is allowed to save; the response's validation field reports errors/warnings without blocking the save. Send base_revision -- the revision field from the draft you edited -- to have a write refused when someone else has changed the draft since; the 409 body carries the current draft under 'current' so the caller can reconcile without another request. Omitting base_revision keeps last-write-wins.",
         "parameters": [
@@ -4613,6 +5094,60 @@
           }
         },
         "summary": "Retry a failed job"
+      }
+    },
+    "/v1/workspace-context": {
+      "get": {
+        "description": "A tenant-bound bootstrap read for an organization-bound credential. The route derives the organization exclusively from the bearer principal and rejects organization_id rather than accepting an arbitrary tenant selector. It returns only organization id/name and project id/name/environment in stable created_at,id order, with an exact count and explicit page metadata. It works for an empty-agent starter workspace and never reads users, credentials, provider/operator data, or secrets; it makes no provider call and performs no write, repair, or lazy creation.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceContext"
+                }
+              }
+            },
+            "description": "Safe organization context and bounded project page"
+          },
+          "400": {
+            "description": "organization_id was supplied or a page value is malformed"
+          },
+          "403": {
+            "description": "Credential is not linked to an organization"
+          },
+          "404": {
+            "description": "The organization bound to the credential no longer exists"
+          }
+        },
+        "summary": "Discover the bearer API key's own organization and bounded projects",
+        "x-required-scopes": [
+          "account:read"
+        ]
       }
     }
   },
