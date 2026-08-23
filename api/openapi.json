@@ -42,7 +42,32 @@
             "type": "array"
           },
           "voice": {
-            "type": "string"
+            "oneOf": [
+              {
+                "description": "Legacy pinned voice identifier.",
+                "type": "string"
+              },
+              {
+                "description": "Exact selected TTS provider/model/voice inventory item.",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "voice_id": {
+                    "description": "Provider inventory id, when the selected provider exposes voices.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ],
+                "type": "object"
+              }
+            ]
           },
           "webhook_url": {
             "type": "string"
@@ -145,7 +170,32 @@
             "type": "array"
           },
           "voice": {
-            "type": "string"
+            "oneOf": [
+              {
+                "description": "Legacy pinned voice identifier.",
+                "type": "string"
+              },
+              {
+                "description": "Exact selected TTS provider/model/voice inventory item.",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "voice_id": {
+                    "description": "Provider inventory id, when the selected provider exposes voices.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ],
+                "type": "object"
+              }
+            ]
           },
           "webhook_url": {
             "type": "string"
@@ -1469,6 +1519,44 @@
         ],
         "type": "object"
       },
+      "VoicePreviewRequest": {
+        "description": "A fixed product-owned sample for one selected managed TTS voice. Customer text is intentionally not accepted. Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
+        "properties": {
+          "credential_id": {
+            "description": "Optional selected BYOK credential. It is never read as a platform fallback; use browser testing after validation.",
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "Optional consistency hint; if supplied, it must match the bearer workspace.",
+            "type": "string"
+          },
+          "project_id": {
+            "description": "Must belong to the bearer workspace.",
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "voice_id": {
+            "description": "Exact provider inventory id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "provider",
+          "model",
+          "voice_id",
+          "language"
+        ],
+        "type": "object"
+      },
       "WebCall": {
         "properties": {
           "agent_endpoint_id": {
@@ -1638,7 +1726,7 @@
     },
     "/v1/agent-catalog": {
       "get": {
-        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and provider validation contract. This catalog does not authorize a provider credential or disclose provider secrets.",
+        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and provider validation contract. Voice inventories contain only provider-supplied structured fields/tags and provenance; OpenPhonex does not infer age, accent, or personality. This catalog does not authorize a provider credential or disclose provider secrets.",
         "parameters": [
           {
             "in": "query",
@@ -4890,6 +4978,39 @@
           }
         },
         "summary": "Resolve batched per-number-type verification deltas for one country and optional reusable profile"
+      }
+    },
+    "/v1/voice-previews": {
+      "post": {
+        "description": "An explicit Listen action for an exact approved TTS voice. The request accepts no caller text, keeps no audio or telemetry, and returns a short in-memory WAV only. A small per-workspace fixed-window limit protects managed-provider spend. A selected BYOK credential never falls back to a platform credential; its Listen request is rejected as a non-retryable client error and must use the browser-test flow after save/validation instead.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoicePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Bounded base64-encoded WAV preview"
+          },
+          "400": {
+            "description": "Invalid tenant-bound project, stack, voice, language, or BYOK Listen request"
+          },
+          "429": {
+            "description": "Voice-preview fixed-window limit reached"
+          },
+          "503": {
+            "description": "Managed preview unavailable"
+          }
+        },
+        "summary": "Render one bounded managed voice-selector preview",
+        "x-required-scopes": [
+          "agents:write"
+        ]
       }
     },
     "/v1/wallet": {
