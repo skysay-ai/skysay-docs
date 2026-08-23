@@ -34,15 +34,17 @@ The workspace creates two different secrets for this mode. Open **API Keys**
 only after the gateway deployment is registered:
 
 1. In the **Gateway Tokens** card, create the deployment-bound `tgw_` token.
-   Its one-time reveal includes this exact line for the gateway host:
+   Its one-time reveal includes this exact line; replace the blank
+   `OPENPHONEX_GATEWAY_API_TOKEN=` assignment in the gateway host's
+   `.env.livekit` with the whole revealed line:
 
    ```dotenv
    OPENPHONEX_GATEWAY_API_TOKEN=tgw_...
    ```
 
-   The gateway validates this token only against its own deployment's
-   non-mutating number-rules read. A wrong, revoked, expired, cross-org, or
-   different-gateway token fails closed.
+   In the smoke test, the gateway validates this token through its own
+   deployment's non-mutating number-rules read. A wrong, revoked, expired,
+   cross-org, or different-gateway token fails closed.
 2. In the separate regular **API Keys** card, select **Create self-host worker
    key**. It creates the organization-scoped `tai_` key for the worker host:
 
