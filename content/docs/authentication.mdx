@@ -1,6 +1,6 @@
 ---
 title: Authentication & keys
-description: Scoped tai_ keys, Bearer auth, scope clamping and fail-closed semantics, org isolation, and rotate/revoke.
+description: Scoped tai_ keys and gateway tgw_ tokens, Bearer auth, scope clamping and fail-closed semantics, org isolation, and rotate/revoke.
 ---
 
 Every agent request authenticates with one scoped **`tai_` API key** passed as a
@@ -36,13 +36,37 @@ curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
 The response returns `token` **once**. Store it immediately — it is never
 retrievable again.
 
+## Self-hosted gateway credentials
+
+A self-hosted media gateway does **not** use one interchangeable API key. In
+the workspace **API Keys** page, use the **Gateway Tokens** card to create the
+deployment-bound `tgw_` value for
+`OPENPHONEX_GATEWAY_API_TOKEN=tgw_...`. Use the separate regular **API Keys**
+card's **Create self-host worker key** action to create the
+organization-scoped `tai_` value for
+`OPENPHONEX_WORKER_API_TOKEN=tai_...`.
+
+The worker key's fixed baseline is `calls:read` plus `calls:write`: it routes
+the inbound leg and reads that call's tenant-bound runtime configuration. The
+self-host compose disables its non-critical global worker-heartbeat loop, and
+the baseline does not enable the optional outbound worker. It is checked
+separately via MCP `tools/list` as a schema and authentication check; it does
+not grant arbitrary MCP tool scopes. Do not put the gateway's `tgw_` token in
+the worker variable. Both secrets are shown once only and are absent from list
+views. See [deployment modes](/docs/deployment-modes#credentials-for-a-self-hosted-gateway)
+for the full host setup and fail-closed behavior. Because `tools/list` has no
+target DID, the first inbound route — not this smoke check — validates that
+`OPENPHONEX_ORGANIZATION_ID`, the `tai_` key, and the DID belong to one
+workspace.
+
 ## Scope clamping (cannot self-escalate)
 
 Requested scopes are **clamped server-side** to what your admin credential
-already holds. A key can never grant itself more than its minter has. Control-
-plane scopes — `api_keys:write`, `wallet:write`, `operator:*`,
-`worker_jobs:write`, `provider_mutations:*` — are intentionally omitted from
-agent keys. The agent gets tools, never the control plane.
+already holds. A key can never grant itself more than its minter has. Ordinary
+agent keys omit control-plane scopes such as `api_keys:write`, `wallet:write`,
+`operator:*`, and `provider_mutations:*`. Create the self-host worker's named
+regular API-key preset rather than adding its two call scopes to an AI agent
+key by hand.
 
 ## Fail-closed semantics
 
