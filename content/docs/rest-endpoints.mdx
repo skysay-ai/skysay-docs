@@ -20,7 +20,39 @@ the human map.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/v1/agents` | Create an agent (`external_audio`, `external_text`, `hosted`). |
-| `POST` | `/v1/agents/{id}/voice-stack` | Set the STT/LLM/TTS stack. |
+| `GET` | `/v1/workspace-context` | Discover the key's own organization and a bounded project page. |
+| `GET` `PATCH` | `/v1/agents/{id}/voice-stack` | Read or set the hosted agent's STT/LLM/TTS stack. |
+| `GET` | `/v1/agents/{id}/workflow` | Read a draft/revision and bounded published-version summary before editing or publishing. |
+
+## Bootstrap and configure a hosted agent
+
+Start a machine client with `GET /v1/workspace-context` and `account:read`.
+The bearer key decides the organization; this route does not accept an
+`organization_id` selector. It returns only the safe organization id/name plus
+a stable, explicitly bounded page of project id/name/environment values. Use
+the returned page metadata to continue discovery. It also works for a new
+workspace with no agents.
+
+For a hosted agent, `GET /v1/agents/{id}/voice-stack` needs `agents:read` and
+`PATCH /v1/agents/{id}/voice-stack` needs `agents:write`. Select platform-managed
+STT, model, and TTS components by their catalog selectors. For BYOK, first
+create the credential through the separate write-only hosted-AI credential API,
+then supply only that existing credential reference in
+`component_credential_bindings`. Voice-stack reads never return a secret,
+ciphertext, credential-binding ID, or provider credential; unsupported
+component, language, and credential combinations are rejected on update.
+
+Before a workflow PATCH or publish, use
+`GET /v1/agents/{id}/workflow?version_limit=20&version_offset=0` with
+`agents:read`. It gives you the editable draft/revision, validation, safe
+canvas layout, current published-version metadata, and a newest-first bounded
+version page to compare. An existing agent with no draft returns
+`workflow_state: "not_created"`; the read never creates a blank workflow,
+compiles, repairs, calls AI/providers, or writes state.
+
+The [Generated API reference](/docs/api-reference) and
+[live OpenAPI document](/control-plane/openapi.json) carry the exact request
+and response contracts.
 
 ## Calls
 

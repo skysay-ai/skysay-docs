@@ -51,6 +51,20 @@ revision you reviewed.
 
 ## Validation, then testing, then publishing
 
+### Reconcile before an edit or publish
+
+An API client reads the current state with
+`GET /v1/agents/{id}/workflow?version_limit=20&version_offset=0` before it
+PATCHes or publishes. The `agents:read` response includes the editable
+draft/revision, validation, safe canvas layout, active published-version
+metadata, and a bounded newest-first version summary so the client can compare
+what it intended to change. It is a pure read: no AI or provider call, compile,
+repair, lazy creation, or other mutation occurs.
+
+`workflow_state: "not_created"` is the explicit response for an existing agent
+that has no draft. Create a workflow only with the write endpoint; the read
+will never synthesize one.
+
 Validation blocks testing and publishing on structural errors: dangling or
 type-invalid targets, unreachable required steps, cycles with no exit, missing
 interrupt targets, tool or language incompatibilities, blank spoken text,
