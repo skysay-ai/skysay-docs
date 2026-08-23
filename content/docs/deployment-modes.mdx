@@ -52,10 +52,15 @@ only after the gateway deployment is registered:
    OPENPHONEX_WORKER_API_TOKEN=tai_...
    ```
 
-   That key has `calls:write`, `worker_jobs:read`, and `worker_jobs:write` for
-   inbound routing, liveness, and the optional outbound profile. The smoke test
-   validates it separately through MCP `tools/list`; a `tgw_` token cannot be
-   used in its place.
+   That key has `calls:read` plus `calls:write` for inbound routing and the
+   immediate call-bound configuration read. The self-host compose disables its
+   non-critical global worker heartbeat, and the baseline does not enable the
+   optional outbound profile. Set `OPENPHONEX_ORGANIZATION_ID` to the same
+   workspace as this `tai_` key and the managed DID; a cross-workspace key is
+   rejected before it can route the number. The smoke test validates the key
+   separately through MCP `tools/list`; a `tgw_` token cannot be used in its
+   place. `tools/list` has no target DID, so the first inbound route performs
+   the workspace-binding check.
 
 Both plaintext values are revealed only once and never appear in API-key or
 gateway-token list views. Revoke and replace an exposed value instead of
