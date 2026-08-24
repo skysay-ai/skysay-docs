@@ -37,24 +37,38 @@ languages, streaming, and runnability; filter by component and language (e.g.
 `set_agent_voice_stack` validates your selection against the catalog and the
 Estonian `eleven_v3`-only TTS guard.
 
-When a selected TTS provider has an approved voice inventory, choose its exact
-voice in the same Voice step. The catalog exposes only structured provider
-metadata, provider tags, and the source/provenance for those fields. It does
-not guess age, accent, personality, or a quality score. Tamil is available to
-every workspace; Fish Audio's `tamil sneha` is the recommended initial Tamil
-voice, with qualified Soniox options available in the same selector.
+Choose a voice, not a vendor. The Voice step is a gallery of every voice
+available for your AI agent's language: play a sample, and picking a card sets
+the provider, the model, and the exact voice id together. **Voices** in the
+sidebar is the same gallery unfiltered, for browsing across every provider and
+language before or without editing an AI agent.
 
-Voice inventories are a stable bounded selection for each supported language,
-not an unrestricted provider dump. `voice_count` and `voices_truncated` tell
-you when a provider has additional approved voices outside that selection. If
-an existing agent uses one of those voices, its exact stored choice remains in
-that agent's Voice step instead of being silently replaced.
+Each card shows only what the provider supplied — structured gender, its own
+tags, its own description — plus the source of each of those fields. Nothing is
+inferred from the audio: no guessed age, accent, personality, or quality score.
+Cost and latency each carry the source of that number, which may be a
+measurement from real calls, a figure the vendor publishes, or a catalog
+estimate that says it is one.
 
-Use **Listen** to hear a short fixed product sample before saving. The preview
-does not send customer or caller text, and it does not store the audio. Managed
-credentials are used by default. If you select a Soniox or Fish Audio BYOK
-credential, Listen deliberately does not fall back to an OpenPhonex credential:
-save and validate the stack, then use the browser test flow instead.
+Galleries are bounded, ordered selections rather than an unrestricted provider
+dump, and they say when they are showing a slice. Filtering and search on the
+Voices page are answered by the server, so a voice on a later page is still
+found. An engine that cannot be billed yet stays visible and disabled with the
+reason rather than disappearing, and if an existing AI agent uses a voice
+outside the current selection, its exact stored choice stays in that agent's
+Voice step instead of being silently replaced.
+
+Use **Hear it as your AI agent** to listen before saving. It speaks any
+sentence you type — your AI agent's first message by default — in any language
+the provider advertises. The audio is never stored, and the request is bounded
+and rate-limited per workspace.
+
+On OpenPhonex credentials the voice must be one the gallery offers, so you never
+have to hunt an id on another platform. With your own provider credential, the
+credential is validated at the provider and then used to render the preview, and
+any voice id that provider accepts works — including cloned and private voices,
+which exist only under your account and which no directory of ours can see. A
+preview started with your credential never falls back to an OpenPhonex one.
 
 ## 3. Point a number at it
 
