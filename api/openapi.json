@@ -1520,13 +1520,14 @@
         "type": "object"
       },
       "VoicePreviewRequest": {
-        "description": "A fixed product-owned sample for one selected managed TTS voice. Customer text is intentionally not accepted. Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
+        "description": "One short synthesis of a bounded caller sentence for a selected TTS voice. Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
         "properties": {
           "credential_id": {
-            "description": "Optional selected BYOK credential. It is never read as a platform fallback; use browser testing after validation.",
+            "description": "Optional selected BYOK credential. It is validated at the provider and then used to render this preview; a platform credential is never a fallback.",
             "type": "string"
           },
           "language": {
+            "description": "Any language the selected provider advertises.",
             "type": "string"
           },
           "model": {
@@ -1543,8 +1544,13 @@
           "provider": {
             "type": "string"
           },
+          "text": {
+            "description": "Optional sentence to speak. Omitted or blank falls back to a short product sample. It is synthesized, never stored, and never echoed in the response.",
+            "maxLength": 200,
+            "type": "string"
+          },
           "voice_id": {
-            "description": "Exact provider inventory id.",
+            "description": "Exact provider voice id. On a platform credential it must be present in the browsable voice inventory; with a BYOK credential any id the provider accepts is allowed, so cloned and private voices work.",
             "type": "string"
           }
         },
@@ -3325,7 +3331,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: it lists the reasons the inbound call path would refuse a call, the conditions it could not evaluate before a call exists, and a readiness of blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -4982,7 +4988,7 @@
     },
     "/v1/voice-previews": {
       "post": {
-        "description": "An explicit Listen action for an exact approved TTS voice. The request accepts no caller text, keeps no audio or telemetry, and returns a short in-memory WAV only. A small per-workspace fixed-window limit protects managed-provider spend. A selected BYOK credential never falls back to a platform credential; its Listen request is rejected as a non-retryable client error and must use the browser-test flow after save/validation instead.",
+        "description": "An explicit Listen action for one selected TTS voice. It accepts a bounded caller sentence (defaulting to a short product sample), keeps no audio or telemetry, and returns a short in-memory WAV only. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select; with a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4998,7 +5004,10 @@
             "description": "Bounded base64-encoded WAV preview"
           },
           "400": {
-            "description": "Invalid tenant-bound project, stack, voice, language, or BYOK Listen request"
+            "description": "Invalid tenant-bound project, stack, voice, preview text, or a BYOK credential the provider did not accept"
+          },
+          "404": {
+            "description": "The selected BYOK credential does not exist in this workspace"
           },
           "429": {
             "description": "Voice-preview fixed-window limit reached"
