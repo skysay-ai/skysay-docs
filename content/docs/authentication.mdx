@@ -38,26 +38,31 @@ retrievable again.
 
 ## Self-hosted gateway credentials
 
-A self-hosted media gateway does **not** use one interchangeable API key. In
-the workspace **API Keys** page, use the **Gateway Tokens** card to create the
-deployment-bound `tgw_` value for
-`OPENPHONEX_GATEWAY_API_TOKEN=tgw_...`. Use the separate regular **API Keys**
-card's **Create self-host worker key** action to create the
-organization-scoped `tai_` value for
-`OPENPHONEX_WORKER_API_TOKEN=tai_...`.
+An inbound self-hosted media gateway uses **one** credential, and it is not an
+ordinary API key. In the workspace **API Keys** page, use the **Gateway
+Tokens** card to create the deployment-bound `tgw_` value for
+`OPENPHONEX_GATEWAY_API_TOKEN=tgw_...`.
 
-The worker key's fixed baseline is `calls:read` plus `calls:write`: it routes
-the inbound leg and reads that call's tenant-bound runtime configuration. The
-self-host compose disables its non-critical global worker-heartbeat loop, and
-the baseline does not enable the optional outbound worker. It is checked
-separately via MCP `tools/list` as a schema and authentication check; it does
-not grant arbitrary MCP tool scopes. Do not put the gateway's `tgw_` token in
-the worker variable. Both secrets are shown once only and are absent from list
-views. See [deployment modes](/docs/deployment-modes#credentials-for-a-self-hosted-gateway)
-for the full host setup and fail-closed behavior. Because `tools/list` has no
-target DID, the first inbound route — not this smoke check — validates that
-`OPENPHONEX_ORGANIZATION_ID`, the `tai_` key, and the DID belong to one
-workspace.
+That token routes the inbound leg, reads that call's tenant-bound runtime
+configuration, and lists MCP tool schemas, in addition to its number-rules,
+lifecycle and artifact operations. Every one of those derives its organization
+server-side from the token row rather than from the request body, so the
+credential cannot act outside the workspace its deployment belongs to. Its MCP
+admission is exactly one method — `tools/list`, the static tool catalogue —
+and `tools/call` stays refused, so it never becomes an organization MCP key.
+
+`OPENPHONEX_WORKER_API_TOKEN` is an organization-scoped `tai_` key. It is still
+accepted where a deployment already sets one, and the optional outbound-dial
+profile needs it (claiming outbound call jobs is `worker_jobs:*` authority a
+gateway token does not carry), but an inbound-only host holds no
+organization-wide credential. Do not put a `tgw_` token in that variable, or a
+`tai_` key in the gateway variable. Secrets are shown once only and are absent
+from list views. See
+[deployment modes](/docs/deployment-modes#credentials-for-a-self-hosted-gateway)
+for the full host setup, the two-value bootstrap, and fail-closed behavior.
+Because `tools/list` has no target DID, the first inbound route — not the smoke
+check — validates that `OPENPHONEX_ORGANIZATION_ID`, the token, and the DID
+belong to one workspace.
 
 ## Scope clamping (cannot self-escalate)
 

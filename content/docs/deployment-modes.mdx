@@ -30,41 +30,77 @@ self-managed provider, and sandbox accounts apart.
 
 ## Credentials for a self-hosted gateway
 
-The workspace creates two different secrets for this mode. Open **API Keys**
-only after the gateway deployment is registered:
+An inbound self-hosted gateway holds **one** runtime credential: the
+deployment-bound `tgw_` token. Create it in the **Gateway Tokens** card after
+the gateway deployment is registered. Its one-time reveal includes this exact
+line; replace the blank `OPENPHONEX_GATEWAY_API_TOKEN=` assignment in the
+gateway host's `.env.livekit` with the whole revealed line:
 
-1. In the **Gateway Tokens** card, create the deployment-bound `tgw_` token.
-   Its one-time reveal includes this exact line; replace the blank
-   `OPENPHONEX_GATEWAY_API_TOKEN=` assignment in the gateway host's
-   `.env.livekit` with the whole revealed line:
+```dotenv
+OPENPHONEX_GATEWAY_API_TOKEN=tgw_...
+```
 
-   ```dotenv
-   OPENPHONEX_GATEWAY_API_TOKEN=tgw_...
-   ```
+That token performs the whole call path: the number-rules sync, the inbound
+route, the resulting call's runtime-config read, and MCP `tools/list` schema
+discovery. Each of those derives its organization **server-side from the token
+row** — nothing the host sends can name a workspace — so a compromised gateway
+reaches the workspace its own deployment belongs to and no further.
 
-   In the smoke test, the gateway validates this token through its own
-   deployment's non-mutating number-rules read. A wrong, revoked, expired,
-   cross-org, or different-gateway token fails closed.
-2. In the separate regular **API Keys** card, select **Create self-host worker
-   key**. It creates the organization-scoped `tai_` key for the worker host:
+Two limits make that boundary real rather than nominal:
 
-   ```dotenv
-   OPENPHONEX_WORKER_API_TOKEN=tai_...
-   ```
+- `tools/list` is the only MCP method a gateway token may call. It returns the
+  static tool catalogue and reads no workspace row; `tools/call` and the
+  resource methods stay refused, so a stolen `tgw_` cannot send an SMS or read
+  a recording through MCP.
+- The token's `kind_allowlist` carries `call.inbound_route`. Mint one without
+  that entry and the deployment cannot route calls at all — which is how you
+  quarantine a suspect host without touching the rest of the workspace.
 
-   That key has `calls:read` plus `calls:write` for inbound routing and the
-   immediate call-bound configuration read. The self-host compose disables its
-   non-critical global worker heartbeat, and the baseline does not enable the
-   optional outbound profile. Set `OPENPHONEX_ORGANIZATION_ID` to the same
-   workspace as this `tai_` key and the managed DID; a cross-workspace key is
-   rejected before it can route the number. The smoke test validates the key
-   separately through MCP `tools/list`; a `tgw_` token cannot be used in its
-   place. `tools/list` has no target DID, so the first inbound route performs
-   the workspace-binding check.
+Set `OPENPHONEX_ORGANIZATION_ID` to the workspace that registered the gateway
+and owns the managed DID; a mismatch with the token's own organization is
+refused before the call is routed. The smoke test checks the token on both
+surfaces a call needs it for (number-rules and `tools/list`). Neither is a DID
+check: `tools/list` has no target number, so the first inbound route is what
+proves the routing authority end to end.
 
-Both plaintext values are revealed only once and never appear in API-key or
-gateway-token list views. Revoke and replace an exposed value instead of
-expecting it to be shown again.
+The plaintext value is revealed only once and never appears in gateway-token
+list views. Revoke and replace an exposed value instead of expecting it to be
+shown again.
+
+### One-time bootstrap: two values
+
+The open-source gateway ships `selfhost-bootstrap.sh` beside its compose file.
+Run it before `docker compose up` with exactly two inputs — the control-plane
+URL and one organization API key carrying `gateways:write`:
+
+```bash
+OPENPHONEX_CONTROL_PLANE_URL=https://api.openphonex.com \
+OPENPHONEX_BOOTSTRAP_API_KEY=tai_... \
+  bash selfhost-bootstrap.sh
+```
+
+It registers the deployment, mints the `tgw_` token (with no expiry — an expiry
+without auto-rotation only manufactures a lockout), resolves the organization,
+picks the agent-routed number when there is exactly one, and generates the
+LiveKit key pair into `livekit.yaml`, `sip.yaml` and `.env.livekit`
+identically. The bootstrap key is read from the environment (or the terminal,
+without echo) and is **never written to the host**, so retiring it is one
+revoke in the dashboard and nothing else.
+
+It deliberately does not derive your carrier's SIP signalling ranges: the
+control plane holds none, and a guessed allowlist produces a stack that reports
+healthy and never rings.
+
+### The organization-scoped worker key
+
+`OPENPHONEX_WORKER_API_TOKEN` is an organization-scoped `tai_` key. Inbound
+calling no longer needs it — the change above is additive, so an existing
+deployment that still sets one keeps working unchanged — and the only part of
+the shipped stack that still reads it is the optional outbound-dial profile,
+because claiming outbound call jobs is `worker_jobs:*` authority over the whole
+workspace queue that a deployment-bound token deliberately does not carry.
+
+An inbound-only host therefore holds no organization-wide credential at all.
 
 <Callout title="Later: fully self-hosted / BYO provider">
   A fully self-hosted / bring-your-own-provider path (your own carrier or a future
