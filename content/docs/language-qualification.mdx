@@ -1,0 +1,99 @@
+---
+title: How OpenPhonex qualifies languages and providers
+description: Why a provider advertising a language is not enough, what OpenPhonex verifies before a combination becomes selectable, and how the runtime refuses a language it has not verified.
+---
+
+A voice provider's marketing page will tell you it supports a hundred and
+thirty languages. That claim is about the provider's product, not about the
+combination your call actually runs: one speech-to-text or text-to-speech
+model, one language tag, over one streaming transport, reached with one
+credential. A model can advertise a language its real-time endpoint rejects, or
+accept it over a batch API and not over the streaming connection a phone call
+needs.
+
+OpenPhonex therefore treats a *combination* as the unit of support, not a
+provider and not a language. A combination is qualified only after OpenPhonex
+has verified that exact combination against the live provider.
+
+## What OpenPhonex verifies
+
+Qualification is a reviewed decision backed by evidence, not a single automatic
+check, and the evidence is strongest where the risk is highest — a speech
+synthesis combination is exercised against the live provider before it is
+offered:
+
+- **The exact model.** Not the provider, and not a neighbouring model in the
+  same family. Support does not transfer between models.
+- **The real streaming transport.** For speech synthesis, the check opens the
+  same kind of streaming connection a live call uses and completes the
+  handshake, because a combination that works over a batch request can still
+  fail in real time.
+- **The real credential.** The provider must accept the credential for that
+  model, which is where a plan or region restriction surfaces.
+- **The language, as far as the provider exposes it.** Where a provider takes
+  an explicit language parameter, the check sends it, so the provider itself
+  accepts or rejects that language. Where a provider instead infers the
+  language from the voice and the text, the check exercises the combination
+  with real content in that language.
+- **Structurally valid audio.** For speech synthesis, the returned audio must
+  parse and be playable — not merely a successful HTTP status.
+
+Each check is deliberately bounded: a single fixed request, a hard size limit,
+and a short deadline. Qualification is an explicit, reviewed operator action,
+never something triggered by your traffic.
+
+## What OpenPhonex does not claim
+
+There is no published accuracy benchmark behind a qualified combination, and no
+word-error-rate threshold. Qualification establishes that the combination runs
+correctly end to end for that language — that the provider accepts it, the
+stream works, and real audio comes back. It is a verified capability, not a
+quality score, and we would rather say so than imply a measurement we do not
+publish.
+
+The absence of a combination also carries meaning. If a provider advertises a
+language and OpenPhonex does not offer it, the usual reason is that nobody has
+verified it yet, not that it is known to fail. Coverage grows by evidence
+rather than by copying a provider's list.
+
+## A language cannot appear unqualified
+
+The guarantee that makes the catalog worth trusting is enforced in the
+runtime, not just in the workspace.
+
+Any language added beyond OpenPhonex's original set must carry an explicitly
+verified entry for both transcription and speech synthesis. The runtime refuses
+to load a capability set where a newer language is missing either one, so a
+partially updated configuration fails on startup rather than reaching a caller,
+and every call is additionally checked against the languages that runtime
+actually declares.
+
+The point of that rule is what it prevents: an older, broadly capable provider
+integration cannot quietly extend itself to a new language it was never checked
+against. Those older integrations still serve the languages they were
+originally built and verified for — the rule is not retroactive — but they are
+a closed set, and nothing can be added to it by accident.
+
+That is a deliberate trade. It means new languages arrive more slowly than a
+provider's feature list suggests, and it means a language you see in the
+product has been verified rather than assumed.
+
+## Reading what is qualified today
+
+The runnable catalog is the source of truth, and it never calls a provider
+while you read it:
+
+```http
+GET /v1/agent-catalog?language=ta&metered_only=true
+```
+
+Each entry carries the provider, model, voice inventory, cost, latency
+expectation, and credential contract that apply to that combination. Select
+components from the catalog rather than hard-coding a model or voice ID from a
+guide — a combination is added or withdrawn as evidence changes, and the
+catalog is what reflects that.
+
+For per-language selection across a campaign, see
+[Multilingual outbound calls](/docs/multilingual-outbound). For the exact
+request and response shapes, see the
+[generated API reference](/docs/api-reference).
