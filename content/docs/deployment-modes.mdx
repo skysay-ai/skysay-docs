@@ -91,6 +91,20 @@ It deliberately does not derive your carrier's SIP signalling ranges: the
 control plane holds none, and a guessed allowlist produces a stack that reports
 healthy and never rings.
 
+### Your gateway publishes no URL
+
+A self-hosted gateway does not need a public hostname, a tunnel, or a TLS
+certificate for OpenPhonex's benefit. Your carrier reaches it over SIP, and the
+control plane never dials into it — every connection runs the other way, from
+your gateway out to the API. There is nothing to port-forward and no inbound
+address to register.
+
+Registration reflects this: a deployment carries no public gateway URL and no
+local status URL. Both fields were removed from the workspace form and from the
+deployment resource. A `public_url` or `local_status_url` sent on
+`POST /v1/gateway-deployments` or on a health report is still accepted, so an
+older client keeps working, but it is ignored and never returned.
+
 ### Outbound: which originator dials
 
 A deployment's `outbound_execution_mode` decides how its outbound calls are

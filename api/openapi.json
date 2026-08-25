@@ -819,12 +819,6 @@
           "last_test_result": {
             "type": "object"
           },
-          "local_status_url": {
-            "type": "string"
-          },
-          "public_url": {
-            "type": "string"
-          },
           "realtime_worker_health": {
             "type": "object"
           },
@@ -4626,7 +4620,7 @@
     },
     "/v1/gateway-deployments/{gateway_id}/outbound-execution-mode": {
       "patch": {
-        "description": "Sets outbound_execution_mode to 'queue' (the default: admission enqueues a call.outbound_originate job an organization-scoped worker claims) or 'local' (the deployment asks for admission and dials itself, so no organization-scoped credential is needed on that box). Only a self-hosted deployment may be 'local'. Once the organization has a local-mode deployment and no queue-mode deployment left, a remote POST /v1/calls for its numbers fails closed rather than enqueueing a job nothing would claim.",
+        "description": "Sets outbound_execution_mode to 'queue' (the default: admission enqueues a call.outbound_originate job an organization-scoped worker claims) or 'local' (the deployment asks for admission and dials itself, so no organization-scoped credential is needed on that box). Only a self-hosted deployment may be 'local'. The switch is refused in either direction while calls are still in flight -- going local while outbound jobs are still queued would strand them, and going back to queue while the deployment is still dialing locally would abandon those calls. Once the organization has a local-mode deployment and no queue-mode deployment left, a remote POST /v1/calls for its numbers fails closed rather than enqueueing a job nothing would claim.",
         "requestBody": {
           "content": {
             "application/json": {
