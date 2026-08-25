@@ -91,16 +91,52 @@ It deliberately does not derive your carrier's SIP signalling ranges: the
 control plane holds none, and a guessed allowlist produces a stack that reports
 healthy and never rings.
 
+### Outbound: which originator dials
+
+A deployment's `outbound_execution_mode` decides how its outbound calls are
+placed. Read it from the deployment (`GET /v1/gateway-deployments/{gateway_id}`)
+and change it with
+`PATCH /v1/gateway-deployments/{gateway_id}/outbound-execution-mode`
+(`gateways:write`). Only a self-hosted deployment may be `local`.
+
+| | `local` | `queue` (the default) |
+| --- | --- | --- |
+| Who asks for the call | the gateway host itself | any client with an API key, through `POST /v1/calls` |
+| Who dials it | the same gateway host | that host's `--profile outbound` worker, after claiming the job |
+| Credentials on the host | the `tgw_` token only | the `tgw_` token **and** an organization-scoped `tai_` key |
+
+`local` exists because on a self-hosted box the requester and the dialer are the
+same machine, so the shared job queue buys nothing and costs an
+organization-scoped credential. The host calls
+`POST /v1/gateway-deployments/{gateway_id}/outbound-calls` with its own `tgw_`
+token; OpenPhonex runs the same admission a remote `POST /v1/calls` gets — the
+outbound authorization decision, the kill switches and caps, the wallet reserve,
+the call record — and answers with the admitted call plus a single-use
+authorization bound to that one (gateway, organization, from-number, to-number,
+call). Nothing on the host can reach media without it, and a blocked decision
+returns no authorization at all.
+
+<Callout type="warn" title="Remote origination fails closed in local mode">
+  Once a workspace has a `local`-mode deployment and no `queue`-mode deployment
+  left, `POST /v1/calls` for one of its numbers is **refused** with a message
+  naming the local flow, rather than queueing a job nothing would claim. The
+  refusal happens before the wallet reserve, so no money is held. Job claims are
+  per-organization, so one remaining queue-mode deployment keeps every project
+  working.
+</Callout>
+
 ### The organization-scoped worker key
 
 `OPENPHONEX_WORKER_API_TOKEN` is an organization-scoped `tai_` key. Inbound
 calling no longer needs it — the change above is additive, so an existing
 deployment that still sets one keeps working unchanged — and the only part of
-the shipped stack that still reads it is the optional outbound-dial profile,
-because claiming outbound call jobs is `worker_jobs:*` authority over the whole
-workspace queue that a deployment-bound token deliberately does not carry.
+the shipped stack that still reads it is the legacy `queue` outbound mode's
+job-claiming worker, because claiming a call job somebody else requested is
+`worker_jobs:*` authority over the whole workspace queue that a
+deployment-bound token deliberately does not carry.
 
-An inbound-only host therefore holds no organization-wide credential at all.
+An inbound-only host, and a host in `local` outbound mode, therefore hold no
+organization-wide credential at all.
 
 <Callout title="Later: fully self-hosted / BYO provider">
   A fully self-hosted / bring-your-own-provider path (your own carrier or a future

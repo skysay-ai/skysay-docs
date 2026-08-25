@@ -47,6 +47,19 @@ live call or send a live SMS on an implied approval.
 
 </Steps>
 
+## Self-hosted gateways use the same gate
+
+A self-hosted gateway in `local` outbound mode does not call
+`create_outbound_call`; it calls
+`POST /v1/gateway-deployments/{gateway_id}/outbound-calls` with its own
+deployment-bound token. That route runs the identical admission — the same
+`authorize_outbound` decision, the same kill switches and caps, the same wallet
+reserve — and only then mints the single-use authorization the host needs to
+reach media. A blocked decision returns `authorized: false` with no
+authorization, and the call is recorded as `policy_blocked` exactly as it would
+be for a remote request. See [Deployment modes](/docs/deployment-modes) for how
+a deployment chooses its originator.
+
 ## Blocked categories
 
 The policy engine blocks outbound in these categories regardless of scope:

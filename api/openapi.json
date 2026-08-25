@@ -840,6 +840,75 @@
         },
         "type": "object"
       },
+      "GatewayOutboundCall": {
+        "properties": {
+          "agent_endpoint_id": {
+            "type": "string"
+          },
+          "agent_id": {
+            "description": "Defaults to the caller number's own configured agent.",
+            "type": "string"
+          },
+          "call_context": {
+            "type": "object"
+          },
+          "external_group_reference": {
+            "type": "string"
+          },
+          "external_reference": {
+            "type": "string"
+          },
+          "from_number_id": {
+            "description": "Caller ID by number id; must be an active number of the deployment's project.",
+            "type": "string"
+          },
+          "from_phone_number": {
+            "description": "Caller ID in E.164, resolved inside the deployment's own project.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "recipient_type": {
+            "type": "string"
+          },
+          "recording_enabled": {
+            "type": "boolean"
+          },
+          "relationship": {
+            "type": "string"
+          },
+          "to": {
+            "description": "Destination in E.164.",
+            "type": "string"
+          },
+          "user_authorization": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "type": "object"
+      },
+      "GatewayOutboundExecutionMode": {
+        "properties": {
+          "outbound_execution_mode": {
+            "enum": [
+              "queue",
+              "local"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "outbound_execution_mode"
+        ],
+        "type": "object"
+      },
       "InboundCallRoute": {
         "properties": {
           "from_phone_number": {
@@ -2328,7 +2397,7 @@
             "description": "The idempotency key was already used for a different request"
           },
           "422": {
-            "description": "Typed refusal: no_failed_cases, unsupported_mode or active_run_limit"
+            "description": "Typed refusal: no_failed_cases, unsupported_mode, active_run_limit or organization_budget"
           }
         },
         "summary": "Queue a child run over this run's failed cases",
@@ -2487,7 +2556,7 @@
         ]
       },
       "patch": {
-        "description": "Every accepted edit appends a NEW immutable revision instead of mutating content, so a run that pinned an earlier revision keeps reading exactly what it executed. The request must carry the revision the edit is based on; a stale write returns 409 with the revision that beat it and never overwrites.",
+        "description": "Every accepted edit appends a NEW immutable revision instead of mutating content, so a run that pinned an earlier revision keeps reading exactly what it executed. The request must carry the revision the edit is based on; a stale write returns 409 with the revision that beat it and never overwrites. Scenario personas may carry bounded interruption and intent-change rules that drive an adaptive caller, and each scenario may carry up to five semantic rubrics; a rubric is a separate evaluator call on every attempt, which is why that ceiling is low.",
         "parameters": [
           {
             "in": "path",
@@ -2511,6 +2580,10 @@
             "application/json": {
               "schema": {
                 "properties": {
+                  "baseline_run_id": {
+                    "description": "A finished run of THIS suite that later runs are compared against. Send an empty string to clear it. A run belonging to another suite, one that is still going, or one that recorded no attempts is refused with 400 -- each would make the comparison meaningless.",
+                    "type": "string"
+                  },
                   "default_snapshot_source": {
                     "enum": [
                       "draft",
@@ -2629,7 +2702,7 @@
     },
     "/v1/agents/{agent_id}/test-suites/{suite_id}/runs": {
       "post": {
-        "description": "Returns 202 immediately with a durable queued run: request latency never depends on how long the suite takes to execute. The suite revision, its content hash and the compiled workflow snapshot are pinned at this moment, so an edit made while the run waits for a worker cannot change what it proves. idempotency_key is required and scoped to the organization -- replaying the same request returns the same run, and reusing one key for a different request is refused with 409. A run whose selected scenarios need a runner that is not deployed is refused with 422 unsupported_mode before anything is queued; deterministic attempts record a cost of zero and debit nothing in any case.",
+        "description": "Returns 202 immediately with a durable queued run: request latency never depends on how long the suite takes to execute. The suite revision, its content hash and the compiled workflow snapshot are pinned at this moment, so an edit made while the run waits for a worker cannot change what it proves. idempotency_key is required and scoped to the organization -- replaying the same request returns the same run, and reusing one key for a different request is refused with 409. A run whose selected scenarios need a runner that is not deployed is refused with 422 unsupported_mode before anything is queued. Deterministic attempts make no model call and record a cost of zero; adaptive attempts are metered, and the run pins an upper-bound estimate, a model-call ceiling and the caller and evaluator identities before the first attempt starts. Nothing here is charged to a customer balance -- suite cost is reported by the test-suite ledger only.",
         "parameters": [
           {
             "in": "path",
@@ -2695,7 +2768,7 @@
             "description": "The idempotency key was already used for a different request"
           },
           "422": {
-            "description": "Typed refusal: unsupported_mode, no_scenarios, suite_archived or active_run_limit"
+            "description": "Typed refusal: unsupported_mode, no_scenarios, suite_archived, active_run_limit or organization_budget"
           }
         },
         "summary": "Queue a run of this suite",
@@ -4525,6 +4598,54 @@
           }
         },
         "summary": "Report self-hosted gateway health, version, storage, and last test result"
+      }
+    },
+    "/v1/gateway-deployments/{gateway_id}/outbound-calls": {
+      "post": {
+        "description": "Runs the same outbound admission a remote POST /v1/calls runs -- the outbound authorization decision, the wallet reserve, the call record and the bounded execution slot -- and returns the admitted call plus the single-use tca_ call authorization bound to (gateway, organization, from-number, to-number, call), instead of enqueueing a worker job. The organization and project come from the gateway deployment row, never from the body; a named organization_id or project_id may only agree with them. The caller ID may be an E.164 from_phone_number resolved inside that project, or a from_number_id; either must be an active number of the deployment's own project. Refused before the wallet reserve when live calling is disabled, because there is no queued job to retry. A refused authorization returns authorized=false with no token, and replaying an idempotency_key returns the original call with no token. Once an organization has a local-mode deployment and no queue-mode deployment left, a remote POST /v1/calls for its numbers fails closed rather than enqueueing a job nothing would claim; job claims are per-organization, so one remaining queue-mode deployment keeps every project working.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatewayOutboundCall"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Admission result: the call, and the dial plan plus token when authorized"
+          }
+        },
+        "summary": "Admit an outbound call a local-mode deployment will dial itself",
+        "x-required-scopes": [
+          "calls:authorize"
+        ]
+      }
+    },
+    "/v1/gateway-deployments/{gateway_id}/outbound-execution-mode": {
+      "patch": {
+        "description": "Sets outbound_execution_mode to 'queue' (the default: admission enqueues a call.outbound_originate job an organization-scoped worker claims) or 'local' (the deployment asks for admission and dials itself, so no organization-scoped credential is needed on that box). Only a self-hosted deployment may be 'local'. Once the organization has a local-mode deployment and no queue-mode deployment left, a remote POST /v1/calls for its numbers fails closed rather than enqueueing a job nothing would claim.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatewayOutboundExecutionMode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated gateway deployment"
+          }
+        },
+        "summary": "Choose whether this deployment dials its own outbound calls",
+        "x-required-scopes": [
+          "gateways:write"
+        ]
       }
     },
     "/v1/gateway-deployments/{gateway_id}/tokens": {
