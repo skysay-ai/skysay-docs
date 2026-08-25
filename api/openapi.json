@@ -1150,14 +1150,15 @@
         "description": "recipient_type is optional and recorded, never enforced. Destination country is authorized against the org's approved risk envelope (authorize_outbound), not a fixed platform allowlist. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
         "properties": {
           "agent_endpoint_id": {
-            "description": "Backwards-compatible alias.",
+            "description": "Backwards-compatible alias for the selected agent endpoint; new integrations should send agent_id.",
             "type": "string"
           },
           "agent_id": {
+            "description": "Canonical saved agent selection. It must belong to the authenticated organization and selected project; the call starts from its stored voice stack.",
             "type": "string"
           },
           "call_context": {
-            "description": "Small bounded, non-secret facts valid at call start. Never put endpoint credentials, current balances, or mutable case history here.",
+            "description": "Small bounded, non-secret facts valid at call start. Never put endpoint credentials, current balances, mutable case history, or a requested voice-stack override here.",
             "maxProperties": 32,
             "type": "object"
           },
@@ -1732,7 +1733,7 @@
     },
     "/v1/agent-catalog": {
       "get": {
-        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and provider validation contract. Voice inventories contain only provider-supplied structured fields/tags and provenance; OpenPhonex does not infer age, accent, or personality. They are stable and bounded per supported language; voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. This catalog does not authorize a provider credential or disclose provider secrets.",
+        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). Voice inventories contain only provider-supplied structured fields/tags and provenance; OpenPhonex does not infer age, accent, or personality. They are stable and bounded per supported language; voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. This catalog does not authorize a provider credential or disclose provider secrets.",
         "parameters": [
           {
             "in": "query",
@@ -3020,7 +3021,7 @@
         "summary": "List calls"
       },
       "post": {
-        "description": "Supply Idempotency-Key (preferred) or idempotency_key. Replays with the same canonical request return the original call; reusing the key for a different request returns 409. call_context is a small, non-secret JSON object made available to the managed worker at call start, never a substitute for live customer data.",
+        "description": "Select the saved hosted agent with agent_id; the call begins from that agent's stored STT, model, and TTS stack. agent_endpoint_id is a backwards-compatible alias, not a second stack selector. Supply Idempotency-Key (preferred) or idempotency_key. Replays with the same canonical request return the original call; reusing the key for a different request returns 409. call_context is a small, non-secret JSON object made available to the managed worker at call start, never a substitute for live customer data or a way to change the selected voice stack.",
         "parameters": [
           {
             "description": "Durably deduplicates application retry requests within the organization.",

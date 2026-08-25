@@ -1,0 +1,135 @@
+---
+title: Multilingual outbound calls
+description: Select a saved hosted agent per call, keep a batch default with per-record overrides, and handle a language retry as a new governed call.
+---
+
+Use a multilingual campaign when your application already knows, or an operator
+has chosen, the recipient's preferred language. OpenPhonex starts every
+outbound call with one saved hosted agent. The selected agent's stored STT,
+model, and TTS configuration remains fixed for that call.
+
+This guide describes call-level language selection. It does not describe an
+in-call voice-stack handoff: OpenPhonex does not mutate an active call's stack
+from `call_context`, an extraction result, or a model instruction.
+
+## Create one saved agent per language
+
+Create and validate a separate hosted agent for each language you intend to
+dial. Use the runnable catalog to choose supported components before saving
+each voice stack:
+
+| Language | Catalog query |
+| --- | --- |
+| English | `GET /v1/agent-catalog?language=en&metered_only=true` |
+| Sinhala | `GET /v1/agent-catalog?language=si&metered_only=true` |
+| Tamil | `GET /v1/agent-catalog?language=ta&metered_only=true` |
+
+The catalog is the source of truth for the currently runnable provider, model,
+voice, language, cost, and credential contracts. Do not hard-code a voice ID
+from a guide or use a provider credential to infer that a component is
+runnable.
+
+Create an agent with `POST /v1/agents`, select its stack with
+`PATCH /v1/agents/{agent_id}/voice-stack`, and read it back with
+`GET /v1/agents/{agent_id}/voice-stack`. Save the returned agent IDs in your
+application, for example:
+
+```json
+{
+  "en": "agent_english",
+  "si": "agent_sinhala",
+  "ta": "agent_tamil"
+}
+```
+
+Test each stored profile with a browser or shared-number trial before it joins
+a live outbound cohort. The [generated API reference](/docs/api-reference)
+has the exact request and response schemas.
+
+## Resolve the language before each call
+
+The API creates one call at a time; it does not provide a batch-language
+endpoint. Keep the campaign and row-selection logic in your application:
+
+1. An operator chooses a batch default: `en`, `si`, or `ta`.
+2. For each eligible row, use its valid language override when present;
+   otherwise use the batch default.
+3. Resolve that language to the saved `agent_id`, then create one governed,
+   idempotent `POST /v1/calls` request.
+
+Use `agent_id` as the canonical saved-agent selection. `agent_endpoint_id` is
+a backwards-compatible alias, not a second stack selector. A small,
+non-secret `call_context` can carry an application-visible language label, but
+it cannot select or override the agent's stack.
+
+```json
+{
+  "agent_id": "agent_sinhala",
+  "external_reference": "case_456",
+  "external_group_reference": "campaign_2026_08",
+  "call_context": {
+    "preferred_language": "si"
+  }
+}
+```
+
+Add the normal recipient, source number, policy purpose, and authorization
+fields from [Customer applications](/docs/customer-applications), and use a
+unique `Idempotency-Key` for each attempt. Do not put current balances,
+credentials, mutable case history, or a requested voice-stack override in
+`call_context`.
+
+Respect `429` and `Retry-After`, keep the application queue bounded, and let
+your application own suppression, correct-person checks, duplicate prevention,
+cadence, and retry budget. A create response only confirms the governed call
+request; use signed lifecycle and evidence events to reconcile its outcome.
+
+## Route a language retry after the call
+
+Post-call extraction can label a later follow-up without changing an active
+conversation. Configure a small advisory schema such as:
+
+```json
+{
+  "enabled": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "language_follow_up": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "LANGUAGE_RETRY_EN",
+          "LANGUAGE_RETRY_SI",
+          "LANGUAGE_RETRY_TA"
+        ]
+      }
+    }
+  }
+}
+```
+
+When you receive a signed `call.extraction.ready` event, fetch the extraction
+and verify the source evidence and your own policy. If your application allows
+a retry, submit a **later, new** `POST /v1/calls` request with the target saved
+agent ID, a fresh idempotency key, and its own authorization. An extraction is
+advisory: it must not automatically place a call, change a customer record, or
+switch an in-progress voice stack.
+
+If a recipient asks to use another language during a live call, record that
+request according to your policy and use the same later-call path. Do not edit
+a shared agent while a cohort is running; create or update a saved profile,
+validate it, and select it only for future calls.
+
+## Evidence and duration
+
+Treat `call.completed` or `call.failed` and the ready recording, transcript,
+and extraction events as the evidence path. Verify every signed delivery,
+deduplicate by event ID, and retain only what your policy permits. See
+[Post-call results](/docs/post-call-results) for verification and retrieval.
+
+OpenPhonex does not impose a 90-second hard cap for this flow. The outbound
+worker defaults to a 1,800-second maximum and a deployment can set a value from
+30 through 14,400 seconds. A language retry is still a separate future call,
+never an automatic in-call mutation.
