@@ -64,6 +64,17 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("workflow_state: \"not_created\"", endpoints)
         self.assertIn("no AI or provider call", workflows)
 
+    def test_call_evidence_guide_explains_safe_per_turn_audio(self) -> None:
+        calls = self.schema["paths"]["/v1/dashboard/calls"]["get"]
+        self.assertIn("has_audio", calls["description"])
+        guide = (ROOT / "content" / "docs" / "read-call-evidence.mdx").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("has_audio", guide)
+        self.assertIn("retention", guide)
+        self.assertRegex(guide, r"do not get a\s+broken player")
+        self.assertIn("never receives a recording bucket URL", guide)
+
     def test_navigation_and_cross_links_expose_the_customer_guides(self) -> None:
         pages = json.loads((ROOT / "content" / "docs" / "meta.json").read_text(encoding="utf-8"))["pages"]
         for slug in ("integrations", "customer-applications", "post-call-results", "api-reference"):
