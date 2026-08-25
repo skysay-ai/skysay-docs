@@ -1731,7 +1731,7 @@
     },
     "/v1/agent-catalog": {
       "get": {
-        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). Voice inventories contain only provider-supplied structured fields/tags and provenance; OpenPhonex does not infer age, accent, or personality. They are stable and bounded per supported language; voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. This catalog does not authorize a provider credential or disclose provider secrets.",
+        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by OpenPhonex; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; OpenPhonex does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. This catalog does not authorize a provider credential or disclose provider secrets.",
         "parameters": [
           {
             "in": "query",
@@ -2114,6 +2114,591 @@
           }
         },
         "summary": "Configure or disable bounded advisory post-call extraction",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suite-runs/{run_id}": {
+      "get": {
+        "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run, pinned identity, per-scenario rollup and one attempt page"
+          },
+          "404": {
+            "description": "Run not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Fetch one run with a bounded page of attempt results",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suite-runs/{run_id}/cancel": {
+      "post": {
+        "description": "Cancellation stops unstarted work only. An attempt a worker already claimed finishes and keeps its verdict, and completed results are never altered or deleted. Cancelling an already-finished run changes nothing.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run state after cancellation"
+          },
+          "404": {
+            "description": "Run not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Stop the attempts of this run that have not started",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suite-runs/{run_id}/cases/{case_result_id}/save-as-regression": {
+      "post": {
+        "description": "Appends a new immutable suite revision carrying the attempt's scenario as a critical regression. The historical run keeps pointing at the revision it executed, and the attempt row itself is read, never written.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "case_result_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "scenario_id": {
+                    "description": "Stable id for the new scenario. Defaults to the source scenario id with a regression suffix.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "description": "The suite's new revision and the scenario id that was added"
+          },
+          "404": {
+            "description": "Run or case not found, or Test Suites is not enabled"
+          },
+          "409": {
+            "description": "The suite changed while the regression was being saved"
+          }
+        },
+        "summary": "Promote one attempt into a permanent scenario",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suite-runs/{run_id}/rerun-failed": {
+      "post": {
+        "description": "The child reuses the parent's pinned suite revision, content hash and compiled workflow, so it asks exactly the question the original asked. The parent run and every verdict it holds are left untouched.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "idempotency_key": {
+                    "maxLength": 200,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "idempotency_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Durable queued child run"
+          },
+          "400": {
+            "description": "Missing idempotency_key"
+          },
+          "404": {
+            "description": "Run not found, or Test Suites is not enabled"
+          },
+          "409": {
+            "description": "The idempotency key was already used for a different request"
+          },
+          "422": {
+            "description": "Typed refusal: no_failed_cases, unsupported_mode or active_run_limit"
+          }
+        },
+        "summary": "Queue a child run over this run's failed cases",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suites": {
+      "get": {
+        "description": "Bounded and stably ordered newest-first, with an opaque cursor and an explicit has_more. A suite that has never run reports state=never_run rather than a zero pass rate. Returns 404 while Test Suites is not enabled for the deployment.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounded suite page with latest-run health"
+          },
+          "404": {
+            "description": "Agent not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "List this agent's test suites with their latest health",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
+      "post": {
+        "description": "Creates the suite and its first immutable revision. Authored scenarios are validated and bounded here; a scenario may name a runner whose runtime is not deployed yet, but a run that selects one is refused with 422 unsupported_mode.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "default_snapshot_source": {
+                    "default": "draft",
+                    "enum": [
+                      "draft",
+                      "published"
+                    ],
+                    "type": "string"
+                  },
+                  "description": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "policy": {
+                    "description": "Thresholds, budget ceiling and retention for this suite.",
+                    "type": "object"
+                  },
+                  "scenarios": {
+                    "description": "Authored caller scenarios. At most 50 per suite.",
+                    "items": {
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created suite at revision 1"
+          },
+          "400": {
+            "description": "Invalid scenario contract or a limit exceeded"
+          },
+          "404": {
+            "description": "Agent not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Create a test suite for this agent",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suites/{suite_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suite, scenarios, policy and run history"
+          },
+          "404": {
+            "description": "Suite not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Fetch one suite with its authored scenarios and bounded run history",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
+      "patch": {
+        "description": "Every accepted edit appends a NEW immutable revision instead of mutating content, so a run that pinned an earlier revision keeps reading exactly what it executed. The request must carry the revision the edit is based on; a stale write returns 409 with the revision that beat it and never overwrites.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "default_snapshot_source": {
+                    "enum": [
+                      "draft",
+                      "published"
+                    ],
+                    "type": "string"
+                  },
+                  "description": {
+                    "maxLength": 500,
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "policy": {
+                    "type": "object"
+                  },
+                  "revision": {
+                    "description": "The revision this edit is based on.",
+                    "type": "integer"
+                  },
+                  "scenarios": {
+                    "items": {
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "status": {
+                    "enum": [
+                      "active",
+                      "archived"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Suite at its new revision"
+          },
+          "400": {
+            "description": "Missing revision or an invalid scenario contract"
+          },
+          "404": {
+            "description": "Suite not found, or Test Suites is not enabled"
+          },
+          "409": {
+            "description": "Stale revision; the response carries the revision that won"
+          }
+        },
+        "summary": "Edit a suite under optimistic revision control",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suites/{suite_id}/duplicate": {
+      "post": {
+        "description": "The copy starts its own revision chain at 1 and inherits no run history or baseline: duplicating branches authoring, it does not inherit evidence.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "description": "The new suite at revision 1"
+          },
+          "404": {
+            "description": "Suite not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Copy a suite's authored content into a new suite",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/test-suites/{suite_id}/runs": {
+      "post": {
+        "description": "Returns 202 immediately with a durable queued run: request latency never depends on how long the suite takes to execute. The suite revision, its content hash and the compiled workflow snapshot are pinned at this moment, so an edit made while the run waits for a worker cannot change what it proves. idempotency_key is required and scoped to the organization -- replaying the same request returns the same run, and reusing one key for a different request is refused with 409. A run whose selected scenarios need a runner that is not deployed is refused with 422 unsupported_mode before anything is queued; deterministic attempts record a cost of zero and debit nothing in any case.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "idempotency_key": {
+                    "maxLength": 200,
+                    "type": "string"
+                  },
+                  "pinned_source": {
+                    "enum": [
+                      "draft",
+                      "published"
+                    ],
+                    "type": "string"
+                  },
+                  "scenario_ids": {
+                    "description": "Run only these scenarios. Omit to run the whole suite.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "idempotency_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Durable queued run"
+          },
+          "400": {
+            "description": "Missing idempotency_key or an unusable snapshot"
+          },
+          "404": {
+            "description": "Suite not found, or Test Suites is not enabled"
+          },
+          "409": {
+            "description": "The idempotency key was already used for a different request"
+          },
+          "422": {
+            "description": "Typed refusal: unsupported_mode, no_scenarios, suite_archived or active_run_limit"
+          }
+        },
+        "summary": "Queue a run of this suite",
         "x-required-scopes": [
           "agents:write"
         ]
@@ -3289,6 +3874,168 @@
         ]
       }
     },
+    "/v1/dashboard/agent-test-suite": {
+      "get": {
+        "description": "Authored scenarios, suite policy and bounded run history for the suite editor. Pure read: it never repairs a suite, resolves a snapshot, or calls a provider.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suite editor aggregate"
+          },
+          "404": {
+            "description": "Suite not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Read one suite's editor projection",
+        "x-required-scopes": [
+          "account:read",
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/dashboard/agent-test-suite-run": {
+      "get": {
+        "description": "The run's pinned identity, its per-scenario rollup, and one stably ordered page of attempts with an explicit has_more. Attempts are keyset-paginated so the query count stays constant as a suite is re-run. Never returns the run's idempotency key, request fingerprint or pinned contract.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run results aggregate"
+          },
+          "404": {
+            "description": "Run not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Read one run with a bounded page of attempt results",
+        "x-required-scopes": [
+          "account:read",
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/dashboard/agent-test-suites": {
+      "get": {
+        "description": "The same canonical suite rows the workspace index returns, already filtered to one agent. Not a second suite system and not a copy.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent-scoped suite index"
+          },
+          "404": {
+            "description": "Agent not found, or Test Suites is not enabled"
+          }
+        },
+        "summary": "Read one AI agent's slice of the same suite records",
+        "x-required-scopes": [
+          "account:read",
+          "agents:read"
+        ]
+      }
+    },
     "/v1/dashboard/agent-workflow": {
       "get": {
         "description": "Returns one selected agent's workflow draft (with a live, in-memory validation summary), the currently published version summary if any, and a bounded version history. Distinguishes an agent with zero workflows (workflow: null) from an existing draft. It is bound to the dashboard session organization and selected project; it never compiles server-side for a side effect, calls a provider, or performs a write.",
@@ -3618,6 +4365,62 @@
           }
         },
         "summary": "Read the bounded, customer-scoped Team aggregate"
+      }
+    },
+    "/v1/dashboard/test-suites": {
+      "get": {
+        "description": "One tenant-bound, pure-read DTO for the workspace Test Suites page: every suite in the selected project across that project's AI agents, with its latest-run health, plus a bounded agent filter. Omitting project_id selects the workspace's first project rather than merging every project. Latest health is one batch join, never a lookup per suite, so the query count is fixed by the page rather than by how many suites the workspace owns. A suite that has never run reports never_run rather than an invented 0%. The page is bounded with an opaque cursor and an explicit has_more. Returns 404 while Test Suites is not enabled.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter to one AI agent in this workspace.",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace suite index"
+          },
+          "404": {
+            "description": "Test Suites is not enabled, or the filtered agent is not in this workspace"
+          }
+        },
+        "summary": "Read the workspace-wide Test Suites index",
+        "x-required-scopes": [
+          "account:read",
+          "agents:read"
+        ]
       }
     },
     "/v1/dashboard/verification": {
