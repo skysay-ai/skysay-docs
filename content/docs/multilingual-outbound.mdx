@@ -29,6 +29,17 @@ voice, language, cost, and credential contracts. Do not hard-code a voice ID
 from a guide or use a provider credential to infer that a component is
 runnable.
 
+For a least-privilege REST integration, grant `agents:read` to read this
+catalog and `agents:write` to save the selected agent; neither account nor
+wallet scope is needed. Each TTS entry's `voices` list contains the exact IDs
+you may select for that provider/model. Registry-owned engines keep their
+checked-in worker voices. Managed legacy engines, including the English
+ElevenLabs and Sinhala Gemini paths, return a bounded provider directory that
+OpenPhonex has already ingested; the catalog never calls a provider while you
+read it. Use `voice_count` and `voices_truncated` before assuming that one
+provider/model inventory is complete. If a provider has no per-voice language
+tags, the row appears only for the qualified languages of its TTS model.
+
 Create an agent with `POST /v1/agents`, select its stack with
 `PATCH /v1/agents/{agent_id}/voice-stack`, and read it back with
 `GET /v1/agents/{agent_id}/voice-stack`. Save the returned agent IDs in your
