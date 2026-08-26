@@ -265,6 +265,33 @@ has always meant. On a voice attempt, where you would reasonably read it as the
 answer-to-teardown duration of a call, it is `unknown` unless real-time evidence
 was collected.
 
+### Why a timing rule stayed unknown
+
+Real-time evidence needs a room, and a room needs several things to go right
+that have nothing to do with your AI agent: a voice host has to accept the
+work, a synthetic caller has to arrive and be authorized, your agent has to
+join, and measurements have to come back. When any of that does not happen, the
+attempt keeps the verdict it already earned and its timing rules stay
+`unknown` — the platform never invents a measurement, and never marks your
+agent down for one it could not take.
+
+So that `unknown` is not a dead end, an attempt whose run tried to collect
+real-time evidence carries `facts.realtime_dispatch`:
+
+| field | meaning |
+| --- | --- |
+| `outcome` | why the room ended where it did — `reported`, `dispatch_never_claimed`, `dispatch_failed`, `caller_never_claimed`, `agent_never_joined`, `report_never_arrived`, or `room_expired` |
+| `agent_present` | whether your AI agent actually joined the room |
+
+`agent_present` is the one worth reading first. A room that your agent never
+joined can still report how long it took to tear down, and a platform that
+accepted that number would settle a duration rule against a conversation that
+never happened. It does not: an attempt whose agent never arrived cannot record
+real-time evidence at all, whatever the caller measured.
+
+Real-time collection is not enabled yet on any deployment. Until it is, a voice
+attempt records `offline_robustness` and no `realtime_dispatch` facts appear.
+
 ## When a speech stack cannot serve a scenario
 
 A run whose selected scenarios need a language your AI agent's pinned speech
