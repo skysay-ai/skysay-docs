@@ -28,9 +28,14 @@ useful call/result signals:
 | Event | Use it for |
 | --- | --- |
 | `call.created`, `call.queued`, `call.dialing`, `call.answered`, `media.started` | Live lifecycle tracking |
-| `call.ended`, `call.failed`, `call.completed` | Terminal reconciliation |
+| `call.ended`, `call.failed`, `call.completed`, `call.canceled` | Terminal reconciliation |
 | `call.transcript.ready`, `call.recording.ready` | Fetching newly available evidence |
 | `call.extraction.ready`, `call.extraction.failed` | Reading optional advisory extraction status |
+
+`call.canceled` is terminal like `call.failed`: the call was cancelled before it
+reached the carrier, so no recording or transcript will follow and any reserved
+balance is released. Treat it as a stop condition wherever you wait for
+`call.completed`.
 
 `GET /v1/webhook-deliveries` is the scoped delivery feed: it shows each event,
 endpoint, retry status, and safe failure evidence. It is the operational view
