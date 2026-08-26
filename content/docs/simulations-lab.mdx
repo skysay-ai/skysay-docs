@@ -1,0 +1,370 @@
+---
+title: Simulations Lab
+description: Author realistic caller scenarios, replay them against one pinned agent version, and read hard verdicts with the exact snapshot each attempt exercised.
+---
+
+A simulation suite proves an AI agent before a caller does. You author realistic
+caller scenarios once, pin an exact agent version, and replay them as often as
+you like. Every attempt leaves a transcript, the exact workflow path it walked,
+and a verdict against rules you wrote — not an impression, and not a score you
+have to interpret.
+
+Simulation suites never place a call. Automated attempts run against
+simulation-only tool mocks: read tools return the fixtures you declared, and mutation tools — SMS,
+transfers, customer integrations — are unreachable by construction rather than
+by configuration. A suite cannot send a message or move money, however it is
+authored.
+
+## The shape of a suite
+
+A **suite** belongs to one AI agent and holds **scenarios**. A scenario is one
+caller: a script of turns, the tool fixtures that turn should see, and what must
+(and must not) happen. Each scenario declares how many **attempts** it
+contributes to a run.
+
+Editing a suite never overwrites what it used to say. Every accepted edit
+appends a new immutable **revision**, so a run that executed revision 11 keeps
+reading revision 11 no matter how far the suite moves afterwards. That is also
+what makes concurrent editing safe: a `PATCH` carries the revision your edit is
+based on, and a stale write is refused with `409` carrying the revision that
+beat it, rather than silently replacing someone else's work.
+
+## Runners
+
+The runner is a property of each scenario, not of the suite — one suite can mix
+a free deterministic check with metered adaptive attempts once those ship.
+
+| Runner | What it proves | Status |
+| --- | --- | --- |
+| **Deterministic** | Exact routes, tool calls and terminal outcomes. No model or provider cost. | Available |
+| **Adaptive chat** | An AI caller that paraphrases, objects, changes its mind and interrupts. Text only. | Available |
+| **Adaptive voice** | Real speech recognition and synthesis, with recordings and timing. | Coming later |
+
+A scenario may name a runner whose runtime is not deployed for your workspace
+yet — authoring is not gated on it. **Starting** a run that needs one is
+refused at the API with `422 unsupported_mode`, listing the runners that do
+work. Nothing is queued and nothing is charged: a run that could never finish is
+never accepted in the first place.
+
+## The adaptive caller
+
+An `adaptive_chat` scenario has no scripted turns. Instead it carries a
+**persona** — who the caller is, what they want, how they behave, and bounded
+lists of when they cut in and when they change direction — and a caller model
+writes each turn by reading the AI agent's last reply.
+
+The caller may do exactly three things: **say** something, **interrupt**, or
+**hang up**. That is the whole vocabulary. If the caller model answers with
+anything else — a tool call, a transfer destination, an extra field, or
+something that is not valid JSON — that attempt ends as a typed **error**, not
+as a failure. A caller that misbehaved tells you nothing about your AI agent,
+and recording it as a verdict would let a bad caller make a healthy agent look
+broken. Nothing is retried: a retry would double the spend for a model that is
+already misbehaving.
+
+Two things the caller can never do, by construction:
+
+- **It does not decide anything.** Your AI agent's own model still answers every
+  routing and interrupt question — that is the thing being tested. The caller
+  can influence what your agent hears, never what it decides.
+- **It cannot reach a real tool.** Adaptive attempts run against the same
+  test-only mocks deterministic ones use. There is no code path from a suite to
+  a live integration, however persuasively the caller asks.
+
+Repeating an adaptive scenario measures **consistency, not luck** — set
+`attempts` above 1 when you want to know whether a behaviour holds up, rather
+than whether it happened once.
+
+Every adaptive attempt is bounded by a hard turn ceiling, independent of any
+assertion you write. A scripted scenario ends when its written turns run out; an
+adaptive one needs a limit of its own.
+
+## Quality rubrics
+
+A rubric asks a question no assertion can settle: was the reply clear, was the
+tone right, did it actually help. Each scenario may carry up to **five** — each
+one is a separate evaluator call on every attempt, so that ceiling is a
+multiplier on what a run costs, not a formatting preference.
+
+A rubric carries what to judge, a passing score on a 1–5 scale, and optional
+examples that should score high or low. The examples matter: an instruction plus
+a bare scale is not a rubric, and two runs are only comparable if the evaluator
+was anchored the same way.
+
+Rubrics are evaluated **last**, and three rules bound what they can do:
+
+- A rubric below its threshold **fails** that attempt — you asked for something
+  and did not get it — but it can never make the failure *critical*. Quality may
+  add a failure. It may never rescue or escalate one.
+- When an attempt has already failed a critical rule, the evaluator is **not
+  called at all**. Its answer could not change the outcome, so you are not
+  charged for it; those rubrics record `skipped` with the reason.
+- When the evaluator cannot answer — unreachable, rate-limited, or incoherent —
+  the result is **`unknown`**, which is distinct from both a pass and a fail.
+  An evaluator failure never becomes an approval.
+
+Every verdict stores the evaluator's provider, model, prompt version, prompt
+hash and the rubric revision it graded. "Same model" and "same question" are
+different claims, and comparing two scores means having both.
+
+Attempts whose quality could not be graded leave the **quality** average — not
+the run. A workspace showing a clean score beside an evaluator outage would be
+telling you something it does not know.
+
+## What a run may spend
+
+Deterministic attempts make no model call and genuinely cost nothing. Adaptive
+attempts are metered, and a run pins its whole spending envelope before the
+first attempt starts: an upper-bound cost estimate and a ceiling on model calls.
+
+The estimate is an **upper bound**, not a forecast — it assumes every attempt
+uses its whole turn budget and every rubric is judged. Being charged less than a
+stated ceiling is a better surprise than the reverse.
+
+Every model call is claimed against that ceiling *before* it is made, including
+your AI agent's own calls: they are the thing being tested, but they are still
+calls the run caused. If a run exhausts its budget it stops and ends with status
+`budget_exceeded` — every verdict already recorded is kept and final, and the
+attempts that had not started simply never run. That is a terminal state of its
+own, neither a pass nor an agent failure.
+
+Your workspace also has ceilings of its own: how many runs may be queued or
+running at once, and what those runs may commit to spend together. Exceeding
+either is refused when you start the run, with a typed code, before anything is
+queued.
+
+## Grouping failures and comparing runs
+
+A run's results group failing attempts by **cause**. Attempts that failed the
+same critical rule are one cluster even if what happened afterwards differed, so
+forty failures usually resolve to two or three real problems.
+
+You can designate any finished run of a suite as its **baseline** by sending
+`baseline_run_id` on the suite `PATCH`. Later runs then report deltas against
+it: pass rate, critical failures, duration, and which failure clusters are new
+since. A baseline must belong to the same suite, must have finished, and must
+have recorded attempts — each of the three is refused because it would make the
+comparison meaningless rather than merely imprecise. Send an empty string to
+clear it.
+
+Where a delta cannot be computed it is reported as null rather than zero, and a
+comparison drawn over the most common causes says so rather than implying it saw
+every one.
+
+## Running a suite
+
+`POST /v1/agents/{agent_id}/simulation-suites/{suite_id}/runs` returns `202`
+immediately with a durable queued run. The request does not wait for execution,
+so its latency never depends on how long the suite takes; you can close the page
+and come back.
+
+At that moment the run pins everything a verdict will depend on: the suite
+revision and its content hash, and the **compiled workflow contract itself**.
+Editing the agent's draft while the run waits for a worker therefore cannot
+change what the run proves.
+
+An organization-scoped `idempotency_key` is required. Replaying the same request
+returns the same run rather than queueing a second one; reusing one key for a
+*different* request is refused with `409` rather than answered with someone
+else's run.
+
+```bash
+curl -X POST \
+  https://api.openphonex.com/v1/agents/AGENT_ID/simulation-suites/SUITE_ID/runs \
+  -H "Authorization: Bearer tai_..." \
+  -H "Content-Type: application/json" \
+  -d '{"idempotency_key": "nightly-2026-08-25", "pinned_source": "published"}'
+```
+
+Other typed refusals you may see, all before anything is queued:
+`422 no_scenarios` (a suite with nothing to run), `422 suite_archived`, and
+`422 active_run_limit` (this workspace already has the maximum runs in flight).
+
+## Reading verdicts
+
+`GET /v1/agents/{agent_id}/simulation-suite-runs/{run_id}` returns the run, its
+per-scenario rollup, and one bounded page of attempts in a stable order with an
+explicit `has_more` and a cursor. Attempts grow every time you re-run, so the
+page size is fixed by contract — a bounded slice never reads as a complete one.
+
+Verdicts come in two levels, and the order matters:
+
+- **Critical** assertions are the safety envelope: the terminal state, required
+  and forbidden routes, tools and steps, disclosure ordering, and duration
+  policy. These must hold on every attempt.
+- **Business** assertions are what the conversation was supposed to achieve:
+  the expected outcome, turn limits, and expected mocks.
+
+- **Quality** rubrics are last and always advisory. A score can explain an
+  attempt and can fail it against its own rubric; it can never override a failed
+  critical assertion, and an evaluator that could not answer records `unknown`
+  rather than a pass.
+
+An attempt that **errored** is a third thing, distinct from a pass and a fail. A
+malformed scenario or a harness failure ends that attempt alone — the rest of
+the run continues — and it is recorded as an error rather than being scored for
+or against the AI agent. Every attempt is persisted independently, so one bad
+attempt never takes a suite down with it.
+
+## Reruns and regressions
+
+`POST .../simulation-suite-runs/{run_id}/rerun-failed` queues a **child** run over the
+failed cases, reusing the parent's pinned revision, content hash and compiled
+workflow — so it asks exactly the question the original asked. The parent and
+every verdict it holds are untouched.
+
+`POST .../simulation-suite-runs/{run_id}/cases/{case_result_id}/save-as-regression`
+promotes one attempt into a permanent critical scenario by appending a new suite
+revision. The historical run keeps pointing at the revision it executed.
+
+Cancelling stops work that has not started. An attempt a worker already claimed
+finishes and keeps its verdict; completed results are never altered or deleted
+by a cancellation.
+
+## Suite activity is not production activity
+
+Every workflow run an attempt produces carries immutable synthetic provenance.
+Synthetic runs are excluded by default from your call and message lists,
+analytics, live success metrics, billing, and provider-usage reporting — so
+running a suite a hundred times a day never distorts what your workspace
+reports about real callers. This holds for adaptive attempts too — a synthetic
+conversation is more convincing than a scripted one, which makes marking it
+synthetic more important, not less.
+
+Suite cost is reported only by the suite itself and is never charged to your
+balance. Deterministic attempts genuinely cost nothing.
+
+## Voice proof: two different things
+
+"Voice testing" covers two capabilities that are easy to confuse and dangerous
+to conflate, so a suite tells you which one an attempt produced.
+
+**Offline robustness** speaks the scenario's authored lines with your AI agent's
+pinned voice and reads its replies back through your pinned transcriber. That
+answers a question no text test can reach: whether your callers will be
+understood, and whether the agent will understand them. A workflow that reads
+perfectly can still be built on a name the voice mangles or a phrase the
+transcriber never hears.
+
+It measures no room, no clock and no interruption. It therefore says nothing
+about barge-in, overlapping audio, playout or how long a call actually took.
+
+**Real-time evidence** requires a synthetic caller participant that joins the
+room and speaks while the agent is speaking. Only that can support a timing
+claim.
+
+Every attempt carries `voice_evidence_kind`, which is `offline_robustness`,
+`realtime`, or empty for a text attempt. A timing rule evaluated against
+anything but real-time evidence resolves to **`unknown`** — neither a pass nor a
+failure. Your AI agent is never marked down for a proof the platform did not
+run, and a result is never presented as evidence of something it did not
+measure. `unproven_assertions` counts those rules per attempt.
+
+This applies to `max_duration_ms` as well. On a text attempt it means what it
+has always meant. On a voice attempt, where you would reasonably read it as the
+answer-to-teardown duration of a call, it is `unknown` unless real-time evidence
+was collected.
+
+## When a speech stack cannot serve a scenario
+
+A run whose selected scenarios need a language your AI agent's pinned speech
+stack cannot speak is refused before anything is queued, with `422
+unsupported_voice_stack`. The response names the component (`tts` or `stt`), the
+language, a machine-readable `reason`, and `supported_stacks` — the stacks that
+*do* serve that language. Nothing is charged and nothing is queued; change the
+AI agent's voice stack or the scenario's language and run again.
+
+This is deliberately separate from `422 unsupported_mode`, which means the
+runner itself is not available in your workspace yet. The two need different
+actions from you.
+
+## Retention
+
+Each suite sets how long its heavy artifacts live: `audio_retention_days`
+(default 7) and `transcript_retention_days` (default 30). The windows are pinned
+onto a run when it starts, so editing a suite never retroactively shortens how
+long a past run's evidence was promised to live.
+
+When a window closes, that artifact is released. **Verdicts, assertions, rubric
+results and the step trace are permanent** — a run from a year ago still tells
+you exactly what happened; you simply cannot play it back.
+
+Results distinguish an artifact that **expired** from one that never existed,
+because those are different facts. In the automation API each attempt carries
+`artifacts.recording` and `artifacts.transcript`, each `available`, `expired` or
+`none`.
+
+## Automation: reading results from CI
+
+`GET /v1/agents/{agent_id}/simulation-suite-runs/{run_id}/results` is built for a build
+server rather than for a screen. It requires the narrow `simulation_suites:read`
+scope — issue a key with only that scope for a CI job, rather than granting it
+`agents:read` over every AI agent's configuration.
+
+```bash
+curl -H "Authorization: Bearer $OPENPHONEX_API_KEY" \
+  "https://api.openphonex.com/v1/agents/$AGENT_ID/simulation-suite-runs/$RUN_ID/results?limit=100"
+```
+
+The response opens with `contract_version`. Fields may be **added** under the
+same version; nothing is removed or given a new meaning without it changing, so
+pin the version you understand and ignore what you do not recognise.
+
+Attempts paginate on a stable cursor with an explicit `has_more` and
+`next_cursor`; the query cost does not grow with the number of attempts. Run
+status is one of `queued`, `running`, `completed`, `failed`, `cancelled`,
+`budget_exceeded`; an attempt is `pass`, `fail` or `error`.
+
+Read `totals.errored_cases` separately from `totals.failed_cases`. An errored
+attempt produced no evidence about your AI agent — a malformed synthetic caller
+response, or an evaluator that could not answer — so failing a build on it means
+failing your release for our outage.
+
+Transcripts, recordings and rubric rationales are deliberately not included. Use
+the workspace for those; the attempt id here is the link.
+
+## Blocking a publish on a suite
+
+A suite can refuse to let an AI agent's workflow be published. It is off unless
+you turn it on, and then it is opt-in a second time for anything advisory.
+
+- **Deterministic critical failures** block by default once the gate is enabled.
+  Those are statements about safety, tenancy, forbidden tools and required
+  paths: they either held or they did not.
+- **Quality rubrics never block unless you name that rubric.** There is no
+  "block on any failing rubric" switch, because a rubric is a model's opinion
+  about tone and turning every opinion into a release gate should not be one
+  click away.
+- **`unknown` never blocks by default.** An evaluator that could not answer, or
+  a rule that needed evidence the attempt could not carry, leaves publishing
+  alone unless you explicitly ask otherwise. Blocking there means an outage on
+  our side stops your release.
+- **No qualifying run** does not block by default either.
+
+The run consulted is the one that tested the exact draft being published,
+matched on its compiled hash. A suite that passed last week against different
+content neither blocks this release nor vouches for it.
+
+A refusal is `422 publish_blocked_by_simulation_suite` and names the suite, the run
+and a machine-readable `reason`.
+
+## Linking a human test to an attempt
+
+`POST /v1/agents/{agent_id}/simulation-suite-runs/{run_id}/cases/{case_result_id}/evidence`
+attaches an existing Talk or Phone session to an attempt as corroborating
+evidence. It **links**; it never runs anything. Automated suites do not place
+calls, and this endpoint can only reference a session a person already created.
+
+The linked session must belong to the same workspace and the same AI agent. A
+phone session additionally requires that a phone test you armed actually matched
+a real incoming call — OpenPhonex has no phone-ownership proof, so a matched pin
+is the closest honest substitute and no stronger claim is made.
+
+The attempt's own verdict is unchanged. Linked evidence sits beside a verdict
+and never replaces one.
+
+## Availability
+
+Simulation suites roll out per workspace. While the capability is not enabled for
+yours, every route above answers `404`. If you expect access and see `404`,
+contact support rather than retrying.

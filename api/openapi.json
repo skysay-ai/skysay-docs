@@ -2182,7 +2182,7 @@
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suite-runs/{run_id}": {
+    "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}": {
       "get": {
         "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow.",
         "parameters": [
@@ -2227,7 +2227,7 @@
             "description": "Run, pinned identity, per-scenario rollup and one attempt page"
           },
           "404": {
-            "description": "Run not found, or Test Suites is not enabled"
+            "description": "Run not found, or Simulations Lab is not enabled"
           }
         },
         "summary": "Fetch one run with a bounded page of attempt results",
@@ -2236,7 +2236,7 @@
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suite-runs/{run_id}/cancel": {
+    "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}/cancel": {
       "post": {
         "description": "Cancellation stops unstarted work only. An attempt a worker already claimed finishes and keeps its verdict, and completed results are never altered or deleted. Cancelling an already-finished run changes nothing.",
         "parameters": [
@@ -2262,7 +2262,7 @@
             "description": "Run state after cancellation"
           },
           "404": {
-            "description": "Run not found, or Test Suites is not enabled"
+            "description": "Run not found, or Simulations Lab is not enabled"
           }
         },
         "summary": "Stop the attempts of this run that have not started",
@@ -2271,7 +2271,78 @@
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suite-runs/{run_id}/cases/{case_result_id}/save-as-regression": {
+    "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}/cases/{case_result_id}/evidence": {
+      "post": {
+        "description": "Links, never runs. A person opened Talk in a browser or dialled the agent from a phone they had armed a test pin for; this records that it happened and which attempt it corroborates. Automated suites never originate a call, and this endpoint can only reference a session somebody else already created. The linked session must belong to the same workspace and the same agent. A phone session additionally requires that an armed phone test actually matched a real inbound call: this platform has no phone-ownership proof, so a matched pin is the nearest truthful substitute for 'verified' and no stronger claim is made. The attempt's own verdict, assertions and rubrics are unchanged -- linked evidence sits beside a verdict and never replaces one. Linking the same session twice returns the existing link with 200 rather than creating a second one.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "case_result_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "note": {
+                    "maxLength": 280,
+                    "type": "string"
+                  },
+                  "workflow_run_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "workflow_run_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "This session was already linked to this attempt"
+          },
+          "201": {
+            "description": "Link created"
+          },
+          "400": {
+            "description": "The session is not a Talk or Phone session, or no armed phone test matched it"
+          },
+          "404": {
+            "description": "Attempt or session not found, or Simulations Lab is not enabled"
+          }
+        },
+        "summary": "Link an existing Talk or Phone session to this attempt as human evidence",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}/cases/{case_result_id}/save-as-regression": {
       "post": {
         "description": "Appends a new immutable suite revision carrying the attempt's scenario as a critical regression. The historical run keeps pointing at the revision it executed, and the attempt row itself is read, never written.",
         "parameters": [
@@ -2325,7 +2396,7 @@
             "description": "The suite's new revision and the scenario id that was added"
           },
           "404": {
-            "description": "Run or case not found, or Test Suites is not enabled"
+            "description": "Run or case not found, or Simulations Lab is not enabled"
           },
           "409": {
             "description": "The suite changed while the regression was being saved"
@@ -2337,7 +2408,7 @@
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suite-runs/{run_id}/rerun-failed": {
+    "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}/rerun-failed": {
       "post": {
         "description": "The child reuses the parent's pinned suite revision, content hash and compiled workflow, so it asks exactly the question the original asked. The parent run and every verdict it holds are left untouched.",
         "parameters": [
@@ -2385,7 +2456,7 @@
             "description": "Missing idempotency_key"
           },
           "404": {
-            "description": "Run not found, or Test Suites is not enabled"
+            "description": "Run not found, or Simulations Lab is not enabled"
           },
           "409": {
             "description": "The idempotency key was already used for a different request"
@@ -2400,9 +2471,63 @@
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suites": {
+    "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}/results": {
       "get": {
-        "description": "Bounded and stably ordered newest-first, with an opaque cursor and an explicit has_more. A suite that has never run reports state=never_run rather than a zero pass rate. Returns 404 while Test Suites is not enabled for the deployment.",
+        "description": "The automation surface: built for a CI job rather than for a screen. contract_version is the promise -- fields may be ADDED under the same version, but nothing is removed or given a new meaning without it changing, so a client can ignore what it does not recognise and keep working. Attempts paginate on a stable cursor with an explicit has_more; the query count does not grow with the number of attempts. Statuses are a closed set: a run is queued, running, completed, failed, cancelled or budget_exceeded, and an attempt is pass, fail or error. errored_cases is deliberately separate from failed_cases -- an attempt whose synthetic caller or evaluator malfunctioned produced no evidence about the agent, so treating it as a failure would fail a build for a platform outage. voice_evidence_kind says which voice proof an attempt carries: offline_robustness means the authored lines were synthesized and read back, and makes no claim about barge-in, overlapping audio, playout or SIP timing; only realtime evidence can support a timing claim. unproven_assertions counts rules the attempt could not settle for want of that evidence -- they are neither passes nor failures. Transcripts, recordings and rubric rationales are not included; artifacts reports whether each is still retained, expired, or never existed.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Versioned run summary and one page of attempt verdicts"
+          },
+          "404": {
+            "description": "Run not found, or Simulations Lab is not enabled"
+          }
+        },
+        "summary": "Read one run's verdicts in a stable, versioned shape",
+        "x-required-scopes": [
+          "simulation_suites:read"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/simulation-suites": {
+      "get": {
+        "description": "Bounded and stably ordered newest-first, with an opaque cursor and an explicit has_more. A suite that has never run reports state=never_run rather than a zero pass rate. Returns 404 while Simulations Lab is not enabled for the deployment.",
         "parameters": [
           {
             "in": "path",
@@ -2437,10 +2562,10 @@
             "description": "Bounded suite page with latest-run health"
           },
           "404": {
-            "description": "Agent not found, or Test Suites is not enabled"
+            "description": "Agent not found, or Simulations Lab is not enabled"
           }
         },
-        "summary": "List this agent's test suites with their latest health",
+        "summary": "List this agent's simulation suites with their latest health",
         "x-required-scopes": [
           "agents:read"
         ]
@@ -2507,16 +2632,16 @@
             "description": "Invalid scenario contract or a limit exceeded"
           },
           "404": {
-            "description": "Agent not found, or Test Suites is not enabled"
+            "description": "Agent not found, or Simulations Lab is not enabled"
           }
         },
-        "summary": "Create a test suite for this agent",
+        "summary": "Create a simulation suite for this agent",
         "x-required-scopes": [
           "agents:write"
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suites/{suite_id}": {
+    "/v1/agents/{agent_id}/simulation-suites/{suite_id}": {
       "get": {
         "parameters": [
           {
@@ -2541,7 +2666,7 @@
             "description": "Suite, scenarios, policy and run history"
           },
           "404": {
-            "description": "Suite not found, or Test Suites is not enabled"
+            "description": "Suite not found, or Simulations Lab is not enabled"
           }
         },
         "summary": "Fetch one suite with its authored scenarios and bounded run history",
@@ -2631,7 +2756,7 @@
             "description": "Missing revision or an invalid scenario contract"
           },
           "404": {
-            "description": "Suite not found, or Test Suites is not enabled"
+            "description": "Suite not found, or Simulations Lab is not enabled"
           },
           "409": {
             "description": "Stale revision; the response carries the revision that won"
@@ -2643,7 +2768,7 @@
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suites/{suite_id}/duplicate": {
+    "/v1/agents/{agent_id}/simulation-suites/{suite_id}/duplicate": {
       "post": {
         "description": "The copy starts its own revision chain at 1 and inherits no run history or baseline: duplicating branches authoring, it does not inherit evidence.",
         "parameters": [
@@ -2685,7 +2810,7 @@
             "description": "The new suite at revision 1"
           },
           "404": {
-            "description": "Suite not found, or Test Suites is not enabled"
+            "description": "Suite not found, or Simulations Lab is not enabled"
           }
         },
         "summary": "Copy a suite's authored content into a new suite",
@@ -2694,9 +2819,9 @@
         ]
       }
     },
-    "/v1/agents/{agent_id}/test-suites/{suite_id}/runs": {
+    "/v1/agents/{agent_id}/simulation-suites/{suite_id}/runs": {
       "post": {
-        "description": "Returns 202 immediately with a durable queued run: request latency never depends on how long the suite takes to execute. The suite revision, its content hash and the compiled workflow snapshot are pinned at this moment, so an edit made while the run waits for a worker cannot change what it proves. idempotency_key is required and scoped to the organization -- replaying the same request returns the same run, and reusing one key for a different request is refused with 409. A run whose selected scenarios need a runner that is not deployed is refused with 422 unsupported_mode before anything is queued. Deterministic attempts make no model call and record a cost of zero; adaptive attempts are metered, and the run pins an upper-bound estimate, a model-call ceiling and the caller and evaluator identities before the first attempt starts. Nothing here is charged to a customer balance -- suite cost is reported by the test-suite ledger only.",
+        "description": "Returns 202 immediately with a durable queued run: request latency never depends on how long the suite takes to execute. The suite revision, its content hash and the compiled workflow snapshot are pinned at this moment, so an edit made while the run waits for a worker cannot change what it proves. idempotency_key is required and scoped to the organization -- replaying the same request returns the same run, and reusing one key for a different request is refused with 409. A run whose selected scenarios need a runner that is not deployed is refused with 422 unsupported_mode before anything is queued. Deterministic attempts make no model call and record a cost of zero; adaptive attempts are metered, and the run pins an upper-bound estimate, a model-call ceiling and the caller and evaluator identities before the first attempt starts. Nothing here is charged to a customer balance -- suite cost is reported by the simulation-suite ledger only.",
         "parameters": [
           {
             "in": "path",
@@ -2756,7 +2881,7 @@
             "description": "Missing idempotency_key or an unusable snapshot"
           },
           "404": {
-            "description": "Suite not found, or Test Suites is not enabled"
+            "description": "Suite not found, or Simulations Lab is not enabled"
           },
           "409": {
             "description": "The idempotency key was already used for a different request"
@@ -3941,7 +4066,7 @@
         ]
       }
     },
-    "/v1/dashboard/agent-test-suite": {
+    "/v1/dashboard/agent-simulation-suite": {
       "get": {
         "description": "Authored scenarios, suite policy and bounded run history for the suite editor. Pure read: it never repairs a suite, resolves a snapshot, or calls a provider.",
         "parameters": [
@@ -3975,7 +4100,7 @@
             "description": "Suite editor aggregate"
           },
           "404": {
-            "description": "Suite not found, or Test Suites is not enabled"
+            "description": "Suite not found, or Simulations Lab is not enabled"
           }
         },
         "summary": "Read one suite's editor projection",
@@ -3985,7 +4110,7 @@
         ]
       }
     },
-    "/v1/dashboard/agent-test-suite-run": {
+    "/v1/dashboard/agent-simulation-suite-run": {
       "get": {
         "description": "The run's pinned identity, its per-scenario rollup, and one stably ordered page of attempts with an explicit has_more. Attempts are keyset-paginated so the query count stays constant as a suite is re-run. Never returns the run's idempotency key, request fingerprint or pinned contract.",
         "parameters": [
@@ -4038,7 +4163,7 @@
             "description": "Run results aggregate"
           },
           "404": {
-            "description": "Run not found, or Test Suites is not enabled"
+            "description": "Run not found, or Simulations Lab is not enabled"
           }
         },
         "summary": "Read one run with a bounded page of attempt results",
@@ -4048,7 +4173,7 @@
         ]
       }
     },
-    "/v1/dashboard/agent-test-suites": {
+    "/v1/dashboard/agent-simulation-suites": {
       "get": {
         "description": "The same canonical suite rows the workspace index returns, already filtered to one agent. Not a second suite system and not a copy.",
         "parameters": [
@@ -4093,7 +4218,7 @@
             "description": "Agent-scoped suite index"
           },
           "404": {
-            "description": "Agent not found, or Test Suites is not enabled"
+            "description": "Agent not found, or Simulations Lab is not enabled"
           }
         },
         "summary": "Read one AI agent's slice of the same suite records",
@@ -4423,20 +4548,9 @@
         "summary": "Read the bounded, customer-scoped Settings aggregate"
       }
     },
-    "/v1/dashboard/team": {
+    "/v1/dashboard/simulation-suites": {
       "get": {
-        "description": "Returns the signed-in workspace's members and current membership in one read-only response.",
-        "responses": {
-          "200": {
-            "description": "Team workspace aggregate"
-          }
-        },
-        "summary": "Read the bounded, customer-scoped Team aggregate"
-      }
-    },
-    "/v1/dashboard/test-suites": {
-      "get": {
-        "description": "One tenant-bound, pure-read DTO for the workspace Test Suites page: every suite in the selected project across that project's AI agents, with its latest-run health, plus a bounded agent filter. Omitting project_id selects the workspace's first project rather than merging every project. Latest health is one batch join, never a lookup per suite, so the query count is fixed by the page rather than by how many suites the workspace owns. A suite that has never run reports never_run rather than an invented 0%. The page is bounded with an opaque cursor and an explicit has_more. Returns 404 while Test Suites is not enabled.",
+        "description": "One tenant-bound, pure-read DTO for the workspace Simulations Lab page: every suite in the selected project across that project's AI agents, with its latest-run health, plus a bounded agent filter. Omitting project_id selects the workspace's first project rather than merging every project. Latest health is one batch join, never a lookup per suite, so the query count is fixed by the page rather than by how many suites the workspace owns. A suite that has never run reports never_run rather than an invented 0%. The page is bounded with an opaque cursor and an explicit has_more. Returns 404 while Simulations Lab is not enabled.",
         "parameters": [
           {
             "in": "query",
@@ -4480,14 +4594,25 @@
             "description": "Workspace suite index"
           },
           "404": {
-            "description": "Test Suites is not enabled, or the filtered agent is not in this workspace"
+            "description": "Simulations Lab is not enabled, or the filtered agent is not in this workspace"
           }
         },
-        "summary": "Read the workspace-wide Test Suites index",
+        "summary": "Read the workspace-wide Simulations Lab index",
         "x-required-scopes": [
           "account:read",
           "agents:read"
         ]
+      }
+    },
+    "/v1/dashboard/team": {
+      "get": {
+        "description": "Returns the signed-in workspace's members and current membership in one read-only response.",
+        "responses": {
+          "200": {
+            "description": "Team workspace aggregate"
+          }
+        },
+        "summary": "Read the bounded, customer-scoped Team aggregate"
       }
     },
     "/v1/dashboard/verification": {
