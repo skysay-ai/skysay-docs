@@ -14,7 +14,8 @@ In the Workspace, configure the agent/webhook endpoint and use **Send test
 event** before relying on it. The test travels through the real delivery
 pipeline and appears in the delivery feed.
 
-The REST routes are `POST /v1/agent-endpoints`, `GET /v1/agent-endpoints`, and
+The REST routes are `POST /v1/agent-endpoints`, `GET /v1/agent-endpoints`,
+`PATCH /v1/agent-endpoints/{agent_endpoint_id}`, and
 `GET /v1/webhook-deliveries`; lifecycle controls are
 `POST /v1/agent-endpoints/{agent_endpoint_id}/pause`, `/resume`, and
 `/test-event`. The endpoint creation schema includes your `webhook_url` and
@@ -22,8 +23,17 @@ The REST routes are `POST /v1/agent-endpoints`, `GET /v1/agent-endpoints`, and
 revealed once and redacted on later reads. See the [generated API
 reference](/docs/api-reference) for the exact request schema and scopes.
 
-Endpoints receive the default call events. The catalog also includes these
-useful call/result signals:
+`events` is set once at creation. Omit it (or send an empty array) to get the
+default subscription:
+
+```json
+["call.created", "call.answered", "media.started", "call.ended", "call.completed", "call.failed", "call.canceled"]
+```
+
+Change it later with `PATCH /v1/agent-endpoints/{agent_endpoint_id}` — send the
+complete replacement list; an empty array is rejected there, since it would
+otherwise mean "subscribe to everything." The catalog also includes these
+useful call/result signals you can add to the subscription:
 
 | Event | Use it for |
 | --- | --- |

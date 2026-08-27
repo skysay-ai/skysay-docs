@@ -85,6 +85,31 @@
           "audio_stream_url": {
             "type": "string"
           },
+          "events": {
+            "description": "Subscribed event types. Omitted or empty at creation defaults to call.created, call.answered, media.started, call.ended, call.completed, call.failed, call.canceled. Change it later with PATCH /v1/agent-endpoints/{agent_endpoint_id}.",
+            "items": {
+              "enum": [
+                "call.created",
+                "call.queued",
+                "call.dialing",
+                "call.answered",
+                "media.started",
+                "call.ended",
+                "call.failed",
+                "call.canceled",
+                "call.completed",
+                "call.transcript.ready",
+                "call.recording.ready",
+                "call.extraction.ready",
+                "call.extraction.failed",
+                "sms.received",
+                "sms.sent",
+                "sms.delivery_updated"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
           "name": {
             "type": "string"
           },
@@ -103,6 +128,40 @@
           "project_id",
           "webhook_url",
           "audio_stream_url"
+        ],
+        "type": "object"
+      },
+      "AgentEndpointEventsUpdate": {
+        "properties": {
+          "events": {
+            "description": "The complete replacement subscription list; an empty array is rejected.",
+            "items": {
+              "enum": [
+                "call.created",
+                "call.queued",
+                "call.dialing",
+                "call.answered",
+                "media.started",
+                "call.ended",
+                "call.failed",
+                "call.canceled",
+                "call.completed",
+                "call.transcript.ready",
+                "call.recording.ready",
+                "call.extraction.ready",
+                "call.extraction.failed",
+                "sms.received",
+                "sms.sent",
+                "sms.delivery_updated"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
         ],
         "type": "object"
       },
@@ -1870,6 +1929,24 @@
           }
         },
         "summary": "Delete a webhook endpoint (soft: stops every delivery)"
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentEndpointEventsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Agent endpoint"
+          }
+        },
+        "summary": "Change which events this endpoint receives"
       }
     },
     "/v1/agent-endpoints/{agent_endpoint_id}/pause": {
