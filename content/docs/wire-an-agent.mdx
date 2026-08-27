@@ -82,8 +82,9 @@ preview started with your credential never falls back to an OpenPhonex one.
 For a hosted English agent, `turn_taking` in `set_agent_voice_stack` controls
 how long caller speech must continue before it interrupts the agent on a new
 inbound or outbound phone call. The default is **500 ms**. This deliberately
-filters brief background speech and backchannels while keeping a sustained
-request such as “stop” interruptible.
+reduces false interruptions from very brief background audio and backchannels
+while keeping a sustained request such as “stop” interruptible. Sustained
+background speech can still be treated as caller speech.
 
 The controls are applied when a call starts; saving a voice stack never changes
 an in-progress call.
@@ -93,7 +94,7 @@ an in-progress call.
 | `interruption_sensitivity` | `balanced` is the 500 ms default. `low` requires 750 ms of continuous speech. `high` uses 150 ms for callers who need a more responsive threshold. `min_speech_ms`, when set, takes precedence. |
 | `min_speech_ms` | An explicit 80–2000 ms interruption threshold. |
 | `silence_hold_ms` | An explicit 100–2000 ms endpointing delay after speech. It takes precedence over a sensitivity preset’s endpointing delay. |
-| `barge_in_speech_rms` | This value remains accepted and returned for compatibility, but the self-hosted LiveKit worker has no safe per-call audio-level equivalent and does not apply it. Do not use it to control interruptions. |
+| `barge_in_speech_rms` | Accepted and returned for compatibility, but not currently applied to call behavior. Do not use it to control interruptions. |
 
 If the runtime classifies a brief interruption as false, it resumes the agent’s
 speech. Browser tests and non-English phone calls keep their existing turn
