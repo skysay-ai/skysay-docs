@@ -77,14 +77,19 @@ any voice id that provider accepts works — including cloned and private voices
 which exist only under your account and which no directory of ours can see. A
 preview started with your credential never falls back to an OpenPhonex one.
 
-### Tune interruptions on hosted English phone calls
+### Interruptions and barge-in
 
-For a hosted English agent, `turn_taking` in `set_agent_voice_stack` controls
-how long caller speech must continue before it interrupts the agent on a new
-inbound or outbound phone call. The default is **500 ms**. This deliberately
-reduces false interruptions from very brief background audio and backchannels
-while keeping a sustained request such as “stop” interruptible. Sustained
-background speech can still be treated as caller speech.
+Every hosted phone call, in **every language**, requires **500 ms** of continuous
+caller speech before it interrupts the agent. This deliberately reduces false
+interruptions from very brief background audio and backchannels while keeping a
+sustained request such as “stop” interruptible. Sustained background speech can
+still be treated as caller speech.
+
+What `turn_taking` in `set_agent_voice_stack` adds, for a hosted **English**
+agent only, is the ability to change that threshold and the endpointing delay
+per agent. The values below are measured on English audio; setting them on an
+agent in another language is accepted and returned, but that agent keeps the
+500 ms floor and the stack's own endpointing delay.
 
 The controls are applied when a call starts; saving a voice stack never changes
 an in-progress call.
@@ -97,9 +102,7 @@ an in-progress call.
 | `barge_in_speech_rms` | Accepted and returned for compatibility, but not currently applied to call behavior. Do not use it to control interruptions. |
 
 If the runtime classifies a brief interruption as false, it resumes the agent’s
-speech. These controls apply to hosted English phone calls only; setting them on
-an agent in another language is accepted and returned, but does not change how
-that agent’s calls behave.
+speech.
 
 Three protections are not settings and are not English-only. On **every** hosted
 phone call, in any language:
