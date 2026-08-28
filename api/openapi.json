@@ -2489,7 +2489,7 @@
     },
     "/v1/agents/{agent_id}/browser-sessions": {
       "post": {
-        "description": "Workspace-authenticated only. Does not use the anonymous homepage demo budget. The selected snapshot is published or a validated draft overlay.",
+        "description": "Workspace-authenticated only. Does not use the anonymous homepage demo budget. The selected snapshot is published or a validated draft overlay. The resolved realtime configuration -- the agent's stack merged with any draft overlay -- is checked for runnability before anything is reserved; a config the voice worker would refuse before building media (missing prompt/first message, missing provider/model/voice, an unsupported language, a retired model, or a stale registry capability artifact) is refused here instead of reaching the worker.",
         "parameters": [
           {
             "in": "path",
@@ -2535,6 +2535,9 @@
         "responses": {
           "201": {
             "description": "Reservation and dispatch metadata for a LiveKit join token"
+          },
+          "400": {
+            "description": "The resolved realtime configuration is not runnable. Body: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary already returned by the Agents/Numbers dashboard reads (e.g. voice_id_missing, system_prompt_missing, first_message_missing, language_not_runnable, llm_model_missing, capability_revision_mismatch). No room or reservation is created."
           }
         },
         "summary": "Create an authenticated LiveKit browser-test session for one hosted agent",
