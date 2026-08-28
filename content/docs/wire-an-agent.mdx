@@ -101,12 +101,24 @@ speech. These controls apply to hosted English phone calls only; setting them on
 an agent in another language is accepted and returned, but does not change how
 that agent’s calls behave.
 
-One protection is not a setting and is not English-only: on **every** hosted
-phone call, in any language, the runtime holds what the caller is transcribed as
-saying while the agent is preparing or delivering a reply, and delivers it once
-that reply ends. Background speech picked up by transcription therefore cannot
-cut the agent off mid-sentence. It needs no configuration and browser tests are
-unaffected.
+Three protections are not settings and are not English-only. On **every** hosted
+phone call, in any language:
+
+- The runtime holds what the caller is transcribed as saying while the agent is
+  preparing or delivering a reply, and delivers it once that reply ends.
+  Background speech picked up by transcription therefore cannot cut the agent
+  off mid-sentence.
+- The agent's opening line always plays. It cannot be cancelled before its first
+  audio frame reaches the caller, so a "hello?" spoken over the greeting — or
+  mis-transcribed background noise — can no longer open a call in silence. Once
+  the greeting is audible the ordinary interruption rules apply to it.
+- When an interruption does qualify, the agent finishes the sound it is making
+  rather than clipping it off mid-syllable. It plays on for up to 300 ms before
+  going quiet, so the stop is audibly less abrupt and a brief false interruption
+  leaves a shorter gap. The agent still yields the floor promptly, and the extra
+  audio is always bounded.
+
+None of the three needs configuration, and browser tests are unaffected.
 
 ## 3. Point a number at it
 
