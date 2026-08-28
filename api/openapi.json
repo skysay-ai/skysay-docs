@@ -532,6 +532,209 @@
         ],
         "type": "object"
       },
+      "Call": {
+        "description": "The call resource GET /v1/calls and GET /v1/calls/{call_id} return. A synthetic simulation or platform-internal room is never returned here; only a call the customer or their agent actually made.",
+        "properties": {
+          "agent_endpoint_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "call_context": {
+            "description": "The small, non-secret JSON object you supplied at call creation.",
+            "type": "object"
+          },
+          "country": {
+            "description": "Destination (outbound) or number (inbound) country.",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "direction": {
+            "description": "inbound, outbound, or web_test (a live browser test) for a call your agent placed or answered. A call seeded by the demo/artifact-import tooling can carry other values, such as imported, verbatim from that import.",
+            "type": "string"
+          },
+          "estimated_cost_minor": {
+            "description": "The wallet reservation estimate in minor currency units, made at admission time. This is not settled billing: some statuses hold no reservation at all (see NO_LEDGER_MOVEMENT statuses), and a completed call's real charge is settled separately from recording/artifact import.",
+            "type": "integer"
+          },
+          "external_group_reference": {
+            "type": "string"
+          },
+          "external_reference": {
+            "description": "Your own stable case/reference ID, echoed back verbatim; empty string when not set. The same value delivered in webhook event bodies.",
+            "type": "string"
+          },
+          "from_e164": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_number_id": {
+            "description": "Your owned number this call used, when applicable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "provider_call_id": {
+            "description": "The carrier/provider's own call identifier. Empty until the call is actually dialed out to the provider.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "purpose": {
+            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
+            "type": "string"
+          },
+          "recipient_type": {
+            "description": "Optional, never enforced or required -- outbound is not restricted to business recipients. Persisted verbatim on the call row if sent; SMS has no recipient_type column, so it is accepted but not stored there.",
+            "type": "string"
+          },
+          "recording": {
+            "description": "Present only once a recording exists for this call.",
+            "properties": {
+              "deleted_at": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "duration_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "media_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "retention_days": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string"
+              },
+              "transcript_status": {
+                "description": "partial means a transcript exists but is missing the text of at least one spoken agent reply.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          },
+          "recording_consent_state": {
+            "type": "string"
+          },
+          "recording_disclosure": {
+            "$ref": "#/components/schemas/CallRecordingState"
+          },
+          "recording_enabled": {
+            "type": "boolean"
+          },
+          "recording_state": {
+            "$ref": "#/components/schemas/CallRecordingState"
+          },
+          "recording_status": {
+            "description": "not_started or disabled when there is no recording yet, otherwise the latest recording's own status.",
+            "type": "string"
+          },
+          "runtime_config": {
+            "description": "Your own per-call overrides captured at call start (e.g. instructions, first_message, language). Never provider credentials.",
+            "type": "object"
+          },
+          "source_kind": {
+            "description": "Always 'live' on this customer-facing route -- a simulation-suite or other synthetic room is not found here at all.",
+            "enum": [
+              "live"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "description": "Call lifecycle status, e.g. requested, queued, dialing, ringing, answered, in_progress, media_started, completed, failed, busy, no_answer, canceled, live_blocked, policy_blocked, needs_review. Not a closed set: track it as an opaque string and rely on the call.* events for exact transitions.",
+            "type": "string"
+          },
+          "to_e164": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "direction",
+          "status",
+          "from_number_id",
+          "from_e164",
+          "to_e164",
+          "country",
+          "recipient_type",
+          "purpose",
+          "agent_id",
+          "agent_endpoint_id",
+          "provider",
+          "provider_call_id",
+          "estimated_cost_minor",
+          "recording_enabled",
+          "recording_consent_state",
+          "recording_status",
+          "recording_state",
+          "recording_disclosure",
+          "runtime_config",
+          "external_reference",
+          "external_group_reference",
+          "call_context",
+          "source_kind",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "CallArtifactImport": {
         "properties": {
           "label": {
@@ -559,6 +762,41 @@
           "organization_id",
           "project_id",
           "source_path"
+        ],
+        "type": "object"
+      },
+      "CallEvent": {
+        "description": "One row of a call's internal lifecycle log, oldest first. Not the webhook envelope: this row's own id/type/payload, never the signed delivery body. Includes many types never delivered to any webhook endpoint at all.",
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "payload": {
+            "description": "Event-specific detail; shape varies by writer, not just by type -- call.failed alone has at least four shapes: a policy block carries {reason, reasons}; local/queued-origination failure carries {reason} (the worker-queue originate failure adds worker_job_id and error); a reconciler repair carries {source, reason, previous_status, evidence, observed_at}; a gateway-lifecycle failure (SIP/room) carries an unrelated {gateway_event_id, gateway_id, source_component, source, observed_at, details}. Always thinner than the richer result body the call.failed webhook delivers separately.",
+            "type": "object"
+          },
+          "type": {
+            "description": "e.g. call.created, call.queued, call.dialing, call.answered, media.started, call.ended, call.failed, call.canceled, call.live_blocked, plus internal-only bookkeeping types such as wallet.reserved, wallet.settled, call.authorization, call.policy_evaluated, number.matched. call.completed is the one terminal type never written here -- it is only ever delivered to webhooks.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "call_id",
+          "organization_id",
+          "type",
+          "payload",
+          "created_at"
         ],
         "type": "object"
       },
@@ -741,6 +979,183 @@
           "evidence",
           "turns",
           "spans_page"
+        ],
+        "type": "object"
+      },
+      "CallRecordingState": {
+        "description": "Safe recording-disclosure state (services/calls_routing/calls.py:_call_recording_state_from_rows). recording_state and recording_disclosure on Call both carry this same object.",
+        "properties": {
+          "active_recording_id": {
+            "description": "Empty string unless the latest recording is undeleted and available.",
+            "type": "string"
+          },
+          "audit_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "consent_notice": {
+            "type": "string"
+          },
+          "consent_state": {
+            "type": "string"
+          },
+          "deletable": {
+            "type": "boolean"
+          },
+          "deleted_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "downloadable": {
+            "type": "boolean"
+          },
+          "duration_seconds": {
+            "type": "number"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "media_url": {
+            "description": "Empty string unless a recording is currently active.",
+            "type": "string"
+          },
+          "recording_enabled": {
+            "type": "boolean"
+          },
+          "recording_id": {
+            "description": "Empty string when there is no recording yet.",
+            "type": "string"
+          },
+          "retention_days": {
+            "type": "integer"
+          },
+          "status": {
+            "description": "not_started or disabled when there is no recording yet, otherwise the latest recording's own status (e.g. processing, available, deleted).",
+            "type": "string"
+          },
+          "visible_to_customer": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recording_enabled",
+          "status",
+          "recording_id",
+          "active_recording_id",
+          "kind",
+          "media_url",
+          "duration_seconds",
+          "consent_state",
+          "consent_notice",
+          "retention_days",
+          "deleted_at",
+          "visible_to_customer",
+          "downloadable",
+          "deletable",
+          "audit_actions"
+        ],
+        "type": "object"
+      },
+      "CallStats": {
+        "properties": {
+          "agent_window": {
+            "description": "Present only when you requested one.",
+            "type": "string"
+          },
+          "agents": {
+            "description": "Present only when agent_window was requested: one row per agent that has ever placed or received a call in this scope, sorted by agent_id. No limit or pagination -- grows with the organization's total agent count.",
+            "items": {
+              "$ref": "#/components/schemas/CallStatsAgent"
+            },
+            "type": "array"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "description": "Empty string when the request was not scoped to one project.",
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "windows": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CallStatsWindow"
+            },
+            "description": "Keyed by the window key you supplied in the repeated window=<key>:<since> query parameter.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "organization_id",
+          "project_id",
+          "until",
+          "windows"
+        ],
+        "type": "object"
+      },
+      "CallStatsAgent": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "calls": {
+            "description": "Calls for this agent within agent_window.",
+            "type": "integer"
+          },
+          "last_call_at": {
+            "description": "Most recent call for this agent across the whole history, not just agent_window.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "spend_minor": {
+            "description": "Same estimated_cost_minor sum as CallStatsWindow.spend_minor, scoped to this agent within agent_window.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_id",
+          "calls",
+          "spend_minor",
+          "last_call_at"
+        ],
+        "type": "object"
+      },
+      "CallStatsWindow": {
+        "properties": {
+          "calls": {
+            "description": "Every call in this window, including blocked and never-billable ones.",
+            "type": "integer"
+          },
+          "since": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "spend_minor": {
+            "description": "Sum of estimated_cost_minor across every call in this window. This is the wallet reservation estimate made at admission time, not settled billing -- excludes only calls that never reserved a wallet balance at all (policy_blocked, needs_review).",
+            "type": "integer"
+          },
+          "talk_seconds": {
+            "type": "integer"
+          },
+          "until": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "since",
+          "until",
+          "calls",
+          "spend_minor",
+          "talk_seconds"
         ],
         "type": "object"
       },
@@ -1931,6 +2346,16 @@
         "summary": "Delete a webhook endpoint (soft: stops every delivery)"
       },
       "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_endpoint_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3930,6 +4355,129 @@
         "summary": "Route an inbound dedicated-number call to its assigned agent"
       }
     },
+    "/v1/calls/stats": {
+      "get": {
+        "description": "Aggregation runs in SQL over the whole call history for the organization/project, not just a bounded list page, so the figures stay exact however long that history grows. Pass organization_id (and optionally project_id) as query parameters the same way GET /v1/calls does. window is repeated, each in the form <key>:<since-timestamp> (an RFC3339 UTC timestamp); at least one is required and at most 8 may be requested in one call. until is an optional exclusive upper bound (RFC3339 UTC, defaults to now) shared by every window. Pass agent_window naming one of the requested window keys to additionally receive a per-agent breakdown over that one window.",
+        "parameters": [
+          {
+            "description": "The authenticated organization; must match the bearer's own workspace.",
+            "in": "query",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional project in the authenticated organization. Omit to aggregate the whole organization.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive upper bound shared by every window. Defaults to the current time.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Repeated '<key>:<since>' pairs, e.g. window=today:2026-08-27T00:00:00Z. key is 1-32 characters of [A-Za-z0-9_-] and must not repeat across the request. At least one is required.",
+            "explode": true,
+            "in": "query",
+            "name": "window",
+            "required": true,
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 8,
+              "minItems": 1,
+              "type": "array"
+            },
+            "style": "form"
+          },
+          {
+            "description": "One of the window keys already requested. When set, the response also includes a per-agent breakdown over that window.",
+            "in": "query",
+            "name": "agent_window",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallStats"
+                }
+              }
+            },
+            "description": "Call stats"
+          },
+          "400": {
+            "description": "Missing/duplicate/malformed window, a malformed until, unknown agent_window, or more than 8 windows requested."
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Aggregate call volume, talk time, and spend over one or more date windows",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/calls/{call_id}": {
+      "get": {
+        "description": "The same projection GET /v1/calls returns, for a single call. A live browser test (direction=web_test) is a real call and is returned here; a call your agent placed inside a simulation-suite run is platform-synthetic and is not found here.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Call"
+                }
+              }
+            },
+            "description": "Call"
+          },
+          "404": {
+            "description": "Call not found"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Get one call",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
     "/v1/calls/{call_id}/artifacts": {
       "get": {
         "responses": {
@@ -3952,6 +4500,48 @@
           }
         },
         "summary": "Cancel a queued outbound call before origination"
+      }
+    },
+    "/v1/calls/{call_id}/events": {
+      "get": {
+        "description": "Every call_events row for this call, oldest first, each with its raw event payload. This is the platform's own internal bookkeeping log, not a webhook replay: it includes types never delivered to any webhook endpoint at all (e.g. wallet.reserved, call.authorization, call.policy_evaluated, number.matched), and every row here is this row's own id/type/payload, never the signed webhook envelope. call.failed is written here too (payload shape varies by writer -- see CallEvent.payload), always thinner than the richer result body its webhook delivers separately. call.completed is the one terminal type NEVER written here at all -- it is derived from the call's final status and delivered only to webhooks; look at status on GET /v1/calls/{call_id} for that outcome instead. Returned in full today, oldest first, with no limit or pagination -- a long-running call with many agent tool invocations (each is its own call.agent_tool_call row) can make this a large response.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CallEvent"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Call events"
+          },
+          "404": {
+            "description": "Call not found"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Get one call's full internal lifecycle event log",
+        "x-required-scopes": [
+          "calls:read"
+        ]
       }
     },
     "/v1/calls/{call_id}/observability": {
