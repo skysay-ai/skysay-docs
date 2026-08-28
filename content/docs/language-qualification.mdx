@@ -1,100 +1,90 @@
 ---
-title: How OpenPhonex qualifies languages and providers
-description: Why a provider advertising a language is not enough, what OpenPhonex verifies before a combination becomes selectable, and how the runtime refuses a language it has not verified.
+title: How OpenPhonex handles provider languages and voices
+description: How provider-reported inventories become searchable, what OpenPhonex still validates for live calls, and what happens when a provider changes its catalog.
 ---
 
-A voice provider's marketing page will tell you it supports a hundred and
-thirty languages. That claim is about the provider's product, not about the
-combination your call actually runs: one speech-to-text or text-to-speech
-model, one language tag, over one streaming transport, reached with one
-credential. A model can advertise a language its real-time endpoint rejects, or
-accept it over a batch API and not over the streaming connection a phone call
-needs.
+OpenPhonex separates two different questions:
 
-OpenPhonex therefore treats a *combination* as the unit of support, not a
-provider and not a language. A combination is qualified only after OpenPhonex
-has verified that exact combination against the live provider.
+1. **What does the provider currently advertise?** The provider reports its
+   voices, voice identifiers, languages, models, and metadata.
+2. **What can this OpenPhonex runtime execute?** OpenPhonex declares the
+   speech-to-text, model, and text-to-speech adapters and languages that its
+   workers can run end to end.
 
-## What OpenPhonex verifies
+The first answer drives browsing and search. The second answer controls whether
+an AI agent can be saved and used for a call. A provider adding a new voice does
+not require a frontend release, a manual approval queue, or a generated sample.
+It also does not make an undeclared call stack runnable by itself.
 
-Qualification is a reviewed decision backed by evidence, not a single automatic
-check, and the evidence is strongest where the risk is highest — a speech
-synthesis combination is exercised against the live provider before it is
-offered:
+## Provider-backed voice cache
 
-- **The exact model.** Not the provider, and not a neighbouring model in the
-  same family. Support does not transfer between models.
-- **The real streaming transport.** For speech synthesis, the check opens the
-  same kind of streaming connection a live call uses and completes the
-  handshake, because a combination that works over a batch request can still
-  fail in real time.
-- **The real credential.** The provider must accept the credential for that
-  model, which is where a plan or region restriction surfaces.
-- **The language, as far as the provider exposes it.** Where a provider takes
-  an explicit language parameter, the check sends it, so the provider itself
-  accepts or rejects that language. Where a provider instead infers the
-  language from the voice and the text, the check exercises the combination
-  with real content in that language.
-- **Structurally valid audio.** For speech synthesis, the returned audio must
-  parse and be playable — not merely a successful HTTP status.
+For each configured provider, OpenPhonex reads the provider's voice inventory
+through its adapter and stores a scoped cache. The workspace reads that cache;
+opening the Voices page or an AI agent never waits for a provider request.
 
-Each check is deliberately bounded: a single fixed request, a hard size limit,
-and a short deadline. Qualification is an explicit, reviewed operator action,
-never something triggered by your traffic.
+- A managed OpenPhonex credential contributes to the shared managed inventory.
+- A bring-your-own credential has a private inventory scoped to that workspace,
+  project, credential, and provider. It is never copied into the managed
+  inventory or another workspace.
+- The cache refreshes in the background. If a refresh fails or returns an
+  invalid response, OpenPhonex continues serving the last good inventory.
+- Large provider inventories are bounded and marked as truncated. A partial
+  result never proves that an unobserved voice was removed.
+- Providers that do not expose a listing API may use provider documentation as
+  their inventory source. The UI identifies the source instead of presenting it
+  as a live provider result.
 
-## What OpenPhonex does not claim
+The provider's language and descriptive metadata are provider-reported
+information, not an OpenPhonex quality score or accuracy guarantee.
 
-There is no published accuracy benchmark behind a qualified combination, and no
-word-error-rate threshold. Qualification establishes that the combination runs
-correctly end to end for that language — that the provider accepts it, the
-stream works, and real audio comes back. It is a verified capability, not a
-quality score, and we would rather say so than imply a measurement we do not
-publish.
+## Choosing a language and voice
 
-The absence of a combination also carries meaning. If a provider advertises a
-language and OpenPhonex does not offer it, the usual reason is that nobody has
-verified it yet, not that it is known to fail. Coverage grows by evidence
-rather than by copying a provider's list.
+OpenPhonex does not choose a default or recommended language or voice for a new
+AI agent. Choose the language explicitly, then search the voices available for
+that language. The picker shows a flag only where a locale has an unambiguous
+region; otherwise it uses a neutral language icon rather than guessing a
+nationality.
 
-## A language cannot appear unqualified
+Use **Test voice** with your own text as the practical validation before you
+save. For a managed credential, a new voice selection must belong to the
+managed scoped inventory. For a bring-your-own credential, the exact voice ID
+must be accepted through that credential's own validation/preview path; a
+similarly named or identical managed voice does not authorize it.
 
-The guarantee that makes the catalog worth trusting is enforced in the
-runtime, not just in the workspace.
+The runnable language set is still bounded by the OpenPhonex worker registry.
+The selected provider, model, and language must form a declared streaming stack
+for calls. Provider-advertised languages outside that set may be browsable or
+previewable, but they are not silently admitted to a live agent.
 
-Any language added beyond OpenPhonex's original set must carry an explicitly
-verified entry for both transcription and speech synthesis. The runtime refuses
-to load a capability set where a newer language is missing either one, so a
-partially updated configuration fails on startup rather than reaching a caller,
-and every call is additionally checked against the languages that runtime
-actually declares.
+## When a provider removes a voice
 
-The point of that rule is what it prevents: an older, broadly capable provider
-integration cannot quietly extend itself to a new language it was never checked
-against. It can be extended deliberately — a specific model, named with the
-languages it has been checked for, reviewed like any other change and enforced
-when the runtime loads — but nothing is added to it by a provider updating its
-feature list, and nothing is added to it by accident.
+OpenPhonex never replaces an AI agent's stored voice with a fallback voice.
+Changing a voice changes the agent's identity and must remain an explicit user
+choice.
 
-That is a deliberate trade. It means new languages arrive more slowly than a
-provider's feature list suggests, and it means a language you see in the
-product has been verified rather than assumed.
+If a completed provider inventory no longer contains an existing stored voice,
+the editor keeps that exact selection visible and warns you. An unavailable or
+partial provider listing is not enough to disable it. If an exact provider
+request definitively reports that the voice no longer exists, OpenPhonex marks
+that exact scoped voice unavailable and blocks new call admission until you
+choose another voice or an explicit successful validation clears the marker.
 
-## Reading what is qualified today
+This fails visibly instead of letting a provider catalog change make an agent
+sound like somebody else.
 
-The runnable catalog is the source of truth, and it never calls a provider
-while you read it:
+## Reading the current catalog
+
+The catalog is a pure cached read and never calls a provider while you read it:
 
 ```http
 GET /v1/agent-catalog?language=ta&metered_only=true
 ```
 
-Each entry carries the provider, model, voice inventory, cost, latency
-expectation, and credential contract that apply to that combination. Select
-components from the catalog rather than hard-coding a model or voice ID from a
-guide — a combination is added or withdrawn as evidence changes, and the
-catalog is what reflects that.
+Each runnable entry carries the provider, model, declared languages, scoped
+voice inventory, cost and latency provenance, and credential contract. Use
+`voice_count` and `voices_truncated` before assuming a bounded response is the
+provider's complete inventory.
 
 For per-language selection across a campaign, see
-[Multilingual outbound calls](/docs/multilingual-outbound). For the exact
-request and response shapes, see the
-[generated API reference](/docs/api-reference).
+[Multilingual outbound calls](/docs/multilingual-outbound). For exact request
+and response shapes, see the [generated API reference](/docs/api-reference).

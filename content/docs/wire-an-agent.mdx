@@ -70,12 +70,24 @@ sentence you type — your AI agent's first message by default — in any langua
 the provider advertises. The audio is never stored, and the request is bounded
 and rate-limited per workspace.
 
-On OpenPhonex credentials the voice must be one the gallery offers, so you never
-have to hunt an id on another platform. With your own provider credential, the
-credential is validated at the provider and then used to render the preview, and
-any voice id that provider accepts works — including cloned and private voices,
-which exist only under your account and which no directory of ours can see. A
-preview started with your credential never falls back to an OpenPhonex one.
+The gallery is backed by the provider's scoped cached inventory rather than a
+frontend-maintained voice list. New provider voices therefore appear after a
+cache refresh without a frontend release or human promotion step. A failed
+refresh serves the last good inventory, and a bounded partial inventory never
+proves that an unobserved voice was removed.
+
+On OpenPhonex credentials, a new selection must belong to the managed scoped
+inventory. With your own provider credential, validation and preview stay
+scoped to that exact credential; cloned and private voice IDs can work without
+becoming visible to another workspace. A preview started with your credential
+never falls back to an OpenPhonex one.
+
+OpenPhonex does not automatically choose a default or recommended language or
+voice. Select both explicitly. If a provider later withdraws an existing
+stored voice, the editor keeps that exact choice visible with a warning; it is
+never silently replaced by a fallback voice. An exact provider response that
+the voice no longer exists blocks future call admission until you choose a new
+voice or a successful explicit validation clears the marker.
 
 ### Tune interruptions on hosted English phone calls
 

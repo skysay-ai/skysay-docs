@@ -31,14 +31,13 @@ runnable.
 
 For a least-privilege REST integration, grant `agents:read` to read this
 catalog and `agents:write` to save the selected agent; neither account nor
-wallet scope is needed. Each TTS entry's `voices` list contains the exact IDs
-you may select for that provider/model. Registry-owned engines keep their
-checked-in worker voices. Managed legacy engines, including the English
-ElevenLabs and Sinhala Gemini paths, return a bounded provider directory that
-OpenPhonex has already ingested; the catalog never calls a provider while you
-read it. Use `voice_count` and `voices_truncated` before assuming that one
-provider/model inventory is complete. If a provider has no per-voice language
-tags, the row appears only for the qualified languages of its TTS model.
+wallet scope is needed. Each TTS entry's `voices` list contains the scoped,
+provider-reported IDs available for that provider/model. The catalog reads a
+last-good provider cache and never calls a provider while you read it. Use
+`voice_count` and `voices_truncated` before assuming that one provider/model
+inventory is complete. A partial inventory does not prove an unobserved voice
+was removed, and a provider-advertised language becomes callable only when the
+OpenPhonex worker registry declares the complete runnable stack.
 [How OpenPhonex qualifies languages and
 providers](/docs/language-qualification) explains what a qualified combination
 has been verified to do, and why a language absent from the catalog is usually
