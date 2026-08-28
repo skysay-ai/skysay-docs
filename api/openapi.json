@@ -987,6 +987,53 @@
         ],
         "type": "object"
       },
+      "CallRecording": {
+        "description": "Metadata for the active recording. Use download_url for playback; storage_key and media_url are legacy implementation details, not download contracts.",
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "disclosure": {
+            "$ref": "#/components/schemas/CallRecordingState"
+          },
+          "download_url": {
+            "description": "Relative authenticated API URL for full or byte-range recording playback.",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "call_id",
+          "status",
+          "content_type",
+          "duration_seconds",
+          "download_url",
+          "disclosure"
+        ],
+        "type": "object"
+      },
       "CallRecordingState": {
         "description": "Safe recording-disclosure state (services/calls_routing/calls.py:_call_recording_state_from_rows). recording_state and recording_disclosure on Call both carry this same object.",
         "properties": {
@@ -4694,12 +4741,217 @@
         "summary": "Delete the active call recording metadata and audit the action"
       },
       "get": {
+        "description": "The returned download_url is the stable authenticated playback contract. Clients must not construct storage URLs from storage_key or media_url.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Recording"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallRecording"
+                }
+              }
+            },
+            "description": "Recording metadata"
           }
         },
-        "summary": "Get call recording metadata and disclosure state"
+        "summary": "Get call recording metadata and disclosure state",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
+      }
+    },
+    "/v1/calls/{call_id}/recording/content": {
+      "get": {
+        "description": "Returns tenant-authorized recording bytes. A single Range: bytes=... request is supported for browser playback; multipart ranges are rejected with 416.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "One byte range, for example bytes=0- or bytes=-4096.",
+            "in": "header",
+            "name": "Range",
+            "required": false,
+            "schema": {
+              "pattern": "^[Bb][Yy][Tt][Ee][Ss]=(?:[0-9]+-[0-9]*|-[0-9]+)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/mpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/ogg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/webm": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Complete recording",
+            "headers": {
+              "Accept-Ranges": {
+                "example": "bytes",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "example": "private, no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Content-Type-Options": {
+                "example": "nosniff",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/mpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/ogg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/webm": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Requested byte range",
+            "headers": {
+              "Accept-Ranges": {
+                "example": "bytes",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "example": "private, no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Content-Range": {
+                "example": "bytes 0-1023/4096",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Content-Type-Options": {
+                "example": "nosniff",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer credential"
+          },
+          "403": {
+            "description": "The credential lacks recordings:read or belongs to another organization"
+          },
+          "404": {
+            "description": "Recording content is unavailable or no longer registered"
+          },
+          "416": {
+            "description": "Invalid, multipart, or unsatisfiable byte range",
+            "headers": {
+              "Content-Length": {
+                "example": 0,
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "Content-Range": {
+                "description": "Unsatisfied range form: bytes */<complete-length>.",
+                "example": "bytes */4096",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Stream call recording audio",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
       }
     },
     "/v1/calls/{call_id}/transcript": {
