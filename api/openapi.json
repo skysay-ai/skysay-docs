@@ -781,6 +781,10 @@
           "organization_id": {
             "type": "string"
           },
+          "page_cursor": {
+            "description": "This row's position in the timeline. Pass the LAST row's value as `after` to continue from here. Opaque: its encoding is not part of the contract, and it is not the row's id.",
+            "type": "string"
+          },
           "payload": {
             "description": "Event-specific detail; shape varies by writer, not just by type -- call.failed alone has at least four shapes: a policy block carries {reason, reasons}; local/queued-origination failure carries {reason} (the worker-queue originate failure adds worker_job_id and error); a reconciler repair carries {source, reason, previous_status, evidence, observed_at}; a gateway-lifecycle failure (SIP/room) carries an unrelated {gateway_event_id, gateway_id, source_component, source, observed_at, details}. Always thinner than the richer result body the call.failed webhook delivers separately.",
             "type": "object"
@@ -796,7 +800,8 @@
           "organization_id",
           "type",
           "payload",
-          "created_at"
+          "created_at",
+          "page_cursor"
         ],
         "type": "object"
       },
@@ -1068,11 +1073,27 @@
             "type": "string"
           },
           "agents": {
-            "description": "Present only when agent_window was requested: one row per agent that has ever placed or received a call in this scope, sorted by agent_id. No limit or pagination -- grows with the organization's total agent count.",
+            "description": "Present only when agent_window was requested: one bounded page of agents that have placed or received a call in this scope, ordered by agent_id. Read agents_has_more before treating it as the whole set.",
             "items": {
               "$ref": "#/components/schemas/CallStatsAgent"
             },
             "type": "array"
+          },
+          "agents_has_more": {
+            "description": "Present only when agent_window was requested. True when the organization has more agents than this page holds; the page is NOT the whole set unless this is false.",
+            "type": "boolean"
+          },
+          "agents_limit": {
+            "description": "Present only when agent_window was requested: the page size actually applied, after clamping.",
+            "type": "integer"
+          },
+          "agents_next_cursor": {
+            "description": "Present only when agent_window was requested. Non-empty only when agents_has_more is true: pass it as agent_after to continue. Empty string on the last page.",
+            "type": "string"
+          },
+          "agents_returned": {
+            "description": "Present only when agent_window was requested: agents in this page.",
+            "type": "integer"
           },
           "organization_id": {
             "type": "string"
@@ -4360,7 +4381,7 @@
     },
     "/v1/calls/stats": {
       "get": {
-        "description": "Aggregation runs in SQL over the whole call history for the organization/project, not just a bounded list page, so the figures stay exact however long that history grows. Pass organization_id (and optionally project_id) as query parameters the same way GET /v1/calls does. window is repeated, each in the form <key>:<since-timestamp> (an RFC3339 UTC timestamp); at least one is required and at most 8 may be requested in one call. until is an optional exclusive upper bound (RFC3339 UTC, defaults to now) shared by every window. Pass agent_window naming one of the requested window keys to additionally receive a per-agent breakdown over that one window.",
+        "description": "Aggregation runs in SQL over the whole call history for the organization/project, not just a bounded list page, so the figures stay exact however long that history grows. Pass organization_id (and optionally project_id) as query parameters the same way GET /v1/calls does. window is repeated, each in the form <key>:<since-timestamp> (an RFC3339 UTC timestamp); at least one is required and at most 8 may be requested in one call. until is an optional exclusive upper bound (RFC3339 UTC, defaults to now) shared by every window. Pass agent_window naming one of the requested window keys to additionally receive a per-agent breakdown over that one window. That breakdown is a bounded page ordered by agent_id: check agents_has_more and continue with agent_after=<agents_next_cursor> rather than reading one page as the organization's whole agent list. The window totals themselves are never truncated -- they are aggregated in SQL over the entire history in scope.",
         "parameters": [
           {
             "description": "The authenticated organization; must match the bearer's own workspace.",
@@ -4410,6 +4431,27 @@
             "description": "One of the window keys already requested. When set, the response also includes a per-agent breakdown over that window.",
             "in": "query",
             "name": "agent_window",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum agents in the agent_window breakdown. Validated whenever it is sent -- a non-numeric value is a 400 either way -- but it only changes the response when agent_window is set.",
+            "in": "query",
+            "name": "agent_limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Continue the agent breakdown after this agent_id -- pass agents_next_cursor from the previous response. Only changes the response when agent_window is set.",
+            "in": "query",
+            "name": "agent_after",
             "required": false,
             "schema": {
               "type": "string"
@@ -4507,12 +4549,33 @@
     },
     "/v1/calls/{call_id}/events": {
       "get": {
-        "description": "Every call_events row for this call, oldest first, each with its raw event payload. This is the platform's own internal bookkeeping log, not a webhook replay: it includes types never delivered to any webhook endpoint at all (e.g. wallet.reserved, call.authorization, call.policy_evaluated, number.matched), and every row here is this row's own id/type/payload, never the signed webhook envelope. call.failed is written here too (payload shape varies by writer -- see CallEvent.payload), always thinner than the richer result body its webhook delivers separately. call.completed is the one terminal type NEVER written here at all -- it is derived from the call's final status and delivered only to webhooks; look at status on GET /v1/calls/{call_id} for that outcome instead. Returned in full today, oldest first, with no limit or pagination -- a long-running call with many agent tool invocations (each is its own call.agent_tool_call row) can make this a large response.",
+        "description": "One bounded page of this call's call_events rows, oldest first, each with its raw event payload. This is the platform's own internal bookkeeping log, not a webhook replay: it includes types never delivered to any webhook endpoint at all (e.g. wallet.reserved, call.authorization, call.policy_evaluated, number.matched), and every row here is this row's own id/type/payload, never the signed webhook envelope. call.failed is written here too (payload shape varies by writer -- see CallEvent.payload), always thinner than the richer result body its webhook delivers separately. call.completed is the one terminal type NEVER written here at all -- it is derived from the call's final status and delivered only to webhooks; look at status on GET /v1/calls/{call_id} for that outcome instead. The response body is the plain array it has always been; the paging state is in headers. Do NOT read one page as the whole history: check X-Has-More, and continue with after=<the last row's page_cursor> until it is false. A long-running call with many agent tool invocations (each is its own call.agent_tool_call row) is exactly the case that needs more than one page.",
         "parameters": [
           {
             "in": "path",
             "name": "call_id",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum events to return in this page.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Continue after a row you already hold: pass its page_cursor. Treat the value as opaque. Unlike an offset it does not move when new events are written mid-walk.",
+            "in": "query",
+            "name": "after",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -4530,7 +4593,40 @@
                 }
               }
             },
-            "description": "Call events"
+            "description": "One page of call events, oldest first",
+            "headers": {
+              "X-Has-More": {
+                "description": "`true` when older-than-this-page events remain. A page is NOT the whole history unless this is `false`.",
+                "schema": {
+                  "enum": [
+                    "true",
+                    "false"
+                  ],
+                  "type": "string"
+                }
+              },
+              "X-Limit": {
+                "description": "The page size actually applied, after clamping.",
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Next-Cursor": {
+                "description": "Present only when X-Has-More is true: the page_cursor to pass as `after` for the next page.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Returned-Count": {
+                "description": "Events in this page.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "limit is not a number or is out of range, or after is not a page cursor."
           },
           "404": {
             "description": "Call not found"
