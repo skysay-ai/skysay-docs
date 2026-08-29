@@ -117,24 +117,63 @@ interruptions from very brief background audio and backchannels while keeping a
 sustained request such as “stop” interruptible. Sustained background speech can
 still be treated as caller speech.
 
-What `turn_taking` in `set_agent_voice_stack` adds, for a hosted **English**
-agent only, is the ability to change that threshold and the endpointing delay
-per agent. The values below are measured on English audio; setting them on an
-agent in another language is accepted and returned, but that agent keeps the
-500 ms floor and the stack's own endpointing delay.
+What `turn_taking` in `set_agent_voice_stack` adds is per-agent control over
+that threshold, the endpointing delay, and whether an interruption must also
+carry recognized words. The first three settings below apply to a hosted
+**English** agent only — their values are measured on English audio, and setting
+them on an agent in another language is accepted and returned, but that agent
+keeps the 500 ms floor and the stack's own endpointing delay.
+`min_interruption_words` is not English-only and has its own condition,
+described under the table.
 
 The controls are applied when a call starts; saving a voice stack never changes
 an in-progress call.
 
-| Setting | Effect on a hosted English phone call |
+| Setting | Effect on a hosted phone call |
 | --- | --- |
-| `interruption_sensitivity` | `balanced` is the 500 ms default. `low` requires 750 ms of continuous speech. `high` uses 150 ms for callers who need a more responsive threshold. `min_speech_ms`, when set, takes precedence. |
-| `min_speech_ms` | An explicit 80–2000 ms interruption threshold. |
-| `silence_hold_ms` | An explicit 100–2000 ms endpointing delay after speech. It takes precedence over a sensitivity preset’s endpointing delay. |
+| `interruption_sensitivity` | English only. `balanced` is the 500 ms default. `low` requires 750 ms of continuous speech. `high` uses 150 ms for callers who need a more responsive threshold. `min_speech_ms`, when set, takes precedence. |
+| `min_speech_ms` | English only. An explicit 80–2000 ms interruption threshold. |
+| `silence_hold_ms` | English only. An explicit 100–2000 ms endpointing delay after speech. It takes precedence over a sensitivity preset’s endpointing delay. |
+| `min_interruption_words` | 0–5, default `0` (off). When set, an interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Effective only on stacks whose transcriber reports words fast enough — see below. |
 | `barge_in_speech_rms` | Accepted and returned for compatibility, but not currently applied to call behavior. Do not use it to control interruptions. |
 
 If the runtime classifies a brief interruption as false, it resumes the agent’s
 speech.
+
+#### Requiring words as well as duration
+
+`min_interruption_words` addresses a different problem from the duration
+threshold. Raising `min_speech_ms` rejects short bursts, but a long stretch of
+non-speech audio — a television, a passing vehicle, a cough — can clear any
+duration threshold you would still be willing to interrupt on. Requiring a
+recognized word rejects that class outright: with `min_interruption_words: 1`,
+the agent yields the floor only when the caller has both held it for the
+duration threshold **and** actually said something.
+
+Both conditions must hold. The setting never lowers the duration threshold and
+never makes an interruption happen sooner.
+
+It is accepted and returned for any agent in any language, but it is
+**effective only where the transcriber emits words fast enough to land inside
+the interruption decision** — today that is the Deepgram stacks, which serve
+English and Estonian. On every other stack the setting is stored, returned
+unchanged by `get_agent_voice_stack`, and ignored at call time: those calls run
+on the duration threshold alone, exactly as they do with the setting unset. The
+distinction is the transcriber's timing, not the language: a transcriber that
+reports a caller's first word a second or two after they start speaking would
+refuse ordinary interruptions rather than only the wordless ones, which is
+worse than not having the setting.
+
+Expect a small added delay when the setting is on. On the Deepgram stacks
+transcription results arrive about once a second, so roughly half the time the
+caller's first word is already recognized when the duration threshold opens and
+the interruption is unchanged; the rest of the time it is delayed until the
+next result, by up to about half a second. A word recognized *before* the
+threshold opens costs nothing — the interruption still happens the moment the
+caller has spoken for long enough.
+
+Start with `1`. Values above `1` require most of a phrase before the agent will
+stop, which callers experience as an agent that does not listen.
 
 Three protections are not settings and are not English-only. On **every** hosted
 phone call, in any language:
