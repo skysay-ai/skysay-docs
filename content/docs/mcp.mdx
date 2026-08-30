@@ -58,15 +58,16 @@ the normal customer configuration loop without switching to REST:
    read-only or free preview.
 
 `list_agents` is deliberately a bounded MCP collection: it returns the same
-safe agent items as REST inside `{ agents, pagination }`. Follow
-`pagination.next_cursor` only while `pagination.has_more` is true. The legacy
-REST collection remains a separate compatibility response.
+safe agent items as REST inside `{ agents, pagination }`, with up to 50 agents
+per page (the default and maximum). Follow `pagination.next_cursor` only while
+`pagination.has_more` is true. The legacy REST collection remains a separate
+compatibility response.
 
 The key's organization is authoritative. You may omit the redundant
-`organization_id` from create, list, and preview calls; a supplied different
-organization is rejected. Agent IDs, optional project filters, saved voice
-pins, preview rate limits, credential ownership, and provider/BYOK validation
-stay in the same services as the REST workflow.
+`organization_id` input from create, list, and preview calls; if supplied, it
+must match the key's workspace. Agent IDs, optional project filters, saved
+voice pins, preview rate limits, credential ownership, and provider/BYOK
+validation stay in the same services as the REST workflow.
 
 <Callout title="Browser sessions stay a browser workflow">
   MCP intentionally does not expose browser-session create or settle. Those
