@@ -265,6 +265,7 @@
             "type": "array"
           },
           "published_at": {
+            "description": "ISO 8601 publication time. An empty string with published_version 0 is the legacy-agent sentinel: no language-profile publication exists yet.",
             "type": "string"
           },
           "published_version": {
@@ -1986,7 +1987,7 @@
             "type": "string"
           },
           "language": {
-            "description": "Compatibility alias for runtime_config.language. Required for a multilingual hosted agent; selects one allowed published language before reservation.",
+            "description": "Compatibility alias for runtime_config.language. When both are supplied, runtime_config.language takes precedence. A selected multilingual hosted language chooses one allowed published profile before reservation.",
             "maxLength": 35,
             "minLength": 2,
             "type": "string"
@@ -2026,7 +2027,7 @@
         "type": "object"
       },
       "OutboundCallRuntimeConfig": {
-        "description": "Bounded non-secret, per-call instructions. Clients cannot supply a frozen profile, credential ID, provider, model, or voice selection. For a multilingual hosted agent, language selects an allowed published profile before reserve and worker dispatch.",
+        "description": "Bounded non-secret, per-call instructions. Clients cannot supply a frozen profile, credential ID, provider, model, or voice selection. runtime_config.language takes precedence over the top-level compatibility alias. For a multilingual hosted agent, language selects an allowed published profile before reserve and worker dispatch.",
         "properties": {
           "first_message": {
             "maxLength": 1000,
