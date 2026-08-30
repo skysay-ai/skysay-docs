@@ -2133,11 +2133,19 @@
           },
           "project_id": {
             "type": "string"
+          },
+          "synthetic_only": {
+            "description": "Offline fixture only, never live PSTN.",
+            "enum": [
+              true
+            ],
+            "type": "boolean"
           }
         },
         "required": [
           "organization_id",
-          "project_id"
+          "project_id",
+          "synthetic_only"
         ],
         "type": "object"
       },
@@ -2602,7 +2610,7 @@
     },
     "/v1/agents/{agent_id}/browser-sessions": {
       "post": {
-        "description": "Workspace-authenticated only. Does not use the anonymous homepage demo budget. The selected snapshot is published or a validated draft overlay. A draft overlay naming an unknown, retired, or language-incompatible selection is rejected with a plain 400 before this point, as before. Beyond that, the resolved realtime configuration -- the agent's stack merged with any draft overlay -- is checked for runnability before anything is reserved; a config the voice worker would refuse before building media (missing prompt/first message, missing provider/model/voice, or an unsupported language) is refused here instead of reaching the worker.",
+        "description": "Workspace-authenticated only. Does not use the anonymous homepage demo budget. New sessions reserve eligible browser-only welcome credit or purchased funds and settle actual component usage; no carrier charge applies. The existing session limit is 180 seconds. Historical zero-charge snapshots remain unchanged. The selected snapshot is published or a validated draft overlay. A draft overlay naming an unknown, retired, or language-incompatible selection is rejected with a plain 400 before this point, as before. Beyond that, the resolved realtime configuration -- the agent's stack merged with any draft overlay -- is checked for runnability before anything is reserved; a config the voice worker would refuse before building media (missing prompt/first message, missing provider/model/voice, or an unsupported language) is refused here instead of reaching the worker.",
         "parameters": [
           {
             "in": "path",
@@ -5354,7 +5362,7 @@
     },
     "/v1/dashboard/billing": {
       "get": {
-        "description": "Returns one read-only Billing DTO for SSR and freshness polling. The aggregate is tenant-bound to the bearer session, uses no Stripe or carrier request, and bounds recent wallet activity and receipts.",
+        "description": "Returns one read-only Billing DTO for SSR and freshness polling. Wallet available_minor is purchased funds; promotional_available_minor is browser-only credit and total_available_minor is their combined amount. The aggregate is tenant-bound to the bearer session, uses no Stripe or carrier request, and bounds recent wallet activity and receipts.",
         "responses": {
           "200": {
             "description": "Billing workspace aggregate"
@@ -7008,12 +7016,13 @@
       "get": {
         "responses": {
           "200": {
-            "description": "Trial calls"
+            "description": "Trial records"
           }
         },
-        "summary": "List free trial calls"
+        "summary": "List historical and offline trial fixtures"
       },
       "post": {
+        "description": "Requires synthetic_only=true. New shared-number live PIN trials are retired; use authenticated metered browser sessions or purchased-funded PSTN calls.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -7029,11 +7038,12 @@
             "description": "Trial call"
           }
         },
-        "summary": "Create a shared demo-number trial PIN"
+        "summary": "Create an offline synthetic trial fixture"
       }
     },
     "/v1/trial-calls/route": {
       "post": {
+        "deprecated": true,
         "requestBody": {
           "content": {
             "application/json": {
@@ -7045,11 +7055,11 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "Routed trial call"
+          "400": {
+            "description": "Live PIN trials are retired; no call or worker job is created"
           }
         },
-        "summary": "Route an inbound shared-number call by PIN"
+        "summary": "Retired shared-number live PIN route"
       }
     },
     "/v1/usage": {
