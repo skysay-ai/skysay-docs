@@ -77,8 +77,13 @@ Saving shared voice-stack settings republishes their effective inherited values
 for future calls, even when the sparse override array is omitted. It does not
 rewrite the explicit overrides or calls already admitted.
 Read `language_profiles.revision` from the voice-stack response and send it as
-`language_profile_revision` when saving to detect a stale editor instead of
-overwriting a newer edit. The selected language set is bounded to 32 entries.
+`language_profile_revision` when saving `languages` or `language_profiles` to
+detect a stale editor instead of overwriting a newer edit. Omitting the revision
+skips this check for compatibility; it does not protect a stale client from
+overwriting newer settings. The selected language set must contain 1–32 entries.
+To remove a language, supply the remaining selected languages and omit any
+override for the removed language from the replacement profiles array. Keep at
+least one language, including the opening language; an empty set is invalid.
 
 An exact greeting is optional. Additional languages without a greeting use a
 model-generated opening in the selected language through the call's normal
