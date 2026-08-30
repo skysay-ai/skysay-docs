@@ -77,12 +77,18 @@ class ApiReferenceTests(unittest.TestCase):
 
     def test_navigation_and_cross_links_expose_the_customer_guides(self) -> None:
         pages = json.loads((ROOT / "content" / "docs" / "meta.json").read_text(encoding="utf-8"))["pages"]
-        for slug in ("integrations", "customer-applications", "post-call-results", "api-reference"):
+        for slug in (
+            "integrations",
+            "customer-applications",
+            "post-call-results",
+            "voice-library",
+            "api-reference",
+        ):
             self.assertIn(slug, pages)
 
         guide_text = {
             slug: (ROOT / "content" / "docs" / f"{slug}.mdx").read_text(encoding="utf-8")
-            for slug in ("integrations", "customer-applications", "post-call-results")
+            for slug in ("integrations", "customer-applications", "post-call-results", "voice-library")
         }
         self.assertIn("openphonex.integration_tool_call", guide_text["integrations"])
         self.assertIn("X-Agent-Telco-Signature", guide_text["integrations"])
@@ -91,6 +97,9 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("call.extraction.ready", guide_text["post-call-results"])
         self.assertIn("/docs/post-call-results", guide_text["integrations"])
         self.assertIn("/docs/integrations", guide_text["customer-applications"])
+        self.assertIn("complete cached catalog", guide_text["voice-library"])
+        self.assertIn("up to 100", guide_text["voice-library"])
+        self.assertIn("accessible provider window", guide_text["voice-library"])
 
     def test_integration_attachment_guide_matches_the_openapi_agent_update(self) -> None:
         patch = self.schema["paths"]["/v1/agents/{agent_id}"]["patch"]
