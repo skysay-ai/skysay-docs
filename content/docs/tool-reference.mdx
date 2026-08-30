@@ -74,5 +74,27 @@ the live `tools/list` on your instance as canonical.
 | `get_risk_envelope` | `onboarding:read` | Read the workspace risk envelope (caps, gates). |
 | `request_risk_envelope` | `onboarding:write` | Request a risk-envelope change. |
 
+## Simulations Lab
+
+Scripted synthetic callers exercising one of your AI agents. See
+[Simulations Lab](/docs/simulations-lab) for what a suite is and what a run
+costs.
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_simulation_suites` | `agents:read` | An AI agent's suites, each with the health of its latest run. |
+| `get_simulation_suite` | `agents:read` | One suite: scenarios, runners, policy, run history, and `run_setup`. |
+| `create_simulation_suite` | `agents:write` | Create a suite, optionally with its whole scenario list in one call. |
+| `preview_simulation_run` | `agents:read` | What a run would cost and which runners this deployment admits. Creates nothing. |
+| `start_simulation_run` | `agents:write` | Start a run. Spends your budget; `idempotency_key` is required. |
+| `get_simulation_run` | `agents:read` | One run's attempts with verdicts, facts, transcripts and evidence links. |
+| `get_simulation_run_results` | `simulation_suites:read` | The redacted pass/fail projection for a build server. |
+| `cancel_simulation_run` | `agents:write` | Cancel a queued or running run. |
+
+Two scopes, deliberately. The rich reads take `agents:read` because they return
+authored scenarios and what your callers said. `get_simulation_run_results`
+takes only `simulation_suites:read`, so a CI job can gate a deploy on a run
+without holding a key that reads every AI agent's configuration.
+
 See [Scopes & permissions](/docs/scopes) for the full scope catalog and
 fail-closed semantics.
