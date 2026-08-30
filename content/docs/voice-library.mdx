@@ -37,8 +37,17 @@ it does not infer a language from another voice with the same provider or name.
 ## Pages and model groups
 
 The library opens with up to 24 voice groups per page and accepts a page size
-up to 100. Use Next and Previous to move through later results; filters and
-page position stay in the URL so you can return to the same view.
+up to 100. When the current cached result count is available, the pager shows
+**Page X of Y**, numbered links, and Next and Previous. Filters and page
+position stay in the URL so you can return to the same view. Changing a filter
+starts at the first matching page; an old bookmarked page that is now beyond
+the result set returns to the first page instead of leaving you on a blank one.
+
+The page count is the number of **currently browsable, filtered voice groups**
+in the cache. It is not a count of models and it is not a claim about a
+provider's complete or undiscovered inventory. When that count is not available
+during a rolling update, the page keeps the compatible Next and Previous
+controls instead of inventing a total.
 
 Models are grouped before pagination only when the provider's inventory
 evidence identifies them as the same voice. A matching raw identifier alone is
@@ -63,6 +72,34 @@ Only a completed authoritative provider refresh can remove a previously cached
 voice for absence. Provider eligibility, licensing and your agent's existing
 selection continue to be checked when you save or run the agent; appearing in a
 search result is not permission to bypass those controls.
+
+## Preview a voice in the intended language
+
+Use **Play** to audition a voice without changing an agent or refreshing a
+provider catalog. Browsing and changing filters do not create a preview or use
+your preview allowance.
+
+If one active Language filter matches a voice, **Play** targets that language.
+When several selected languages match the same voice, the row shows a
+searchable, single-language chooser with the provider's declared values. Choose
+one before a live preview starts; OpenPhonex never silently takes the first
+matching language. With no Language filter, an existing recorded sample can
+still play as published until you explicitly choose a preview language. If its
+catalog provenance does not establish a spoken language, the row labels that
+sample as unverified rather than inferring one.
+
+When a target language is selected, a recorded sample is used only when its
+catalog provenance proves that it matches the target. At present, an
+OpenPhonex ingestion-synthesized sample has that proof for English; a
+provider-supplied recording has no spoken-language assertion and is not treated
+as English or as a match for another language. The row uses the bounded live
+preview instead.
+
+Text you type is sent and spoken exactly as written. OpenPhonex does not
+translate it. If you leave the text blank, the library uses a localized sample
+sentence for the selected language where one is available. If there is no such
+sentence, enter your own text rather than receiving an English fallback. Live
+preview remains bounded, metered, and rate-limited for the workspace.
 
 ## Choose a voice for an agent
 

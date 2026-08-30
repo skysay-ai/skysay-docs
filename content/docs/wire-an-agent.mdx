@@ -83,12 +83,22 @@ cache refresh without a frontend release or human promotion step. A failed
 refresh serves the last good inventory, and a bounded partial inventory never
 proves that an unobserved voice was removed.
 
-On the full library page, a cached audio sample is only a fast path. A row with
-no suitable cached sample still offers **Play**, which makes the bounded,
-rate-limited live preview request. Entering your own text also deliberately
-uses that live request, so you can hear the exact wording you intend to use.
-With no typed text, the library sends the selected language's native self-name
-from browser locale data instead of silently using an English fallback.
+On the full library page, a cached audio sample is a fast path for a selected
+target language only when its catalog provenance proves that match. At present,
+an OpenPhonex ingestion-synthesized sample proves English; a provider sample
+with no spoken-language assertion is not assumed to be English. With no
+Language filter or chosen preview language, an existing recording can play as
+published and the row labels unverified spoken language rather than inferring
+one. A row with no suitable sample still offers **Play**, which makes the
+bounded, metered, rate-limited live preview request. If it cannot run, the page
+shows a local safe error rather than a provider credential, trace, or raw
+provider response. Several matching selected languages require an explicit
+choice in the row's searchable preview-language control; the library never
+silently chooses the first one. Entering your own text deliberately uses that
+live request and speaks the exact wording you enter without translation. With
+no typed text, the library uses a localized sample sentence for the chosen
+language when it has one; otherwise it asks you for text instead of
+substituting English.
 
 Cartesia Sonic 3.6 follows that same contract. Its managed gallery contains
 only the provider's public, non-owned voices. If you use your own Cartesia
