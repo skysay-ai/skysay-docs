@@ -1,16 +1,18 @@
 ---
 title: Multilingual outbound calls
-description: Configure several languages on one hosted agent and choose a published language profile before each governed call.
+description: Configure several languages on one hosted agent, choose its opening language, and optionally follow the caller within the published language set.
 ---
 
 Use a multilingual campaign when your application already knows, or an operator
 has chosen, the recipient's preferred language. OpenPhonex starts every
 outbound call with one saved hosted agent and one resolved language profile.
-The admitted profile's STT, model, TTS, and language remain fixed for that call.
+With **Choose before the call**, the admitted profile's STT, model, TTS, and
+language remain fixed for that call. **Follow the caller** is an explicit
+opt-in for controlled switching among that call's admitted language profiles.
 
-This guide describes call-level language selection. It does not describe an
-in-call voice-stack handoff: OpenPhonex does not mutate an active call's stack
-from `call_context`, an extraction result, or a model instruction.
+Neither mode accepts arbitrary stack changes from `call_context`, extraction
+results, or a model instruction. A language request cannot add a new voice,
+provider, or language to an active call.
 
 ## Configure languages on one agent
 
@@ -155,6 +157,65 @@ your application own suppression, correct-person checks, duplicate prevention,
 cadence, and retry budget. A create response only confirms the governed call
 request; use signed lifecycle and evidence events to reconcile its outcome.
 
+## Optional: follow the caller
+
+Keep **Choose before the call** when each call should stay in its selected
+language. Existing agents keep that behavior unless you explicitly enable and
+publish **Follow the caller**. The opening language determines how the agent
+starts; it does not force the caller to stay in that language.
+
+Follow mode requires at least two selected languages, one shared transcriber,
+and listening support for the selected languages together.
+A transcriber that supports English and German in separate monolingual calls
+does not necessarily support recognizing both in one conversation. OpenPhonex
+checks the configured listening mode and complete published profiles before
+admission. If the combination is unsupported, change the configuration yourself
+or keep fixed-language mode; OpenPhonex does not select a replacement voice or
+transcriber for you.
+
+Use the existing voice-stack PATCH to publish the behavior with the language
+set. The additional behavior field is:
+
+```json
+{
+  "follow_caller": {"enabled": true}
+}
+```
+
+This is a partial request example, not a complete voice configuration. Read the
+voice-stack response to confirm the saved setting. Set `enabled` to `false` to
+publish fixed-language behavior for future calls. The call request's
+`runtime_config.language` still chooses the starting published language; it
+does not enable follow mode or supply a new profile set.
+
+A caller can request a configured language directly—for example, “Please speak
+German” while speaking English. The agent can request a switch only to an
+admitted language. Automatic switching additionally requires provider language
+metadata supported by the adapter: Soniox uses two consecutive unambiguous final
+language signals within the selected set; Deepgram currently supports the
+explicit-request path only. Conflicting or unknown Soniox signals reset that
+sequence. OpenPhonex does not guess the language from individual transcript
+words. Provider detection can still be wrong, so test your actual conversation.
+
+This release supports Follow mode for inbound and outbound phone calls.
+Authenticated browser tests and public homepage demos reject Follow-enabled
+agents before starting media. To test a fixed-language browser conversation,
+use a separate fixed-language agent; that test does not validate in-call
+language switching.
+
+Switches happen at a controlled turn boundary. The conversation's shared
+instructions, tools, knowledge, and disclosure requirements remain in force.
+Publishing or removing a profile later does not change an already-admitted
+call. A failed switch is not reported as successful and does not trigger an
+unrequested fallback voice or provider.
+
+The call reserves against its admitted configuration before media starts.
+Switching does not create a second call or a second independent reservation;
+native component usage remains metered. Phone calls require purchased funds;
+browser-only welcome credit cannot fund them. Test the conversation and inspect call
+evidence before launching a cohort; a successful voice audition alone is not
+proof that multilingual recognition or a carrier route works.
+
 ## Route a language retry after the call
 
 Post-call extraction can label a later follow-up without changing an active
@@ -188,11 +249,10 @@ published language profile, a fresh idempotency key, and its own authorization. 
 advisory: it must not automatically place a call, change a customer record, or
 switch an in-progress voice stack.
 
-If a recipient asks to use another language during a live call, record that
-request according to your policy and use the same later-call path. Do not edit
-a shared agent to redirect an active conversation; publish a profile update
-and select it only for future calls. Controlled mid-call language switching is
-a separate feature, not an effect of these pre-call settings.
+For a fixed-language call, record a language-change request according to your
+policy and use the same later-call path. Follow mode can switch only among its
+already-admitted profiles. In either mode, do not edit a shared agent to redirect
+an active conversation; new publications apply only to future calls.
 
 ## Evidence and duration
 
