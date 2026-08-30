@@ -30,7 +30,7 @@ curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
   -d '{"organization_id":"org_...",
        "name":"OpenClaw agent",
        "scopes":["account:read","coverage:read","agents:write",
-                 "trial_calls:write","calls:read","recordings:read"]}'
+                 "calls:read","recordings:read"]}'
 ```
 
 The response returns `token` **once**. Store it immediately — it is never
@@ -82,8 +82,9 @@ only the scopes you need.
 
 <Callout title="Least privilege">
   For a cautious agent, drop `sms:send`, `calls:write`, and `numbers:write` and
-  run a read + trial-only key: `account:read`, `coverage:read`, `agents:write`,
-  `trial_calls:write`, `calls:read`, `recordings:read`.
+  use only the read/configuration scopes needed: `account:read`, `coverage:read`,
+  `agents:write`, `calls:read`, `recordings:read`. The `trial_calls:write` scope
+  only creates offline synthetic fixtures, not live shared-number phone trials.
 </Callout>
 
 ## Org isolation

@@ -16,7 +16,7 @@ use it — no bespoke integration required.
 ## What is OpenPhonex?
 
 OpenPhonex gives your agents the phone side of the world: search number
-coverage, wire an agent to a number, place a trial or outbound call, read
+coverage, wire an agent to a number, place an authorized outbound call, read
 recordings and transcripts, and send SMS — all behind one scoped API key that is
 also your permission boundary. Numbers, compliance, billing, and provider
 operations stay on the OpenPhonex side; your agent gets the capability tools and
@@ -35,8 +35,11 @@ end at the same scoped tools.
 
 ## Quickstart
 
-Three steps from zero to your agent placing a trial call. This uses the OpenClaw
-connector as the worked example; any MCP client follows the same shape.
+Connect an MCP client and inspect coverage without placing a phone call. This
+uses the OpenClaw connector; any MCP client follows the same shape. To hear a
+configured agent, use a [browser test](/docs/trial-calls). PAYG has no monthly
+platform subscription; [browser credit and purchased funds](/docs/billing)
+are separate balances.
 
 <Steps>
 
@@ -68,8 +71,8 @@ clamped server-side, so the key cannot self-escalate.
 curl -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -d '{"name":"my agent",
-       "scopes":["coverage:read","agents:write",
-                 "trial_calls:write","calls:read",
+       "scopes":["account:read","coverage:read","agents:write",
+                 "calls:read",
                  "recordings:read"]}'
 # -> returns a tai_… key ONCE. Store it now.
 ```
@@ -84,12 +87,12 @@ Set the key in the MCP server env, restart, and ask your agent in plain
 language. It picks the right tool from `tools/list`.
 
 ```text
-you › search GB number coverage, then place a trial call
+you › show my account and search GB number coverage; do not place a call
 
 # the agent runs, over MCP:
+→ account_overview(...)
 → get_coverage(country="GB")
-→ create_trial_call(...)      # returns a dial-in PIN
-✓ transcript + cost summarized back to you
+✓ workspace balance and coverage summarized back to you
 ```
 
 </Step>
@@ -105,7 +108,8 @@ you › search GB number coverage, then place a trial call
 ## Next steps
 
 <Cards>
-  <Card title="Quickstart" href="/docs/quickstart" description="The full five-minute path, end to end." />
+  <Card title="Quickstart" href="/docs/quickstart" description="Connect MCP and test a configured agent." />
+  <Card title="Billing and browser credit" href="/docs/billing" description="PAYG, browser-only welcome credit, and purchased funds." />
   <Card title="Install the connector" href="/docs/install-connector" description="OpenClaw skill, bridge, and key mint in detail." />
   <Card title="MCP tool reference" href="/docs/tool-reference" description="Every tool, its scope, and its arguments." />
   <Card title="Knowledge Bases" href="/docs/knowledge-bases" description="Ground a hosted phone agent in your private business documents." />

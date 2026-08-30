@@ -1,0 +1,72 @@
+---
+title: Billing and browser credit
+description: Pay-as-you-go usage, a separate $5 browser-testing credit, and purchased funds for phone calls, SMS, and numbers.
+---
+
+## Pay as you go
+
+PAYG has **no monthly platform subscription**. Add purchased funds when you
+need phone calls, SMS, phone numbers, or more browser-testing usage. A wallet
+top-up is a one-time purchase, not a recurring plan subscription.
+
+Core agents, supported provider choices, tools, knowledge bases, API, MCP,
+webhooks, and standard call evidence do not require a paid platform plan.
+Usage is still metered. Phone-number rental and setup charges are separate;
+an imported number's carrier may bill you directly.
+
+For higher capacity or volume terms, contact sales about **Scale**. Capacity
+must be agreed and validated for your workload; do not assume a higher limit
+from a pricing label. Check your workspace's current limits before launching
+a batch of calls.
+
+## Your browser-testing credit
+
+An eligible customer receives a **one-time USD $5 welcome credit** when signing
+into the workspace. For a EUR wallet, the grant is converted using the rate
+recorded at grant time. The credit has **no expiry** and is limited to one grant
+per customer identity and per workspace. Creating another workspace or inviting
+another member does not replenish an already claimed grant.
+
+Use it from **Agents → select an agent → browser test**. Configure a supported
+STT, LLM, and TTS stack first. Each authenticated browser session is capped at
+180 seconds and uses the selected components' metered prices. This is a credit
+balance, not a promise of a fixed number of free minutes or unlimited tests.
+
+Browser sessions reserve funds before starting. Unused reserved funds are
+released when the session settles. Once browser credit is exhausted, further
+tests require purchased funds. A negative purchased balance must be resolved;
+browser credit does not cancel a debt.
+
+<Callout title="Browser credit is not phone credit">
+  Welcome credit cannot pay for PSTN calls, SMS, phone-number rental or setup.
+  It is not cash, refundable purchased credit, or transferable to another
+  workspace. The anonymous homepage demo is a separate, bounded demo; it does
+  not replenish your workspace credit.
+</Callout>
+
+## Reading your balance and costs
+
+The workspace wallet balance shows **purchased funds** available for phone
+usage. Billing shows browser credit separately. A wallet showing $0 purchased
+funds can therefore still have browser-testing credit available.
+
+For API and MCP clients, read the account overview using `account:read`:
+`GET /v1/account/overview` or the `account_overview` MCP tool. The wallet
+separates `available_minor` (purchased), `promotional_available_minor` (browser
+credit), and `total_available_minor` (both). Amounts are in the wallet currency's
+minor units. Do not treat the combined total as a PSTN spending balance.
+
+Call charges depend on the selected components and their actual usage, not a
+flat all-inclusive price per minute. Inspect the call's cost evidence for the
+components used. BYOK provider charges follow that component's billing mode;
+bringing a provider key does not make unrelated platform or carrier usage free.
+New calls use their own pricing snapshot. Existing call prices and historical
+wallet entries are not rewritten when the catalog changes.
+
+## Existing subscription records
+
+Developer, Launch, and Growth monthly/yearly subscriptions are no longer sold.
+If your account already has a subscription record, Billing retains its status
+and cancellation controls. Switching the public offer to PAYG does not itself
+cancel a Stripe subscription or refund an earlier payment. Check Billing before
+assuming an existing recurring charge has stopped.
