@@ -12,6 +12,24 @@
           "language": {
             "type": "string"
           },
+          "language_profiles": {
+            "description": "When supplied this replaces the sparse override set; omit it to preserve overrides. Each item has locale and optional exact voice, transcriber, and greeting. Omitted values inherit the shared stack; an empty greeting removes its override.",
+            "items": {
+              "$ref": "#/components/schemas/AgentLanguageProfileOverride"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "languages": {
+            "items": {
+              "maxLength": 35,
+              "minLength": 2,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "type": "array"
+          },
           "mode": {
             "enum": [
               "external_audio",
@@ -162,6 +180,108 @@
         },
         "required": [
           "events"
+        ],
+        "type": "object"
+      },
+      "AgentLanguageProfileOverride": {
+        "additionalProperties": false,
+        "properties": {
+          "greeting": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "locale": {
+            "maxLength": 35,
+            "minLength": 2,
+            "type": "string"
+          },
+          "transcriber": {
+            "additionalProperties": false,
+            "properties": {
+              "model": {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              "provider": {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "model"
+            ],
+            "type": "object"
+          },
+          "voice": {
+            "additionalProperties": false,
+            "properties": {
+              "model": {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              "provider": {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              "voice_id": {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "model",
+              "voice_id"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "locale"
+        ],
+        "type": "object"
+      },
+      "AgentLanguageProfiles": {
+        "description": "Safe editor projection. The immutable runtime profile and credential binding IDs are never returned.",
+        "properties": {
+          "languages": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/AgentLanguageProfileOverride"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "published_at": {
+            "type": "string"
+          },
+          "published_version": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revision": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "languages",
+          "profiles",
+          "published_version",
+          "published_at",
+          "revision"
         ],
         "type": "object"
       },
@@ -318,6 +438,9 @@
           "language": {
             "type": "string"
           },
+          "language_profiles": {
+            "$ref": "#/components/schemas/AgentLanguageProfiles"
+          },
           "latency": {
             "type": "object"
           },
@@ -395,6 +518,30 @@
           },
           "language": {
             "type": "string"
+          },
+          "language_profile_revision": {
+            "description": "Optional optimistic-concurrency revision returned by GET. A stale value returns conflict; reload before retrying.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "language_profiles": {
+            "description": "When supplied this replaces the sparse override set; omit it to preserve overrides.",
+            "items": {
+              "$ref": "#/components/schemas/AgentLanguageProfileOverride"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "languages": {
+            "description": "When supplied this replaces the selected language set.",
+            "items": {
+              "maxLength": 35,
+              "minLength": 2,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "type": "array"
           },
           "model": {
             "$ref": "#/components/schemas/VoiceComponentSelection"
@@ -3556,7 +3703,7 @@
         ]
       },
       "patch": {
-        "description": "The target agent defines the authenticated workspace. Select platform-managed components by provider/model/voice fields, or bind a component to an already-created hosted-AI credential by its ID in component_credential_bindings. The binding is a reference only: upload a BYOK secret through the separate write-only hosted-ai-credentials API; this route never accepts or returns secret material. Validation rejects unsupported provider/model/language combinations before the update.",
+        "description": "The target agent defines the authenticated workspace. Select platform-managed components by provider/model/voice fields, or bind a component to an already-created hosted-AI credential by its ID in component_credential_bindings. The binding is a reference only: upload a BYOK secret through the separate write-only hosted-ai-credentials API; this route never accepts or returns secret material. Supplying languages and optional sparse language_profiles is an explicit publication: all effective profiles are constructible and credential-owned before an immutable version is stored for admission. Draft profile edits never alter existing calls or published sessions.",
         "parameters": [
           {
             "in": "path",
