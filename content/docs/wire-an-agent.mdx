@@ -26,19 +26,20 @@ with webhook and audio-stream URLs.
 
 For hosted or external-text agents, pick STT / LLM / TTS providers from the
 catalog. `get_agent_catalog` lists selectable providers with cost, latency,
-languages, streaming, and runnability; filter by component and language (e.g.
-`language=et` surfaces the single Estonian TTS).
+languages, streaming, and runnability; filter by component and language (for
+example, `language=et` requests the current Estonian options).
 
 ```text
 → get_agent_catalog(component="tts", language="et")   # coverage:read
 → set_agent_voice_stack(agent_id="ag_...", ...)        # agents:write
 ```
 
-`set_agent_voice_stack` validates your selection against the catalog and the
-Estonian `eleven_v3`-only TTS guard.
+`set_agent_voice_stack` validates the effective selection against the declared
+runtime and its credential and billing contracts; it does not require a
+particular TTS vendor just because you chose Estonian.
 
-Choose a voice, not a vendor. The Voice step is a gallery of every voice
-available for your AI agent's language: play a sample, and picking a card sets
+Choose a voice, not a vendor. The Voice step shows voices
+available for your AI agent's language: play a sample, and picking a voice sets
 the provider, the model, and the exact voice id together. **Voices** in the
 sidebar is the same gallery unfiltered, for browsing across every provider and
 language before or without editing an AI agent.
@@ -118,6 +119,26 @@ stored voice, the editor keeps that exact choice visible with a warning; it is
 never silently replaced by a fallback voice. An exact provider response that
 the voice no longer exists blocks future call admission until you choose a new
 voice or a successful explicit validation clears the marker.
+
+### Several languages, one hosted agent
+
+Choose the agent's supported languages, an opening language, and one shared
+voice. You do not need separate copies of its identity, instructions, tools,
+knowledge, and business policy. Optional language overrides can change a voice,
+transcriber, or exact greeting without duplicating the rest of the agent.
+Unspecified values inherit the shared settings; clearing an override restores
+inheritance. An exact greeting is optional, not a publish checklist for every
+language.
+
+Saving the voice stack publishes the effective profiles. A browser test or
+outbound call selects a published language before admission, and the resolved
+configuration is frozen for that call. A later agent edit does not change an
+in-progress call or its quoted component identities. This is fixed-language
+calling, not automatic mid-call language switching.
+
+See [Multilingual outbound calls](/docs/multilingual-outbound) for the request
+fields and application boundary. A Voice Library language filter controls an
+audition; it does not grant the agent permission to call in that language.
 
 ### Interruptions and barge-in
 
