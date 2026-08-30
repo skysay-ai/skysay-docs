@@ -53,6 +53,43 @@ and exact ID, never a platform-key fallback. Cartesia TTS is priced in submitted
 text characters; the catalog is the current source for the applicable price and
 reserve estimate.
 
+### Azure AI Speech
+
+Azure AI Speech contributes two catalog options, and they are independent of
+each other:
+
+- **Transcription** — an Azure real-time speech-to-text option, offered for
+  every language OpenPhonex runs. It is offered alongside the existing options
+  rather than replacing any of them, and it is not the default for any
+  language: an agent uses Azure transcription only if you select it.
+- **Voices** — Azure's neural voice catalog, through the same provider-cached
+  inventory as the options above rather than a checked-in list. Voices appear
+  once the first refresh has completed.
+
+Azure names each voice for the locale it was built for, and a Tamil voice may
+be Indian (`ta-IN`) or Sri Lankan (`ta-LK`), so a Tamil agent's accent follows
+the voice you pick rather than a separate setting. Transcription is a separate
+choice with its own locales: Azure offers Indian Tamil for real-time
+recognition and does not offer Sri Lankan Tamil for it at all, so an agent may
+speak in `ta-LK` while listening in `ta-IN`.
+
+The catalog offers many more voices than there are languages an agent can be
+saved in, because the inventory reports every language Azure declares for a
+voice. **Test voice** works across the whole imported library, so you can hear
+a voice before knowing whether an agent can be built on it; saving an agent
+still requires a language OpenPhonex runs, and the editor says so at the point
+of saving.
+
+Choose the exact provider-reported voice ID and a language the catalog offers
+for the declared runtime stack. The worker never infers a runnable language
+from a voice name: a multilingual Azure voice speaks the language you selected,
+not the one in its identifier. Azure transcription is priced in audio seconds
+and Azure synthesis in submitted text characters — including the markup
+OpenPhonex adds around your text, and with some scripts counted at more than
+one billable character each. The catalog is the current source for the
+applicable price and reserve estimate. Azure runs on an OpenPhonex-managed
+credential only — there is no bring-your-own-key path for it today.
+
 ## Choosing a language and voice
 
 OpenPhonex does not choose a default or recommended language or voice for a new
