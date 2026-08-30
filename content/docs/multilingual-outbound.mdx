@@ -73,6 +73,9 @@ explicit overrides intact. Clearing an override returns it to inheritance.
 
 Omit `language_profiles` to preserve the saved overrides. When you supply the
 array, send the complete desired set of sparse overrides; `[]` clears them.
+Saving shared voice-stack settings republishes their effective inherited values
+for future calls, even when the sparse override array is omitted. It does not
+rewrite the explicit overrides or calls already admitted.
 Read `language_profiles.revision` from the voice-stack response and send it as
 `language_profile_revision` when saving to detect a stale editor instead of
 overwriting a newer edit. The selected language set is bounded to 32 entries.
@@ -85,9 +88,11 @@ the appropriate policy; generated wording is not a way to bypass those rules.
 There is no automatic recommended voice and no fallback to a different voice
 when a selected provider voice fails.
 
-Test each profile with the metered browser test's language selector before it
-joins a live outbound cohort. Use a separate, normally funded phone call to
-prove the carrier route. Previewing a language in the Voice Library does not add
+Test each profile before it joins a live outbound cohort: open the agent's
+test panel, select **Published**, choose a language, and start the metered
+browser test. This starts a browser conversation, not an outbound phone call.
+Use a separate, normally funded phone call to prove the carrier route.
+Previewing a language in the Voice Library does not add
 it to the agent's callable profiles. The [generated API
 reference](/docs/api-reference) has the exact request and response schemas.
 
@@ -96,7 +101,8 @@ reference](/docs/api-reference) has the exact request and response schemas.
 The API creates one call at a time; it does not provide a batch-language
 endpoint. Keep the campaign and row-selection logic in your application:
 
-1. An operator chooses a batch default: `en`, `si`, or `ta`.
+1. An operator chooses a batch default from the published set: for example,
+   `en`, `et`, or `de` for the configuration above.
 2. For each eligible row, use its valid language override when present;
    otherwise use the batch default.
 3. Select the saved `agent_id` and request that published language, then create
@@ -104,7 +110,9 @@ endpoint. Keep the campaign and row-selection logic in your application:
 
 Use `agent_id` as the canonical saved-agent selection. `agent_endpoint_id` is
 a backwards-compatible alias, not a second stack selector. Use
-`runtime_config.language` to select the call's language. A small, non-secret
+the call request's `runtime_config.language` field to select its language (see
+the [generated API reference](/docs/api-reference) for the call schema).
+A small, non-secret
 `call_context` can carry an application-visible label, but metadata there does
 not select or override a profile.
 
@@ -127,6 +135,8 @@ credentials, mutable case history, or a requested voice-stack override in
 `call_context`.
 
 The selected language must belong to that agent's published configuration.
+The voice-stack response's `language_profiles.published_version` and
+`language_profiles.published_at` identify its latest publication.
 OpenPhonex resolves and validates it before reserving funds or dispatching the
 call. The estimate and admitted runtime use the same effective components;
 later edits cannot change an already-admitted call's voice stack. Credential
