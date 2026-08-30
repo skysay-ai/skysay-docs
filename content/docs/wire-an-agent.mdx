@@ -123,8 +123,8 @@ carry recognized words. The first three settings below apply to a hosted
 **English** agent only — their values are measured on English audio, and setting
 them on an agent in another language is accepted and returned, but that agent
 keeps the 500 ms floor and the stack's own endpointing delay.
-`min_interruption_words` is not English-only and has its own condition,
-described under the table.
+`min_interruption_words` is not English-only, has its own condition, and is the
+one setting here with a non-zero default; both are described under the table.
 
 The controls are applied when a call starts; saving a voice stack never changes
 an in-progress call.
@@ -134,7 +134,7 @@ an in-progress call.
 | `interruption_sensitivity` | English only. `balanced` is the 500 ms default. `low` requires 750 ms of continuous speech. `high` uses 150 ms for callers who need a more responsive threshold. `min_speech_ms`, when set, takes precedence. |
 | `min_speech_ms` | English only. An explicit 80–2000 ms interruption threshold. |
 | `silence_hold_ms` | English only. An explicit 100–2000 ms endpointing delay after speech. It takes precedence over a sensitivity preset’s endpointing delay. |
-| `min_interruption_words` | 0–5, default `0` (off). When set, an interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Effective only on stacks whose transcriber reports words fast enough — see below. |
+| `min_interruption_words` | 0–5. Defaults to `1` on hosted **English** calls and to `0` (off) everywhere else. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
 | `barge_in_speech_rms` | Accepted and returned for compatibility, but not currently applied to call behavior. Do not use it to control interruptions. |
 
 If the runtime classifies a brief interruption as false, it resumes the agent’s
@@ -153,6 +153,18 @@ duration threshold **and** actually said something.
 Both conditions must hold. The setting never lowers the duration threshold and
 never makes an interruption happen sooner.
 
+#### The default
+
+A hosted **English** agent that has not set `min_interruption_words` runs with
+`1`: one recognized word as well as the duration threshold. Agents in every
+other language default to `0` and run on the duration threshold alone, because
+the requirement is only enforceable where the transcriber can report a word in
+time (see below).
+
+To turn the requirement off on an English agent, set `min_interruption_words`
+to `0` explicitly. An explicit `0` is stored and returned; leaving the setting
+out is what selects the default.
+
 It is accepted and returned for any agent in any language, but it is
 **effective only where the transcriber emits words fast enough to land inside
 the interruption decision** — today that is the Deepgram stacks, which serve
@@ -164,6 +176,23 @@ reports a caller's first word a second or two after they start speaking would
 refuse ordinary interruptions rather than only the wordless ones, which is
 worse than not having the setting.
 
+#### Sounds that do not count as words
+
+Short listening noises from the caller do not count toward
+`min_interruption_words`. "mm-hm", "uh-huh", "yes", "yeah", "okay", "right",
+"sure", and hesitation sounds such as "uh" and "um" are what a caller says to
+show they are following, not to take the floor, so a transcript containing
+nothing but one or two of them will not interrupt the agent however long the
+caller holds it.
+
+The caller is still heard. What they said is delivered to the agent when the
+reply ends, so a caller who says "okay" is answered afterwards rather than
+ignored — they simply do not cut the agent off mid-sentence to do it.
+
+Anything else counts, including short words that sound similar in isolation.
+"no" is a word; so is "wait", "stop", and "huh". So is any phrase that mixes
+the two: "yes but" carries a word the agent will stop for.
+
 Expect a small added delay when the setting is on. On the Deepgram stacks
 transcription results arrive about once a second, so roughly half the time the
 caller's first word is already recognized when the duration threshold opens and
@@ -172,8 +201,9 @@ next result, by up to about half a second. A word recognized *before* the
 threshold opens costs nothing — the interruption still happens the moment the
 caller has spoken for long enough.
 
-Start with `1`. Values above `1` require most of a phrase before the agent will
-stop, which callers experience as an agent that does not listen.
+`1` is the English default for this reason. Values above `1` require most of a
+phrase before the agent will stop, which callers experience as an agent that
+does not listen.
 
 Three protections are not settings and are not English-only. On **every** hosted
 phone call, in any language:
