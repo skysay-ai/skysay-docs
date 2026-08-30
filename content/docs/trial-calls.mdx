@@ -1,39 +1,39 @@
 ---
-title: Trial calls
-description: Place a shared-number trial call to hear a connected agent end to end, with no number provisioning.
+title: Test an agent
+description: Use a metered browser session before moving to purchased-funds phone calls. Shared-number live PIN trials are retired.
 ---
 
-A **trial call** is the fastest way to hear a connected agent on a real phone
-line. It uses a shared OpenPhonex number and a dial-in PIN, so you can validate
-an agent before requesting or assigning a number of your own.
+## Hear your agent in the browser
 
-## Place a trial call
+Open **Agents**, select your agent, configure its supported STT, LLM, and TTS
+components, then start a browser test. Allow microphone access and end the
+session when you finish. Each session is capped at 180 seconds.
 
-```text
-you › create a shared-number trial for my agent
-→ create_trial_call(agent_id="ag_...")   # trial_calls:write
-✓ returns a dial-in number + PIN
-```
+Authenticated browser tests use [welcome browser credit](/docs/billing) or
+purchased funds at the selected components' metered prices. You do not need a
+phone number for a browser test. This does not qualify the carrier route or
+prove that a real phone call will work.
 
-`create_trial_call` returns a PIN you dial into from any phone. The agent answers
-on the shared number, and the call produces the same evidence as a production
-call — recording, waveform, transcript, and cost.
+## Test a real phone call
 
-## After the call
+For a PSTN test, use a normally configured number and carrier route, purchased
+funds, and the usual authorization and policy checks. Browser credit cannot
+fund the phone call. See [Wire an agent](/docs/wire-an-agent) and
+[Policy and outbound](/docs/policy-and-outbound).
 
-Read what happened with the call-evidence tools:
+## Shared-number PIN trials are retired
 
-```text
-→ list_calls(...)             # calls:read
-→ get_call(call_id="cl_...")  # calls:read — status + recording state
-→ get_call_transcript(...)    # recordings:read
-```
+New customer-configured live shared-number trials are not available. A PIN from
+`create_trial_call` is **not** a number you can dial to reach your agent.
 
-<Callout title="No provisioning required">
-  Trial calls need only `trial_calls:write` (and `agents:write` to have
-  connected the agent). You do not need a provisioned number, `numbers:write`,
-  or operator approval to run one.
-</Callout>
+The tool and `POST /v1/trial-calls` remain for offline synthetic fixtures and
+require `synthetic_only: true`. They do not create real audio or prove a working
+phone route. Live routing/completion through the old trial path is rejected.
+Existing trial records remain readable. This change does not remove the
+separately bounded anonymous homepage demo.
 
-See [Read call evidence](/docs/read-call-evidence) for recordings, transcripts,
-and retention detail.
+## Review the result
+
+Use **Calls** or the call-evidence tools to inspect status and available
+recordings and transcripts. A failed call or a synthetic fixture need not have
+real audio evidence. See [Read call evidence](/docs/read-call-evidence).
