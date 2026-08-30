@@ -497,7 +497,7 @@
         "type": "object"
       },
       "AgentVoiceStackUpdate": {
-        "description": "Selection/update payload. It carries only selectors, existing credential IDs, tools, and tuning -- never provider secret material.",
+        "description": "Selection/update payload. It carries only selectors, existing credential IDs, tools, and tuning -- never provider secret material. Supplying languages replaces the selected set; supplying language_profiles replaces sparse overrides, while omission preserves them. After language opt-in, shared prompt, stack, or credential saves explicitly republish inherited effective profiles.",
         "properties": {
           "begin_message": {
             "description": "Legacy alias for first_message.",
@@ -1967,12 +1967,28 @@
             "maxLength": 256,
             "type": "string"
           },
+          "first_message": {
+            "description": "Compatibility alias for runtime_config.first_message.",
+            "maxLength": 1000,
+            "type": "string"
+          },
           "from_phone_number_id": {
             "type": "string"
           },
           "idempotency_key": {
             "description": "Optional body alternative to the Idempotency-Key header. Retries must reuse the same value with the same request.",
             "maxLength": 200,
+            "type": "string"
+          },
+          "instructions": {
+            "description": "Compatibility alias for runtime_config.instructions.",
+            "maxLength": 8000,
+            "type": "string"
+          },
+          "language": {
+            "description": "Compatibility alias for runtime_config.language. Required for a multilingual hosted agent; selects one allowed published language before reservation.",
+            "maxLength": 35,
+            "minLength": 2,
             "type": "string"
           },
           "organization_id": {
@@ -1989,6 +2005,9 @@
             "description": "Optional, never enforced or required -- outbound is not restricted to business recipients. Persisted verbatim on the call row if sent; SMS has no recipient_type column, so it is accepted but not stored there.",
             "type": "string"
           },
+          "runtime_config": {
+            "$ref": "#/components/schemas/OutboundCallRuntimeConfig"
+          },
           "to_phone_number": {
             "type": "string"
           },
@@ -2004,6 +2023,25 @@
           "country",
           "purpose"
         ],
+        "type": "object"
+      },
+      "OutboundCallRuntimeConfig": {
+        "description": "Bounded non-secret, per-call instructions. Clients cannot supply a frozen profile, credential ID, provider, model, or voice selection. For a multilingual hosted agent, language selects an allowed published profile before reserve and worker dispatch.",
+        "properties": {
+          "first_message": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "instructions": {
+            "maxLength": 8000,
+            "type": "string"
+          },
+          "language": {
+            "maxLength": 35,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "PhoneNumberRequest": {
