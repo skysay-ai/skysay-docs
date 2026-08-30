@@ -1,22 +1,24 @@
 ---
 title: Multilingual outbound calls
-description: Select a saved hosted agent per call, keep a batch default with per-record overrides, and handle a language retry as a new governed call.
+description: Configure several languages on one hosted agent and choose a published language profile before each governed call.
 ---
 
 Use a multilingual campaign when your application already knows, or an operator
 has chosen, the recipient's preferred language. OpenPhonex starts every
-outbound call with one saved hosted agent. The selected agent's stored STT,
-model, and TTS configuration remains fixed for that call.
+outbound call with one saved hosted agent and one resolved language profile.
+The admitted profile's STT, model, TTS, and language remain fixed for that call.
 
 This guide describes call-level language selection. It does not describe an
 in-call voice-stack handoff: OpenPhonex does not mutate an active call's stack
 from `call_context`, an extraction result, or a model instruction.
 
-## Create one saved agent per language
+## Configure languages on one agent
 
-Create and validate a separate hosted agent for each language you intend to
-dial. Use the runnable catalog to choose supported components before saving
-each voice stack:
+You do not need to copy the same agent for each language. Choose the languages
+the agent will offer, its opening language, and one shared voice stack. Identity,
+instructions, model, tools, knowledge, and business policy stay on the same
+agent. Use the runnable catalog to choose components that can execute the
+selected languages:
 
 | Language | Catalog query |
 | --- | --- |
@@ -38,51 +40,97 @@ last-good provider cache and never calls a provider while you read it. Use
 inventory is complete. A partial inventory does not prove an unobserved voice
 was removed, and a provider-advertised language becomes callable only when the
 OpenPhonex worker registry declares the complete runnable stack.
-[How OpenPhonex qualifies languages and
-providers](/docs/language-qualification) explains what a qualified combination
-has been verified to do, and why a language absent from the catalog is usually
-one nobody has checked yet rather than one known to fail.
+[How OpenPhonex handles provider languages and
+voices](/docs/language-qualification) explains the difference between browsing
+provider-reported voices and admitting a runnable call stack. A cached sample
+or a manual language approval is not required to configure a language.
 
 Create an agent with `POST /v1/agents`, select its stack with
 `PATCH /v1/agents/{agent_id}/voice-stack`, and read it back with
-`GET /v1/agents/{agent_id}/voice-stack`. Save the returned agent IDs in your
-application, for example:
+`GET /v1/agents/{agent_id}/voice-stack`. A voice-stack save publishes the
+effective language profiles; it is not a workflow publication. Its additional
+language fields are:
 
 ```json
 {
-  "en": "agent_english",
-  "si": "agent_sinhala",
-  "ta": "agent_tamil"
+  "languages": ["en", "et", "de"],
+  "language_profiles": [
+    {"locale": "et", "greeting": "Tere! Kuidas saan teid aidata?"}
+  ]
 }
 ```
 
-Test each stored profile with a metered browser test or a normally funded phone call before it joins
-a live outbound cohort. The [generated API reference](/docs/api-reference)
-has the exact request and response schemas.
+These are fields of the existing voice-stack request, not a complete stack
+configuration. The selected shared components must be runnable in every
+selected language, or you must explicitly choose a compatible per-language
+override. This example does not imply that every multilingual voice can run
+every listed language in OpenPhonex.
+
+Optional per-language overrides can supply an exact greeting,
+voice, or transcriber. Unspecified settings inherit the shared configuration;
+an override does not copy the whole agent. Changing a shared setting leaves
+explicit overrides intact. Clearing an override returns it to inheritance.
+
+Omit `language_profiles` to preserve the saved overrides. When you supply the
+array, send the complete desired set of sparse overrides; `[]` clears them.
+Saving shared voice-stack settings republishes their effective inherited values
+for future calls, even when the sparse override array is omitted. It does not
+rewrite the explicit overrides or calls already admitted.
+Read `language_profiles.revision` from the voice-stack response and send it as
+`language_profile_revision` when saving `languages` or `language_profiles` to
+detect a stale editor instead of overwriting a newer edit. Omitting the revision
+skips this check for compatibility; it does not protect a stale client from
+overwriting newer settings. The selected language set must contain 1–32 entries.
+To remove a language, supply the remaining selected languages and omit any
+override for the removed language from the replacement profiles array. Keep at
+least one language, including the opening language; an empty set is invalid.
+
+An exact greeting is optional. Additional languages without a greeting use a
+model-generated opening in the selected language through the call's normal
+metered model and voice path. The existing opening-language literal is
+preserved. Keep required disclosure and consent wording in
+the appropriate policy; generated wording is not a way to bypass those rules.
+There is no automatic recommended voice and no fallback to a different voice
+when a selected provider voice fails.
+
+Test each profile before it joins a live outbound cohort: open the agent's
+test panel, choose a language from the **Published** configuration, and start
+the metered browser test. Profile-based tests use the published version; publish edits
+before testing them. Unsaved shared draft settings do not overwrite a selected
+language's greeting or voice. This starts a browser conversation, not an outbound phone call.
+Use a separate, normally funded phone call to prove the carrier route.
+Previewing a language in the Voice Library does not add
+it to the agent's callable profiles. The [generated API
+reference](/docs/api-reference) has the exact request and response schemas.
 
 ## Resolve the language before each call
 
 The API creates one call at a time; it does not provide a batch-language
 endpoint. Keep the campaign and row-selection logic in your application:
 
-1. An operator chooses a batch default: `en`, `si`, or `ta`.
+1. An operator chooses a batch default from the published set: for example,
+   `en`, `et`, or `de` for the configuration above.
 2. For each eligible row, use its valid language override when present;
    otherwise use the batch default.
-3. Resolve that language to the saved `agent_id`, then create one governed,
-   idempotent `POST /v1/calls` request.
+3. Select the saved `agent_id` and request that published language, then create
+   one governed, idempotent `POST /v1/calls` request.
 
 Use `agent_id` as the canonical saved-agent selection. `agent_endpoint_id` is
-a backwards-compatible alias, not a second stack selector. A small,
-non-secret `call_context` can carry an application-visible language label, but
-it cannot select or override the agent's stack.
+a backwards-compatible alias for the agent identity, not the language profile. Use
+the call request's `runtime_config.language` field to select its language (see
+the [generated API reference](/docs/api-reference) for the call schema).
+A small, non-secret
+`call_context` can carry an application-visible label, but metadata there does
+not select or override a profile.
 
 ```json
 {
-  "agent_id": "agent_sinhala",
+  "agent_id": "agent_multilingual",
+  "runtime_config": {"language": "et"},
   "external_reference": "case_456",
   "external_group_reference": "campaign_2026_08",
   "call_context": {
-    "preferred_language": "si"
+    "preferred_language": "et"
   }
 }
 ```
@@ -92,6 +140,15 @@ fields from [Customer applications](/docs/customer-applications), and use a
 unique `Idempotency-Key` for each attempt. Do not put current balances,
 credentials, mutable case history, or a requested voice-stack override in
 `call_context`.
+
+The selected language must belong to that agent's published configuration.
+The voice-stack response's `language_profiles.published_version` and
+`language_profiles.published_at` identify its latest publication.
+OpenPhonex resolves and validates it before reserving funds or dispatching the
+call. The estimate and admitted runtime use the same effective components;
+later edits cannot change an already-admitted call's voice stack. Credential
+revocation and policy checks still apply. An existing single-language agent
+does not become multilingual just because an application sends a new locale.
 
 Respect `429` and `Retry-After`, keep the application queue bounded, and let
 your application own suppression, correct-person checks, duplicate prevention,
@@ -126,15 +183,16 @@ conversation. Configure a small advisory schema such as:
 
 When you receive a signed `call.extraction.ready` event, fetch the extraction
 and verify the source evidence and your own policy. If your application allows
-a retry, submit a **later, new** `POST /v1/calls` request with the target saved
-agent ID, a fresh idempotency key, and its own authorization. An extraction is
+a retry, submit a **later, new** `POST /v1/calls` request with the target
+published language profile, a fresh idempotency key, and its own authorization. An extraction is
 advisory: it must not automatically place a call, change a customer record, or
 switch an in-progress voice stack.
 
 If a recipient asks to use another language during a live call, record that
 request according to your policy and use the same later-call path. Do not edit
-a shared agent while a cohort is running; create or update a saved profile,
-validate it, and select it only for future calls.
+a shared agent to redirect an active conversation; publish a profile update
+and select it only for future calls. Controlled mid-call language switching is
+a separate feature, not an effect of these pre-call settings.
 
 ## Evidence and duration
 
