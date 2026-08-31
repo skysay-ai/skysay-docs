@@ -261,7 +261,7 @@
         "type": "object"
       },
       "AgentLanguageProfiles": {
-        "description": "Safe editor projection. The immutable runtime profile and credential binding IDs are never returned.",
+        "description": "Safe editor projection. The immutable runtime profile and credential binding IDs are never returned. Published Follow summaries expose only the frozen allowed locale set, opt-in bit, and opening locale for the authenticated test picker.",
         "properties": {
           "languages": {
             "items": {
@@ -281,6 +281,23 @@
             "description": "ISO 8601 publication time. An empty string with published_version 0 is the legacy-agent sentinel: no language-profile publication exists yet.",
             "type": "string"
           },
+          "published_follow_caller": {
+            "$ref": "#/components/schemas/AgentFollowCaller"
+          },
+          "published_languages": {
+            "description": "Locales from the immutable published profile set. This is empty when no publication exists.",
+            "items": {
+              "maxLength": 35,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "published_starting_language": {
+            "description": "Frozen Follow opening locale for the published browser-test picker, or an empty string when Follow is not enabled.",
+            "maxLength": 35,
+            "type": "string"
+          },
           "published_version": {
             "minimum": 0,
             "type": "integer"
@@ -295,6 +312,9 @@
           "profiles",
           "published_version",
           "published_at",
+          "published_languages",
+          "published_follow_caller",
+          "published_starting_language",
           "revision"
         ],
         "type": "object"
@@ -3440,7 +3460,7 @@
                     "type": "object"
                   },
                   "scenarios": {
-                    "description": "Authored caller scenarios. At most 50 per suite.",
+                    "description": "Authored caller scenarios. At most 50 per suite. Each scenario's turns carry what the caller does and when: kind is speech, backchannel or silence; a silence turn carries silence_ms and no caller_input, because a silence is time rather than words; cue.after_agent_turn (1-based, and 0 meaning no cue at all: take the turn when the agent finishes) and cue.delay_ms record where inside an agent turn the caller was authored to speak -- stored today and carried to the voice host, but not yet acted on: the deployed synthetic caller still waits for an agent turn to end, so two backchannels cued to the same agent turn are still delivered back to back; and ground_truth_variants records alternative renderings of the same line -- a numeral written as digits or as words, say -- so a run's stored evidence carries what the caller was authored to say in every form that counts as correct. The platform's own offline recognition metric still scores against caller_input alone; the variants are carried for the readiness scorer that reads them. A silence turn needs the adaptive_voice runner and is refused with 422 silence_needs_a_room on any other, because only a room has time to spend.",
                     "items": {
                       "type": "object"
                     },
