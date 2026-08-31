@@ -261,7 +261,7 @@
         "type": "object"
       },
       "AgentLanguageProfiles": {
-        "description": "Safe editor projection. The immutable runtime profile and credential binding IDs are never returned.",
+        "description": "Safe editor projection. The immutable runtime profile and credential binding IDs are never returned. Published Follow summaries expose only the frozen allowed locale set, opt-in bit, and opening locale for the authenticated test picker.",
         "properties": {
           "languages": {
             "items": {
@@ -281,6 +281,23 @@
             "description": "ISO 8601 publication time. An empty string with published_version 0 is the legacy-agent sentinel: no language-profile publication exists yet.",
             "type": "string"
           },
+          "published_follow_caller": {
+            "$ref": "#/components/schemas/AgentFollowCaller"
+          },
+          "published_languages": {
+            "description": "Locales from the immutable published profile set. This is empty when no publication exists.",
+            "items": {
+              "maxLength": 35,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "published_starting_language": {
+            "description": "Frozen Follow opening locale for the published browser-test picker, or an empty string when Follow is not enabled.",
+            "maxLength": 35,
+            "type": "string"
+          },
           "published_version": {
             "minimum": 0,
             "type": "integer"
@@ -295,6 +312,9 @@
           "profiles",
           "published_version",
           "published_at",
+          "published_languages",
+          "published_follow_caller",
+          "published_starting_language",
           "revision"
         ],
         "type": "object"
