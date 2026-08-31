@@ -116,6 +116,49 @@ manual language approval or audition requirement. The supported provider mode
 also does not guarantee accent accuracy or acoustic quality; test your actual
 conversation before relying on it.
 
+### Automatic switching availability by language
+
+Follow mode has two paths, and they are not available on the same
+transcribers. The **explicit request** path is always available in follow
+mode: the caller asks for a language, and the agent switches if that language
+is one of the published ones. **Automatic switching** additionally needs the
+transcriber to report which language it heard, and only some do.
+
+| Transcriber | Languages you can select together | Automatic switching |
+| --- | --- | --- |
+| Azure AI Speech Real-time | English, Estonian, Russian | Yes |
+| Deepgram Nova-3 | English, Spanish, French, German, Russian, Portuguese, Italian, Dutch | No — explicit request only |
+| Soniox Real-time v5 | English, Tamil | Yes |
+| Google Chirp 2 | — not available in follow mode | — |
+
+Read the middle column strictly. It lists the languages that may appear
+**together in one follow-mode conversation**, which is narrower than the
+languages each transcriber can run in a fixed-language call. Estonian is the
+clearest example: Deepgram Nova-3 transcribes Estonian perfectly well on a
+fixed-language agent, and Estonian is still absent from its follow-mode column,
+because the provider's own multilingual model does not cover it. Tamil is the
+same story on Azure: it is fully supported for fixed-language calls and is
+deliberately not in Azure's follow-mode column, because in testing the
+recognizer sometimes continued transcribing other languages in Tamil script
+after a Tamil passage. For Tamil follow mode, choose Soniox. Any two or more
+languages from one row may be combined; a language from outside that row, or
+from a different row, is refused at publication.
+
+Where automatic switching is available it takes **two consecutive final results
+that agree** on the same language. That is deliberately conservative. A
+transcriber typically needs a moment to notice a language change, so the first
+moments after a caller switches are often still transcribed as the previous
+language; requiring two agreeing results means a single such result cannot
+move the call. The cost is that a switch takes about one extra sentence; the
+benefit is that a stray result cannot flip the agent mid-conversation. A single
+utterance in another language, surrounded by the current one, will usually not
+switch the call — ask for the language directly if you want the change to be
+immediate.
+
+Automatic switching happens between sentences, never inside one. A caller who
+drops single foreign words into an otherwise Estonian sentence stays on
+Estonian, which is the intended behavior.
+
 ### Browse and test the cached catalog
 
 The **Voices** workspace page is a flat, paginated list rather than a separate
