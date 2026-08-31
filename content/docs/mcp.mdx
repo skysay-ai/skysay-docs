@@ -39,6 +39,48 @@ regardless, because it is a catalog of what OpenPhonex can do rather than an
 inventory of what your instance has switched on. Calling one where the
 capability is off returns the same not-found the equivalent REST route returns.
 
+## Configure an agent from MCP
+
+An organization-scoped key with `agents:read` and `agents:write` can complete
+the normal customer configuration loop without switching to REST:
+
+1. Call `get_agent_catalog` to discover selectable STT, LLM, and TTS options.
+   It accepts either `agents:read` or `coverage:read`; use
+   `metered_only: true` when you need only component-metered choices.
+2. Call `create_agent`, then use `list_agents` for a bounded newest-first page
+   or `get_agent` for one current safe agent projection.
+3. Use `update_agent` for the ordinary mutable fields and
+   `set_agent_voice_stack` to publish a selected stack. Read the published
+   configuration back with `get_agent_voice_stack`.
+4. Use `preview_voice` only as an explicit Listen action. It can contact a
+   provider or validate a BYOK credential, is rate-limited per workspace, and
+   may write safe preview-rate or voice-availability state. It is not a
+   read-only or free preview.
+
+`list_agents` is deliberately a bounded MCP collection: it returns the same
+safe agent items as REST inside `{ agents, pagination }`, with up to 50 agents
+per page (the default and maximum). Follow `pagination.next_cursor` only while
+`pagination.has_more` is true. The legacy REST collection remains a separate
+compatibility response.
+
+The key's organization is authoritative. You may omit the redundant
+`organization_id` input from create, list, and preview calls; if supplied, it
+must match the key's workspace. Agent IDs, optional project filters, saved
+voice pins, preview rate limits, credential ownership, and provider/BYOK
+validation stay in the same services as the REST workflow.
+
+<Callout title="Browser sessions stay a browser workflow">
+  MCP intentionally does not expose browser-session create or settle. Those
+  commands require `calls:write` plus a browser-owned LiveKit/audio participant
+  and that client's later settlement signal. Use the browser or the REST
+  browser-session workflow for an audio test.
+</Callout>
+
+For local stdio MCP, set both `OPENPHONEX_MCP_SCOPES` and
+`OPENPHONEX_MCP_ORGANIZATION_ID` before calling any organization-bound agent
+configuration tool. An absent organization fails closed; `tools/list` remains
+schema discovery only.
+
 <Cards>
   <Card title="Tool reference" href="/docs/tool-reference" description="Every tool, its scope, and what it does." />
   <Card title="Scopes & permissions" href="/docs/scopes" description="The full scope catalog and fail-closed rules." />

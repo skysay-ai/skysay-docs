@@ -30,9 +30,12 @@ languages, streaming, and runnability; filter by component and language (for
 example, `language=et` requests the current Estonian options).
 
 ```text
-→ get_agent_catalog(component="tts", language="et")   # coverage:read
+→ get_agent_catalog(component="tts", language="et", metered_only=true)   # agents:read or coverage:read
 → set_agent_voice_stack(agent_id="ag_...", ...)        # agents:write
 ```
+
+Set `metered_only=true` only when you want component-metered choices; omit it
+to see every runnable adapter.
 
 `set_agent_voice_stack` validates the effective selection against the declared
 runtime and its credential and billing contracts. The catalog exposes the
@@ -49,6 +52,20 @@ evidence, without changing its shared tools or business instructions. A voice's
 multilingual label alone is not proof of simultaneous listening support. See
 [Multilingual calls](/docs/multilingual-outbound#optional-follow-the-caller) for
 the API setting, boundaries, and test flow.
+
+From MCP, use `list_agents` for a bounded newest-first page, `get_agent` for a
+single current projection, `update_agent` for ordinary mutable fields, and
+`get_agent_voice_stack` to read a published stack back. The key's organization
+is authoritative: omit the redundant `organization_id`, or repeat only the
+same workspace. A different workspace, project, or agent is rejected before a
+configuration write or preview render; treat that MCP error as a tenant
+validation failure, not a retry prompt for another workspace identifier.
+
+`preview_voice` is the MCP Listen action. It has `agents:write` because it can
+contact a provider or validate a BYOK credential and is rate-limited per
+workspace; it is not a read-only preview. Browser-session create and settle
+remain browser/REST operations because they require a browser-owned LiveKit
+audio participant and later client settlement.
 
 Choose a voice, not a vendor. The Voice step shows voices
 available for your AI agent's language: play a sample, and picking a voice sets

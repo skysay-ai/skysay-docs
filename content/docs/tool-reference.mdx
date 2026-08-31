@@ -19,16 +19,21 @@ the live `tools/list` on your instance as canonical.
 | --- | --- | --- |
 | `get_coverage` | `coverage:read` | Supported countries with voice, SMS, registration, and onboarding speed. |
 | `get_number_catalog` | `coverage:read` | Number SKUs with setup/monthly price, capabilities, and onboarding terms. |
-| `get_agent_catalog` | `coverage:read` | Selectable STT/LLM/TTS providers with cost, latency, languages, streaming, runnability. |
+| `get_agent_catalog` | `agents:read` **or** `coverage:read` | Selectable STT/LLM/TTS providers with cost, latency, languages, streaming, runnability; optional `metered_only: boolean` defaults to `false`, and `true` returns only component-metered choices. |
 | `check_number_requirements` | `coverage:read` | Country and number-type onboarding requirements in plain terms. |
 
 ## Agents
 
 | Tool | Scope | Description |
 | --- | --- | --- |
+| `list_agents` | `agents:read` | Bounded newest-first `{ agents, pagination }` page using the safe REST agent item projection. |
+| `get_agent` | `agents:read` | Read one safe agent configuration projection. |
 | `create_agent` | `agents:write` | Create a first-class agent in `external_audio`, `external_text`, or `hosted` mode. |
 | `connect_external_agent` | `agents:write` | Shortcut for an `external_audio` agent with webhook + audio-stream URLs. |
+| `update_agent` | `agents:write` | Apply the generic mutable-agent PATCH fields and REST validation. |
+| `get_agent_voice_stack` | `agents:read` | Read the selected stack and sparse language profiles. |
 | `set_agent_voice_stack` | `agents:write` | Set transcriber/model/voice, first message, system prompt, language. |
+| `preview_voice` | `agents:write` | Explicit bounded, rate-limited provider/BYOK Listen action; may have provider and safe state effects, so it is not read-only. |
 
 ## Offline trial fixtures
 
