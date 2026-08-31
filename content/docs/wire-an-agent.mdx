@@ -255,7 +255,7 @@ caller has spoken for long enough.
 phrase before the agent will stop, which callers experience as an agent that
 does not listen.
 
-Three protections are not settings and are not English-only. On **every** hosted
+Four protections are not settings and are not English-only. On **every** hosted
 phone call, in any language:
 
 - The runtime holds what the caller is transcribed as saying while the agent is
@@ -273,12 +273,21 @@ phone call, in any language:
 - When an interruption does qualify, the agent plays on for a bounded moment
   instead of stopping at the exact instant it is cut, so the sound it is part way
   through finishes rather than being clipped. This is a time budget of up to
-  300 ms, **not** a guarantee that the agent stops between words: an
+  300 ms, and it decides *when* the agent stops rather than where in a word: an
   interruption early in a long word still lands inside it, one syllable later.
   What it buys is a less abrupt stop and a shorter gap when a brief interruption
   turns out to be false.
+- When the agent does stop, the last fraction of a second it had already
+  committed to the call is played out under a quick fade rather than dropped, so
+  the final word ends instead of being clipped part way through. On agents whose
+  voice provider reports word timings — today ElevenLabs and Cartesia, which
+  covers English and Estonian — the stop is moved to the end of the word being
+  spoken whenever that end is close enough to reach; otherwise, and on every
+  other voice, the fade is used. Either way the agent is silent within about
+  half a second of the interruption qualifying, and it never plays anything the
+  caller was not already about to hear.
 
-None of the three needs configuration, and browser tests are unaffected.
+None of these needs configuration, and browser tests are unaffected.
 
 ## 3. Point a number at it
 
