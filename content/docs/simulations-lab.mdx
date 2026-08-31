@@ -53,8 +53,9 @@ There are two distinct levels of voice evidence:
 - **Offline robustness:** synthesize and transcribe lines without a live room.
   This tests the speech round trip, not interruption or playback timing.
 - **Real-time:** an additional synthetic caller joins a live audio room and
-  speaks to the agent. This can measure supported interruption and teardown
-  behavior. It requires the real-time runtime as well as the voice runner.
+  speaks to the agent. This can measure supported interruptions and turn timing.
+  It requires the real-time runtime as well as the voice runner. A successful
+  room attempt does not, by itself, prove teardown.
 
 Neither level dials a carrier or proves what a person hears over a telephone
 network. That needs a separate, authorized phone test. See
@@ -305,8 +306,10 @@ measure. `unproven_assertions` counts those rules per attempt.
 
 This applies to `max_duration_ms` as well. On a text attempt it means what it
 has always meant. On a voice attempt, where you would reasonably read it as the
-answer-to-teardown duration of a call, it is `unknown` unless real-time evidence
-was collected.
+answer-to-teardown duration of a call, it is `unknown` unless the required
+room-closure event was actually observed. `voice_evidence_kind: realtime` alone
+is not enough. If the observer leaves before the room closes, duration and
+teardown remain unproven; local disconnection is not a substitute measurement.
 
 ## When a speech stack cannot serve a scenario
 
@@ -320,6 +323,19 @@ AI agent's voice stack or the scenario's language and run again.
 This is deliberately separate from `422 unsupported_mode`, which means the
 runner itself is not available in your workspace yet. The two need different
 actions from you.
+
+The offline voice runner currently supports **Deepgram STT**, paired with
+supported ElevenLabs, Fish Audio, Gemini or Soniox synthesis configurations.
+This is narrower than the production voice catalog. A production agent using
+Google Chirp 2 is not automatically eligible for offline Adaptive voice.
+OpenPhonex must not replace that transcriber silently: doing so would test a
+different stack. Keep the production configuration intact and check the run
+preview before choosing the appropriate validation path.
+
+Real-time attempts also need a configured room worker, caller worker and the
+authored caller audio available on the host. Enabling a feature flag does not
+provide missing audio or install a missing runtime adapter. Availability in the
+workspace and a completed, evidence-bearing run are separate checks.
 
 ## Retention
 
