@@ -9,11 +9,12 @@ you like. Every attempt leaves a transcript, the exact workflow path it walked,
 and a verdict against rules you wrote — not an impression, and not a score you
 have to interpret.
 
-Simulation suites never place a call. Automated attempts run against
+Simulation suites never dial a phone number. Automated attempts run against
 simulation-only tool mocks: read tools return the fixtures you declared, and mutation tools — SMS,
 transfers, customer integrations — are unreachable by construction rather than
-by configuration. A suite cannot send a message or move money, however it is
-authored.
+by configuration. A suite cannot send a real customer message or execute a
+payment action. Adaptive attempts can still incur model and speech-provider
+costs within the run's budget.
 
 ## The shape of a suite
 
@@ -32,13 +33,40 @@ beat it, rather than silently replacing someone else's work.
 ## Runners
 
 The runner is a property of each scenario, not of the suite — one suite can mix
-a free deterministic check with metered adaptive attempts once those ship.
+a free deterministic check with metered adaptive attempts. The modes you can
+start depend on the deployment's enabled capabilities.
 
-| Runner | What it proves | Status |
+| Runner | What it tests | Availability when Simulations Lab is enabled |
 | --- | --- | --- |
 | **Deterministic** | Exact routes, tool calls and terminal outcomes. No model or provider cost. | Available |
 | **Adaptive chat** | An AI caller that paraphrases, objects, changes its mind and interrupts. Text only. | Available |
-| **Adaptive voice** | Real speech recognition and synthesis, with recordings and timing. | Coming later |
+| **Adaptive voice** | Speech synthesis and recognition through a pinned voice stack. Timing needs separate real-time evidence. | Requires the voice runtime to be enabled |
+
+**Adaptive voice is a speech test, not a phone campaign.** Instead of testing
+only text, the runner synthesizes scenario lines and transcribes the audio
+through the pinned speech stack. This helps expose words the voice mispronounces
+or the transcriber mishears. For example, a payment-reminder scenario can test
+whether a promised date survives the speech round trip.
+
+There are two distinct levels of voice evidence:
+
+- **Offline robustness:** synthesize and transcribe lines without a live room.
+  This tests the speech round trip, not interruption or playback timing.
+- **Real-time:** an additional synthetic caller joins a live audio room and
+  speaks to the agent. This can measure supported interruptions and turn timing.
+  It requires the real-time runtime as well as the voice runner. A successful
+  room attempt does not, by itself, prove teardown.
+
+Neither level dials a carrier or proves what a person hears over a telephone
+network. That needs a separate, authorized phone test. See
+[Voice proof](#voice-proof-two-different-things) for how results distinguish
+measured timing from unproven assertions.
+
+Before starting, check the suite's **Run this suite** panel or call
+`preview_simulation_run` over MCP. Its `supported_runners` tells you whether
+`adaptive_voice` is enabled on the deployment you are using. The implementation
+being present does not by itself enable that runner, and enabling the real-time
+runtime alone does not enable it either.
 
 A scenario may name a runner whose runtime is not deployed for your workspace
 yet — authoring is not gated on it. **Starting** a run that needs one is
@@ -254,19 +282,20 @@ balance. Deterministic attempts genuinely cost nothing.
 "Voice testing" covers two capabilities that are easy to confuse and dangerous
 to conflate, so a suite tells you which one an attempt produced.
 
-**Offline robustness** speaks the scenario's authored lines with your AI agent's
-pinned voice and reads its replies back through your pinned transcriber. That
-answers a question no text test can reach: whether your callers will be
-understood, and whether the agent will understand them. A workflow that reads
-perfectly can still be built on a name the voice mangles or a phrase the
-transcriber never hears.
+**Offline robustness** synthesizes scenario lines with your AI agent's pinned
+voice and transcribes the generated audio through its pinned transcriber. It
+tests whether that speech stack can say and recognize those lines; it does not
+prove recognition of every human speaker, accent or telephone connection. A
+workflow that reads perfectly can still contain a name the voice mangles or a
+phrase the transcriber mishears.
 
 It measures no room, no clock and no interruption. It therefore says nothing
 about barge-in, overlapping audio, playout or how long a call actually took.
 
 **Real-time evidence** requires a synthetic caller participant that joins the
-room and speaks while the agent is speaking. Only that can support a timing
-claim.
+room and speaks to the agent, including authored interruptions. Only that can
+support the room-level timing assertions. It does not measure a carrier's audio
+path or certify that the final word arrived at a phone handset.
 
 Every attempt carries `voice_evidence_kind`, which is `offline_robustness`,
 `realtime`, or empty for a text attempt. A timing rule evaluated against
@@ -277,8 +306,10 @@ measure. `unproven_assertions` counts those rules per attempt.
 
 This applies to `max_duration_ms` as well. On a text attempt it means what it
 has always meant. On a voice attempt, where you would reasonably read it as the
-answer-to-teardown duration of a call, it is `unknown` unless real-time evidence
-was collected.
+answer-to-teardown duration of a call, it is `unknown` unless the required
+room-closure event was actually observed. `voice_evidence_kind: realtime` alone
+is not enough. If the observer leaves before the room closes, duration and
+teardown remain unproven; local disconnection is not a substitute measurement.
 
 ## When a speech stack cannot serve a scenario
 
@@ -292,6 +323,19 @@ AI agent's voice stack or the scenario's language and run again.
 This is deliberately separate from `422 unsupported_mode`, which means the
 runner itself is not available in your workspace yet. The two need different
 actions from you.
+
+The offline voice runner currently supports **Deepgram STT**, paired with
+supported ElevenLabs, Fish Audio, Gemini or Soniox synthesis configurations.
+This is narrower than the production voice catalog. A production agent using
+Google Chirp 2 is not automatically eligible for offline Adaptive voice.
+OpenPhonex must not replace that transcriber silently: doing so would test a
+different stack. Keep the production configuration intact and check the run
+preview before choosing the appropriate validation path.
+
+Real-time attempts also need a configured room worker, caller worker and the
+authored caller audio available on the host. Enabling a feature flag does not
+provide missing audio or install a missing runtime adapter. Availability in the
+workspace and a completed, evidence-bearing run are separate checks.
 
 ## Retention
 
@@ -346,7 +390,9 @@ discovering from a `422 unsupported_mode` that the spoken runner is not deployed
 where you are pointed. The estimate covers the whole suite, so it is an upper
 bound: a run confined with `scenario_ids` costs no more, and usually much less.
 
-**Starting a run spends money, and says so.** `start_simulation_run` is
+**Starting an adaptive run incurs metered provider costs.** These are tracked
+against the suite budget, not charged to the workspace balance, as described
+above. `start_simulation_run` is
 annotated `destructiveHint`, and it requires the same `idempotency_key` the REST
 route does — never generated for you, because a key you choose is the only thing
 that makes a retried start return the first run instead of paying for a second.
