@@ -81,6 +81,7 @@ class ApiReferenceTests(unittest.TestCase):
             "integrations",
             "customer-applications",
             "post-call-results",
+            "audio-environments",
             "voice-library",
             "api-reference",
         ):
@@ -100,6 +101,22 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("complete cached catalog", guide_text["voice-library"])
         self.assertIn("up to 100", guide_text["voice-library"])
         self.assertIn("accessible provider window", guide_text["voice-library"])
+
+    def test_audio_environment_guide_matches_the_customer_contract(self) -> None:
+        catalogue = self.schema["paths"]["/v1/audio-environments"]["get"]
+        self.assertEqual(catalogue["x-required-scopes"], ["account:read"])
+        self.assertIn("503", catalogue["responses"])
+
+        guide = (ROOT / "content" / "docs" / "audio-environments.mdx").read_text(encoding="utf-8")
+        for phrase in (
+            "audio_environment",
+            "caller_environment",
+            "noise_level",
+            "non-blank",
+            "barge-in",
+            "list_audio_environments",
+        ):
+            self.assertIn(phrase, guide)
 
     def test_integration_attachment_guide_matches_the_openapi_agent_update(self) -> None:
         patch = self.schema["paths"]["/v1/agents/{agent_id}"]["patch"]

@@ -1,0 +1,104 @@
+---
+title: Audio environments
+description: Version-pinned licensed ambience for agent output and separate caller-input noise conditions in Simulation Lab.
+---
+
+Audio environments are a small, backend-owned catalogue of licensed ambience
+assets. They have two deliberately separate uses:
+
+- **Agent output ambience** is an optional background track sent alongside an
+  agent's voice.
+- **Simulation Lab caller-input noise** is a synthetic microphone condition
+  for an adaptive-voice caller.
+
+They use the same catalogue, but they are not interchangeable. Output uses
+`volume`; caller input uses `noise_level`. Do not put output ambience into STT
+input, and do not treat a caller-input condition as a production call setting.
+
+## Discover the catalogue
+
+Call `GET /v1/audio-environments` with `account:read`, or use MCP
+`list_audio_environments` with that same scope. Both return the same immutable,
+versioned catalogue: explicit **Off** plus five licensed presets — Quiet office,
+Call centre (designed), Cafe, Street, and Television (designed). Each returned
+preset includes its exact `preset_id` and `asset_version`; select only those
+values rather than keeping a client-side list or silently upgrading an older
+version.
+
+This is a pure local read. It does not contact a TTS provider, call a carrier,
+write an agent setting, or return audio bytes. A `503` means the packaged asset
+catalogue is unavailable or incomplete after integrity verification. Retry the
+read; do not substitute a preset or pretend that a partial pack is usable.
+
+## Add ambience to an agent voice stack
+
+`PATCH /v1/agents/{agent_id}/voice-stack` optionally accepts:
+
+```json
+{
+  "audio_environment": {
+    "preset_id": "quiet-office",
+    "asset_version": "v1",
+    "volume": 35
+  }
+}
+```
+
+The object is strict: it requires exactly `preset_id`, `asset_version`, and
+`volume`. **Off** uses `preset_id: "off"` and `volume: 0`; an enabled preset
+uses a whole-number volume from 1 through 100. A missing or unknown field, a
+missing or unknown version, or an invalid level is rejected instead of being
+inferred or repaired.
+
+The selection is a version-pinned **outgoing** background track. It is shared
+across the published language profiles, never becomes caller/STT input, and
+does not replace the selected voice or language. The exact request and response
+schemas are in the [generated API reference](/docs/api-reference) and the live
+[OpenAPI document](/control-plane/openapi.json).
+
+### Audition it deliberately
+
+`POST /v1/voice-previews` can include the same optional `audio_environment`
+object. When it does, `text` must be explicit and non-blank. The service keeps
+that exact text and requested language — it does not substitute a sample or
+translate it — and returns a bounded local audition. Like any voice preview,
+this action can contact the selected TTS provider and is not a read-only call.
+The audition does not prove the receiver's final mix or a live phone result.
+
+## Add caller-input noise to a simulation scenario
+
+Only an `adaptive_voice` Simulation Lab scenario may carry
+`caller_environment`:
+
+```json
+{
+  "language": "en",
+  "caller_environment": {
+    "preset_id": "cafe",
+    "asset_version": "v1",
+    "noise_level": 54
+  }
+}
+```
+
+This object is also strict, but its third field is `noise_level`, not `volume`.
+Off uses `noise_level: 0`; an enabled preset uses a whole number from 1 through
+100. A scenario that supplies `caller_environment` must also have an explicit,
+non-blank `language`; the platform never falls back to English. This condition
+is mixed into the synthetic caller's microphone only. It does not alter agent
+output ambience, TTS, or production STT.
+
+## Evidence boundary
+
+An offline-only adaptive-voice result can show the configured speech round
+trip under its recorded synthetic condition. It does not prove live room noise,
+barge-in, overlapping audio, playout, or timing. Those are real-time room
+claims and need [real-time Simulation Lab evidence](/docs/simulations-lab#voice-proof-two-different-things);
+neither result proves carrier or handset audio without a separately authorized
+phone test.
+
+<Cards>
+  <Card title="Wire an agent" href="/docs/wire-an-agent" description="Publish a hosted agent's voice stack and optional output ambience." />
+  <Card title="Simulations Lab" href="/docs/simulations-lab" description="Use separate caller-input conditions in synthetic adaptive-voice scenarios." />
+  <Card title="MCP tool reference" href="/docs/tool-reference" description="Find list_audio_environments and its required account:read scope." />
+</Cards>

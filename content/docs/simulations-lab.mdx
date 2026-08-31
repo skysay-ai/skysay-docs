@@ -85,6 +85,24 @@ Do not use an offline Deepgram result to assess Google/Azure recognition, or to
 claim that a live call's clipping, floor holds, interruption timing, or teardown
 has been fixed.
 
+### Caller-input environments
+
+An `adaptive_voice` scenario may carry an optional strict
+`caller_environment` object:
+`{ preset_id, asset_version, noise_level }`. Choose its preset and version from
+the [audio-environment catalogue](/docs/audio-environments#discover-the-catalogue).
+This is a **synthetic caller microphone** condition, not an agent output
+setting: it uses `noise_level`, never `volume`, and it never changes the
+agent's TTS, outgoing ambience, or production STT configuration. Off with
+`noise_level: 0` is the quiet baseline; an enabled preset needs a positive
+whole-number level. The scenario must also give a non-blank explicit
+`language`; OpenPhonex does not silently fall back to English.
+
+Saving that condition records what the synthetic caller should receive. An
+offline-only run still does **not** prove live caller noise, barge-in, overlap,
+playout, or timing. Treat it as offline speech robustness only; obtain
+real-time room evidence for those live-audio claims.
+
 A scenario may name a runner whose runtime is not deployed for your workspace
 yet — authoring is not gated on it. **Starting** a run that needs one is
 refused at the API with `422 unsupported_mode`, listing the runners that do
