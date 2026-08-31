@@ -153,6 +153,21 @@ every one.
 
 ## Running a suite
 
+From the workspace, the suite page carries a **Run this suite** panel: the attempts each
+runner will make, what the run is estimated to cost, the ceilings it will be given, and a
+start button. Every figure there comes from the same calculation the run is created
+against, so the estimate you read before starting is the allowance the run enforces.
+
+The button refuses, before it is pressed, the three starts the API refuses anyway: an
+archived suite, a suite with no scenarios, and a suite naming a runner this deployment
+does not admit — that last one is refused as a whole run rather than scenario by
+scenario, so the panel says so rather than letting the click fail.
+
+Submitting twice returns the same run. The key that guarantees that belongs to the page
+you are looking at, so a retry after a failed or lost response reuses it rather than
+paying again.
+
+
 `POST /v1/agents/{agent_id}/simulation-suites/{suite_id}/runs` returns `202`
 immediately with a durable queued run. The request does not wait for execution,
 so its latency never depends on how long the suite takes; you can close the page
@@ -293,6 +308,67 @@ Results distinguish an artifact that **expired** from one that never existed,
 because those are different facts. In the automation API each attempt carries
 `artifacts.recording` and `artifacts.transcript`, each `available`, `expired` or
 `none`.
+
+## From an AI agent: MCP
+
+Everything on this page is reachable over [MCP](/docs/mcp), so an agent can
+author a suite, run it and read the verdicts without a human at a screen. Eight
+tools, listed with their scopes in the [tool reference](/docs/tool-reference).
+
+**Importing a pack is one call.** `create_simulation_suite` takes the whole
+`scenarios` array, so a scenario pack you keep in version control becomes a
+suite in a single tool call rather than one call per scenario.
+
+```json
+{
+  "name": "create_simulation_suite",
+  "arguments": {
+    "organization_id": "org_...",
+    "agent_id": "agent_...",
+    "name": "Payment reminder regression",
+    "scenarios": [
+      {
+        "id": "promise_to_pay",
+        "runner": "deterministic",
+        "turns": [{ "caller_input": "Yes, I'll pay on Friday." }],
+        "expected": { "terminal_status": "completed" }
+      }
+    ]
+  }
+}
+```
+
+**Ask what a run costs before you start one.** `preview_simulation_run` is
+read-only: it creates no run, queues nothing and reserves no budget. It returns
+the attempt counts, the estimated spend and the model-call ceiling — and
+`supported_runners`, the runners *this* deployment admits. Read that rather than
+discovering from a `422 unsupported_mode` that the spoken runner is not deployed
+where you are pointed. The estimate covers the whole suite, so it is an upper
+bound: a run confined with `scenario_ids` costs no more, and usually much less.
+
+**Starting a run spends money, and says so.** `start_simulation_run` is
+annotated `destructiveHint`, and it requires the same `idempotency_key` the REST
+route does — never generated for you, because a key you choose is the only thing
+that makes a retried start return the first run instead of paying for a second.
+It is also annotated `idempotentHint`, so a client that lost a response can
+safely repeat the call with the same key.
+
+**Choosing offline or spoken.** The mode is a property of each scenario, not of
+the run, so one suite can hold both. `start_simulation_run` takes `scenario_ids`
+— run the deterministic scenarios on every commit, and the `adaptive_voice` ones
+on the schedule your budget allows.
+
+**Two reads, two scopes.** `get_simulation_run` returns the attempts with their
+transcripts, recognition facts and evidence links, and needs `agents:read`
+because that includes what your callers said. `get_simulation_run_results`
+returns the redacted pass/fail projection described under
+[Automation](#automation-reading-results-from-ci) and needs only
+`simulation_suites:read` — the scope to issue a build server.
+
+While the Simulations Lab is not enabled on a deployment, every one of these
+tools answers not-found, exactly as the HTTP routes do. They still appear in
+`tools/list`, which is a catalog of what OpenPhonex can do rather than an
+inventory of what one deployment has switched on.
 
 ## Automation: reading results from CI
 
