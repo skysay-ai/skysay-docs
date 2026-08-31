@@ -3460,7 +3460,7 @@
                     "type": "object"
                   },
                   "scenarios": {
-                    "description": "Authored caller scenarios. At most 50 per suite.",
+                    "description": "Authored caller scenarios. At most 50 per suite. Each scenario's turns carry what the caller does and when: kind is speech, backchannel or silence; a silence turn carries silence_ms and no caller_input, because a silence is time rather than words; cue.after_agent_turn (1-based, and 0 meaning no cue at all: take the turn when the agent finishes) and cue.delay_ms record where inside an agent turn the caller was authored to speak -- stored today and carried to the voice host, but not yet acted on: the deployed synthetic caller still waits for an agent turn to end, so two backchannels cued to the same agent turn are still delivered back to back; and ground_truth_variants records alternative renderings of the same line -- a numeral written as digits or as words, say -- so a run's stored evidence carries what the caller was authored to say in every form that counts as correct. The platform's own offline recognition metric still scores against caller_input alone; the variants are carried for the readiness scorer that reads them. A silence turn needs the adaptive_voice runner and is refused with 422 silence_needs_a_room on any other, because only a room has time to spend.",
                     "items": {
                       "type": "object"
                     },
