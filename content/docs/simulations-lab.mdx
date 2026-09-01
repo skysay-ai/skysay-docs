@@ -54,8 +54,10 @@ There are two distinct levels of voice evidence:
   This tests the speech round trip, not interruption or playback timing.
 - **Real-time:** an additional synthetic caller joins a live audio room and
   speaks to the agent. This can measure supported interruptions and turn timing.
-  It requires the real-time runtime as well as the voice runner. A successful
-  room attempt does not, by itself, prove teardown.
+  It requires the real-time runtime as well as the voice runner. Duration and
+  teardown are reported only when that caller observes the tested agent leave
+  or observes the server close the room; a successful room attempt alone is
+  not terminal evidence.
 
 Neither level dials a carrier or proves what a person hears over a telephone
 network. That needs a separate, authorized phone test. See
@@ -341,10 +343,11 @@ measure. `unproven_assertions` counts those rules per attempt.
 
 This applies to `max_duration_ms` as well. On a text attempt it means what it
 has always meant. On a voice attempt, where you would reasonably read it as the
-answer-to-teardown duration of a call, it is `unknown` unless the required
-room-closure event was actually observed. `voice_evidence_kind: realtime` alone
-is not enough. If the observer leaves before the room closes, duration and
-teardown remain unproven; local disconnection is not a substitute measurement.
+answer-to-teardown duration of a call, it is `unknown` unless the synthetic
+caller observed the tested agent leave or the server close the room.
+`voice_evidence_kind: realtime` alone is not enough. If the observer leaves
+without either remote terminal event, duration and teardown remain unproven;
+local disconnection is not a substitute measurement.
 
 ## When a speech stack cannot serve a scenario
 
