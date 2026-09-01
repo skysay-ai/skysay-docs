@@ -30,6 +30,7 @@ REQUIRED_OPERATIONS = frozenset(
         "POST /v1/integrations/{integration_id}/disable",
         "POST /v1/calls",
         "POST /v1/calls/{call_id}/cancel",
+        "GET /v1/call-results",
         "GET /v1/agents/{agent_id}/post-call-extraction",
         "PATCH /v1/agents/{agent_id}/post-call-extraction",
         "GET /v1/calls/{call_id}/post-call-extraction",

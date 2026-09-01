@@ -96,6 +96,47 @@ After the relevant ready event, use the generated reference routes for:
 Each read remains scoped to your organization and API key. Store only the
 evidence your policy and retention rules permit.
 
+## Reconcile a bounded external call group
+
+If your application supplied the same opaque `external_group_reference` when
+creating several calls, read that one group with `GET /v1/call-results`. This
+is a factual, read-only reconciliation view: it does not retry recipients,
+create calls, classify a business outcome, or contact a carrier.
+
+```text
+GET /v1/call-results?organization_id=org_123&project_id=proj_123&external_group_reference=import_2026_09_01&limit=50
+```
+
+The key is meaningful only to your application. It must be inside the
+authenticated organization and project, and OpenPhonex does not give it
+campaign, collection, retry, or business-state semantics. The route requires
+both `calls:read` and `recordings:read` because its evidence pointers can lead
+to authenticated recording or transcript resources.
+
+The response keeps authoritative technical call facts separate from optional
+advisory extraction. It contains only bounded, text-free evidence anchors
+(turn IDs and time ranges), not a transcript or audio copy. Open the
+authenticated per-call recording or transcript route when your own review
+policy needs the source material.
+
+Use the returned `pagination.next_cursor` while `pagination.has_more` is true;
+a page is not a complete group. You can narrow a page by terminal status,
+artifact readiness, extraction state, or generic platform-quality exception.
+Those filters never apply your business taxonomy.
+
+The group publishes `answered_or_voicemail` with its numerator and denominator
+because carrier/media answer evidence can include voicemail. It does not label
+that value a human-answer or connect rate. Until your application has its own
+validated signal, `human_answered` and `voicemail` are explicitly
+`not_provable`.
+
+For optional extraction, `schema_version` identifies the immutable customer
+schema used for that call, while `analysis_version` identifies the
+OpenPhonex-owned advisory evidence envelope. Preserve both when you store a
+reference to an extraction. Handle `call.extraction.ready` and
+`call.extraction.failed` idempotently, then reconcile against this read or the
+single-call endpoint before taking an application-owned action.
+
 ## Review conversation languages
 
 In **Calls**, select a call and open its language history above the transcript.
