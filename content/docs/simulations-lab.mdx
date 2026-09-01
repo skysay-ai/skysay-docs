@@ -83,8 +83,14 @@ provider. These limits apply to this test mode, not to normal agent calls.
 
 Keep **Offline robustness** and **Real-time** results separate. Enabling offline
 voice does not enable real-time tests. Real-time additionally requires a
-provisioned room dispatcher for the workspace and a synthetic caller with
-matching recorded lines. It is not a general arbitrary-audio replay endpoint.
+provisioned room dispatcher for the workspace and a runnable synthetic caller.
+The caller uses an exact recorded line when the deployed readiness pack contains
+one. Otherwise, supported Azure scenarios synthesize the authored line with the
+exact provider, voice, language, and locale pinned into that immutable run. It
+does not translate the line, choose a default voice, or switch providers; a
+missing credential, unsupported stack, or incompatible audio response refuses
+the attempt before audio is published. This is not a general arbitrary-audio
+replay endpoint.
 Do not use an offline Deepgram result to assess Google/Azure recognition, or an
 offline Azure result to assess Deepgram or Google recognition. Do not use either
 to claim that a live call's clipping, floor holds, interruption timing, or
