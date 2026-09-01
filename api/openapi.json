@@ -469,8 +469,7 @@
                 "$ref": "#/components/schemas/AudioEnvironmentSelection"
               },
               {
-                "description": "Historic invalid saved pin returned visibly with status=invalid; choose a supported selection or Off before publishing again.",
-                "type": "object"
+                "$ref": "#/components/schemas/AudioEnvironmentInvalidSelection"
               }
             ]
           },
@@ -789,6 +788,35 @@
           "schema",
           "catalogue_version",
           "presets"
+        ],
+        "type": "object"
+      },
+      "AudioEnvironmentInvalidSelection": {
+        "additionalProperties": false,
+        "description": "A historic malformed saved pin, returned visibly instead of silently becoming Off. Choose a supported selection or Off before publishing again.",
+        "properties": {
+          "asset_version": {
+            "type": "string"
+          },
+          "preset_id": {
+            "type": "string"
+          },
+          "status": {
+            "const": "invalid",
+            "type": "string"
+          },
+          "volume": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "preset_id",
+          "asset_version",
+          "volume",
+          "status"
         ],
         "type": "object"
       },
@@ -1147,6 +1175,114 @@
         ],
         "type": "object"
       },
+      "CallGroupResultItem": {
+        "properties": {
+          "analysis": {
+            "$ref": "#/components/schemas/PostCallAnalysis"
+          },
+          "answered_or_voicemail": {
+            "description": "Observed call.answered/media.started evidence. This can be voicemail and is not a human answer classification.",
+            "type": "boolean"
+          },
+          "call": {
+            "$ref": "#/components/schemas/CallResultCallReference"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "page_cursor": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "created_at",
+          "updated_at",
+          "page_cursor",
+          "answered_or_voicemail",
+          "analysis"
+        ],
+        "type": "object"
+      },
+      "CallGroupResults": {
+        "properties": {
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/CallGroupResultItem"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "external_group_reference": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "object"
+          },
+          "pagination": {
+            "properties": {
+              "has_more": {
+                "type": "boolean"
+              },
+              "limit": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "next_cursor": {
+                "type": "string"
+              },
+              "returned": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "limit",
+              "returned",
+              "has_more",
+              "next_cursor"
+            ],
+            "type": "object"
+          },
+          "summary": {
+            "description": "Factual counters only. answered_or_voicemail publishes numerator and denominator; human_answered/voicemail remain unavailable unless independently observable.",
+            "properties": {
+              "artifacts": {
+                "type": "object"
+              },
+              "calls": {
+                "type": "object"
+              },
+              "extraction": {
+                "type": "object"
+              },
+              "metrics": {
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "version": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "external_group_reference",
+          "summary",
+          "filters",
+          "calls",
+          "pagination"
+        ],
+        "type": "object"
+      },
       "CallPerformanceDashboard": {
         "properties": {
           "call": {
@@ -1452,6 +1588,32 @@
           "downloadable",
           "deletable",
           "audit_actions"
+        ],
+        "type": "object"
+      },
+      "CallResultCallReference": {
+        "description": "Authoritative technical call facts, intentionally separate from advisory extraction.",
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string"
+          },
+          "external_group_reference": {
+            "type": "string"
+          },
+          "external_reference": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "direction",
+          "status"
         ],
         "type": "object"
       },
@@ -2341,6 +2503,173 @@
         ],
         "type": "object"
       },
+      "PostCallAnalysis": {
+        "description": "Bounded generic asynchronous analysis; customer policy must not treat it as an authoritative business outcome without its own validation.",
+        "properties": {
+          "advisory": {
+            "const": true,
+            "type": "boolean"
+          },
+          "analysis_version": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/PostCallAnalysisEvidence"
+          },
+          "failure_reason": {
+            "type": "string"
+          },
+          "quality_flags": {
+            "items": {
+              "enum": [
+                "recording_unavailable",
+                "transcript_partial",
+                "transcript_unavailable",
+                "extraction_failed",
+                "evidence_unavailable"
+              ],
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "result": {
+            "description": "Bounded schema-validated scalar output; strings may be truncated on group reads.",
+            "type": "object"
+          },
+          "result_truncated": {
+            "type": "boolean"
+          },
+          "schema_version": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "not_configured",
+              "pending",
+              "ready",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_version",
+          "advisory",
+          "status",
+          "schema_version",
+          "evidence",
+          "quality_flags"
+        ],
+        "type": "object"
+      },
+      "PostCallAnalysisEvidence": {
+        "properties": {
+          "anchors": {
+            "items": {
+              "$ref": "#/components/schemas/PostCallEvidenceAnchor"
+            },
+            "maxItems": 24,
+            "type": "array"
+          },
+          "availability": {
+            "description": "Whether this response could assemble the bounded evidence projection. unavailable makes no claim that the underlying recording or transcript is absent.",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "recording": {
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "duration_seconds": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "recording_id": {
+                "type": "string"
+              },
+              "url": {
+                "description": "Authenticated relative OpenPhonex recording route when available.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "transcript": {
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "transcript_status": {
+                "type": "string"
+              },
+              "turn_count": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "url": {
+                "description": "Authenticated relative OpenPhonex transcript route when available.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "availability",
+          "recording",
+          "transcript",
+          "anchors"
+        ],
+        "type": "object"
+      },
+      "PostCallEvidenceAnchor": {
+        "description": "Authorized pointer into an authenticated call transcript/recording. It never contains transcript text or an audio URL.",
+        "properties": {
+          "end_ms": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sequence": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "speaker": {
+            "type": "string"
+          },
+          "start_ms": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "turn_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "turn_id",
+          "speaker",
+          "sequence",
+          "start_ms",
+          "end_ms"
+        ],
+        "type": "object"
+      },
       "PostCallExtractionConfiguration": {
         "properties": {
           "enabled": {
@@ -2356,8 +2685,21 @@
       },
       "PostCallExtractionResult": {
         "properties": {
+          "advisory": {
+            "const": true,
+            "description": "Extraction output is advisory and never changes call state, billing, or policy.",
+            "type": "boolean"
+          },
           "agent_id": {
             "type": "string"
+          },
+          "analysis_version": {
+            "description": "Platform-owned version for the generic advisory evidence envelope; distinct from schema_version.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "authoritative_call": {
+            "$ref": "#/components/schemas/CallResultCallReference"
           },
           "call_id": {
             "type": "string"
@@ -2372,6 +2714,28 @@
           "error_code": {
             "description": "Safe, non-provider-specific processing outcome.",
             "type": "string"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/PostCallAnalysisEvidence"
+          },
+          "failure_reason": {
+            "description": "Bounded safe failure reason; aliases error_code for new consumers.",
+            "type": "string"
+          },
+          "quality_flags": {
+            "description": "Observable generic platform-quality facts, not a business disposition.",
+            "items": {
+              "enum": [
+                "recording_unavailable",
+                "transcript_partial",
+                "transcript_unavailable",
+                "extraction_failed",
+                "evidence_unavailable"
+              ],
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
           },
           "result": {
             "description": "Schema-validated advisory scalar output. Values can be null when unavailable.",
@@ -3607,7 +3971,7 @@
                     "type": "object"
                   },
                   "scenarios": {
-                    "description": "Authored caller scenarios. At most 50 per suite. Each scenario's turns carry what the caller does and when: kind is speech, backchannel or silence; a silence turn carries silence_ms and no caller_input, because a silence is time rather than words; cue.after_agent_turn (1-based, and 0 meaning no cue at all: take the turn when the agent finishes) and cue.delay_ms record where inside an agent turn the caller was authored to speak -- stored today and carried to the voice host, but not yet acted on: the deployed synthetic caller still waits for an agent turn to end, so two backchannels cued to the same agent turn are still delivered back to back; and ground_truth_variants records alternative renderings of the same line -- a numeral written as digits or as words, say -- so a run's stored evidence carries what the caller was authored to say in every form that counts as correct. The platform's own offline recognition metric still scores against caller_input alone; the variants are carried for the readiness scorer that reads them. A silence turn needs the adaptive_voice runner and is refused with 422 silence_needs_a_room on any other, because only a room has time to spend. An adaptive_voice scenario may also carry caller_environment: a version-pinned synthetic caller MICROPHONE condition using noise_level (not the agent audio_environment volume). A scenario that supplies caller_environment must also supply a non-blank language; it is never silently changed to English. Off/noise_level=0 is the quiet baseline; it never changes the agent's output ambience, TTS, or production STT configuration. A saved condition is authoring data, not proof that this deployment ran a realtime room.",
+                    "description": "Authored caller scenarios. At most 50 per suite. Each scenario's turns carry what the caller does and when: kind is speech, backchannel or silence; a silence turn carries silence_ms and no caller_input, because a silence is time rather than words; cue.after_agent_turn (1-based, and 0 meaning no cue at all: take the turn when the agent finishes) and cue.delay_ms record where inside an observed agent turn the caller speaks. Multiple cues anchored to the same turn share that observed origin, and an unobserved cue or incomplete schedule produces no scenario timing proof rather than an invented one. ground_truth_variants records alternative renderings of the same line -- a numeral written as digits or as words, say -- so a run's stored evidence carries what the caller was authored to say in every form that counts as correct. The platform's own offline recognition metric still scores against caller_input alone; the variants are carried for the readiness scorer that reads them. A silence turn needs the adaptive_voice runner and is refused with 422 silence_needs_a_room on any other, because only a room has time to spend. An adaptive_voice scenario may also carry caller_environment: a version-pinned synthetic caller MICROPHONE condition using noise_level (not the agent audio_environment volume). A scenario that supplies caller_environment must use adaptive_voice and also supply a non-blank language; it is never silently changed to English. Off/noise_level=0 is the quiet baseline; it never changes the agent's output ambience, TTS, or production STT configuration. A saved condition is authoring data, not proof that this deployment ran a realtime room.",
                     "items": {
                       "additionalProperties": true,
                       "properties": {
@@ -3731,7 +4095,7 @@
                     "type": "integer"
                   },
                   "scenarios": {
-                    "description": "Complete replacement scenario list for this immutable revision. An adaptive_voice scenario may include caller_environment, a version-pinned synthetic caller MICROPHONE condition with noise_level. It is distinct from the agent's outgoing audio_environment/volume; a scenario that supplies it must supply a non-blank language. Off requires noise_level=0 and is the quiet baseline.",
+                    "description": "Complete replacement scenario list for this immutable revision. An adaptive_voice scenario may include caller_environment, a version-pinned synthetic caller MICROPHONE condition with noise_level. It is distinct from the agent's outgoing audio_environment/volume; a scenario that supplies it must use adaptive_voice and supply a non-blank language. Off requires noise_level=0 and is the quiet baseline.",
                     "items": {
                       "additionalProperties": true,
                       "properties": {
@@ -4822,6 +5186,150 @@
         "summary": "Import local call recordings and artifacts for demos"
       }
     },
+    "/v1/call-results": {
+      "get": {
+        "description": "Reads a customer-owned external_group_reference inside the authenticated organization/project. This is a pure, provider-free reconciliation read: it does not create calls, retry recipients, classify a business outcome, or copy recordings/transcripts. It returns authoritative technical call facts separately from optional advisory extraction, plus authenticated evidence anchors (turn identifiers and offsets only). The answered_or_voicemail metric deliberately includes only observable SIP/media answer evidence and may include voicemail; human_answered remains not_provable until a separately validated signal exists. Treat pagination as mandatory: a page is not the whole group while pagination.has_more is true.",
+        "parameters": [
+          {
+            "description": "The authenticated organization; must match the bearer workspace.",
+            "in": "query",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project inside the authenticated organization.",
+            "in": "query",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque customer-owned group key. OpenPhonex does not assign campaign, debt, or retry semantics to it.",
+            "in": "query",
+            "name": "external_group_reference",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "terminal_status",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "terminal",
+                "non_terminal"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ready requires both an available recording and at least one transcript turn.",
+            "in": "query",
+            "name": "artifact_readiness",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "ready",
+                "not_ready"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "extraction_state",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "not_configured",
+                "pending",
+                "ready",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filters only generic platform-quality facts, never customer business classifications.",
+            "in": "query",
+            "name": "platform_exception",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "only",
+                "none"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque page_cursor from the previous response; continue with the returned next_cursor.",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallGroupResults"
+                }
+              }
+            },
+            "description": "Bounded factual call result page. Server-Timing and X-OpenPhonex-Query-Count describe the fixed read budget; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "Missing/malformed group key, filter, limit, or page cursor."
+          },
+          "404": {
+            "description": "Project not found in the authenticated organization."
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Read one bounded factual post-call result group",
+        "x-required-scopes": [
+          "calls:read",
+          "recordings:read"
+        ]
+      }
+    },
     "/v1/calls": {
       "get": {
         "responses": {
@@ -5549,7 +6057,7 @@
     },
     "/v1/dashboard/agent-simulation-suite": {
       "get": {
-        "description": "Authored scenarios, suite policy and bounded run history for the suite editor. Pure read: it never repairs a suite, resolves a snapshot, or calls a provider.",
+        "description": "Authored scenarios, suite policy, bounded run history, and workflow readiness for the suite's selected snapshot source. Pure read: it never repairs a suite, queues a run, or calls a provider.",
         "parameters": [
           {
             "in": "query",
