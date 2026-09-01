@@ -67,6 +67,24 @@ workspace; it is not a read-only preview. Browser-session create and settle
 remain browser/REST operations because they require a browser-owned LiveKit
 audio participant and later client settlement.
 
+### Optional outgoing ambience
+
+An agent may also publish one optional `audio_environment` selection with its
+voice stack. It is strict and version-pinned:
+`{ preset_id, asset_version, volume }`. Select it from
+[`GET /v1/audio-environments`](/docs/audio-environments#discover-the-catalogue)
+or MCP `list_audio_environments`; **Off** is an explicit selection with volume
+zero. An enabled preset needs a positive whole-number volume. Unknown fields,
+unknown presets, a missing asset version, and a mismatched version are refused
+rather than guessed or replaced.
+
+This is an **outgoing** background track, shared across the agent's language
+profiles. It is never caller/STT input and does not change the chosen voice,
+language, or call's frozen voice-stack configuration. If you audition it with
+`preview_voice`, supply non-blank `text`; the exact text and selected language
+are preserved rather than substituted or translated. A preview is a bounded
+local audition, not proof of a receiver-side final mix.
+
 Choose a voice, not a vendor. The Voice step shows voices
 available for your AI agent's language: play a sample, and picking a voice sets
 the provider, the model, and the exact voice id together. **Voices** in the

@@ -463,6 +463,17 @@
           "agent_id": {
             "type": "string"
           },
+          "audio_environment": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AudioEnvironmentSelection"
+              },
+              {
+                "description": "Historic invalid saved pin returned visibly with status=invalid; choose a supported selection or Off before publishing again.",
+                "type": "object"
+              }
+            ]
+          },
           "cost": {
             "type": "object"
           },
@@ -536,6 +547,9 @@
       "AgentVoiceStackUpdate": {
         "description": "Selection/update payload. It carries only selectors, existing credential IDs, tools, and tuning -- never provider secret material. Supplying languages replaces the selected set; supplying language_profiles replaces sparse overrides, while omission preserves them. After language opt-in, shared prompt, stack, or credential saves explicitly republish inherited effective profiles.",
         "properties": {
+          "audio_environment": {
+            "$ref": "#/components/schemas/AudioEnvironmentSelection"
+          },
           "begin_message": {
             "description": "Legacy alias for first_message.",
             "type": "string"
@@ -703,6 +717,106 @@
           "version_count",
           "versions",
           "versions_page"
+        ],
+        "type": "object"
+      },
+      "AudioEnvironmentCatalogue": {
+        "properties": {
+          "catalogue_version": {
+            "const": "v1",
+            "type": "string"
+          },
+          "presets": {
+            "items": {
+              "properties": {
+                "asset_version": {
+                  "type": "string"
+                },
+                "content_note": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "duration_ms": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "preset_id": {
+                  "type": "string"
+                },
+                "volume": {
+                  "properties": {
+                    "default": {
+                      "type": "integer"
+                    },
+                    "maximum": {
+                      "type": "integer"
+                    },
+                    "minimum": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "minimum",
+                    "maximum",
+                    "default"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "preset_id",
+                "name",
+                "description",
+                "asset_version",
+                "volume"
+              ],
+              "type": "object"
+            },
+            "maxItems": 6,
+            "minItems": 6,
+            "type": "array"
+          },
+          "schema": {
+            "const": "openphonex.audio_environment_catalog.v1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "catalogue_version",
+          "presets"
+        ],
+        "type": "object"
+      },
+      "AudioEnvironmentSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_version": {
+            "description": "Immutable packaged asset version; it is never inferred.",
+            "enum": [
+              "v1"
+            ],
+            "type": "string"
+          },
+          "preset_id": {
+            "description": "Exact catalogue id. `off` has no asset.",
+            "type": "string"
+          },
+          "volume": {
+            "description": "Whole-number selection. Off requires 0; enabled presets require 1 through 100.",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "preset_id",
+          "asset_version",
+          "volume"
         ],
         "type": "object"
       },
@@ -1452,6 +1566,35 @@
           "calls",
           "spend_minor",
           "talk_seconds"
+        ],
+        "type": "object"
+      },
+      "CallerInputEnvironmentSelection": {
+        "additionalProperties": false,
+        "description": "Simulation Lab only: a version-pinned condition mixed into the synthetic caller microphone. This is not the agent's outgoing audio_environment and never changes a production call's STT/TTS configuration.",
+        "properties": {
+          "asset_version": {
+            "description": "Immutable packaged asset version; it is never inferred.",
+            "enum": [
+              "v1"
+            ],
+            "type": "string"
+          },
+          "noise_level": {
+            "description": "Whole-number caller-input level. Off requires 0; enabled presets require 1 through 100.",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "preset_id": {
+            "description": "Exact catalogue id. `off` has no asset and is the quiet baseline.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preset_id",
+          "asset_version",
+          "noise_level"
         ],
         "type": "object"
       },
@@ -2405,6 +2548,10 @@
             "description": "Optional saved hosted agent pin for a managed preview only. It must belong to the authenticated project and exactly match the requested platform-managed provider, model, voice id, and language. It permits re-testing a stored selection missing from the current provider listing; it does not authorize a new voice choice or any BYOK selection.",
             "type": "string"
           },
+          "audio_environment": {
+            "$ref": "#/components/schemas/AudioEnvironmentSelection",
+            "description": "Optional immutable ambience selection. When present, the preview WAV is a deterministic headroom-safe local audition only; this does not claim a receiver-side final mix. Provider voice and explicit language are unchanged."
+          },
           "credential_id": {
             "description": "Optional selected BYOK credential. It is validated at the provider and then used to render this preview; a platform credential is never a fallback.",
             "type": "string"
@@ -2428,7 +2575,7 @@
             "type": "string"
           },
           "text": {
-            "description": "Optional sentence to speak. Omitted or blank falls back to a short product sample. It is synthesized, never stored, and never echoed in the response.",
+            "description": "Optional sentence to speak. Omitted or blank falls back to a short product sample only when no audio_environment is supplied. With an audio_environment it is required and must be non-blank, so the requested text is never silently replaced. It is synthesized, never stored, and never echoed in the response.",
             "maxLength": 200,
             "type": "string"
           },
@@ -3460,8 +3607,14 @@
                     "type": "object"
                   },
                   "scenarios": {
-                    "description": "Authored caller scenarios. At most 50 per suite. Each scenario's turns carry what the caller does and when: kind is speech, backchannel or silence; a silence turn carries silence_ms and no caller_input, because a silence is time rather than words; cue.after_agent_turn (1-based, and 0 meaning no cue at all: take the turn when the agent finishes) and cue.delay_ms record where inside an agent turn the caller was authored to speak -- stored today and carried to the voice host, but not yet acted on: the deployed synthetic caller still waits for an agent turn to end, so two backchannels cued to the same agent turn are still delivered back to back; and ground_truth_variants records alternative renderings of the same line -- a numeral written as digits or as words, say -- so a run's stored evidence carries what the caller was authored to say in every form that counts as correct. The platform's own offline recognition metric still scores against caller_input alone; the variants are carried for the readiness scorer that reads them. A silence turn needs the adaptive_voice runner and is refused with 422 silence_needs_a_room on any other, because only a room has time to spend.",
+                    "description": "Authored caller scenarios. At most 50 per suite. Each scenario's turns carry what the caller does and when: kind is speech, backchannel or silence; a silence turn carries silence_ms and no caller_input, because a silence is time rather than words; cue.after_agent_turn (1-based, and 0 meaning no cue at all: take the turn when the agent finishes) and cue.delay_ms record where inside an agent turn the caller was authored to speak -- stored today and carried to the voice host, but not yet acted on: the deployed synthetic caller still waits for an agent turn to end, so two backchannels cued to the same agent turn are still delivered back to back; and ground_truth_variants records alternative renderings of the same line -- a numeral written as digits or as words, say -- so a run's stored evidence carries what the caller was authored to say in every form that counts as correct. The platform's own offline recognition metric still scores against caller_input alone; the variants are carried for the readiness scorer that reads them. A silence turn needs the adaptive_voice runner and is refused with 422 silence_needs_a_room on any other, because only a room has time to spend. An adaptive_voice scenario may also carry caller_environment: a version-pinned synthetic caller MICROPHONE condition using noise_level (not the agent audio_environment volume). A scenario that supplies caller_environment must also supply a non-blank language; it is never silently changed to English. Off/noise_level=0 is the quiet baseline; it never changes the agent's output ambience, TTS, or production STT configuration. A saved condition is authoring data, not proof that this deployment ran a realtime room.",
                     "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "caller_environment": {
+                          "$ref": "#/components/schemas/CallerInputEnvironmentSelection"
+                        }
+                      },
                       "type": "object"
                     },
                     "type": "array"
@@ -3578,7 +3731,14 @@
                     "type": "integer"
                   },
                   "scenarios": {
+                    "description": "Complete replacement scenario list for this immutable revision. An adaptive_voice scenario may include caller_environment, a version-pinned synthetic caller MICROPHONE condition with noise_level. It is distinct from the agent's outgoing audio_environment/volume; a scenario that supplies it must supply a non-blank language. Off requires noise_level=0 and is the quiet baseline.",
                     "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "caller_environment": {
+                          "$ref": "#/components/schemas/CallerInputEnvironmentSelection"
+                        }
+                      },
                       "type": "object"
                     },
                     "type": "array"
@@ -3782,7 +3942,7 @@
         ]
       },
       "patch": {
-        "description": "The target agent defines the authenticated workspace. Select platform-managed components by provider/model/voice fields, or bind a component to an already-created hosted-AI credential by its ID in component_credential_bindings. The binding is a reference only: upload a BYOK secret through the separate write-only hosted-ai-credentials API; this route never accepts or returns secret material. Supplying languages and optional sparse language_profiles is an explicit publication: all effective profiles are constructible and credential-owned before an immutable version is stored for admission. Draft profile edits never alter existing calls or published sessions.",
+        "description": "The target agent defines the authenticated workspace. Select platform-managed components by provider/model/voice fields, or bind a component to an already-created hosted-AI credential by its ID in component_credential_bindings. The binding is a reference only: upload a BYOK secret through the separate write-only hosted-ai-credentials API; this route never accepts or returns secret material. Supplying languages and optional sparse language_profiles is an explicit publication: all effective profiles are constructible and credential-owned before an immutable version is stored for admission. `audio_environment` is a separately version-pinned outgoing-only ambience track, shared across language profiles and independent of caller STT; its optional runtime failure never replaces the selected voice/language or prevents the core call. Draft profile edits never alter existing calls or published sessions.",
         "parameters": [
           {
             "in": "path",
@@ -4508,6 +4668,30 @@
           }
         },
         "summary": "Revoke an API key"
+      }
+    },
+    "/v1/audio-environments": {
+      "get": {
+        "description": "Returns the backend-owned, versioned catalogue used by Voice Library, agent voice configuration, preview auditions and Simulation Lab. The catalogue is a pure local read: it contacts no TTS provider, makes no carrier call, changes no agent setting and returns no audio bytes. `off` is explicit. An agent's outgoing selection always pins preset id, asset version and volume; Simulation Lab's separate caller-input condition pins the same id/version with noise_level. Callers must not invent a frontend catalogue, silently substitute a retired version, or pass output ambience to STT.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudioEnvironmentCatalogue"
+                }
+              }
+            },
+            "description": "Versioned audio-environment catalogue"
+          },
+          "503": {
+            "description": "Packaged immutable catalogue is unavailable or incomplete"
+          }
+        },
+        "summary": "List immutable audio-environment presets",
+        "x-required-scopes": [
+          "account:read"
+        ]
       }
     },
     "/v1/audit-events": {
@@ -7330,7 +7514,7 @@
     },
     "/v1/voice-previews": {
       "post": {
-        "description": "An explicit Listen action for one selected TTS voice. It accepts a bounded caller sentence (defaulting to a short product sample), keeps no audio or telemetry, and returns a short in-memory WAV only. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback.",
+        "description": "An explicit Listen action for one selected TTS voice. It accepts a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied), keeps no audio or telemetry, and returns a short in-memory WAV only. A selected outgoing audio_environment requires explicit non-blank text and makes a deterministic, headroom-safe local audition; it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback.",
         "requestBody": {
           "content": {
             "application/json": {
