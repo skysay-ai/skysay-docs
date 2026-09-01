@@ -135,8 +135,11 @@ validated signal, `human_answered` and `voicemail` are explicitly
 
 For optional extraction, `schema_version` identifies the immutable customer
 schema used for that call, while `analysis_version` identifies the
-OpenPhonex-owned advisory evidence envelope. Preserve both when you store a
-reference to an extraction. Handle `call.extraction.ready` and
+OpenPhonex-owned advisory evidence envelope. `analysis_version` is snapshotted
+when the extraction is enqueued: a later OpenPhonex analysis release never
+relabels an existing call's result, although newly enqueued work can use a
+newer version. Preserve both when you store a reference to an extraction.
+Handle `call.extraction.ready` and
 `call.extraction.failed` idempotently, then reconcile against this read or the
 single-call endpoint before taking an application-owned action.
 
