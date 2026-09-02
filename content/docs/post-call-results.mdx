@@ -82,9 +82,11 @@ you need the full artifact instead of relying on event bodies as a data export.
 authoritative fetch for the call itself after a terminal event — status,
 provider call ID, your own `external_reference`, and lifecycle timestamps.
 
-For newly created calls, a `call.failed` result can also include a bounded
-`technical_failure` object. The same object appears on each call row returned by
-`GET /v1/call-results`:
+Every `call.failed` result and call row returned by `GET /v1/call-results`
+includes a bounded `technical_failure` object. Evidence is available only for
+calls created after this contract was introduced; historical and unclassified
+failures return the same object with unknown availability rather than being
+reinterpreted:
 
 ```json
 {
@@ -106,8 +108,11 @@ inferred from call duration or today’s configuration.
 
 `no_answer` is narrower still: it is published only when a versioned durable
 `outbound_ringing_timeout` event proves it. A bare SIP 487 or elapsed duration
-does not prove no answer. This contract applies prospectively; older failures
-are not backfilled or reclassified.
+does not prove no answer. In the example above, the ringing-timeout reason—not
+the accompanying 487—is the authoritative evidence. This contract applies
+prospectively; older failures are not backfilled or reclassified. The exact
+allowlisted values and pair constraints are defined by the
+[OpenAPI schema](/docs/openapi).
 
 ## Read evidence and optional extraction
 

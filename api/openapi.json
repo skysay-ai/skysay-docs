@@ -2835,6 +2835,27 @@
       },
       "TechnicalCallFailureEvidence": {
         "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "terminal_status": {
+                  "const": "no_answer"
+                }
+              },
+              "required": [
+                "terminal_status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "failure_reason_code": {
+                  "const": "outbound_ringing_timeout"
+                }
+              }
+            }
+          }
+        ],
         "description": "Versioned, allowlisted technical failure evidence for future calls. It never contains exception text, provider payloads, SIP headers, phone numbers, transcripts, or secrets. Historical or unclassified failures remain unknown; no_answer requires the durable outbound_ringing_timeout reason and is never inferred from duration.",
         "properties": {
           "availability": {
@@ -2886,7 +2907,7 @@
           },
           "sip_status_code": {
             "maximum": 699,
-            "minimum": 100,
+            "minimum": 200,
             "type": [
               "integer",
               "null"
