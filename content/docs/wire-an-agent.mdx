@@ -330,6 +330,15 @@ Number rules decide what happens when someone calls a number and which agents
 can use it to place calls. Update them with `update_number_rules`
 (`numbers:write`); read them with `get_number_rules` (`numbers:read`).
 
+To take a number back off an agent, `POST
+/v1/phone-numbers/{number_id}/detach-agent` (`numbers:write`). It is a pure
+control-plane unbind: the number stays imported and owned by the workspace,
+its rules become `disabled`, and no carrier work happens. Inbound calls are
+declined until you attach an agent again or change the rules. Detaching a
+number that already answers without an agent replays as a no-op with
+`idempotent: true`. The same action is available in the workspace on the
+agent's Phone section and on the number's page.
+
 <Callout title="Test in the browser first">
   Before assigning a live number, use a [browser test](/docs/trial-calls) with
   welcome credit or purchased funds to hear your agent. No number provisioning
