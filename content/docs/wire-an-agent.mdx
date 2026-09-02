@@ -339,6 +339,18 @@ number that already answers without an agent replays as a no-op with
 `idempotent: true`. The same action is available in the workspace on the
 agent's Phone section and on the number's page.
 
+If you decided to detach from a view of the number that may since have moved
+on — a page a teammate reassigned under you — name the binding you expect.
+Send `expected_agent_id`, or `expected_agent_endpoint_id` when the rule answers
+through an endpoint you cannot resolve to an agent. A number that by then
+answers with a *different* binding is refused with `409` and nothing changes,
+so you cannot take a colleague's fresh assignment offline by confirming a stale
+screen. Naming an identity the rule no longer carries is refused the same way:
+an expectation that cannot be confirmed is not treated as confirmed. A binding
+that is gone *entirely* is not a conflict — the state you wanted already holds,
+so it replays as the `idempotent: true` no-op. Send neither field to detach
+whichever agent answers.
+
 <Callout title="Test in the browser first">
   Before assigning a live number, use a [browser test](/docs/trial-calls) with
   welcome credit or purchased funds to hear your agent. No number provisioning

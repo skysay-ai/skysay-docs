@@ -6159,6 +6159,7 @@
           "account:read",
           "agents:read",
           "calls:read",
+          "gateways:read",
           "wallet:read",
           "knowledge:read",
           "numbers:read"
@@ -7875,7 +7876,10 @@
             "description": "Number rules after the detach"
           }
         },
-        "summary": "Compatibility alias for detaching a phone number from its agent"
+        "summary": "Compatibility alias for detaching a phone number from its agent",
+        "x-required-scopes": [
+          "numbers:write"
+        ]
       }
     },
     "/v1/numbers/{number_id}/number-rules": {
@@ -7918,13 +7922,39 @@
     },
     "/v1/phone-numbers/{number_id}/detach-agent": {
       "post": {
-        "description": "A pure control-plane unbind: the number stays imported and owned by the workspace, its Number rules become disabled, and no carrier or provider operation happens. Inbound calls are then declined until an agent is attached again or the rules are changed. A number whose rules already answer without an agent replays as a no-op with idempotent: true.",
+        "description": "A pure control-plane unbind: the number stays imported and owned by the workspace, its Number rules become disabled, and no carrier or provider operation happens. Inbound calls are then declined until an agent is attached again or the rules are changed. A number whose rules already answer without an agent replays as a no-op with idempotent: true. Optionally name the binding your confirmation showed with expected_agent_id, or expected_agent_endpoint_id for a rule that answers through an endpoint alone; if the number meanwhile answers with a different one the command refuses with 409 instead of detaching it.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expected_agent_endpoint_id": {
+                    "description": "The agent endpoint you expect to be answering, for a rule that answers through an endpoint whose owning agent you cannot name. Checked the same way as expected_agent_id; send either, both, or neither.",
+                    "type": "string"
+                  },
+                  "expected_agent_id": {
+                    "description": "The agent you expect to be answering. The command refuses with 409 when a different agent answers by the time it runs, or when the rule no longer names an agent at all; a binding that is already gone entirely still replays as the idempotent no-op.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "200": {
             "description": "Number rules after the detach"
+          },
+          "409": {
+            "description": "The number now answers with a binding other than the one named; nothing was detached"
           }
         },
-        "summary": "Detach a phone number from the agent that answers it"
+        "summary": "Detach a phone number from the agent that answers it",
+        "x-required-scopes": [
+          "numbers:write"
+        ]
       }
     },
     "/v1/phone-numbers/{number_id}/number-rules": {
