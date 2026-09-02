@@ -6,10 +6,54 @@ description: Major OpenPhonex releases, with links to the features and guides yo
 Major product updates, newest first. Follow the links in each entry to configure
 or use the feature.
 
-This first roundup covers 18–31 August 2026. Dates are in UTC and follow
+The initial roundup covers 18–31 August 2026. Dates are in UTC and follow
 verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
+
+## 2 September 2026
+
+### Actionable technical evidence for failed calls
+
+Failed calls now carry a bounded, versioned `technical_failure` object in
+signed lifecycle results, `GET /v1/call-results`, and the Calls workspace. It
+identifies an allowlisted terminal status, reason, and failure stage without
+exposing raw provider errors, SIP headers, transcripts, phone numbers,
+credentials, or stack traces.
+
+OpenPhonex reports `no_answer` only when a durable ringing-timeout event proves
+it. Historical or unclassified failures remain explicitly unknown instead of
+being reinterpreted from call duration or current configuration.
+
+[Read post-call technical evidence](/docs/post-call-results) ·
+[Inspect call evidence](/docs/read-call-evidence)
+
+### More reliable spoken endings and call evidence
+
+Affected ElevenLabs v3 dialogue voices now use a streaming synthesis path that
+preserves the audible decay of final words instead of the provider websocket
+path that clipped every turn. Other providers and ElevenLabs' regular
+low-latency websocket remain on their existing transports.
+
+Terminal farewells now finish their bounded playout and evidence handoff before
+the worker seals the call. Stored agent clips also end at the last audible room
+audio rather than the earlier SDK state edge. Room-disconnect teardown is
+bounded so usage, evidence, lifecycle, and cleanup can finish instead of
+leaving an otherwise completed call orphaned.
+
+[Choose and preview a voice](/docs/voice-library) ·
+[Understand call evidence](/docs/read-call-evidence)
+
+### Multilingual calls continue after a language switch
+
+An applied language switch now keeps the call's shared simultaneous recognizer
+attached, so the agent continues hearing the caller after changing its spoken
+language. Applied switches and out-of-set refusals also produce a spoken next
+turn rather than leaving the caller in silence, while preserving structured
+switch evidence after the call.
+
+[Configure Follow the caller](/docs/multilingual-outbound) ·
+[Read language-switch evidence](/docs/read-call-evidence)
 
 ## 1 September 2026
 
