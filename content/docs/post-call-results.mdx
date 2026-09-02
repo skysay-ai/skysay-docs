@@ -82,6 +82,33 @@ you need the full artifact instead of relying on event bodies as a data export.
 authoritative fetch for the call itself after a terminal event — status,
 provider call ID, your own `external_reference`, and lifecycle timestamps.
 
+For newly created calls, a `call.failed` result can also include a bounded
+`technical_failure` object. The same object appears on each call row returned by
+`GET /v1/call-results`:
+
+```json
+{
+  "evidence_version": 1,
+  "availability": "available",
+  "terminal_status": "no_answer",
+  "failure_reason_code": "outbound_ringing_timeout",
+  "failure_stage": "outbound_sip_participant",
+  "sip_status_code": 487
+}
+```
+
+Treat this as structured technical evidence, not a business outcome. The fields
+come from a fixed OpenPhonex vocabulary; raw provider error text, SIP headers,
+exceptions, phone numbers, transcripts, credentials, and stack traces are not
+included. `sip_status_code` is nullable. When OpenPhonex cannot prove a safe
+cause, `availability` and `terminal_status` remain `unknown` rather than being
+inferred from call duration or today’s configuration.
+
+`no_answer` is narrower still: it is published only when a versioned durable
+`outbound_ringing_timeout` event proves it. A bare SIP 487 or elapsed duration
+does not prove no answer. This contract applies prospectively; older failures
+are not backfilled or reclassified.
+
 ## Read evidence and optional extraction
 
 After the relevant ready event, use the generated reference routes for:
@@ -121,6 +148,11 @@ policy needs the source material. If `evidence.availability` is `unavailable`,
 the response could not assemble that optional projection; it does not prove
 that an underlying recording or transcript is absent. Retry the authenticated
 per-call evidence route rather than treating it as a business outcome.
+
+Each call row also contains the versioned `technical_failure` projection
+described above. Persist its evidence version and treat `unknown` as a valid
+answer. Do not reconstruct a cause from transcript text, duration, or provider
+messages in another field.
 
 Use the returned `pagination.next_cursor` while `pagination.has_more` is true;
 a page is not a complete group. You can narrow a page by terminal status,

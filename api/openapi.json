@@ -1194,6 +1194,9 @@
           "page_cursor": {
             "type": "string"
           },
+          "technical_failure": {
+            "$ref": "#/components/schemas/TechnicalCallFailureEvidence"
+          },
           "updated_at": {
             "format": "date-time",
             "type": "string"
@@ -1205,6 +1208,7 @@
           "updated_at",
           "page_cursor",
           "answered_or_voicemail",
+          "technical_failure",
           "analysis"
         ],
         "type": "object"
@@ -2826,6 +2830,87 @@
           "to_phone_number",
           "body",
           "purpose"
+        ],
+        "type": "object"
+      },
+      "TechnicalCallFailureEvidence": {
+        "additionalProperties": false,
+        "description": "Versioned, allowlisted technical failure evidence for future calls. It never contains exception text, provider payloads, SIP headers, phone numbers, transcripts, or secrets. Historical or unclassified failures remain unknown; no_answer requires the durable outbound_ringing_timeout reason and is never inferred from duration.",
+        "properties": {
+          "availability": {
+            "enum": [
+              "available",
+              "unknown",
+              "not_applicable"
+            ],
+            "type": "string"
+          },
+          "evidence_version": {
+            "const": 1,
+            "type": "integer"
+          },
+          "failure_reason_code": {
+            "enum": [
+              "unknown",
+              "outbound_ringing_timeout",
+              "outbound_authorization_rejected",
+              "outbound_media_admission_rejected",
+              "outbound_trunk_rejected",
+              "outbound_room_rejected",
+              "outbound_dispatch_rejected",
+              "outbound_sip_participant_rejected",
+              "outbound_pre_media_rejected",
+              "originate_worker_job_failed",
+              "local_origination_not_started",
+              "policy_blocked",
+              "canceled_before_origination"
+            ],
+            "type": "string"
+          },
+          "failure_stage": {
+            "enum": [
+              "unknown",
+              "outbound_authorization",
+              "outbound_media_admission",
+              "outbound_trunk",
+              "outbound_room",
+              "outbound_dispatch",
+              "outbound_sip_participant",
+              "outbound_pre_media",
+              "outbound_worker",
+              "outbound_local",
+              "outbound_policy",
+              "outbound_queue"
+            ],
+            "type": "string"
+          },
+          "sip_status_code": {
+            "maximum": 699,
+            "minimum": 100,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "terminal_status": {
+            "enum": [
+              "completed",
+              "failed",
+              "busy",
+              "no_answer",
+              "canceled",
+              "unknown"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "evidence_version",
+          "availability",
+          "terminal_status",
+          "failure_reason_code",
+          "failure_stage",
+          "sip_status_code"
         ],
         "type": "object"
       },
@@ -5189,7 +5274,7 @@
     },
     "/v1/call-results": {
       "get": {
-        "description": "Reads a customer-owned external_group_reference inside the authenticated organization/project. This is a pure, provider-free reconciliation read: it does not create calls, retry recipients, classify a business outcome, or copy recordings/transcripts. It returns authoritative technical call facts separately from optional advisory extraction, plus authenticated evidence anchors (turn identifiers and offsets only). The answered_or_voicemail metric deliberately includes only observable SIP/media answer evidence and may include voicemail; human_answered remains not_provable until a separately validated signal exists. Treat pagination as mandatory: a page is not the whole group while pagination.has_more is true.",
+        "description": "Reads a customer-owned external_group_reference inside the authenticated organization/project. This is a pure, provider-free reconciliation read: it does not create calls, retry recipients, classify a business outcome, or copy recordings/transcripts. It returns authoritative technical call facts and a versioned, allowlisted technical_failure envelope separately from optional advisory extraction, plus authenticated evidence anchors (turn identifiers and offsets only). Historical failures without versioned evidence remain unknown and are never inferred from duration. The answered_or_voicemail metric deliberately includes only observable SIP/media answer evidence and may include voicemail; human_answered remains not_provable until a separately validated signal exists. Treat pagination as mandatory: a page is not the whole group while pagination.has_more is true.",
         "parameters": [
           {
             "description": "The authenticated organization; must match the bearer workspace.",
