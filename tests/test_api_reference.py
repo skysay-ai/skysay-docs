@@ -75,6 +75,15 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertRegex(guide, r"do not get a\s+broken player")
         self.assertIn("never receives a recording bucket URL", guide)
 
+    def test_post_call_analysis_version_is_documented_as_an_immutable_snapshot(self) -> None:
+        for schema_name in ("PostCallExtractionResult", "PostCallAnalysis"):
+            with self.subTest(schema=schema_name):
+                description = self.schema["components"]["schemas"][schema_name]["properties"][
+                    "analysis_version"
+                ]["description"]
+                self.assertIn("snapshotted when this extraction is enqueued", description)
+                self.assertIn("never relabeled", description)
+
     def test_navigation_and_cross_links_expose_the_customer_guides(self) -> None:
         pages = json.loads((ROOT / "content" / "docs" / "meta.json").read_text(encoding="utf-8"))["pages"]
         for slug in (
@@ -96,6 +105,7 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("POST /v1/calls", guide_text["customer-applications"])
         self.assertIn("Idempotency-Key", guide_text["customer-applications"])
         self.assertIn("call.extraction.ready", guide_text["post-call-results"])
+        self.assertIn("later OpenPhonex analysis release never", guide_text["post-call-results"])
         self.assertIn("/docs/post-call-results", guide_text["integrations"])
         self.assertIn("/docs/integrations", guide_text["customer-applications"])
         self.assertIn("complete cached catalog", guide_text["voice-library"])
