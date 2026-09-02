@@ -106,6 +106,10 @@ included. `sip_status_code` is nullable. When OpenPhonex cannot prove a safe
 cause, `availability` and `terminal_status` remain `unknown` rather than being
 inferred from call duration or today’s configuration.
 
+Only final SIP responses from 200 through 699 are retained in this terminal
+failure field. Provisional call-progress responses such as 180 Ringing are not
+terminal evidence and are omitted.
+
 `no_answer` is narrower still: it is published only when a versioned durable
 `outbound_ringing_timeout` event proves it. A bare SIP 487 or elapsed duration
 does not prove no answer. In the example above, the ringing-timeout reason—not
