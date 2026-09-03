@@ -11,6 +11,26 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 3 September 2026
+
+### Grant bundles and a scope catalogue for API keys
+
+A workspace API key's `scopes` can now name a grant bundle, `all`,
+`all-read`, or `all-write`, instead of listing every scope by hand. A bundle
+is stored on the key by name and expanded against the live, enforced scope
+catalogue at use time, so a scope added to the catalogue later is covered
+automatically with no need to reissue the key. No bundle, however minted,
+ever yields an operator-only or specialized-principal scope, and existing
+keys minted with an explicit scope list are unchanged.
+
+`GET /v1/api-keys/scopes` returns the bundles with what each currently
+expands to, every customer-grantable scope grouped by namespace, and the
+operator-only scopes no workspace key can ever hold. The workspace **API
+Keys** page's key-creation dialog reads from the same endpoint.
+
+[Mint a key with a grant bundle](/docs/authentication#grant-bundles) ·
+[Read the grant catalogue](/docs/authentication#reading-the-grant-catalogue)
+
 ## 2 September 2026
 
 ### Actionable technical evidence for failed calls
