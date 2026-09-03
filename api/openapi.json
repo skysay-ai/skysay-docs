@@ -5112,7 +5112,7 @@
         "summary": "List scoped API keys"
       },
       "post": {
-        "description": "Requested scopes must be workspace scopes the caller itself holds. Operator and wildcard scopes are not grantable here; see POST /v1/operator/machine-credentials.",
+        "description": "Requested scopes must be workspace scopes the caller itself holds, or one of the grant bundles `all`, `all-read`, `all-write`, which are recorded by name and expanded at use time against the grant catalogue minus operator-only scopes. Operator and wildcard scopes are not grantable here; see POST /v1/operator/machine-credentials.",
         "responses": {
           "201": {
             "description": "API key with one-time token"
@@ -5122,6 +5122,16 @@
           }
         },
         "summary": "Create a scoped API key"
+      }
+    },
+    "/v1/api-keys/scopes": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Scope catalogue"
+          }
+        },
+        "summary": "Read the grantable scope catalogue and bundles"
       }
     },
     "/v1/api-keys/{key_id}": {
@@ -6159,6 +6169,7 @@
           "account:read",
           "agents:read",
           "calls:read",
+          "gateways:read",
           "wallet:read",
           "knowledge:read",
           "numbers:read"
@@ -7868,6 +7879,19 @@
         "summary": "Customer-facing number activation state: instant | pending_verification | approved | needs_info | rejected with blocking items"
       }
     },
+    "/v1/numbers/{number_id}/detach-agent": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Number rules after the detach"
+          }
+        },
+        "summary": "Compatibility alias for detaching a phone number from its agent",
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
     "/v1/numbers/{number_id}/number-rules": {
       "get": {
         "responses": {
@@ -7904,6 +7928,43 @@
           }
         },
         "summary": "Create a sandbox customer workspace when signup mode allows it"
+      }
+    },
+    "/v1/phone-numbers/{number_id}/detach-agent": {
+      "post": {
+        "description": "A pure control-plane unbind: the number stays imported and owned by the workspace, its Number rules become disabled, and no carrier or provider operation happens. Inbound calls are then declined until an agent is attached again or the rules are changed. A number whose rules already answer without an agent replays as a no-op with idempotent: true. Optionally name the binding your confirmation showed with expected_agent_id, or expected_agent_endpoint_id for a rule that answers through an endpoint alone; if the number meanwhile answers with a different one the command refuses with 409 instead of detaching it.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expected_agent_endpoint_id": {
+                    "description": "The agent endpoint you expect to be answering, for a rule that answers through an endpoint whose owning agent you cannot name. Checked the same way as expected_agent_id; send either, both, or neither.",
+                    "type": "string"
+                  },
+                  "expected_agent_id": {
+                    "description": "The agent you expect to be answering. The command refuses with 409 when a different agent answers by the time it runs, or when the rule no longer names an agent at all; a binding that is already gone entirely still replays as the idempotent no-op.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Number rules after the detach"
+          },
+          "409": {
+            "description": "The number now answers with a binding other than the one named; nothing was detached"
+          }
+        },
+        "summary": "Detach a phone number from the agent that answers it",
+        "x-required-scopes": [
+          "numbers:write"
+        ]
       }
     },
     "/v1/phone-numbers/{number_id}/number-rules": {
@@ -8148,10 +8209,13 @@
             "description": "Bounded base64-encoded WAV preview"
           },
           "400": {
-            "description": "Invalid tenant-bound project, stack, voice, preview text, or a BYOK credential the provider did not accept"
+            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept"
           },
           "404": {
             "description": "The selected BYOK credential does not exist in this workspace"
+          },
+          "409": {
+            "description": "The selected voice cannot be previewed in the requested language"
           },
           "429": {
             "description": "Voice-preview fixed-window limit reached"

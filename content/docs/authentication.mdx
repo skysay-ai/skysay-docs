@@ -36,6 +36,101 @@ curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
 The response returns `token` **once**. Store it immediately — it is never
 retrievable again.
 
+## Grant bundles
+
+Instead of listing every scope by hand, `scopes` may name a **grant bundle**:
+`all`, `all-read`, or `all-write`. A bundle is stored on the key *by name* and
+expanded against the live grant catalogue **at use time**, not frozen at mint
+time — a scope added to the catalogue after the key was minted is covered
+automatically, with no need to reissue the key.
+
+```bash
+curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
+  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"organization_id":"org_...",
+       "name":"Read-only reporting key",
+       "scopes":["all-read"]}'
+```
+
+| Bundle | Grants |
+| --- | --- |
+| `all` | Every customer-grantable scope, present and future. |
+| `all-read` | Every customer-grantable scope ending `:read`, present and future. |
+| `all-write` | Every customer-grantable write/send/arm scope (`:write`, `:send`, `:arm`), present and future. |
+
+A bundle is not a wildcard. Scope clamping still applies — a key can only mint
+a bundle its own minting credential also holds the full expansion of — and no
+bundle, no matter who mints it, ever yields:
+
+- **Operator-only scopes**: the operator console, worker job queues, release
+  gates, provider-mutation review and approval, and the platform-media worker
+  role.
+- **Specialized-principal scopes**: the scopes reserved for self-hosted
+  gateway tokens (`calls:authorize`, `gateways:report`, `artifacts:upload`,
+  `worker_jobs:enqueue`, `number-rules:read`, `component_credentials:lease`)
+  and the platform-media worker pair (`platform_media:write`,
+  `knowledge:query`).
+
+`GET /v1/api-keys` shows the bundle name itself in `scopes` (e.g.
+`["all-read"]`), not a snapshot of what it currently expands to — the key
+stores the bundle, and every use resolves it fresh. Existing keys minted with
+an explicit scope list are unaffected: this only changes what `scopes` may
+*contain* on a new key, not how any already-minted, exact-scope key behaves.
+
+The workspace **API Keys** page's key-creation dialog offers the same choice
+visually: the three bundles first, then every grantable scope grouped by
+namespace, with an inline note listing the operator-only scopes it cannot
+grant from there.
+
+## Reading the grant catalogue
+
+`GET /v1/api-keys/scopes` returns the catalogue the dialog above renders
+from — the bundles with what each currently expands to, every
+customer-grantable scope grouped by namespace, and the operator-only scopes
+no workspace key can ever hold. It requires `api_keys:read`, the same scope as
+`GET /v1/api-keys`.
+
+```bash
+curl -s "$OPENPHONEX_BASE_URL/v1/api-keys/scopes" \
+  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN"
+```
+
+```json
+{
+  "bundles": [
+    {
+      "id": "all",
+      "expands_to": ["account:read", "agents:read", "agents:write", "..."],
+      "description": "Every customer-grantable scope, including scopes added later."
+    },
+    {
+      "id": "all-read",
+      "expands_to": ["account:read", "agents:read", "api_keys:read", "..."],
+      "description": "Every customer-grantable read scope, including scopes added later."
+    },
+    {
+      "id": "all-write",
+      "expands_to": ["agents:write", "api_keys:write", "calls:write", "sms:send", "..."],
+      "description": "Every customer-grantable write/send/arm scope, including scopes added later."
+    }
+  ],
+  "groups": {
+    "account": ["account:read"],
+    "agents": ["agents:read", "agents:write"],
+    "sms": ["sms:read", "sms:send"]
+  },
+  "operator_only": ["operator:read", "operator:write", "usage:write", "worker_jobs:read", "..."],
+  "specialized": ["calls:authorize", "gateways:report", "knowledge:query", "..."]
+}
+```
+
+The response as of this release grants 29 scopes under `all`, 17 under
+`all-read`, and 11 under `all-write`, grouped across 18 namespaces (`groups`
+above shows 3 for brevity); `operator_only` names 12 scopes and `specialized`
+8. Those counts grow as the catalogue does — call the endpoint for your
+workspace's exact, current lists rather than hardcoding one.
+
 ## Self-hosted gateway credentials
 
 An inbound self-hosted media gateway uses **one** credential, and it is not an
