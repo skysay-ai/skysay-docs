@@ -73,8 +73,10 @@ curl -X POST https://api.openphonex.com/v1/calls \
 `external_reference` is your stable case ID; OpenPhonex stores it but does not
 interpret it. `external_group_reference` can identify your batch. Keep
 `call_context` small and non-secret—at most 32 JSON properties—and use it only
-for facts valid when the call begins. It is not a place for current balance,
-case history, credentials, or authorization tokens.
+for facts valid when the call begins. It is not a place for case history,
+credentials, or authorization tokens. A conversation workflow's read tool is the
+one thing served from it: send the fields that tool projects under
+`call_context.case_snapshot`. See [Agent workflows](/docs/agent-workflows).
 
 For a hosted agent with published language profiles, select one with
 `runtime_config.language` in the call request. A `locale` or
@@ -128,8 +130,10 @@ and the conversation is sensitive.
 2. OpenPhonex independently authorizes the requested call under its policy,
    wallet, and organization controls, then runs the configured managed agent.
 3. Stable explanation of your payment policy can live in a Knowledge Base.
-   Current balance, due date, account status, and payment link must be requested
-   through a narrow read Action, not copied into the prompt or `call_context`.
+   Account status and payment link must be requested through a narrow read
+   Action, never copied into the prompt. The figures a conversation workflow is
+   allowed to disclose travel as that call's own
+   `call_context.case_snapshot`, bounded by the tool's declared projection.
 4. Before your application has established the correct person, its adapter
    returns a safe projection with no balance, debt, or account history. The
    hosted agent must not disclose those facts merely because the caller supplied
