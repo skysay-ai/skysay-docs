@@ -100,6 +100,65 @@ you publish; drafts never affect live traffic. Restoring an old version copies
 it into a new draft — history is never rewritten — and version history shows
 what changed between versions.
 
+## Serving a read tool from the call's context
+
+A workflow's read tool declares a **projection**: the exact field names it may
+read. On a phone call — an outbound call your application placed, or a call on a
+phone pin — those fields are served from that call's own `call_context`, the
+small non-secret object you supplied when you created the call. Nothing else is
+consulted: no other call, no live backend read, no network request.
+
+Send the projected fields under `case_snapshot`, or as top-level `call_context`
+keys:
+
+```json
+{
+  "call_context": {
+    "preferred_language": "si",
+    "case_snapshot": {
+      "balance_amount": "45300.00",
+      "currency": "LKR",
+      "due_date": "2026-08-15",
+      "account_reference": "FC-99182"
+    }
+  }
+}
+```
+
+`case_snapshot` is looked up first, per field; a field absent from it falls back
+to the top-level key of the same name. Values must be strings or numbers, and
+`call_context`'s ordinary limits apply (at most 32 properties per object, 512
+characters per string, 4096 bytes in total).
+
+**The read is all or nothing.** It succeeds only when every projected field is
+present and non-empty. If one is missing, blank, or the wrong shape, the read
+fails and the workflow takes that step's error route — the case-unavailable
+outcome in the Payment reminder template — instead of disclosing a partial case.
+The run's step evidence records the reason (`case_snapshot_missing` or
+`case_snapshot_invalid`) without ever recording a value.
+
+### Saying an approved figure out loud
+
+Spoken text is always the text you authored, word for word. To state a figure
+you have approved, put the projected field name in double braces in the step's
+own prompt:
+
+```text
+The latest statement shows an outstanding balance of {{balance_amount}} {{currency}},
+due on {{due_date}}. Are you able to take care of it today?
+```
+
+On a phone call the braces are replaced with the values the read approved. This
+happens only on a step you flagged **discloses debt**, which validation already
+keeps unreachable until the caller has passed your verification step — so an
+approved figure can never be spoken to someone who has not been verified. A
+placeholder with no approved value behind it is removed rather than read aloud,
+and a placeholder naming a field outside the projection is removed too.
+
+Chat, the Simulations Lab and the browser Talk test are workflow-logic tests, not
+calls: they keep serving a clearly synthetic `test-<field>` fixture and show the
+authored text with its placeholders intact.
+
 ## Runtime guarantees
 
 The compiled contract enforces, server-side, on every turn:
