@@ -43,6 +43,9 @@ const nextConfig = {
       {
         source: "/((?!docs-assets|_next).*)",
         headers: [
+          ...(/^[0-9a-f]{40}$/.test(process.env.OPENPHONEX_DOCS_REVISION || "")
+            ? [{ key: "X-OpenPhonex-Docs-Revision", value: process.env.OPENPHONEX_DOCS_REVISION }]
+            : []),
           {
             key: "Cache-Control",
             value: "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
