@@ -4,8 +4,8 @@ The public documentation and blog for [OpenPhonex](https://openphonex.com) —
 agent-native telephony: real phone numbers, calls, and SMS an AI agent runs on
 its own over MCP.
 
-This repository **is** the site. A push to `main` deploys automatically to
-`openphonex.com`, which serves these paths from this app:
+This repository **is** the site. Its released image serves these paths on
+`openphonex.com`:
 
 | Path | What it is |
 | --- | --- |
@@ -98,6 +98,41 @@ node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://openp
 
 ## Deployment
 
+Merging to `main` does not publish the site. The `openphonex-docs` image
+component shares the production web application with the private dashboard.
+Release it after the application release and release-log PR are complete.
+
+The operator needs a clean, current `main` checkout of this repository and the
+private OpenPhonex application repository, Docker's `desktop-linux` context,
+Node 22, Python 3.11+, and authenticated `doctl` and registry access. The private
+checkout supplies the existing promotion lease and registry guards; the docs
+release uses that same lease so it cannot race an application promotion.
+
+```bash
+python3 scripts/release_docs.py prepare --app-repo /path/to/OpenPhonex
+python3 scripts/release_docs.py promote --app-repo /path/to/OpenPhonex \
+  --receipt /private/path/printed-by-prepare.json --execute
+```
+
+Preparation checks committed source, builds once for Linux AMD64, pushes a
+unique full-commit image tag, and probes the image by digest. It writes a
+private content-addressed receipt binding the source, checks, digest, existing
+docs image, active deployment and complete app-spec fingerprint. It cannot
+include ignored local files in the build context. Receipts and logs do not
+contain the app spec or credentials.
+
+Promotion never builds or retags. It verifies the receipt and current live
+fences, changes only the docs image tag, checks the deployed revision header
+and public routes, and records timing. A repeat after successful promotion
+verifies the existing deployment. Failed promotion restores the previous docs
+tag only while the spec still belongs to that operation; concurrent spec
+changes refuse rollback. A rollback failure exits with code 2 for operator
+attention. The previous healthy application remains the rollback target.
+
+Coordinate with other release operators. A changed main commit, app spec or
+deployment invalidates preparation; do not edit receipts or manually overwrite
+an image tag to bypass a refusal.
+
 A standard Next.js app with no custom server and **no `basePath`** — the
 hosting layer passes the full path through, so `/docs/...` is `/docs/...` all
 the way down.
@@ -122,8 +157,8 @@ pages all help.
 2. Run `npm run build` and `npm run scan-secrets` locally.
 3. Open a PR. CI runs a secret scan and a production build on every PR; both
    must pass.
-4. On merge to `main`, the change is live on `openphonex.com` within minutes.
-   There is no separate publish step.
+4. On merge to `main`, the change is ready for the receipt-based release above.
+   Confirm the public revision and content before describing it as live.
 
 Please keep prose in the existing voice: second person, present tense, concrete
 over abstract, no marketing adjectives. Code samples should be runnable as
