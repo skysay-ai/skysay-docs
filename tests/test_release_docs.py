@@ -95,6 +95,15 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(removal[-1], run[run.index("--name") + 1])
         self.assertIn("rm", removal)
 
+    def test_cleanup_read_failure_preserves_original_probe_error(self):
+        module = types.SimpleNamespace(builder=lambda _: ("desktop-linux", "", ""))
+        failure = r.Refused("original start failure")
+        with patch.object(r, "command", side_effect=["unix:///local/docker.sock", "", "linux/amd64", failure, r.Refused("daemon unavailable")]), patch.object(r, "diagnostic") as diagnostic:
+            with self.assertRaises(r.Refused) as raised:
+                r.image_probe(module, NEW, SOURCE["sha"], ROOT)
+        self.assertIs(raised.exception, failure)
+        self.assertIn("probe_cleanup_failed", diagnostic.call_args.args[0])
+
     def test_promote_command_requires_execute(self):
         with patch.object(r, "primitives", return_value=(MagicMock(), PRIMITIVES)), patch.object(r, "promote") as promote:
             self.assertEqual(r.main(["promote", "--app-repo", str(ROOT), "--receipt", "untrusted"]), 1)
@@ -253,6 +262,19 @@ class PromotionTests(unittest.TestCase):
                 raise r.Refused("rollback update failed")
         self.update_spec.side_effect = update_once
         with self.assertRaises(r.RollbackFailed): self.run_release()
+
+    def test_evidence_disk_failure_cannot_downgrade_rollback_failure(self):
+        failure = r.RollbackFailed("production restore requires attention")
+        self.save_evidence.side_effect = OSError("disk full")
+        with patch.object(r, "_promote", side_effect=failure), patch.object(r, "diagnostic") as diagnostic:
+            with self.assertRaises(r.RollbackFailed) as raised:
+                self.run_release()
+        self.assertIs(raised.exception, failure)
+        self.assertEqual(diagnostic.call_args.args[0], {"outcome": "rollback_failed", "evidence": None})
+
+    def test_stderr_failure_cannot_downgrade_rollback_failure(self):
+        with patch.object(r, "primitives", return_value=(self.module, PRIMITIVES)), patch.object(r, "_promote", side_effect=r.RollbackFailed("restore failed")), patch.object(r, "read", return_value=receipt()), patch("builtins.print", side_effect=BrokenPipeError()):
+            self.assertEqual(r.main(["promote", "--app-repo", str(ROOT), "--receipt", "private", "--execute"]), 2)
 
     def test_update_refused_before_mutation_does_not_attempt_rollback(self):
         self.update_spec.side_effect = r.Refused("update rejected")

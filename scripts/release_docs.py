@@ -266,9 +266,16 @@ def image_probe(module, target, revision, app_repo):
     finally:
         # run may create a container and then fail while publishing its port.
         # Query by our unguessable owned name so even that path is cleaned up.
-        found = command(docker + ["ps", "--all", "--quiet", "--filter", "name=^/" + container + "$"]).strip()
-        if found:
-            command(docker + ["rm", "--force", container])
+        original = sys.exc_info()[1]
+        try:
+            found = command(docker + ["ps", "--all", "--quiet", "--filter", "name=^/" + container + "$"]).strip()
+            if found:
+                command(docker + ["rm", "--force", container])
+        except Exception:
+            diagnostic({"probe_cleanup_failed": container})
+            if original is not None:
+                raise original
+            raise Refused("owned docs probe container cleanup failed")
 
 
 def parity(app_repo, base):
@@ -394,7 +401,7 @@ def _promote(module, receipt, primitive_identity, app_repo):
                     await_spec(module, previous_spec)
                     identity(module, receipt["previous"])
                     probe_url("https://openphonex.com")
-                    restored_spec, restored_deployment = snapshot(module)
+                    _, restored_deployment = snapshot(module)
                     final_fence(module, previous_spec, restored_deployment, receipt["previous"])
                 except Exception as rollback:
                     if isinstance(rollback, NotStarted):
@@ -414,8 +421,20 @@ def promote(module, receipt, primitive_identity, app_repo):
     except Exception as failure:
         outcome = "rollback_failed" if isinstance(failure, RollbackFailed) else "rolled_back" if isinstance(failure, RolledBack) else "not_started" if isinstance(failure, NotStarted) else "refused"
         result = {"receipt_sha256": digest(receipt), "outcome": outcome, "failure_class": type(failure).__name__, "elapsed_seconds": round(time.monotonic() - started, 3), "completed_at": dt.datetime.now(dt.timezone.utc).isoformat()}
-        print(json.dumps({"outcome": outcome, "evidence": str(save(module, "promotions", result))}), file=sys.stderr)
+        try:
+            evidence = str(save(module, "promotions", result))
+        except Exception:
+            evidence = None
+        diagnostic({"outcome": outcome, "evidence": evidence})
         raise
+
+
+def diagnostic(value):
+    # Output/storage trouble must never downgrade a rollback-failure exit code.
+    try:
+        print(json.dumps(value), file=sys.stderr)
+    except OSError:
+        pass
 
 
 def main(argv=None):
@@ -437,7 +456,7 @@ def main(argv=None):
                 raise Refused("promotion requires --receipt and --execute")
             promote(module, read(module, "receipts", args.receipt), primitive_identity, args.app_repo.resolve())
     except Exception as exc:
-        print(f"DOCS RELEASE FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
+        diagnostic({"docs_release_failed": type(exc).__name__, "message": str(exc)})
         return 2 if isinstance(exc, RollbackFailed) else 1
     return 0
 
