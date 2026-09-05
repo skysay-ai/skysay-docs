@@ -20,22 +20,30 @@ exactly the request it sent before.
 
 ## Choose it in the agent editor
 
-Open the agent in the workspace and choose **Voice behavior**, next to Voice
-stack. The Delivery chooser offers **Provider default**, which is the unset
-state every agent starts in, and the four profiles with the same summaries as
-the table above. A short example describes how the same line is performed
-under each choice.
+Open the agent in the workspace and choose **Voice stack**. The Delivery
+chooser sits directly under the chosen voice and offers **Provider default**,
+the unset state every agent starts in, and the four profiles with the same
+summaries as the table above. A short example describes how the agent's own
+voice performs the same line under each choice.
 
-The chooser says whether the agent's current voice honours a profile. For a
-voice whose provider and model have no truthful control (Fish Audio and Azure
-neural voices today) it reads "Not available for this provider yet": the
-choice is kept and returned but has no effect on the audio. That verdict comes
-from the same table the call runtime reads, so it follows the voice you pick
-in the editor even before you save.
+The profile is one intent per agent, but providers cannot change the same
+things, so the truth is written on each voice: every voice card, the shared
+voice and each per-language override, carries a **Delivery on this voice**
+line stating what the current choice changes for that voice, in the values
+the platform will send. For an ElevenLabs Flash voice, *Precise* reads
+"Steadiest of the four, digits kept level and separate. About 3% slower. Sets
+stability 0.80 · similarity 0.80 · speed 0.97"; a Soniox or Cartesia voice
+reads "Pace only" with its rate; a Gemini voice shows the instruction it is
+given; a voice whose provider and model have no truthful control (Fish Audio
+and Azure neural voices today) reads "no delivery controls for this voice
+yet": the choice is kept and takes effect if you move that language to a voice
+that has them. With Provider default chosen, every card says the voice sounds
+as its provider ships it. The line comes from the same table the call runtime
+reads, so it follows the voice you pick in the editor even before you save.
 
-**Hear it as your AI agent** plays the agent's first message with the chosen
-profile through the voice preview, resolved exactly as a call resolves it.
-Changes apply to new calls after you save the agent.
+**Listen** on a voice card plays your text with the chosen profile through the
+voice preview, resolved exactly as a call resolves it. Changes apply to new
+calls after you save the agent.
 
 ## Set it through the API
 
@@ -87,8 +95,12 @@ stored and returned, and the audio is unchanged.
 Every TTS row of `GET /v1/agent-catalog`, and the `voice` object of
 `GET /v1/agents/{agent_id}/voice-stack`, carries `delivery_control`:
 `voice_settings`, `instruction` or `speed` when a profile changes that
-engine's audio, or `unsupported` when it is stored without effect. It is read
-from the same table, so a client can show the state above without keeping its
+engine's audio, or `unsupported` when it is stored without effect; and
+`delivery_profiles`, the exact value each of the four profiles resolves to on
+that engine: a settings object for ElevenLabs, a speaking rate for Soniox and
+Cartesia, an instruction sentence for Gemini TTS, and an empty object where
+the control is `unsupported`. Both are read from the same table, so a client
+can show the state above, and the values a profile sets, without keeping its
 own provider list.
 
 Provider instructions and tags are generated from the platform's own table.
