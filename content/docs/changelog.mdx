@@ -11,6 +11,41 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 5 September 2026
+
+### Delivery profiles for agent voices
+
+An agent's voice can now perform its speech in one of four ways. Set
+`voice_polish.delivery` to `natural`, `lively`, `calm`, or `precise` on
+`PATCH /v1/agents/{agent_id}/voice-stack`, through the MCP
+`set_agent_voice_stack` tool, or per request on `POST /v1/voice-previews` so
+you can hear a profile before you save it.
+
+Each profile drives one allowlisted control per provider and model, and the
+preview response reports what was actually applied. Leaving `delivery` unset
+keeps the provider's own defaults, so an agent that never chooses a profile
+sounds exactly as it did before. Fish and Azure voices accept and store a
+profile but do not change their audio yet.
+
+[Choose a delivery profile](/docs/delivery-profiles#set-it-on-an-agent) ·
+[Hear it before you save](/docs/delivery-profiles#hear-it-before-you-save)
+
+### Acknowledgements while a slow reply is prepared
+
+An agent can now say one short phrase in its own voice while a slow answer is
+still being written, instead of leaving the caller in dead air. Enable
+`voice_polish.acknowledgements` on `PATCH /v1/agents/{agent_id}/voice-stack`
+or through the MCP `set_agent_voice_stack` tool, with up to six phrases of
+your own and a delay of 600 to 3000 ms.
+
+The phrase plays on its own audio track and is cancelled the moment the real
+reply or the caller starts, at most once per turn and never during a goodbye.
+It is off unless you enable it, it is not a transcript line, and a language
+with no reviewed phrases stays silent rather than falling back to English.
+
+[Turn on acknowledgements](/docs/voice-behavior#enable-acknowledgements-on-an-agent) ·
+[Set the delay and phrases](/docs/voice-behavior#how-the-worker-uses-it)
+
 ## 4 September 2026
 
 ### Ten numbers and ten simultaneous calls on pay as you go
