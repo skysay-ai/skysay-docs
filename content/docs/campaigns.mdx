@@ -101,10 +101,12 @@ curl -X POST https://api.openphonex.com/v1/campaigns \
 
 Then `POST /v1/campaigns/{campaign_id}/launch`. The response carries
 `authorization.decision` (`allowed`, `needs_review` or `blocked`) and
-`reason_code`, plus the run and its counters. A launched campaign is immutable:
-`POST /v1/campaigns/{campaign_id}/duplicate` copies it into a new draft when you
-need to change anything. `pause`, `resume` and `cancel` control the run; cancel
-also cancels the campaign's own attempts that are still queued or held by the
+`reason_code`, plus the run and its counters. After launch the audience and
+authorization are fixed; run settings can still change while the campaign is
+paused (see [Edit a campaign](#edit-a-campaign)), and
+`POST /v1/campaigns/{campaign_id}/duplicate` copies it into a new draft for a
+new audience. `pause`, `resume` and `cancel` control the run; cancel also
+cancels the campaign's own attempts that are still queued or held by the
 live-call gate (a direct
 `POST /v1/calls` request that reuses the campaign id as its
 `external_group_reference` is not touched).
@@ -166,7 +168,52 @@ the SIP result and are never model-supplied.
   `external_reference` (the contact's reference) and
   `external_group_reference` (the campaign id).
 
+## Edit a campaign
+
+A draft (or a campaign held for review) accepts every setting through
+`PATCH /v1/campaigns/{campaign_id}`, the same validation as create. After
+launch the audience and the authorization are fixed: agent, contact list,
+purpose and consent basis cannot change (duplicate the campaign for a new
+audience). While a campaign is `scheduled` or `paused` you can still change:
+
+- `name`, `from_number_ids` and `language`;
+- `calling_windows`, `time_zone_mode` and `time_zone`. Contacts that were
+  waiting for the old window are re-evaluated on the next dispatcher tick;
+  retries waiting on a backoff keep their time;
+- `retry_policy` or `retry_policy_preset`, `max_concurrency` and
+  `reserved_concurrency`;
+- `ends_at`, and `scheduled_start_at` while the run has not started.
+
+A draft may also receive a new audience in the same request: send `contacts`
+(the same rows as a contact-list import) and an optional `contact_list_name`
+and the list is created inside the edit, so a status that locks the audience
+refuses before any list exists.
+
+A `running` campaign must be paused first. Every campaign carries
+`editable_fields` for its current status, and the PATCH response adds
+`changed`, the settings that actually changed. A setting that is locked in the
+current status answers `409`, as does a status change that raced the edit
+(pause, resume, cancel or launch): reload and try again. In the workspace,
+**Edit** on a campaign opens the same wizard with the locked steps disabled;
+**Duplicate** opens the copy in the wizard before it is launched.
+
+## Export results
+
+`GET /v1/campaigns/{campaign_id}/export` downloads the latest run as a CSV
+attachment with a fixed column set per contact: `phone_e164`, `name`,
+`external_reference`, `language`, `time_zone`, `status`, `disposition`,
+`attempt_count`, `next_attempt_at`, `callback_at`, `skip_reason`,
+`last_call_id`, `last_call_status`, `termination_cause`,
+`termination_detail` and `updated_at`. Rows follow the list order and cover
+the whole run up to the list cap (50,000 rows); `X-OpenPhonex-Row-Count`
+carries the count and `X-OpenPhonex-Truncated` says whether rows beyond the
+cap were left out. `phone_e164` is written verbatim: import that column as text in a
+spreadsheet so the leading plus survives. The export is bound to the credential's own
+workspace (a caller-selected `organization_id` is ignored). Uploaded variables are not echoed back, and free-text cells that
+start with a formula character are prefixed so a spreadsheet does not execute
+them. The workspace offers the same file as **Export CSV** on the campaign.
+
 The same operations are available over MCP as `create_contact_list`,
-`add_contacts`, `add_do_not_call`, `create_campaign`, `launch_campaign`,
-`pause_campaign`, `resume_campaign`, `cancel_campaign`, `list_campaigns` and
-`get_campaign`.
+`add_contacts`, `add_do_not_call`, `create_campaign`, `update_campaign`,
+`launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`,
+`list_campaigns` and `get_campaign`. The CSV export is REST-only.
