@@ -14,7 +14,30 @@ the agent says: an acknowledgement is not part of the conversation, is not
 returned to the model as its own previous utterance, and is not a transcript
 line.
 
-## Enable acknowledgements on an agent
+## Switch acknowledgements on in the agent editor
+
+Open the agent in the workspace and choose **Voice behavior** in the section
+list, next to Voice stack. The Acknowledgements switch is off for every agent
+until you turn it on there. With it on you can:
+
+- add up to six phrases of your own, each at most five words and forty
+  characters, with no digits, currency marks or claim words; the editor refuses
+  a phrase for the same reason the API would and says why. Leave the list
+  empty to use the built-in phrases for the agent's language, which the editor
+  shows dashed. A language with no built-in phrases (Estonian and Sinhala
+  today) needs phrases of your own before the feature does anything;
+- set how long a reply may take before the agent acknowledges, from 0.6 to
+  3.0 seconds, default 1.2;
+- press **Hear it as your AI agent** to play one acknowledgement in the agent's
+  own voice through the same preview a call's synthesis uses. It counts
+  against the voice-preview allowance like any other preview.
+
+The fixed rules stated in the section are not editable: never over the
+caller, cancelled the moment the reply starts, at most one every three turns
+and six per call, and never in the transcript. Changes apply to new calls
+after you save the agent.
+
+## Enable acknowledgements through the API
 
 `PATCH /v1/agents/{agent_id}/voice-stack` accepts an optional
 `voice_polish.acknowledgements` section:
@@ -39,7 +62,9 @@ line.
 
 The same section is accepted by the MCP `set_agent_voice_stack` tool and is
 returned by `GET /v1/agents/{agent_id}/voice-stack`. The exact schema is in
-the [generated API reference](/docs/api-reference).
+the [generated API reference](/docs/api-reference). The editor reads and
+writes this same section, so a setting made through the API shows up in the
+editor and a save from the editor never drops a field the API stored.
 
 ## How the worker uses it
 

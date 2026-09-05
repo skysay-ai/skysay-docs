@@ -18,7 +18,26 @@ Unset means the provider's own defaults. That is what every agent had before
 this setting existed, and an agent that never chooses a profile keeps sending
 exactly the request it sent before.
 
-## Set it on an agent
+## Choose it in the agent editor
+
+Open the agent in the workspace and choose **Voice behavior**, next to Voice
+stack. The Delivery chooser offers **Provider default**, which is the unset
+state every agent starts in, and the four profiles with the same summaries as
+the table above. A short example describes how the same line is performed
+under each choice.
+
+The chooser says whether the agent's current voice honours a profile. For a
+voice whose provider and model have no truthful control (Fish Audio and Azure
+neural voices today) it reads "Not available for this provider yet": the
+choice is kept and returned but has no effect on the audio. That verdict comes
+from the same table the call runtime reads, so it follows the voice you pick
+in the editor even before you save.
+
+**Hear it as your AI agent** plays the agent's first message with the chosen
+profile through the voice preview, resolved exactly as a call resolves it.
+Changes apply to new calls after you save the agent.
+
+## Set it through the API
 
 `PATCH /v1/agents/{agent_id}/voice-stack` accepts the profile inside
 `voice_polish`, beside the existing closing line:
@@ -64,6 +83,13 @@ stored and returned, and the audio is unchanged.
 | Cartesia `sonic-3.6` | Speaking rate. |
 | Fish Audio `s2-pro` | None yet. Accepted and returned, audio unchanged. |
 | Azure neural voices | None yet. Accepted and returned, audio unchanged. |
+
+Every TTS row of `GET /v1/agent-catalog`, and the `voice` object of
+`GET /v1/agents/{agent_id}/voice-stack`, carries `delivery_control`:
+`voice_settings`, `instruction` or `speed` when a profile changes that
+engine's audio, or `unsupported` when it is stored without effect. It is read
+from the same table, so a client can show the state above without keeping its
+own provider list.
 
 Provider instructions and tags are generated from the platform's own table.
 Customer text never becomes provider control syntax, and no profile inserts
