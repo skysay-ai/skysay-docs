@@ -50,8 +50,14 @@ curl -X POST https://api.openphonex.com/v1/contact-lists \
 
 - `time_zone` defaults from the number's country (`+233…` becomes
   `Africa/Accra`); set it per row when you know better.
-- `variables` are flat, at most 32 keys and 4 KB, never secrets. They reach the
-  agent as `call_context` and can be referenced in its prompt.
+- `variables` are flat, at most 28 keys, never secrets. They reach the agent as
+  `call_context` together with the campaign metadata every attempt carries
+  (`campaign_id`, `campaign_run_id`, `attempt_no`, `contact_name`), and the
+  whole context must fit 32 keys / 4 KB: a row that would not is rejected at
+  import, never at dial time. Those four names are reserved.
+- A row's `country` is derived from its number; a declared value only fills in
+  for a number no calling code attributes, so a mislabelled row cannot steer
+  the launch-time country check.
 - The response carries a per-row report: `accepted`, `rejected`,
   `skipped_duplicates` and `rejections[]` with the row number and reason.
   Re-uploading the same numbers is idempotent. At most 10,000 rows per request.
@@ -98,7 +104,9 @@ Then `POST /v1/campaigns/{campaign_id}/launch`. The response carries
 `reason_code`, plus the run and its counters. A launched campaign is immutable:
 `POST /v1/campaigns/{campaign_id}/duplicate` copies it into a new draft when you
 need to change anything. `pause`, `resume` and `cancel` control the run; cancel
-also cancels attempts that are still queued.
+also cancels the campaign's own attempts that are still queued (a direct
+`POST /v1/calls` request that reuses the campaign id as its
+`external_group_reference` is not touched).
 
 ### Calling hours
 
