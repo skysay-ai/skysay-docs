@@ -100,7 +100,10 @@ node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://openp
 
 Merging to `main` does not publish the site. The `openphonex-docs` image
 component shares the production web application with the private dashboard.
-Release it after the application release and release-log PR are complete.
+Release it after the application release is verified and public release-log
+reconciliation has been attempted. If reconciliation refuses its checkpoint,
+record that retryable documentation failure; do not invent a checkpoint or
+block publishing otherwise verified documentation.
 
 The operator needs a clean, current `main` checkout of this repository and the
 private OpenPhonex application repository, Docker's `desktop-linux` context,
