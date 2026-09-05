@@ -1,0 +1,76 @@
+---
+title: Delivery profiles
+description: Choose how an agent's voice performs its speech, hear exactly that in the voice preview, and know which providers honour it.
+---
+
+A delivery profile decides how the selected voice *performs* a reply: its
+pace, stability and emphasis. It does not change the voice, the model, the
+language or the words. Four profiles exist:
+
+| Profile | Intent |
+| --- | --- |
+| `natural` | Warm, varied cadence with restrained expressiveness. |
+| `lively` | Brighter delivery with more pace and emphasis variation. |
+| `calm` | Slower, softer and more consistent. |
+| `precise` | Stable delivery for names, dates, amounts and compliance-sensitive content. |
+
+Unset means the provider's own defaults. That is what every agent had before
+this setting existed, and an agent that never chooses a profile keeps sending
+exactly the request it sent before.
+
+## Set it on an agent
+
+`PATCH /v1/agents/{agent_id}/voice-stack` accepts the profile inside
+`voice_polish`, beside the existing closing line:
+
+```json
+{
+  "voice_polish": {
+    "delivery": "calm",
+    "end_of_call_phrase": "Thanks for calling. Goodbye."
+  }
+}
+```
+
+The value must be one of the four names; anything else is rejected with `400`.
+The stored profile is returned by `GET /v1/agents/{agent_id}/voice-stack` and
+applied when a call starts. Saving never changes a call already in progress.
+Over MCP, `set_agent_voice_stack` takes the same `voice_polish` object.
+
+## Hear it before you save
+
+`POST /v1/voice-previews` takes an optional `delivery` with the same four
+values. The preview is rendered from the same table the call runtime reads, so
+the provider request carries the identical settings a call with that profile
+would send: the audition sounds like the call, not like a polished sample the
+call could never reproduce. The response echoes `delivery` and reports
+`delivery_applied`, which is `false` when the selected provider and model have
+no truthful control for the profile. Over MCP, `preview_voice` takes the same
+field. Generated speech is nondeterministic and phone-network audio can sound
+different from browser audio.
+
+## What each provider honours
+
+Profiles are never a universal slider. Each maps to allowlisted controls the
+provider actually exposes; where a provider has none, the setting is accepted,
+stored and returned, and the audio is unchanged.
+
+| TTS provider and model | Control the profile drives |
+| --- | --- |
+| ElevenLabs `eleven_flash_v2_5`, `eleven_turbo_v2_5` | Voice settings: stability, similarity, speed. Style stays at zero. |
+| ElevenLabs `eleven_v3` | Stability only, at the values that model documents. |
+| Gemini TTS | A bounded synthesis instruction for style and pace; the instruction is never spoken. |
+| Soniox `tts-rt-v2` | Speaking rate. |
+| Cartesia `sonic-3.6` | Speaking rate. |
+| Fish Audio `s2-pro` | None yet. Accepted and returned, audio unchanged. |
+| Azure neural voices | None yet. Accepted and returned, audio unchanged. |
+
+Provider instructions and tags are generated from the platform's own table.
+Customer text never becomes provider control syntax, and no profile inserts
+laughter, sighs, accents or filler words.
+
+## Related
+
+- [Voice library](/docs/voice-library) for choosing and previewing a voice.
+- [Audio environments](/docs/audio-environments) for optional background
+  ambience, which is a separate setting.
