@@ -98,6 +98,33 @@
         ],
         "type": "object"
       },
+      "AgentAcknowledgements": {
+        "additionalProperties": false,
+        "description": "Optional short acknowledgement while a slow reply is still being prepared: at most one per caller turn, spoken in the agent's own voice, model and current language on a separate outgoing track, cancelled the moment the real reply starts. Off unless enabled. Without phrases the platform's reviewed list for the call language is used; a language without one stays silent rather than switching to English.",
+        "properties": {
+          "delay_ms": {
+            "default": 1200,
+            "description": "How long the reply may take before an acknowledgement is worth speaking.",
+            "maximum": 3000,
+            "minimum": 600,
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "phrases": {
+            "description": "Bounded neutral phrases; digits and currency marks are rejected so a phrase cannot carry a factual, payment, legal or consent claim.",
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 6,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "AgentEndpoint": {
         "properties": {
           "audio_stream_url": {
@@ -457,6 +484,20 @@
         },
         "type": "object"
       },
+      "AgentVoicePolish": {
+        "additionalProperties": false,
+        "description": "Per-agent voice polish. Absent keys keep the platform defaults; the response omits the section entirely when nothing is configured.",
+        "properties": {
+          "acknowledgements": {
+            "$ref": "#/components/schemas/AgentAcknowledgements"
+          },
+          "end_of_call_phrase": {
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AgentVoiceStack": {
         "description": "Safe read projection. It never includes component credential binding IDs, plaintext/ciphertext, nonce, fingerprint, or provider secrets.",
         "properties": {
@@ -519,7 +560,7 @@
             "type": "string"
           },
           "voice_polish": {
-            "type": "object"
+            "$ref": "#/components/schemas/AgentVoicePolish"
           },
           "warnings": {
             "items": {
@@ -626,7 +667,7 @@
             ]
           },
           "voice_polish": {
-            "type": "object"
+            "$ref": "#/components/schemas/AgentVoicePolish"
           }
         },
         "type": "object"
@@ -6401,7 +6442,7 @@
     },
     "/v1/dashboard/billing": {
       "get": {
-        "description": "Returns one read-only Billing DTO for SSR and freshness polling. Wallet available_minor is purchased funds; promotional_available_minor is browser-only credit and total_available_minor is their combined amount. The aggregate is tenant-bound to the bearer session, uses no Stripe or carrier request, and bounds recent wallet activity and receipts.",
+        "description": "Returns one read-only Billing DTO for SSR and freshness polling, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Wallet available_minor is purchased funds; promotional_available_minor is browser-only credit and total_available_minor is their combined amount. The aggregate is tenant-bound to the bearer session, uses no Stripe or carrier request, and bounds recent wallet activity and receipts.",
         "responses": {
           "200": {
             "description": "Billing workspace aggregate"
@@ -6616,7 +6657,7 @@
     },
     "/v1/dashboard/numbers": {
       "get": {
-        "description": "Returns the read-only data needed by the Numbers dashboard. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, billing history, calls, SMS, and verification documents. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, billing history, calls, SMS, and verification documents. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
         "responses": {
           "200": {
             "description": "Numbers workspace aggregate"
