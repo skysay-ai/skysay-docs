@@ -491,6 +491,16 @@
           "acknowledgements": {
             "$ref": "#/components/schemas/AgentAcknowledgements"
           },
+          "delivery": {
+            "description": "How the selected voice performs its speech. Unset keeps the provider's own defaults, which is what every agent had before this field existed. Each profile maps to allowlisted provider controls only where the selected TTS provider/model truthfully exposes them: ElevenLabs voice settings (eleven_v3 supports stability only), a bounded Gemini TTS synthesis instruction, and a speaking-rate multiplier for Soniox and Cartesia. Fish Audio and Azure neural voices accept the setting but apply no change. The voice preview (POST /v1/voice-previews with the same `delivery`) uses the identical mapping, so an audition sounds like the call.",
+            "enum": [
+              "natural",
+              "lively",
+              "calm",
+              "precise"
+            ],
+            "type": "string"
+          },
           "end_of_call_phrase": {
             "maxLength": 300,
             "type": "string"
@@ -3069,6 +3079,16 @@
           },
           "credential_id": {
             "description": "Optional selected BYOK credential. It is validated at the provider and then used to render this preview; a platform credential is never a fallback.",
+            "type": "string"
+          },
+          "delivery": {
+            "description": "Optional delivery profile, the same value an agent stores in `voice_polish.delivery`. The preview applies exactly the provider settings a call with that profile would use; for a provider/model without a truthful control (Fish Audio, Azure) the audio is unchanged and the response reports `delivery_applied: false`.",
+            "enum": [
+              "natural",
+              "lively",
+              "calm",
+              "precise"
+            ],
             "type": "string"
           },
           "language": {
