@@ -149,6 +149,9 @@
                 "call.extraction.failed",
                 "sms.received",
                 "sms.sent",
+                "campaign.launched",
+                "campaign.contact.completed",
+                "campaign.completed",
                 "sms.delivery_updated"
               ],
               "type": "string"
@@ -197,6 +200,9 @@
                 "call.extraction.failed",
                 "sms.received",
                 "sms.sent",
+                "campaign.launched",
+                "campaign.contact.completed",
+                "campaign.completed",
                 "sms.delivery_updated"
               ],
               "type": "string"
@@ -936,7 +942,8 @@
             "enum": [
               "end_call",
               "send_sms",
-              "transfer_to_human"
+              "transfer_to_human",
+              "set_call_disposition"
             ],
             "type": "string"
           },
@@ -1029,7 +1036,7 @@
             ]
           },
           "purpose": {
-            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
+            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
             "type": "string"
           },
           "recipient_type": {
@@ -1816,6 +1823,220 @@
         ],
         "type": "object"
       },
+      "CallingWindow": {
+        "properties": {
+          "end": {
+            "pattern": "^\\d{2}:\\d{2}$",
+            "type": "string"
+          },
+          "start": {
+            "pattern": "^\\d{2}:\\d{2}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "type": "object"
+      },
+      "CampaignCreate": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "calling_windows": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/CallingWindow"
+              },
+              "type": "array"
+            },
+            "type": "object"
+          },
+          "consent_basis": {
+            "enum": [
+              "existing_customer",
+              "explicit_consent"
+            ],
+            "type": "string"
+          },
+          "contact_list_id": {
+            "type": "string"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "from_number_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
+          },
+          "language": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "max_concurrency": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "reserved_concurrency": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retry_policy": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RetryRule"
+            },
+            "type": "object"
+          },
+          "retry_policy_preset": {
+            "enum": [
+              "sales",
+              "collections",
+              "single_attempt"
+            ],
+            "type": "string"
+          },
+          "scheduled_start_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "time_zone": {
+            "default": "UTC",
+            "type": "string"
+          },
+          "time_zone_mode": {
+            "default": "contact",
+            "enum": [
+              "contact",
+              "fixed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id",
+          "project_id",
+          "name",
+          "agent_id",
+          "from_number_ids",
+          "contact_list_id",
+          "purpose",
+          "consent_basis"
+        ],
+        "type": "object"
+      },
+      "ContactImport": {
+        "properties": {
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/ContactRow"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "type": "array"
+          },
+          "organization_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id",
+          "contacts"
+        ],
+        "type": "object"
+      },
+      "ContactListCreate": {
+        "properties": {
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/ContactRow"
+            },
+            "maxItems": 10000,
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "api",
+              "csv",
+              "mcp"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id",
+          "project_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ContactRow": {
+        "properties": {
+          "consent_basis": {
+            "enum": [
+              "existing_customer",
+              "explicit_consent"
+            ],
+            "type": "string"
+          },
+          "external_reference": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "language": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "type": "string"
+          },
+          "phone_e164": {
+            "type": "string"
+          },
+          "time_zone": {
+            "description": "IANA zone; defaults from the number's country",
+            "type": "string"
+          },
+          "variables": {
+            "description": "Flat template variables, at most 28 keys; with the campaign metadata the call context stays within 32 keys / 4 KB; never secrets",
+            "type": "object"
+          }
+        },
+        "required": [
+          "phone_e164"
+        ],
+        "type": "object"
+      },
       "CreateOrganization": {
         "properties": {
           "name": {
@@ -1897,6 +2118,30 @@
         },
         "required": [
           "email"
+        ],
+        "type": "object"
+      },
+      "DoNotCallAdd": {
+        "properties": {
+          "organization_id": {
+            "type": "string"
+          },
+          "phone_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "type": "array"
+          },
+          "reason": {
+            "maxLength": 160,
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id",
+          "phone_numbers"
         ],
         "type": "object"
       },
@@ -2399,7 +2644,7 @@
             "type": "string"
           },
           "purpose": {
-            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
+            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
             "type": "string"
           },
           "recipient_type": {
@@ -2818,6 +3063,27 @@
         ],
         "type": "object"
       },
+      "RetryRule": {
+        "properties": {
+          "backoff_seconds": {
+            "items": {
+              "maximum": 2592000,
+              "minimum": 60,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "max_attempts": {
+            "maximum": 10,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "retry": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "RouteTrialCall": {
         "properties": {
           "from_phone_number": {
@@ -2861,7 +3127,7 @@
             "type": "string"
           },
           "purpose": {
-            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
+            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
             "type": "string"
           },
           "recipient_type": {
@@ -6137,6 +6403,453 @@
         "summary": "Get waveform peaks for playback"
       }
     },
+    "/v1/campaigns": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaigns and pagination"
+          }
+        },
+        "summary": "List campaigns (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "post": {
+        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the plan's concurrent-call allowance, and an optional schedule. A campaign is locked at launch; duplicate it to change anything. Cold, purchased or scraped lists are not permitted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Campaign"
+          }
+        },
+        "summary": "Create a draft outbound campaign",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign"
+          }
+        },
+        "summary": "Read one campaign with its latest run and contact counters",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign"
+          }
+        },
+        "summary": "Cancel a campaign: queued calls are cancelled, remaining contacts skipped",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/contacts": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "scheduled",
+                "dispatched",
+                "completed",
+                "failed",
+                "skipped",
+                "pre_dial_failed",
+                "do_not_call"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign contacts and pagination"
+          }
+        },
+        "summary": "List the latest run's contacts with status, disposition, attempts and next attempt (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/duplicate": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "contact_list_id": {
+                    "type": "string"
+                  },
+                  "ends_at": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "scheduled_start_at": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "description": "Draft campaign"
+          }
+        },
+        "summary": "Copy a campaign's configuration into a new draft",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/launch": {
+      "post": {
+        "description": "Existing-customer or consented lists on an approved outbound envelope start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not approved, voice not in the envelope, a destination country outside it, or a profile without campaigns) or blocked (sanctioned destination, blocked purpose, missing consent basis). Contacts already on the do-not-call register are marked and never dialed.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign with authorization and run"
+          }
+        },
+        "summary": "Authorize and start a draft campaign",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/pause": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign"
+          }
+        },
+        "summary": "Pause a running campaign",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/resume": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign"
+          }
+        },
+        "summary": "Resume a paused campaign",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/contact-lists": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact lists and pagination"
+          }
+        },
+        "summary": "List contact lists in the workspace (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "post": {
+        "description": "Rows carry phone_e164 plus optional name, language, time_zone (IANA; defaults from the number's country), external_reference, consent_basis and flat template variables (at most 28 keys; with the campaign metadata the call context stays within 32 keys / 4 KB; never secrets). Invalid rows are reported per row; duplicates within the list are skipped. At most 10,000 rows per request.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactListCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Contact list with an import report when rows were supplied"
+          }
+        },
+        "summary": "Create a contact list, optionally importing rows in the same request",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/contact-lists/{contact_list_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact list"
+          }
+        },
+        "summary": "Read one contact list",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/contact-lists/{contact_list_id}/contacts": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contacts and pagination"
+          }
+        },
+        "summary": "List contacts in a list (bounded page in import order)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactImport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Per-row import report"
+          }
+        },
+        "summary": "Append rows to a contact list",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
     "/v1/conversations": {
       "get": {
         "responses": {
@@ -6625,6 +7338,81 @@
         ]
       }
     },
+    "/v1/dashboard/campaigns": {
+      "get": {
+        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency). Fixed query budget; never a caller-selected tenant.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contact_status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contacts_limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contacts_offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaigns page projection"
+          }
+        },
+        "summary": "Bounded Campaigns page aggregate for the signed-in workspace"
+      }
+    },
     "/v1/dashboard/integrations": {
       "get": {
         "description": "Returns one tenant-bound, read-only DTO for customer Integrations, their bounded action metadata, hosted-agent attachments, and post-call extraction configuration. It never decrypts a signing secret, calls a customer endpoint, invokes a carrier, or returns endpoint URLs, secret material, arbitrary action arguments, or provider diagnostics.",
@@ -6807,6 +7595,65 @@
           }
         },
         "summary": "Read the bounded, customer-scoped Webhooks aggregate"
+      }
+    },
+    "/v1/do-not-call": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Do-not-call entries and pagination"
+          }
+        },
+        "summary": "List the workspace do-not-call register (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "post": {
+        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DoNotCallAdd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Numbers added and per-row rejections"
+          }
+        },
+        "summary": "Add numbers to the do-not-call register",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/do-not-call/{phone_number}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "phone_number",
+            "required": true,
+            "schema": {
+              "description": "URL-encoded E.164",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removal count"
+          }
+        },
+        "summary": "Remove one number from the do-not-call register",
+        "x-required-scopes": [
+          "calls:write"
+        ]
       }
     },
     "/v1/end-users/{end_user_profile_id}/registration-status": {
