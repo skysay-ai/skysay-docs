@@ -15,11 +15,13 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.request
+import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_ID = "7a0e8413-d3ab-4763-9286-0c944dd65be4"
@@ -38,6 +40,14 @@ class Refused(RuntimeError):
 
 
 class RollbackFailed(Refused):
+    pass
+
+
+class NotStarted(Refused):
+    pass
+
+
+class RolledBack(Refused):
     pass
 
 
@@ -196,7 +206,10 @@ def read(module, name, value):
     body = path.read_bytes()
     if hashlib.sha256(body).hexdigest() != path.stem:
         raise Refused("evidence digest mismatch")
-    return json.loads(body)
+    value = json.loads(body)
+    if body != canonical(value):
+        raise Refused("evidence serialization is not canonical")
+    return value
 
 
 def request(url):
@@ -211,7 +224,9 @@ def probe_url(base, revision=None):
             status, headers, body = request(base + "/docs?release_probe=" + str(time.time_ns()))
             if status == 200 and (revision is None or headers.get("X-OpenPhonex-Docs-Revision") == revision):
                 break
-            last = "revision header mismatch"
+            last = "revision header mismatch" if status == 200 else f"status {status}"
+        except urllib.error.HTTPError as exc:
+            last = f"status {exc.code}"
         except Exception as exc:
             last = type(exc).__name__
         time.sleep(2)
@@ -230,12 +245,16 @@ def image_probe(module, target, revision, app_repo):
     reference = IMAGE + "@" + target["digest"]
     context = module.builder(False)[0]
     docker = ["docker", "--context", context]
+    endpoint = command(["docker", "context", "inspect", context, "--format", "{{.Endpoints.docker.Host}}"]).strip()
+    if not endpoint.startswith("unix://"):
+        raise Refused("docs image probe requires a local Docker socket")
     command(docker + ["pull", "--platform", "linux/amd64", reference], timeout=600)
     arch = command(docker + ["image", "inspect", reference, "--format", "{{.Os}}/{{.Architecture}}"] ).strip()
     if arch != "linux/amd64":
         raise Refused("docs image is not linux/amd64")
-    container = command(docker + ["run", "--detach", "--platform", "linux/amd64", "--publish", "127.0.0.1::8080", reference]).strip()
+    container = "openphonex-docs-probe-" + secrets.token_hex(16)
     try:
+        command(docker + ["run", "--name", container, "--detach", "--platform", "linux/amd64", "--publish", "127.0.0.1::8080", reference])
         port = command(docker + ["port", container, "8080/tcp"]).strip()
         if not re.fullmatch(r"127\.0\.0\.1:[0-9]+", port):
             raise Refused("image probe was not bound to loopback")
@@ -245,7 +264,11 @@ def image_probe(module, target, revision, app_repo):
         proof["architecture"] = arch
         return proof
     finally:
-        command(docker + ["rm", "--force", container])
+        # run may create a container and then fail while publishing its port.
+        # Query by our unguessable owned name so even that path is cleaned up.
+        found = command(docker + ["ps", "--all", "--quiet", "--filter", "name=^/" + container + "$"]).strip()
+        if found:
+            command(docker + ["rm", "--force", container])
 
 
 def parity(app_repo, base):
@@ -321,7 +344,14 @@ def prepare(module, primitive_identity, app_repo):
     print(json.dumps({"prepared_receipt": str(path), "elapsed_seconds": round(time.monotonic() - started, 3)}))
 
 
-def promote(module, receipt, primitive_identity, app_repo):
+def final_fence(module, spec, deployment, target):
+    final_spec, final_deployment = snapshot(module)
+    if digest(final_spec) != digest(spec) or final_deployment != deployment:
+        raise Refused("shared app spec or deployment changed during docs proofs")
+    identity(module, target)
+
+
+def _promote(module, receipt, primitive_identity, app_repo):
     started = time.monotonic()
     validate(receipt)
     if clean_main(ROOT) != receipt["source"] or primitive_identity != receipt["primitives"] or hashlib.sha256(Path(__file__).read_bytes()).hexdigest() != receipt["adapter_sha256"]:
@@ -341,6 +371,7 @@ def promote(module, receipt, primitive_identity, app_repo):
             # A retry after success verifies serving state without another update.
             proof = probe_url("https://openphonex.com", receipt["source"]["sha"])
             proof["parity_sha256"] = parity(app_repo, "https://openphonex.com")
+            final_fence(module, target_spec, deployment, receipt["target"])
             outcome = "already_live"
         elif current == receipt["previous"]["tag"] and deployment == receipt["deployment_id"]:
             try:
@@ -349,12 +380,13 @@ def promote(module, receipt, primitive_identity, app_repo):
                 identity(module, receipt["target"])
                 proof = probe_url("https://openphonex.com", receipt["source"]["sha"])
                 proof["parity_sha256"] = parity(app_repo, "https://openphonex.com")
+                final_fence(module, target_spec, deployment, receipt["target"])
                 outcome = "promoted"
             except Exception as failure:
                 try:
                     data = module.app_data(APP_ID)
                     if digest(data.get("spec")) == digest(previous_spec) and not data.get("in_progress_deployment") and digest((data.get("active_deployment") or {}).get("spec")) == digest(previous_spec):
-                        raise Refused("update failed before changing production") from failure
+                        raise NotStarted("update failed before changing production") from failure
                     if digest(data.get("spec")) != digest(target_spec):
                         raise Refused("rollback refused after foreign spec change")
                     identity(module, receipt["previous"])
@@ -362,15 +394,28 @@ def promote(module, receipt, primitive_identity, app_repo):
                     await_spec(module, previous_spec)
                     identity(module, receipt["previous"])
                     probe_url("https://openphonex.com")
+                    restored_spec, restored_deployment = snapshot(module)
+                    final_fence(module, previous_spec, restored_deployment, receipt["previous"])
                 except Exception as rollback:
-                    if isinstance(rollback, Refused) and str(rollback) == "update failed before changing production":
+                    if isinstance(rollback, NotStarted):
                         raise rollback
                     raise RollbackFailed(f"docs rollback incomplete: {type(rollback).__name__}") from failure
-                raise Refused(f"docs promotion failed and was rolled back: {type(failure).__name__}") from failure
+                raise RolledBack(f"docs promotion failed and was rolled back: {type(failure).__name__}") from failure
         else:
             raise Refused("docs active deployment fence changed")
         result = {"receipt_sha256": digest(receipt), "outcome": outcome, "deployment_id": deployment, "proof": proof, "elapsed_seconds": round(time.monotonic() - started, 3), "completed_at": dt.datetime.now(dt.timezone.utc).isoformat()}
         print(json.dumps({"outcome": outcome, "evidence": str(save(module, "promotions", result))}))
+
+
+def promote(module, receipt, primitive_identity, app_repo):
+    started = time.monotonic()
+    try:
+        _promote(module, receipt, primitive_identity, app_repo)
+    except Exception as failure:
+        outcome = "rollback_failed" if isinstance(failure, RollbackFailed) else "rolled_back" if isinstance(failure, RolledBack) else "not_started" if isinstance(failure, NotStarted) else "refused"
+        result = {"receipt_sha256": digest(receipt), "outcome": outcome, "failure_class": type(failure).__name__, "elapsed_seconds": round(time.monotonic() - started, 3), "completed_at": dt.datetime.now(dt.timezone.utc).isoformat()}
+        print(json.dumps({"outcome": outcome, "evidence": str(save(module, "promotions", result))}), file=sys.stderr)
+        raise
 
 
 def main(argv=None):

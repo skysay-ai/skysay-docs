@@ -133,6 +133,11 @@ Coordinate with other release operators. A changed main commit, app spec or
 deployment invalidates preparation; do not edit receipts or manually overwrite
 an image tag to bypass a refusal.
 
+If a push succeeds but preparation is interrupted or its image proof fails,
+the tag remains unpromoted. A repeated preparation refuses that existing tag;
+automatic recovery of an incomplete preparation is intentionally unsupported.
+Keep its immutable digest for investigation and never overwrite the tag.
+
 A standard Next.js app with no custom server and **no `basePath`** — the
 hosting layer passes the full path through, so `/docs/...` is `/docs/...` all
 the way down.

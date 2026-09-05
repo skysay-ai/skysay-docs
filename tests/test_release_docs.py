@@ -76,14 +76,40 @@ class ContractTests(unittest.TestCase):
 
     def test_image_architecture_failure_prevents_running_container(self):
         module = types.SimpleNamespace(builder=lambda _: ("desktop-linux", "", ""))
-        with patch.object(r, "command", side_effect=["", "linux/arm64\n"]) as command, self.assertRaisesRegex(r.Refused, "amd64"):
+        with patch.object(r, "command", side_effect=["unix:///local/docker.sock", "", "linux/arm64\n"]) as command, self.assertRaisesRegex(r.Refused, "amd64"):
             r.image_probe(module, NEW, SOURCE["sha"], ROOT)
         self.assertFalse(any("run" in call.args[0] for call in command.call_args_list))
+
+    def test_remote_probe_daemon_is_refused_before_pull_or_run(self):
+        module = types.SimpleNamespace(builder=lambda _: ("desktop-linux", "", ""))
+        with patch.object(r, "command", return_value="ssh://another-host") as command, self.assertRaisesRegex(r.Refused, "local"):
+            r.image_probe(module, NEW, SOURCE["sha"], ROOT)
+        self.assertEqual(command.call_count, 1)
+
+    def test_failed_run_after_container_creation_is_cleaned_by_owned_name(self):
+        module = types.SimpleNamespace(builder=lambda _: ("desktop-linux", "", ""))
+        with patch.object(r, "command", side_effect=["unix:///local/docker.sock", "", "linux/amd64", r.Refused("publish failed"), "owned-id", ""]) as command, self.assertRaises(r.Refused):
+            r.image_probe(module, NEW, SOURCE["sha"], ROOT)
+        run = command.call_args_list[3].args[0]
+        removal = command.call_args_list[-1].args[0]
+        self.assertEqual(removal[-1], run[run.index("--name") + 1])
+        self.assertIn("rm", removal)
 
     def test_promote_command_requires_execute(self):
         with patch.object(r, "primitives", return_value=(MagicMock(), PRIMITIVES)), patch.object(r, "promote") as promote:
             self.assertEqual(r.main(["promote", "--app-repo", str(ROOT), "--receipt", "untrusted"]), 1)
         promote.assert_not_called()
+
+    def test_cli_distinguishes_rollback_failure_from_successful_rollback(self):
+        for failure, status in ((r.RollbackFailed("restore failed"), 2), (r.RolledBack("restored"), 1)):
+            with self.subTest(status=status), patch.object(r, "primitives", return_value=(MagicMock(), PRIMITIVES)), patch.object(r, "read", return_value=receipt()), patch.object(r, "promote", side_effect=failure):
+                self.assertEqual(r.main(["promote", "--app-repo", str(ROOT), "--receipt", "private", "--execute"]), status)
+
+    def test_cli_execute_dispatches_only_the_verified_receipt(self):
+        module = MagicMock()
+        with patch.object(r, "primitives", return_value=(module, PRIMITIVES)), patch.object(r, "read", return_value=receipt()), patch.object(r, "promote") as promote:
+            self.assertEqual(r.main(["promote", "--app-repo", str(ROOT), "--receipt", "private", "--execute"]), 0)
+        promote.assert_called_once_with(module, receipt(), PRIMITIVES, ROOT)
 
 
 class EvidenceTests(unittest.TestCase):
@@ -134,6 +160,8 @@ class PromotionTests(unittest.TestCase):
                         patch.object(r, "update_spec", side_effect=self.update),
                         patch.object(r, "await_spec", side_effect=lambda _, expected: self.deployment)]
         self.mocks = [p.start() for p in self.patches]
+        (self.clean_main, self.read_evidence, self.evidence_dir, self.save_evidence,
+         self.probe, self.parity, self.update_spec, self.wait_spec) = self.mocks
 
     def tearDown(self):
         for p in reversed(self.patches): p.stop()
@@ -152,8 +180,9 @@ class PromotionTests(unittest.TestCase):
         with patch.object(r, "command", side_effect=AssertionError("promote must not build or push")):
             self.run_release()
             self.run_release()
-        self.assertEqual(self.mocks[6].call_count, 1)
+        self.assertEqual(self.update_spec.call_count, 1)
         self.assertEqual(self.module.PromotionLock.call_count, 2)
+        self.assertEqual(self.update_spec.call_args.args[0], r.replace_tag(app_spec(), NEW["tag"]))
 
     def test_drift_or_inflight_or_shared_lease_collision_prevents_update(self):
         for kind in ("foreign", "inflight", "lease", "deployment"):
@@ -165,59 +194,79 @@ class PromotionTests(unittest.TestCase):
                 if kind == "lease": self.module.PromotionLock.side_effect = r.Refused("another promotion")
                 if kind == "deployment": self.deployment = "different-deployment"
                 with self.assertRaises(r.Refused): self.run_release()
-        self.mocks[6].assert_not_called()
+        self.update_spec.assert_not_called()
 
     def test_source_or_primitive_drift_prevents_update(self):
         for change in ({"source": {**SOURCE, "tree": "f" * 40}}, {"primitives": {**PRIMITIVES, "sha": "f" * 40}}, {"adapter_sha256": "f" * 64}):
             with self.subTest(change=change), self.assertRaises(r.Refused):
                 self.run_release({**receipt(), **change})
-        self.mocks[6].assert_not_called()
+        self.update_spec.assert_not_called()
 
     def test_target_or_previous_digest_collision_prevents_update(self):
         self.module.direct_registry_digest = lambda *_: "sha256:" + "f" * 64
         with self.assertRaisesRegex(r.Refused, "registry"):
             self.run_release()
-        self.mocks[6].assert_not_called()
+        self.update_spec.assert_not_called()
 
     def test_failed_proof_rolls_back_only_own_tag_and_preserves_secrets(self):
-        self.mocks[4].side_effect = [r.Refused("new revision absent"), {"rollback_passed": True}]
+        self.probe.side_effect = [r.Refused("new revision absent"), {"rollback_passed": True}]
         with self.assertRaisesRegex(r.Refused, "was rolled back"):
             self.run_release()
         self.assertEqual(self.spec, app_spec())
-        self.assertEqual(self.mocks[6].call_count, 2)
+        self.assertEqual(self.update_spec.call_count, 2)
+        self.assertEqual(self.save_evidence.call_args.args[2]["outcome"], "rolled_back")
 
     def test_failed_proof_with_foreign_spec_does_not_overwrite_it(self):
         def fail(*_):
             self.spec["services"][0]["image"]["tag"] = "foreign-new-web"
             raise r.Refused("proof failed")
-        self.mocks[4].side_effect = fail
+        self.probe.side_effect = fail
         with self.assertRaises(r.RollbackFailed): self.run_release()
         self.assertEqual(self.spec["services"][0]["image"]["tag"], "foreign-new-web")
-        self.assertEqual(self.mocks[6].call_count, 1)
+        self.assertEqual(self.update_spec.call_count, 1)
+        self.assertEqual(self.save_evidence.call_args.args[2]["outcome"], "rollback_failed")
+
+    def test_foreign_change_during_parity_is_not_certified_or_rolled_over(self):
+        def concurrent_change(*_):
+            self.spec["services"][0]["image"]["tag"] = "foreign-during-proof"
+            return "f" * 64
+        self.parity.side_effect = concurrent_change
+        with self.assertRaises(r.RollbackFailed): self.run_release()
+        self.assertEqual(self.update_spec.call_count, 1)
+        self.assertEqual(self.spec["services"][0]["image"]["tag"], "foreign-during-proof")
+
+    def test_registry_drift_during_successful_retry_proof_is_refused_without_update(self):
+        self.spec = r.replace_tag(app_spec(), NEW["tag"])
+        def repoint(*_):
+            self.module.direct_registry_digest = lambda *_: "sha256:" + "f" * 64
+            return "f" * 64
+        self.parity.side_effect = repoint
+        with self.assertRaisesRegex(r.Refused, "registry"): self.run_release()
+        self.update_spec.assert_not_called()
 
     def test_rollback_failure_is_distinct(self):
-        self.mocks[4].side_effect = r.Refused("proof failed")
+        self.probe.side_effect = r.Refused("proof failed")
         def update_once(spec):
-            if self.mocks[6].call_count == 1:
+            if self.update_spec.call_count == 1:
                 self.update(spec)
             else:
                 raise r.Refused("rollback update failed")
-        self.mocks[6].side_effect = update_once
+        self.update_spec.side_effect = update_once
         with self.assertRaises(r.RollbackFailed): self.run_release()
 
     def test_update_refused_before_mutation_does_not_attempt_rollback(self):
-        self.mocks[6].side_effect = r.Refused("update rejected")
+        self.update_spec.side_effect = r.Refused("update rejected")
         with self.assertRaisesRegex(r.Refused, "before changing"):
             self.run_release()
         self.assertEqual(self.spec, app_spec())
-        self.assertEqual(self.mocks[6].call_count, 1)
+        self.assertEqual(self.update_spec.call_count, 1)
 
     def test_desired_spec_is_not_active_spec_proof(self):
         value = self.data(); value["active_deployment"]["spec"]["services"][1]["image"]["tag"] = "docs-87654321"
         self.module.app_data = lambda _: value
         with self.assertRaisesRegex(r.Refused, "active"):
             self.run_release()
-        self.mocks[6].assert_not_called()
+        self.update_spec.assert_not_called()
 
 
 if __name__ == "__main__":
