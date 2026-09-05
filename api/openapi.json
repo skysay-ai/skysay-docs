@@ -1944,6 +1944,104 @@
         ],
         "type": "object"
       },
+      "CampaignUpdate": {
+        "description": "Any subset of the campaign settings; which ones are accepted depends on the campaign status (see editable_fields on the campaign). `contacts` uploads a replacement audience: the list is created inside the same locked transaction and becomes contact_list_id, so a status that locks the audience answers 409 before any list exists.",
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "calling_windows": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/CallingWindow"
+              },
+              "type": "array"
+            },
+            "type": "object"
+          },
+          "consent_basis": {
+            "enum": [
+              "existing_customer",
+              "explicit_consent"
+            ],
+            "type": "string"
+          },
+          "contact_list_id": {
+            "type": "string"
+          },
+          "contact_list_name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/ContactRow"
+            },
+            "maxItems": 10000,
+            "type": "array"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "from_number_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
+          },
+          "language": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "max_concurrency": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "reserved_concurrency": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retry_policy": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RetryRule"
+            },
+            "type": "object"
+          },
+          "retry_policy_preset": {
+            "enum": [
+              "sales",
+              "collections",
+              "single_attempt"
+            ],
+            "type": "string"
+          },
+          "scheduled_start_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "time_zone_mode": {
+            "enum": [
+              "contact",
+              "fixed"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ContactImport": {
         "properties": {
           "contacts": {
@@ -6481,12 +6579,47 @@
         ],
         "responses": {
           "200": {
-            "description": "Campaign"
+            "description": "Campaign, including editable_fields for its status"
           }
         },
         "summary": "Read one campaign with its latest run and contact counters",
         "x-required-scopes": [
           "calls:read"
+        ]
+      },
+      "patch": {
+        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. The response is the campaign plus `changed`, the list of settings that actually changed.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Campaign with changed[]"
+          },
+          "409": {
+            "description": "Setting locked in this status, or the status changed concurrently"
+          }
+        },
+        "summary": "Edit a campaign's settings",
+        "x-required-scopes": [
+          "calls:write"
         ]
       }
     },
@@ -6617,6 +6750,37 @@
         "summary": "Copy a campaign's configuration into a new draft",
         "x-required-scopes": [
           "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/export": {
+      "get": {
+        "description": "One text/csv attachment with a fixed column set per contact: phone_e164, name, external_reference, language, time_zone, status, disposition, attempt_count, next_attempt_at, callback_at, skip_reason, last_call_id, last_call_status, termination_cause, termination_detail, updated_at. In list order, bounded by the contact-list cap (50,000 rows); X-OpenPhonex-Row-Count carries the row count and X-OpenPhonex-Truncated says whether rows beyond the cap were left out. Uploaded variables are not echoed back. Free-text cells that start with a formula character are prefixed; phone_e164 is written verbatim (import that column as text in a spreadsheet). Bound to the credential's own organization: an organization_id query value is ignored and a credential without an organization is refused.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "CSV file"
+          }
+        },
+        "summary": "Export the latest run's results as CSV",
+        "x-required-scopes": [
+          "calls:read"
         ]
       }
     },
