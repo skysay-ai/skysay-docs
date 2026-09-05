@@ -1,6 +1,6 @@
 ---
 title: Acknowledgements
-description: Let an agent say a short "One moment" in its own voice while a slow reply is still being prepared, at most once per turn, cancelled the moment the real reply starts.
+description: Let an agent say a short "One moment" in its own voice while a slow reply is still being prepared, and choose what the caller hears while a slow tool call runs.
 ---
 
 Between the end of a caller's turn and the first word of the reply there is a
@@ -65,6 +65,55 @@ the [generated API reference](/docs/api-reference).
   `filler_acknowledgements_enabled: true` for calls where the feature was on,
   so a reviewer knows the caller may have heard a filler the transcript does
   not show.
+
+## During tool waits
+
+A tool call is the one wait the model cannot talk through. When the agent
+calls an integration action or searches a knowledge base, it is silent for as
+long as your endpoint takes; most calls return in well under a second, but the
+slow tail runs to several seconds, and dead air of that length reads as a
+dropped call. `voice_polish.tool_wait` chooses what the caller hears instead:
+
+```json
+{
+  "voice_polish": {
+    "tool_wait": {
+      "mode": "sound",
+      "delay_ms": 1000
+    }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `mode` | `off` (default, not stored), `sound` or `acknowledge`. `sound` plays a quiet keyboard-typing bed on the separate outgoing track once the tool has run for `delay_ms`, and cuts it the instant the tool finishes; it is wordless, so it works in every language. `acknowledge` speaks one short phrase in the agent's own voice and language instead ("One moment while I check."), synthesized once per call like an acknowledgement. |
+| `delay_ms` | Optional, 600 to 3000, default 1000. How long a tool may run before feedback starts. Most tools finish inside this and the caller hears nothing. |
+| `phrases` | Optional, `acknowledge` only. Up to 6 short neutral phrases under the same rule as acknowledgements (at most 40 characters, no digits, currency marks or claim words). Without phrases the reviewed list for the call's language is used; a language without one stays silent rather than acknowledging in English. Rejected with `mode: "sound"`. |
+
+How the worker behaves:
+
+- **Never over anyone.** Feedback waits until both the caller and the agent
+  are silent. If the agent says "let me look that up" before calling the tool,
+  the delay starts when those words end. Caller speech or the start of the
+  reply cuts the feedback immediately, and a wait the caller interrupts stays
+  quiet for the rest of that tool call.
+- **Once per wait.** Tools the model calls in parallel share one window, from
+  the first start to the last end; the caller hears one bed or one phrase, not
+  one per tool. The typing bed also stops after 15 seconds so a hung tool
+  cannot type forever. A phrase that has started is allowed to finish unless
+  the reply or the caller begins.
+- **Not for the call's own controls.** Ending the call, transferring to a
+  human and the internal language switch never get feedback.
+- **One spoken filler per turn.** With [acknowledgements](#enable-acknowledgements-on-an-agent)
+  enabled as well, the acknowledgement pauses while a tool runs and resumes
+  afterwards; a turn that already heard one phrase does not hear a second.
+  The typing bed is not speech and may still play.
+- **Evidence.** Like acknowledgements, feedback plays on the background track
+  and never appears in the recorded agent audio or the transcript lines. The
+  transcript's `tool_wait_feedback` section states the configured `mode` and
+  lists every start and cut with its reason, and the effective voice stack
+  identity records the mode when it is on.
 
 ## What it does not do
 

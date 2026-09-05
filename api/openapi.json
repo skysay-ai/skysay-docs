@@ -364,6 +364,39 @@
           }
         ]
       },
+      "AgentToolWait": {
+        "additionalProperties": false,
+        "description": "What the caller hears while a slow tool call (an integration action, a knowledge search) is still running. Off unless a mode is set. `sound` plays a quiet keyboard-typing bed on the separate outgoing track once the tool has run for `delay_ms`, cut the instant the tool finishes, capped at 15 seconds; it is wordless, so it works in every language. `acknowledge` speaks one short phrase in the agent's own voice and language instead; without phrases the platform's reviewed list for the call language is used, and a language without one stays silent. Feedback never plays over the caller or the agent, at most once per tool wait, and never for the built-in end-call or transfer tools.",
+        "properties": {
+          "delay_ms": {
+            "default": 1000,
+            "description": "How long a tool may run before feedback starts. Most tools finish well inside this.",
+            "maximum": 3000,
+            "minimum": 600,
+            "type": "integer"
+          },
+          "mode": {
+            "default": "off",
+            "enum": [
+              "off",
+              "acknowledge",
+              "sound"
+            ],
+            "type": "string"
+          },
+          "phrases": {
+            "description": "For `acknowledge` only; the same bounded neutral-phrase rule as acknowledgements. Rejected with `sound`.",
+            "items": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 6,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "AgentTurnTaking": {
         "additionalProperties": false,
         "description": "Per-agent barge-in and endpointing tuning. Every field is optional and omitted from responses when it is at its default, so an agent that has never configured this section has no `turn_taking` key at all. Applied when a call starts; saving never changes an in-progress call.",
@@ -504,6 +537,9 @@
           "end_of_call_phrase": {
             "maxLength": 300,
             "type": "string"
+          },
+          "tool_wait": {
+            "$ref": "#/components/schemas/AgentToolWait"
           }
         },
         "type": "object"
@@ -6196,7 +6232,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack, which components were actually configured, the same inbound-admission verdict the Agents list carries, the launch-supported component-metered catalog, a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish and audio_environment settings, which components were actually configured, the same inbound-admission verdict the Agents list carries, the launch-supported component-metered catalog, a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
