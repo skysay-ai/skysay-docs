@@ -1,0 +1,158 @@
+---
+title: Campaigns
+description: Call a list of your own customers with a hosted agent inside the hours you choose, with per-outcome retries and a do-not-call register.
+---
+
+A campaign is one contact list, one hosted agent, one or more caller-ID
+numbers, a set of local calling hours and a per-outcome retry policy. OpenPhonex
+places every attempt as an ordinary outbound call, so the same policy, wallet,
+queue and evidence rules apply as for a single `POST /v1/calls`.
+
+Use a campaign when your list is ready to be called and you want OpenPhonex to
+own the scheduling. Use a [customer application](/docs/customer-applications)
+when your own system owns the cadence and must decide each call.
+
+## Who you may call
+
+Campaigns are self-serve for two consent bases, declared per campaign:
+
+| `consent_basis` | Meaning |
+| --- | --- |
+| `existing_customer` | People with an active relationship with your business |
+| `explicit_consent` | People who agreed in writing to be called by you |
+
+Cold sales, telemarketing, lead generation and purchased, scraped or listed
+contacts stay blocked platform-wide; a campaign with such a purpose is refused
+at launch. Launch runs one authorization against your approved outbound
+envelope: a destination country outside the envelope holds the campaign for the
+usual new-country review, a sanctioned destination blocks it, and an outbound
+profile that does not include campaigns holds it for operator review.
+
+## Contact lists
+
+Create a list and import rows in one request. A row needs `phone_e164`; every
+other field is optional.
+
+```bash
+curl -X POST https://api.openphonex.com/v1/contact-lists \
+  -H "Authorization: Bearer $OPENPHONEX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": "org_123",
+    "project_id": "proj_123",
+    "name": "September renewals",
+    "contacts": [
+      {"phone_e164": "+233241234567", "name": "Ama", "external_reference": "crm-4812",
+       "variables": {"plan": "gold", "renewal_date": "2026-09-30"}}
+    ]
+  }'
+```
+
+- `time_zone` defaults from the number's country (`+233…` becomes
+  `Africa/Accra`); set it per row when you know better.
+- `variables` are flat, at most 32 keys and 4 KB, never secrets. They reach the
+  agent as `call_context` and can be referenced in its prompt.
+- The response carries a per-row report: `accepted`, `rejected`,
+  `skipped_duplicates` and `rejections[]` with the row number and reason.
+  Re-uploading the same numbers is idempotent. At most 10,000 rows per request.
+
+Append later with `POST /v1/contact-lists/{contact_list_id}/contacts`.
+
+## Do-not-call register
+
+`POST /v1/do-not-call` with `phone_numbers[]` adds numbers to the organization
+register. It is honoured on every outbound path, campaigns and the direct calls
+API alike, and by every campaign at launch (those contacts are marked and never
+dialed). A hosted agent adds a number itself with the
+`set_call_disposition` tool and the `do_not_call` outcome, and a workflow
+`cease_contact` interrupt does the same. `GET /v1/do-not-call` lists the
+register; `DELETE /v1/do-not-call/{phone_number}` removes one entry.
+
+## Create and launch
+
+```bash
+curl -X POST https://api.openphonex.com/v1/campaigns \
+  -H "Authorization: Bearer $OPENPHONEX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": "org_123",
+    "project_id": "proj_123",
+    "name": "September renewals",
+    "agent_id": "agent_123",
+    "from_number_ids": ["num_123", "num_456"],
+    "contact_list_id": "clist_123",
+    "purpose": "customer_outreach",
+    "consent_basis": "existing_customer",
+    "time_zone_mode": "contact",
+    "time_zone": "Africa/Accra",
+    "calling_windows": {"monday": [{"start": "08:00", "end": "19:00"}], "tuesday": [{"start": "08:00", "end": "19:00"}]},
+    "retry_policy_preset": "sales",
+    "max_concurrency": 2,
+    "reserved_concurrency": 1,
+    "scheduled_start_at": "2026-09-08T08:00:00Z"
+  }'
+```
+
+Then `POST /v1/campaigns/{campaign_id}/launch`. The response carries
+`authorization.decision` (`allowed`, `needs_review` or `blocked`) and
+`reason_code`, plus the run and its counters. A launched campaign is immutable:
+`POST /v1/campaigns/{campaign_id}/duplicate` copies it into a new draft when you
+need to change anything. `pause`, `resume` and `cancel` control the run; cancel
+also cancels attempts that are still queued.
+
+### Calling hours
+
+`calling_windows` is `{weekday: [{start, end}]}` in `HH:MM`, at most four
+windows a day, never spanning midnight. With `time_zone_mode: "contact"` each
+contact's own zone applies and `time_zone` is the fallback; with `"fixed"` the
+one zone applies to everyone. A contact outside its window is deferred to the
+next open window, never dropped. Defaults follow the destination country
+(Ghana: 08:00–19:00 Monday to Saturday).
+
+### Retries
+
+`retry_policy` maps a disposition to `{retry, backoff_seconds[], max_attempts}`,
+where `max_attempts` counts the first dial and the last backoff entry repeats.
+Presets: `sales` (no answer ×4 over three days, busy ×3, voicemail ×2),
+`collections` (more persistent on no answer), `single_attempt`. A completed
+conversation, a wrong party, a refusal, an invalid number or a do-not-call
+request is never redialed by any policy; a requested callback dials at the
+requested time.
+
+### Concurrency
+
+`max_concurrency` caps the campaign's simultaneous calls and never exceeds your
+plan's concurrent-call allowance; `reserved_concurrency` keeps lines free for
+inbound and other calls.
+
+## Dispositions
+
+Every attempt ends in exactly one disposition, derived from the call's
+structured termination cause and the agent's own signal:
+
+`connected_completed`, `connected_wrong_party`, `connected_callback_requested`,
+`connected_refused`, `no_answer`, `busy`, `voicemail`, `invalid_number`,
+`carrier_rejected`, `do_not_call`, `failed_technical`.
+
+A hosted agent declares the connected outcomes with the `set_call_disposition`
+builtin tool (a callback requires `callback_at`). Telephony outcomes come from
+the SIP result and are never model-supplied.
+
+## Read progress
+
+- `GET /v1/campaigns/{campaign_id}` returns the campaign, its latest run and
+  contact counters (`pending`, `scheduled`, `dispatched`, `completed`,
+  `failed`, `skipped`, `pre_dial_failed`, `do_not_call`, `audience`,
+  `remaining`).
+- `GET /v1/campaigns/{campaign_id}/contacts?status=` pages through the run's
+  contacts with disposition, attempt count, next attempt and last call id, which
+  opens the ordinary [call evidence](/docs/read-call-evidence).
+- Webhooks: `campaign.launched`, `campaign.contact.completed`,
+  `campaign.completed`. Per-call events are unchanged and carry
+  `external_reference` (the contact's reference) and
+  `external_group_reference` (the campaign id).
+
+The same operations are available over MCP as `create_contact_list`,
+`add_contacts`, `add_do_not_call`, `create_campaign`, `launch_campaign`,
+`pause_campaign`, `resume_campaign`, `cancel_campaign`, `list_campaigns` and
+`get_campaign`.
