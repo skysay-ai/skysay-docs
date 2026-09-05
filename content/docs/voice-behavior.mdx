@@ -1,0 +1,75 @@
+---
+title: Acknowledgements
+description: Let an agent say a short "One moment" in its own voice while a slow reply is still being prepared, at most once per turn, cancelled the moment the real reply starts.
+---
+
+Between the end of a caller's turn and the first word of the reply there is a
+gap: the model is still writing and the voice has not started. When that gap
+runs long, callers hear dead air. Acknowledgements fill it the way a human
+receptionist does, with one short neutral phrase such as "One moment" or
+"Let me check", spoken in the agent's own voice, model and language.
+
+They are **off unless you enable them**, per agent, and they never change what
+the agent says: an acknowledgement is not part of the conversation, is not
+returned to the model as its own previous utterance, and is not a transcript
+line.
+
+## Enable acknowledgements on an agent
+
+`PATCH /v1/agents/{agent_id}/voice-stack` accepts an optional
+`voice_polish.acknowledgements` section:
+
+```json
+{
+  "voice_polish": {
+    "acknowledgements": {
+      "enabled": true,
+      "phrases": ["One moment.", "Let me check that for you."],
+      "delay_ms": 1200
+    }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `enabled` | `true` turns the feature on. Absent or `false` is off, and an agent that never configured the section has no `acknowledgements` key in its responses. |
+| `phrases` | Optional. Up to 6 short neutral phrases, each at most 40 characters. Digits and currency marks are rejected so a phrase can never carry a factual, payment, legal or consent claim. Without phrases the platform's reviewed list for the agent's language is used. |
+| `delay_ms` | Optional, 600 to 3000, default 1200. How long the reply may take before an acknowledgement is worth speaking. Shorter delays collide with fast replies; longer ones leave more silence. |
+
+The same section is accepted by the MCP `set_agent_voice_stack` tool and is
+returned by `GET /v1/agents/{agent_id}/voice-stack`. The exact schema is in
+the [generated API reference](/docs/api-reference).
+
+## How the worker uses it
+
+- **Language follows the call.** Phrases you supply are spoken as written.
+  Without your own phrases, the reviewed list for the call's language applies;
+  a language with no reviewed list stays silent rather than acknowledging in
+  English. An agent that follows the caller's language keeps that rule per
+  call.
+- **Own voice.** Each phrase is synthesized once per call with the agent's
+  selected voice and model and billed to that call like any other synthesis.
+  Clips are prepared in the background after the greeting, so enabling the
+  feature never delays the first words of a call.
+- **At most once per turn, never over anyone.** The worker starts waiting when
+  the reply is being prepared and speaks only if the reply has not started
+  after `delay_ms`. If the caller starts talking, or the reply begins, the
+  acknowledgement is cancelled or cut immediately. A cooldown keeps
+  consecutive turns quiet so it never becomes a tic, and nothing is spoken in
+  front of the agent's goodbye.
+- **Separate track.** Acknowledgements play on the same outgoing background
+  track as [audio environments](/docs/audio-environments), not on the agent's
+  speech track. Call evidence therefore contains no acknowledgement audio or
+  text; the transcript's `semantic_response_audio_policy` states
+  `filler_acknowledgements_enabled: true` for calls where the feature was on,
+  so a reviewer knows the caller may have heard a filler the transcript does
+  not show.
+
+## What it does not do
+
+Acknowledgements reduce perceived waiting, not the reply time itself. They do
+not change turn-taking, interruption sensitivity, the selected voice or the
+spoken language, and they cannot be used to say anything about the caller's
+case. Use [turn-taking](/docs/wire-an-agent) settings for barge-in behaviour
+and [audio environments](/docs/audio-environments) for ambience.
