@@ -104,6 +104,17 @@ class ContractTests(unittest.TestCase):
         self.assertIs(raised.exception, failure)
         self.assertIn("probe_cleanup_failed", diagnostic.call_args.args[0])
 
+    def test_cleanup_failure_does_not_resurrect_an_outer_handled_exception(self):
+        module = types.SimpleNamespace(builder=lambda _: ("desktop-linux", "", ""))
+        try:
+            raise r.RollbackFailed("already handled by an outer caller")
+        except r.RollbackFailed:
+            with patch.object(r, "command", side_effect=["unix:///local/docker.sock", "", "linux/amd64", "owned-id", "127.0.0.1:12345", r.Refused("daemon unavailable")]), patch.object(r, "probe_url", return_value={}), patch.object(r, "parity", return_value="f" * 64), patch.object(r, "diagnostic"):
+                with self.assertRaises(r.Refused) as raised:
+                    r.image_probe(module, NEW, SOURCE["sha"], ROOT)
+            self.assertNotIsInstance(raised.exception, r.RollbackFailed)
+            self.assertIn("cleanup failed", str(raised.exception))
+
     def test_promote_command_requires_execute(self):
         with patch.object(r, "primitives", return_value=(MagicMock(), PRIMITIVES)), patch.object(r, "promote") as promote:
             self.assertEqual(r.main(["promote", "--app-repo", str(ROOT), "--receipt", "untrusted"]), 1)

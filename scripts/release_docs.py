@@ -253,6 +253,7 @@ def image_probe(module, target, revision, app_repo):
     if arch != "linux/amd64":
         raise Refused("docs image is not linux/amd64")
     container = "openphonex-docs-probe-" + secrets.token_hex(16)
+    original = None
     try:
         command(docker + ["run", "--name", container, "--detach", "--platform", "linux/amd64", "--publish", "127.0.0.1::8080", reference])
         port = command(docker + ["port", container, "8080/tcp"]).strip()
@@ -263,19 +264,20 @@ def image_probe(module, target, revision, app_repo):
         proof["parity_sha256"] = parity(app_repo, base)
         proof["architecture"] = arch
         return proof
+    except BaseException as failure:
+        original = failure
+        raise
     finally:
         # run may create a container and then fail while publishing its port.
         # Query by our unguessable owned name so even that path is cleaned up.
-        original = sys.exc_info()[1]
         try:
             found = command(docker + ["ps", "--all", "--quiet", "--filter", "name=^/" + container + "$"]).strip()
             if found:
                 command(docker + ["rm", "--force", container])
         except Exception:
             diagnostic({"probe_cleanup_failed": container})
-            if original is not None:
-                raise original
-            raise Refused("owned docs probe container cleanup failed")
+            if original is None:
+                raise Refused("owned docs probe container cleanup failed")
 
 
 def parity(app_repo, base):
