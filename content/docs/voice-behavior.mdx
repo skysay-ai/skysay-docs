@@ -113,13 +113,25 @@ How the worker behaves:
   and never appears in the recorded agent audio or the transcript lines. The
   transcript's `tool_wait_feedback` section states the configured `mode` and
   lists every start and cut with its reason, and the effective voice stack
-  identity records the mode when it is on.
+  identity records the mode when it is on. Once the call's artifacts are
+  imported, the Calls page shows that record under **Tool waits** on the call
+  detail (the setting the call ran with, then each start, cut, skip or
+  failure with its reason, the tools that were running and the offset from
+  call start), and `GET /v1/calls/{call_id}/observability` returns the same
+  bounded projection as `tool_wait_evidence` (`status` complete, partial or
+  unavailable with a `reason`, `mode`, up to 64 `events`, `has_more`). A
+  call recorded before this section existed reads as unavailable, never as a
+  quiet call.
 
 In the workspace, open the AI agent, choose **Acknowledgements** in the
 editor rail and use **During tool waits** below the acknowledgements switch:
 pick *Nothing*, *One phrase* or *Typing sound*, move the wait between 0.6 and
 3.0 seconds, and for a phrase add up to six of your own or leave the list
-empty to use the built-in ones shown dashed. The control writes the same
+empty to use the built-in ones shown dashed. Each mode has a preview under
+it: **Hear the phrase** plays the phrase a call would say first (your first
+phrase, or the language's first built-in) in the AI agent's own voice with its
+delivery profile, and **Hear the typing sound** plays a few seconds of the
+same typing bed at the level a call uses. The control writes the same
 `voice_polish.tool_wait` object as the API, is saved with the voice settings,
 and applies to new calls after you save.
 
