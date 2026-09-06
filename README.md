@@ -156,6 +156,42 @@ the way down.
 Some pages are prerendered at build time and `/api/search` is rendered on
 demand, so the app needs a Node runtime — a static-site host will not work.
 
+## Release log entry format
+
+`content/docs/changelog.mdx` is written by the release agent after a verified
+production promotion (see the application repository's `docs/AUTO_DEPLOY.md`,
+step 3). Every entry uses the same shape, decided by the founder on
+6 September 2026:
+
+- A `## <date>` heading per release day (UTC, the day the last required lane
+  and proof went live), newest first, and a `### <entry title>` heading per
+  customer-facing change.
+- Under the heading, two to five bullets. Each bullet is one line of plain,
+  customer-facing English with one idea, roughly 12 to 30 words. Keep product
+  names, bold UI labels, code spans (`PATCH /v1/...`, field names) and numbers
+  exact. State limits, defaults, where the control lives, and what still needs
+  operator review.
+- The last bullet carries the entry's links, joined by ` · `, pointing at the
+  guide section a customer uses to configure the feature.
+- No prose paragraphs, tables, nested bullets, or bold at the start of every
+  bullet. One blank line between the heading and the list and one after it.
+
+Example:
+
+```mdx
+### Self-serve outbound campaigns
+
+- Upload a contact list, set calling windows and a retry policy, and launch an agent at your own customers or consented contacts, without an operator.
+- The four-step wizard checks column mapping, calling hours and the cost estimate before launch.
+- Every campaign call clears the do-not-call register when placed and again when the agent starts talking.
+- Cold sales and telemarketing still go through operator review.
+- [Read Campaigns](/docs/campaigns) · [Build your do-not-call register](/docs/campaigns#do-not-call-register)
+```
+
+Only major customer-facing capabilities and serious customer-visible
+corrections get an entry; internal maintenance, CI and release machinery,
+refactors and disabled flags do not.
+
 ## Contributing
 
 Pull requests are welcome — typo fixes, clarifications, missing steps, and new
