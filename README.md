@@ -82,6 +82,21 @@ npm start            # http://127.0.0.1:3000/docs
 npm run scan-secrets                 # secret scan (also runs in CI on every push)
 python3 scripts/scan_secrets.py --self-test
 npm run parity -- --no-live          # every URL resolves, corpora complete
+npm run anchor-check                 # every in-site #anchor resolves
+```
+
+`scripts/anchor-check.mjs` resolves every in-site `#fragment` link against the
+ids the BUILT pages actually carry, so a renamed heading cannot leave a link
+pointing at a slug that no longer exists — a failure that is otherwise silent,
+because the page still loads and the reader just lands at the top of it. Both
+the links and the ids are read from the rendered HTML, so a link a component
+emits is checked like any other and no heading-slug rules are re-implemented
+here. Run it against the same server `parity` uses:
+
+```bash
+npm start &
+npm run anchor-check -- --local http://127.0.0.1:3000
+npm run anchor-check:test            # unit tests for its link-parsing rules
 ```
 
 `scripts/parity-check.mjs` is the migration acceptance gate. Against a running
@@ -198,7 +213,8 @@ Pull requests are welcome — typo fixes, clarifications, missing steps, and new
 pages all help.
 
 1. Fork, branch, edit the `.mdx` file.
-2. Run `npm run build` and `npm run scan-secrets` locally.
+2. Run `npm run build`, `npm run scan-secrets` and `npm run anchor-check`
+   (against a running `npm start`) locally.
 3. Open a PR. CI runs a secret scan and a production build on every PR; both
    must pass.
 4. On merge to `main`, the change is ready for the receipt-based release above.

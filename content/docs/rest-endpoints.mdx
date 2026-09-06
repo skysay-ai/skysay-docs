@@ -92,6 +92,23 @@ preset or substituting another version.
 | `GET` | `/v1/conversations` | List SMS conversations. |
 | `POST` | `/v1/messages` | Send a policy-gated SMS. |
 
+## Outbound permit
+
+Outbound calls and SMS authorize against the workspace's **outbound permit**, so
+a machine client that provisions a workspace end to end needs these three. See
+[Policy & outbound](/docs/policy-and-outbound#request-your-outbound-permit-in-the-workspace)
+for what each field means.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/organizations/{organization_id}/outbound-permit` | The stored permit, the selectable profiles, and live usage against its caps. |
+| `POST` | `/v1/organizations/{organization_id}/outbound-permit` | Request or replace the permit. `profiles` and `countries` are both required. |
+| `POST` | `/v1/organizations/{organization_id}/outbound-permit/accept-policy` | Accept a policy version without changing what the permit authorizes. |
+
+`countries` must name at least one ISO 3166-1 alpha-2 destination. An empty or
+all-invalid list answers `400 select at least one destination country` and
+writes nothing, rather than storing a permit with no country restriction.
+
 ## Wallet & usage
 
 | Method | Path | Purpose |
