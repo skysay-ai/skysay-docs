@@ -20,13 +20,13 @@
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, symlink } from "node:fs/promises";
+import { mkdtemp, readdir, rm, symlink } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { decodeEntities, decodeFragment, docPageUrl, hrefsIn, idsIn, parseInSiteLink } from "./anchor-check.mjs";
+import { decodeEntities, decodeFragment, hrefsIn, idsIn, parseInSiteLink, sitemapPaths } from "./anchor-check.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./anchor-check.mjs", import.meta.url));
 const cases = [];
@@ -76,12 +76,35 @@ test("script, style and template text is not a source of ids or hrefs", () => {
   assert.deepEqual(hrefsIn(html), ["/docs/z#real"]);
 });
 
-test("a folder's index page is served at the folder's own URL", () => {
-  assert.equal(docPageUrl("index.mdx"), "/docs");
-  assert.equal(docPageUrl("quickstart.mdx"), "/docs/quickstart");
-  assert.equal(docPageUrl(path.join("guide", "index.mdx")), "/docs/guide");
-  assert.equal(docPageUrl(path.join("guide", "nested", "index.mdx")), "/docs/guide/nested");
-  assert.equal(docPageUrl(path.join("guide", "start.mdx")), "/docs/guide/start");
+test("the page list is read from the site's own sitemap", () => {
+  // Deriving URLs from filenames meant re-implementing the Fumadocs loader's
+  // routing, and it got three rules wrong: a folder index colliding with a
+  // sibling page, `(group)` directories, and `.md` as a second extension. The
+  // sitemap is built from `source.getPages()`, so it already knows all of it.
+  assert.deepEqual(
+    sitemapPaths(
+      "<urlset><url><loc>https://openphonex.com/docs/guide/index</loc></url>" +
+        "<url><loc>https://openphonex.com/docs/(group)/x</loc></url>" +
+        "<url><loc>https://openphonex.com/docs/extra/</loc></url>" +
+        "<url><loc>https://openphonex.com/blog/launch</loc></url>" +
+        "<url><loc>https://openphonex.com/docs/guide/index</loc></url></urlset>",
+    ),
+    ["/blog/launch", "/docs/(group)/x", "/docs/extra", "/docs/guide/index"],
+  );
+});
+
+test("sitemap locs are entity-decoded and unparseable ones are skipped", () => {
+  assert.deepEqual(
+    sitemapPaths("<urlset><loc>https://openphonex.com/docs/a?x=1&amp;y=2</loc><loc>not a url</loc></urlset>"),
+    ["/docs/a"],
+  );
+  assert.deepEqual(sitemapPaths(""), []);
+});
+
+test("&nbsp; decodes to U+00A0, the character the DOM holds", () => {
+  assert.deepEqual([...idsIn('<h2 id="a&nbsp;b">x</h2>')], ["a\u00a0b"]);
+  assert.equal(idsIn('<h2 id="a&nbsp;b">x</h2>').has("a b"), false);
+  assert.equal(parseInSiteLink("/docs/x#a%C2%A0b", "/docs/y").fragment, "a\u00a0b");
 });
 
 test("a literal percent sign does not defeat the escapes beside it", () => {
@@ -181,11 +204,38 @@ test("plain-text and asset targets carry no ids and are skipped", () => {
 
 /* ------------------------------------------------------------------- gate */
 
-function serve(handler) {
+// The gate reads its page list from the site's sitemap and refuses to run when
+// that lists fewer /docs pages than there are source files, so every fixture
+// server publishes a sitemap padded to the real count. The filler pages answer
+// with the same body as any other page.
+const DOC_SOURCE_FILES = (
+  await readdir(path.join(path.dirname(SCRIPT), "..", "content", "docs"), { withFileTypes: true, recursive: true })
+).filter((entry) => entry.isFile() && /\.mdx?$/i.test(entry.name)).length;
+
+function sitemapXml(paths = []) {
+  const all = [...paths];
+  for (let i = 0; all.filter((one) => one.startsWith("/docs")).length < DOC_SOURCE_FILES; i += 1) {
+    all.push(`/docs/filler-${i}`);
+  }
+  return `<?xml version="1.0"?><urlset>${all.map((one) => `<url><loc>https://openphonex.com${one}</loc></url>`).join("")}</urlset>`;
+}
+
+function serve(handler, sitemapPathList) {
   return new Promise((resolve) => {
-    const server = http.createServer(handler);
+    const server = http.createServer((req, res) => {
+      if (req.url === "/docs/sitemap.xml") {
+        res.writeHead(200, { "content-type": "application/xml" });
+        res.end(sitemapXml(sitemapPathList));
+        return;
+      }
+      handler(req, res);
+    });
     server.listen(0, "127.0.0.1", () => resolve({ server, url: `http://127.0.0.1:${server.address().port}` }));
   });
+}
+
+function html(body) {
+  return `<html><body>${body}</body></html>`;
 }
 
 function runCheck(scriptPath, localUrl) {
@@ -202,13 +252,54 @@ function runCheck(scriptPath, localUrl) {
 test("a run that finds no links at all FAILS instead of reporting success", async () => {
   const { server, url } = await serve((_req, res) => {
     res.writeHead(200, { "content-type": "text/html" });
-    res.end("<html><body><p>no links here</p></body></html>");
+    res.end(html("<p>no links here</p>"));
   });
   try {
     const { code, out } = await runCheck(SCRIPT, url);
     assert.equal(code, 1, out);
     assert.match(out, /no in-site anchor links found/);
     assert.doesNotMatch(out, /All in-site anchors resolve/);
+  } finally {
+    server.close();
+  }
+});
+
+test("a sitemap that lists fewer pages than the docs tree holds FAILS", async () => {
+  const short = `<?xml version="1.0"?><urlset><url><loc>https://openphonex.com/docs/only</loc></url></urlset>`;
+  const server = http.createServer((req, res) => {
+    if (req.url === "/docs/sitemap.xml") {
+      res.writeHead(200, { "content-type": "application/xml" });
+      res.end(short);
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end(html('<a href="#x">x</a><h2 id="x">x</h2>'));
+  });
+  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  try {
+    const { code, out } = await runCheck(SCRIPT, `http://127.0.0.1:${server.address().port}`);
+    assert.equal(code, 1, out);
+    assert.match(out, /pages are missing from the sitemap/);
+  } finally {
+    server.close();
+  }
+});
+
+test("a page listed only in the sitemap is still checked", async () => {
+  // This is the whole class the filename-derived mapper kept getting wrong:
+  // a folder index colliding with a sibling, a `(group)` directory, a `.md`
+  // page. Whatever the loader publishes, the gate visits.
+  const { server, url } = await serve(
+    (req, res) => {
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(req.url === "/docs/(group)/odd" ? html('<a href="#gone">x</a>') : html("<p>ordinary</p>"));
+    },
+    ["/docs/(group)/odd"],
+  );
+  try {
+    const { code, out } = await runCheck(SCRIPT, url);
+    assert.equal(code, 1, out);
+    assert.match(out, /no element with id="gone"/);
   } finally {
     server.close();
   }
@@ -247,7 +338,7 @@ test("invoking the script through a symlinked path still runs the gate", async (
   await symlink(SCRIPT, link);
   const { server, url } = await serve((_req, res) => {
     res.writeHead(200, { "content-type": "text/html" });
-    res.end("<html><body><p>no links here</p></body></html>");
+    res.end(html("<p>no links here</p>"));
   });
   try {
     const { code, out } = await runCheck(link, url);
@@ -264,8 +355,8 @@ test("a page whose in-site anchor is missing FAILS, and the same page passes onc
   let ids = "";
   const { server, url } = await serve((req, res) => {
     res.writeHead(200, { "content-type": "text/html" });
-    res.end(`<html><body><a href="/docs/voice-behavior#target">x</a>${req.url === "/docs/voice-behavior" ? ids : ""}</body></html>`);
-  });
+    res.end(html(`<a href="/docs/voice-behavior#target">x</a>${req.url === "/docs/voice-behavior" ? ids : ""}`));
+  }, ["/docs/voice-behavior"]);
   try {
     const broken = await runCheck(SCRIPT, url);
     assert.equal(broken.code, 1, broken.out);
@@ -283,10 +374,7 @@ test("a page whose in-site anchor is missing FAILS, and the same page passes onc
 test("a broken anchor whose id appears only inside a script FAILS", async () => {
   const { server, url } = await serve((_req, res) => {
     res.writeHead(200, { "content-type": "text/html" });
-    res.end(
-      `<html><body><a href="#ghost">x</a>` +
-        `<script>self.__next_f.push([1,"<div id='ghost'></div>"])</script></body></html>`,
-    );
+    res.end(html(`<a href="#ghost">x</a><script>self.__next_f.push([1,"<div id='ghost'></div>"])</script>`));
   });
   try {
     const { code, out } = await runCheck(SCRIPT, url);
@@ -297,33 +385,79 @@ test("a broken anchor whose id appears only inside a script FAILS", async () => 
   }
 });
 
-test("an in-site redirect is followed and the fragment checked at its destination", async () => {
-  // `next.config.mjs` keeps `/docs/agents` resolving to `/docs/mcp`; a browser
-  // carries the fragment across that hop, so the gate must too.
-  const { server, url } = await serve((req, res) => {
+// `next.config.mjs` keeps `/docs/agents` resolving to `/docs/mcp`; a browser
+// carries the fragment across that hop unless the Location supplies its own.
+function redirectServer(location, destinationBody) {
+  return (req, res) => {
     if (req.url === "/docs/old") {
-      res.writeHead(308, { location: "/docs/new" });
-      res.end();
-      return;
-    }
-    if (req.url === "/docs/loop") {
-      res.writeHead(308, { location: "/docs/loop" });
+      res.writeHead(308, { location });
       res.end();
       return;
     }
     res.writeHead(200, { "content-type": "text/html" });
-    res.end(
-      req.url === "/docs/new"
-        ? '<html><body><h2 id="target">t</h2></body></html>'
-        : '<html><body><a href="/docs/old#target">x</a></body></html>',
-    );
-  });
+    res.end(html(req.url === "/docs/new" ? destinationBody : '<a href="/docs/old#target">x</a>'));
+  };
+}
+
+test("an in-site redirect is followed and the fragment checked at its destination", async () => {
+  const { server, url } = await serve(redirectServer("/docs/new", '<h2 id="target">t</h2>'), ["/docs/new"]);
   try {
     const { code, out } = await runCheck(SCRIPT, url);
     assert.equal(code, 0, out);
     assert.match(out, /All in-site anchors resolve/);
   } finally {
     server.close();
+  }
+});
+
+test("a redirect naming the configured server by its absolute URL is still in-site", async () => {
+  // Next.js commonly redirects using the request URL, so Location comes back
+  // absolute on 127.0.0.1:<port>. Recognising only the public hosts rejected it.
+  const server = http.createServer((req, res) => {
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    if (req.url === "/docs/sitemap.xml") {
+      res.writeHead(200, { "content-type": "application/xml" });
+      res.end(sitemapXml(["/docs/new"]));
+      return;
+    }
+    if (req.url === "/docs/old") {
+      res.writeHead(308, { location: `${origin}/docs/new` });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end(html(req.url === "/docs/new" ? '<h2 id="target">t</h2>' : '<a href="/docs/old#target">x</a>'));
+  });
+  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  try {
+    const { code, out } = await runCheck(SCRIPT, `http://127.0.0.1:${server.address().port}`);
+    assert.equal(code, 0, out);
+    assert.match(out, /All in-site anchors resolve/);
+  } finally {
+    server.close();
+  }
+});
+
+test("a fragment supplied by the redirect REPLACES the one the link carried", async () => {
+  // Browsers use the Location's fragment when it has one. Checking the original
+  // instead fails a working link and passes a broken one.
+  const good = await serve(redirectServer("/docs/new#current", '<h2 id="current">c</h2>'), ["/docs/new"]);
+  try {
+    const { code, out } = await runCheck(SCRIPT, good.url);
+    assert.equal(code, 0, out);
+    assert.match(out, /All in-site anchors resolve/);
+  } finally {
+    good.server.close();
+  }
+
+  const bad = await serve(redirectServer("/docs/new#missing", '<h2 id="target">t</h2>'), ["/docs/new"]);
+  try {
+    const { code, out } = await runCheck(SCRIPT, bad.url);
+    assert.equal(code, 1, out);
+    assert.match(out, /no element with id="missing"/);
+    assert.match(out, /redirected from \/docs\/old/);
+  } finally {
+    bad.server.close();
   }
 });
 
@@ -335,7 +469,7 @@ test("a redirect loop FAILS instead of spinning", async () => {
       return;
     }
     res.writeHead(200, { "content-type": "text/html" });
-    res.end('<html><body><a href="/docs/loop#target">x</a></body></html>');
+    res.end(html('<a href="/docs/loop#target">x</a>'));
   });
   try {
     const { code, out } = await runCheck(SCRIPT, url);

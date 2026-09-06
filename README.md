@@ -96,7 +96,7 @@ here. Run it against the same server `parity` uses:
 ```bash
 npm start &
 npm run anchor-check -- --local http://127.0.0.1:3000
-npm run anchor-check:test            # its link-parsing rules, and that the gate can fail
+npm run anchor-check:test            # its parsing rules, and that the gate can fail
 ```
 
 `scripts/parity-check.mjs` is the migration acceptance gate. Against a running

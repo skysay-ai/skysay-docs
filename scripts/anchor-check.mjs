@@ -30,6 +30,8 @@
  * It cannot pass without checking:
  *   - a truncated HTTP response REJECTS instead of resolving a partial body;
  *   - checking zero links is a FAILURE, not "all anchors resolve";
+ *   - the sitemap may not list fewer /docs pages than `content/docs` holds
+ *     source files, so a page dropping out of the site's own list is caught;
  *   - the entry-point guard compares real paths, so running through a symlinked
  *     directory (`/tmp` -> `/private/tmp` on macOS) still runs it;
  *   - `<script>`/`<style>` contents are removed before anything is extracted.
@@ -43,9 +45,14 @@
  *   - in-site redirects are followed, because `next.config.mjs` keeps old URLs
  *     resolving (`/docs/agents` -> `/docs/mcp`) and a browser carries the
  *     fragment across them;
- *   - a nested `content/docs/<dir>/index.mdx` is served at `/docs/<dir>`;
- *   - HTML character references are decoded exactly ONCE, at extraction, so a
- *     link to the literal id `a&amp;b` stays distinct from one to `a&b`;
+ *   - a redirect that supplies its own fragment REPLACES the incoming one, the
+ *     way a browser resolves it;
+ *   - the page list comes from the site's own sitemap, which is built from the
+ *     Fumadocs loader's resolved URLs, so folder indexes, `(group)` directories
+ *     and `.md` pages need no routing rules re-implemented here;
+ *   - HTML character references are decoded exactly ONCE per path, so a link to
+ *     the literal id `a&amp;b` stays distinct from one to `a&b`, and `&nbsp;`
+ *     decodes to U+00A0 rather than a plain space;
  *   - percent-escapes are decoded run by run, so a literal `%` beside an escaped
  *     character (`#100%-caf%C3%A9`) does not defeat the whole fragment.
  *
@@ -68,6 +75,16 @@ function flag(name, fallback) {
 }
 const LOCAL = (flag("local", "http://127.0.0.1:3000") || "").replace(/\/$/, "");
 const MAX_REDIRECTS = 5;
+// The host `--local` names. A rendered page or a redirect may address the very
+// server being checked by its absolute URL, and treating that as "off this
+// site" fails a hop a browser would follow.
+const LOCAL_HOST = (() => {
+  try {
+    return new URL(LOCAL).host;
+  } catch {
+    return "";
+  }
+})();
 
 // The public hosts this site is served on. A rendered link that names one of
 // them is an in-site anchor claim even though it is written scheme-absolute,
@@ -81,7 +98,7 @@ const NAMED_ENTITIES = new Map([
   ["gt", ">"],
   ["quot", '"'],
   ["apos", "'"],
-  ["nbsp", " "],
+  ["nbsp", "\u00a0"],
 ]);
 
 // An attribute in the HTML source is a SERIALIZATION; the value a browser
@@ -156,28 +173,34 @@ function request(url) {
   });
 }
 
-// `content/docs/quickstart.mdx` -> `/docs/quickstart`;
-// `content/docs/index.mdx` -> `/docs`;
-// `content/docs/guide/index.mdx` -> `/docs/guide`, which is where the Fumadocs
-// loader serves a folder's index page. Requesting `/docs/guide/index` 404s and
-// would fail the gate on a page that works.
-export function docPageUrl(relativePath) {
-  const slug = relativePath
-    .replace(/\.mdx$/, "")
-    .split(path.sep)
-    .join("/")
-    .replace(/(^|\/)index$/, "");
-  return slug === "" ? "/docs" : `/docs/${slug}`;
+// The page list comes from the site's OWN sitemap, which `src/app/docs/sitemap.js`
+// builds from `source.getPages()` -- the Fumadocs loader's resolved URLs. Deriving
+// URLs from filenames here meant re-implementing the loader's routing, and it got
+// three rules wrong in a row: a folder's `index.mdx` is served at the folder URL
+// unless a sibling `guide.mdx` collides with it, `(group)` directories are
+// dropped, and `.md` is a supported extension too. The loader already knows all
+// of that; asking it is not a shortcut, it is the same reason ids are read from
+// rendered HTML rather than re-slugged here.
+export function sitemapPaths(xml) {
+  const paths = [];
+  for (const match of String(xml ?? "").matchAll(/<loc>([^<]+)<\/loc>/g)) {
+    const raw = decodeEntities(match[1].trim());
+    let url;
+    try {
+      url = new URL(raw);
+    } catch {
+      continue;
+    }
+    paths.push(url.pathname.replace(/\/$/, "") || "/");
+  }
+  return [...new Set(paths)].sort();
 }
 
-/** Every `/docs/**.mdx` page this site owns, as a URL path. */
-async function docPages() {
+/** How many source pages the docs tree holds, by either supported extension. */
+async function docSourceFileCount() {
   const base = path.join(ROOT, "content", "docs");
   const entries = await readdir(base, { withFileTypes: true, recursive: true });
-  return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".mdx"))
-    .map((entry) => docPageUrl(path.relative(base, path.join(entry.parentPath ?? entry.path, entry.name))))
-    .sort();
+  return entries.filter((entry) => entry.isFile() && /\.mdx?$/i.test(entry.name)).length;
 }
 
 // Script and style contents are TEXT, not markup: nothing in them is an element
@@ -210,6 +233,12 @@ export function hrefsIn(html) {
 // process: only the resolved path is requested, from `--local`.
 const RESOLUTION_ORIGIN = "http://anchor-check.invalid";
 
+// This site answers on its public hosts, on whatever `--local` names, and on
+// the placeholder origin used to resolve relative links.
+function isInSiteHost(url, resolutionHost) {
+  return url.host === resolutionHost || url.host === LOCAL_HOST || IN_SITE_HOSTS.has(url.hostname);
+}
+
 // A fragment is compared to the id EXACTLY: ids are case-sensitive in the DOM,
 // and `%20`-style escapes have to be decoded first or a legitimate id with a
 // non-ASCII character would read as broken.
@@ -223,8 +252,7 @@ export function parseInSiteLink(href, fromPage, origin = RESOLUTION_ORIGIN) {
     return null; // not a resolvable URL at all
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return null; // mailto:, tel:, ...
-  const ownHost = new URL(origin).host;
-  if (url.host !== ownHost && !IN_SITE_HOSTS.has(url.hostname)) return null; // genuinely external
+  if (!isInSiteHost(url, new URL(origin).host)) return null; // genuinely external
   const rawFragment = url.hash.slice(1);
   if (!rawFragment) return null; // no fragment, or a bare "#" no-op link
   const fragment = decodeFragment(rawFragment);
@@ -235,43 +263,63 @@ export function parseInSiteLink(href, fromPage, origin = RESOLUTION_ORIGIN) {
 }
 
 async function main() {
-  const pages = await docPages();
+  const sitemap = await request(`${LOCAL}/docs/sitemap.xml`);
+  if (sitemap.status !== 200) {
+    throw new Error(`${LOCAL}/docs/sitemap.xml answered ${sitemap.status} — is \`npm run start\` running there?`);
+  }
+  const pages = sitemapPaths(sitemap.body);
   if (pages.length === 0) {
-    throw new Error("no content/docs/**.mdx pages found — is this the docs repository root?");
+    throw new Error("the site's sitemap listed no pages");
+  }
+  // The sitemap is the site's own answer, so a page it forgets would silently
+  // drop out of this gate. It cannot list FEWER /docs URLs than there are source
+  // files; comparing counts needs no routing rules of our own.
+  const docsUrls = pages.filter((page) => page === "/docs" || page.startsWith("/docs/")).length;
+  const sourceFiles = await docSourceFileCount();
+  if (docsUrls < sourceFiles) {
+    throw new Error(
+      `the sitemap lists ${docsUrls} /docs pages but content/docs holds ${sourceFiles} source files — ` +
+        `pages are missing from the sitemap, so checking it would not cover them`,
+    );
   }
 
-  const resultByPath = new Map();
-
-  // Follow in-site redirects the way a browser does: `next.config.mjs` keeps
-  // retired URLs resolving, and the fragment survives the hop.
+  // Follow in-site redirects the way a browser does. `next.config.mjs` keeps
+  // retired URLs resolving (`/docs/agents` -> `/docs/mcp`), and a browser carries
+  // the fragment across the hop -- unless the Location supplies its own, which
+  // then REPLACES it. Getting that backwards fails a working link and passes a
+  // broken one.
   async function fetchPage(urlPath) {
     let current = urlPath;
+    let fragmentOverride = null;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
       const { status, headers, body } = await request(`${LOCAL}${current}`);
-      if (status === 200) return { html: body, reason: null };
+      if (status === 200) return { html: body, finalPath: current, fragmentOverride, reason: null };
       const location = headers?.location;
       if (status >= 300 && status < 400 && location) {
         let next;
         try {
-          next = new URL(location, `${RESOLUTION_ORIGIN}${current}`);
+          next = new URL(location, `${LOCAL}${current}`);
         } catch {
-          return { html: null, reason: `redirected to an unparseable location (${location})` };
+          return { html: null, finalPath: current, fragmentOverride, reason: `redirected to an unparseable location (${location})` };
         }
-        const ownHost = new URL(RESOLUTION_ORIGIN).host;
-        if (next.host !== ownHost && !IN_SITE_HOSTS.has(next.hostname)) {
-          return { html: null, reason: `redirects off this site to ${location}` };
+        if (!isInSiteHost(next, LOCAL_HOST)) {
+          return { html: null, finalPath: current, fragmentOverride, reason: `redirects off this site to ${location}` };
         }
+        if (next.hash.length > 1) fragmentOverride = decodeFragment(next.hash.slice(1));
         current = `${next.pathname}${next.search}`;
         continue;
       }
       return {
         html: null,
+        finalPath: current,
+        fragmentOverride,
         reason: `answered ${status}${current === urlPath ? "" : ` at ${current}`}`,
       };
     }
-    return { html: null, reason: `more than ${MAX_REDIRECTS} redirects` };
+    return { html: null, finalPath: current, fragmentOverride, reason: `more than ${MAX_REDIRECTS} redirects` };
   }
 
+  const resultByPath = new Map();
   async function load(urlPath) {
     if (!resultByPath.has(urlPath)) resultByPath.set(urlPath, await fetchPage(urlPath));
     return resultByPath.get(urlPath);
@@ -298,8 +346,15 @@ async function main() {
         failures.push(`${page} -> ${key}: target page ${target.reason}`);
         continue;
       }
-      if (!idsIn(target.html).has(link.fragment)) {
-        failures.push(`${page} -> ${key}: no element with id="${link.fragment}" on ${link.targetPath}`);
+      // A redirect that supplies its own fragment REPLACES the one the link
+      // carried; without one, the link's fragment is inherited across the hop.
+      const effective = target.fragmentOverride ?? link.fragment;
+      if (!idsIn(target.html).has(effective)) {
+        const where =
+          target.finalPath === link.targetPath
+            ? link.targetPath
+            : `${target.finalPath} (redirected from ${link.targetPath})`;
+        failures.push(`${page} -> ${key}: no element with id="${effective}" on ${where}`);
       }
     }
     process.stdout.write(`.`);
