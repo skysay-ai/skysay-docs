@@ -105,9 +105,13 @@ for what each field means.
 | `POST` | `/v1/organizations/{organization_id}/outbound-permit` | Request or replace the permit. `profiles` and `countries` are both required. |
 | `POST` | `/v1/organizations/{organization_id}/outbound-permit/accept-policy` | Accept a policy version without changing what the permit authorizes. |
 
-`countries` must name at least one ISO 3166-1 alpha-2 destination. An empty or
-all-invalid list answers `400 select at least one destination country` and
-writes nothing, rather than storing a permit with no country restriction.
+`countries` must name at least one ISO 3166-1 alpha-2 destination. A list that
+is empty, or whose every entry fails to normalize to a two-letter code, answers
+`400 select at least one destination country` and writes nothing, rather than
+storing a permit with no country restriction. The check is on shape, not on
+membership of the assigned ISO list, so a well-formed but unassigned code is
+stored as sent and then matches no destination — see
+[Outbound permits](/docs/policy-and-outbound#choose-profiles-channels-and-countries).
 
 ## Wallet & usage
 

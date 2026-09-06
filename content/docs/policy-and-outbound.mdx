@@ -49,7 +49,8 @@ campaigns, or a custom implementation-services profile), the channels you need
 wherever your workspace already has numbers.
 
 **At least one destination country is required.** A request with no countries —
-or with only values that are not ISO 3166-1 alpha-2 codes — is refused with
+or with only values that do not normalize to a two-letter code, such as a
+country name, a three-letter code or an empty string — is refused with
 `400 select at least one destination country`, and nothing is written: an
 already approved permit keeps exactly the countries it had. This is not a
 formality. `authorize_outbound` only compares a call's destination against the
@@ -57,6 +58,17 @@ permit when the permit lists countries at all, so a permit stored with an empty
 list would authorize every destination that is not on the sanctions block —
 the opposite of what choosing countries is for. A permit with no country
 restriction is something only an OpenPhonex operator can approve.
+
+What is checked is the **shape** of each value, not membership of the assigned
+ISO 3166-1 list. The picker offers regions that have no calling code, and the
+API accepts aliases such as `UAE`, `USA` and `UK`, so a list checked against
+assigned codes would refuse selections the workspace itself offers. A
+well-formed but unassigned code such as `ZZ` is therefore stored exactly as you
+sent it — and then matches nothing, because a call's country is derived from
+the number dialled. Such a permit fails closed: every call is held for review
+rather than authorized. Read the countries back from
+`GET /v1/organizations/{organization_id}/outbound-permit` and check they are the
+ones you meant.
 
 </Step>
 
