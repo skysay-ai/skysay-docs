@@ -8,56 +8,66 @@ the agent **evaluate policy first**, surface the decision and cost, and only the
 authorize and place. Scopes fail closed, and the policy engine blocks whole
 categories of outbound regardless of scope.
 
-## Request your outbound permit in the workspace
+## Your workspace capabilities
 
-Every workspace needs an approved **outbound permit** before outbound calls or
-SMS can authorize — `authorize_outbound` checks it on every attempt. Request
-and track it from the **Onboarding** page in the workspace; no API call or MCP
-tool is required, though the REST routes and their MCP equivalents cover the
-same flow programmatically:
+Every workspace has one **capabilities** record from the moment it is created.
+It says what the workspace may do outbound: the use-case profiles, the channels
+(voice, SMS), the destinations, the caps, and — for a customer application —
+the calling rules. `authorize_outbound` checks it on every attempt, and a
+workspace whose record is not active cannot place an outbound call or SMS.
 
-| Operation | Scope | What it does |
-| --- | --- | --- |
-| `GET /v1/organizations/{organization_id}/outbound-permit` | `onboarding:read` | The stored permit, the profiles you may select from, and live usage against the permit's caps. |
-| `POST /v1/organizations/{organization_id}/outbound-permit` | `onboarding:write` | Request or replace the permit. `profiles` and `countries` are both required. |
-| `POST /v1/organizations/{organization_id}/outbound-permit/accept-policy` | `onboarding:write` | Record acceptance of a policy version without changing what the permit authorizes. |
+Read and manage it on the **Capabilities** page in the workspace, or
+programmatically: `GET /v1/organizations/{organization_id}/capabilities`
+(`onboarding:read`) and `POST /v1/organizations/{organization_id}/capabilities`
+(`onboarding:write`), or the `get_capabilities` / `request_capabilities` MCP
+tools.
 
-Over MCP the same two operations are `get_outbound_permit` and
-`request_outbound_permit`. Exact request and response shapes are in the
-[API reference](/docs/api-reference).
+### Activation is automatic
+
+There are two doors, and both activate the record the same way:
+
+- an OpenPhonex operator approves your business verification, or
+- your first phone number needs no carrier registration, so the workspace is
+  trusted for outbound as soon as it is ordered.
+
+Activation grants the default profile (business support & callbacks) with its
+catalog caps, the channels your workspace can use (voice; SMS unless every
+number you hold is voice-only), and **every destination except sanctioned
+countries**. Sanctioned destinations are blocked for every workspace in every
+state. Operators can tighten from there; you request more below.
+
+| Status | Meaning |
+| --- | --- |
+| Not activated | The workspace has not cleared verification yet. Outbound is refused. |
+| Pending review | A request needs an OpenPhonex operator (a standard profile requested before verification finished, or the custom implementation-services profile). Nothing new is authorized yet; what was active stays active. |
+| Active | Outbound calls and SMS are authorized within the profiles, channels, destinations and caps on the record. |
+| Suspended | An operator paused outbound for this workspace. |
+
+### Request more
 
 <Steps>
 
 <Step>
 
-### Finish business verification
-
-Submit your business details on the Onboarding page and wait for operator
-approval. You can still fill in the permit request while this is pending — it
-queues for review as soon as verification finishes.
-
-</Step>
-
-<Step>
-
-### Choose profiles, channels, and countries
+### Choose profiles, channels and destinations
 
 Pick one or more use-case profiles (personal assistant, business support,
 appointments, payment reminders, internal operations, customer outreach
-campaigns, or a custom implementation-services profile), the channels you need
-(voice, SMS, or both), and the destination countries. Countries default to
-wherever your workspace already has numbers.
+campaigns, or a custom implementation-services profile), the channels you
+need, and the destinations: **all destinations except sanctioned countries**,
+or an allowlist of countries. An allowlist must name at least one country; an
+empty one is refused rather than read as "everywhere".
 
-**At least one destination country is required.** A request with no countries —
-or with only values that do not normalize to a two-letter code, such as a
-country name, a three-letter code or an empty string — is refused with
-`400 select at least one destination country`, and nothing is written: an
-already approved permit keeps exactly the countries it had. This is not a
-formality. `authorize_outbound` only compares a call's destination against the
-permit when the permit lists countries at all, so a permit stored with an empty
-list would authorize every destination that is not on the sanctions block —
-the opposite of what choosing countries is for. A permit with no country
-restriction is something only an OpenPhonex operator can approve.
+**The destination choice is explicit.** Over the API the request carries
+either `all_countries: true` or a `countries` allowlist naming at least one
+ISO 3166-1 alpha-2 code. A request with neither, with an empty list, or with an
+entry that is not a two-letter code once normalized (a country name, a
+three-letter code, a number) is refused with `400` — the refusal names the
+entry — and nothing is written: an active record keeps exactly the destinations
+it had. Neither default would be safe: reading an omitted choice as "every
+destination" would widen a workspace that named no list, and reading it as an
+empty allowlist would store a record that says active while every call is held
+for review.
 
 What is checked is the **shape** of each value, not membership of the assigned
 ISO 3166-1 list. The picker offers regions that have no calling code, and the
@@ -65,9 +75,10 @@ API accepts aliases such as `UAE`, `USA` and `UK`, so a list checked against
 assigned codes would refuse selections the workspace itself offers. A
 well-formed but unassigned code such as `ZZ` is therefore stored exactly as you
 sent it — and then matches nothing, because a call's country is derived from
-the number dialled. Such a permit fails closed: every call is held for review
-rather than authorized. Read the countries back from
-`GET /v1/organizations/{organization_id}/outbound-permit` and check they are the
+the number dialled: every call to it is held for review rather than authorized.
+The Capabilities page shows each stored country with its code for that reason;
+over the API, read them back from
+`GET /v1/organizations/{organization_id}/capabilities` and check they are the
 ones you meant.
 
 </Step>
@@ -76,26 +87,38 @@ ones you meant.
 
 ### Accept the outbound policy
 
-Accept the current outbound policy version before submitting.
+Accept the current outbound policy version before submitting. Standard
+profiles are approved instantly once verification is done; the custom profile
+always goes to an operator.
 
 </Step>
 
 </Steps>
 
-The result depends on your workspace's state:
-
-| Status | Meaning |
-| --- | --- |
-| Not requested | No permit has been submitted yet. |
-| Pending review | A standard profile was requested before business verification finished, or a custom (implementation-services) profile was selected — an OpenPhonex operator reviews it. |
-| Approved | Outbound is active immediately within the approved profiles, channels, countries, and caps. |
-| Suspended | An operator paused outbound for this workspace. |
-
-<Callout type="warn" title="Re-requesting an approved permit">
-  Submitting a new request replaces the currently approved permit rather than
-  adding to it. Adding the custom implementation-services profile always
-  requires a new review, which can pause outbound until it is approved again.
+<Callout type="warn" title="Re-requesting on an active record">
+  A new request replaces the active selection rather than adding to it. Adding
+  the custom implementation-services profile always requires a new review;
+  until it is approved, what was active stays active.
 </Callout>
+
+### Calling rules
+
+An operator can attach **calling rules** to your record for a customer
+application (today the `payment_reminder` rule set: effective period, local
+calling windows, per-case cadence and attempt cap, script version, and the
+stop / wrong-party / dispute actions). `GET .../capabilities` returns them as
+`calling_rules` and whether they are enforced right now as
+`calling_rules_active`. A self-serve request cannot set or clear them.
+
+### Authorized application batches
+
+A workspace whose active profile allows campaigns (`payment_reminder`,
+`customer_outreach`) may run its own batches through the single-call API: send
+each call with `bulk: true`, your own batch label as `campaign_id`, and a
+`user_authorization` naming who approved the batch. Under such a profile the
+call is an ordinary authorized call; under the default profile, or without an
+authorizer, it is held for review (`needs_review.campaign`). Every other gate
+still applies.
 
 ## The outbound sequence
 

@@ -13,11 +13,19 @@ services were confirmed deployed.
 
 ## 6 September 2026
 
+### Capabilities
+
+- The workspace outbound permission record is now called **capabilities** across the API, the MCP tools and the workspace, with no compatibility aliases: `GET`/`POST /v1/organizations/{organization_id}/capabilities` and `POST .../accept-policy` replace the `outbound-permit` routes, `get_capabilities` / `request_capabilities` replace the permit tools, the response key is `capabilities`, and authorization decisions carry `capabilities_snapshot` and the reason code `channel_not_enabled`.
+- Every workspace has exactly one record from the moment it is created (`not_activated`), and activation is automatic through both trust doors — an operator approving your business verification, or your first registration-free number — granting the default profile with its caps, the channels your workspace holds, and every destination except sanctioned countries; the states are `not_activated`, `pending_review`, `active` and `suspended`.
+- A request must choose its destinations: `all_countries: true`, or at least one country code; an unrecognized entry is refused by name.
+- The **Capabilities** page in the workspace shows the record, the caps in force, usage and open reviews, and takes requests with a searchable destination picker; calling rules attached by an operator are returned as `calling_rules` with `calling_rules_active`, and `metadata.operational_profile` is gone.
+- [Your workspace capabilities](/docs/policy-and-outbound#your-workspace-capabilities) · [API reference](/docs/rest-endpoints#capabilities) · [Tool reference](/docs/tool-reference)
+
 ### Destination countries required for the outbound permit
 
 - Requesting or replacing the outbound permit now requires at least one destination country; an empty or unrecognized list is refused instead of authorizing every destination.
 - The three outbound permit routes (`GET`/`POST /v1/organizations/{organization_id}/outbound-permit` and `POST .../accept-policy`) are documented in the API reference.
-- [Outbound permits](/docs/policy-and-outbound#choose-profiles-channels-and-countries) · [API reference](/docs/rest-endpoints#outbound-permit)
+- [Outbound permits](/docs/policy-and-outbound#choose-profiles-channels-and-destinations) · [API reference](/docs/rest-endpoints#capabilities)
 
 ### Outbound permit
 
@@ -25,7 +33,7 @@ services were confirmed deployed.
 - Read or request it at `GET /v1/organizations/{organization_id}/outbound-permit`, or through the `get_outbound_permit` / `request_outbound_permit` MCP tools.
 - Request and track your permit from the **Onboarding** page: choose one or more use-case profiles, the channels you need, and destination countries, then accept the outbound policy.
 - Approval is instant once business verification (KYB) is complete; adding the custom implementation-services profile always goes to operator review.
-- [Request your outbound permit](/docs/policy-and-outbound#request-your-outbound-permit-in-the-workspace) · [Tool reference](/docs/tool-reference)
+- [Request your outbound permit](/docs/policy-and-outbound#your-workspace-capabilities) · [Tool reference](/docs/tool-reference)
 
 ### Delivery and acknowledgements controls in the agent editor
 

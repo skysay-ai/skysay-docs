@@ -92,26 +92,28 @@ preset or substituting another version.
 | `GET` | `/v1/conversations` | List SMS conversations. |
 | `POST` | `/v1/messages` | Send a policy-gated SMS. |
 
-## Outbound permit
+## Capabilities
 
-Outbound calls and SMS authorize against the workspace's **outbound permit**, so
-a machine client that provisions a workspace end to end needs these three. See
-[Policy & outbound](/docs/policy-and-outbound#request-your-outbound-permit-in-the-workspace)
+Outbound calls and SMS authorize against the workspace's **capabilities**
+record, so a machine client that provisions a workspace end to end needs these
+three. See
+[Policy & outbound](/docs/policy-and-outbound#your-workspace-capabilities)
 for what each field means.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/v1/organizations/{organization_id}/outbound-permit` | The stored permit, the selectable profiles, and live usage against its caps. |
-| `POST` | `/v1/organizations/{organization_id}/outbound-permit` | Request or replace the permit. `profiles` and `countries` are both required. |
-| `POST` | `/v1/organizations/{organization_id}/outbound-permit/accept-policy` | Accept a policy version without changing what the permit authorizes. |
+| `GET` | `/v1/organizations/{organization_id}/capabilities` | The record, its calling rules, the selectable profiles, and live usage against its caps. |
+| `POST` | `/v1/organizations/{organization_id}/capabilities` | Request or replace the selection. `profiles` is required, and so is a destination choice: `all_countries: true` or a `countries` allowlist. |
+| `POST` | `/v1/organizations/{organization_id}/capabilities/accept-policy` | Accept a policy version without changing what the record authorizes. |
 
-`countries` must name at least one ISO 3166-1 alpha-2 destination. A list that
-is empty, or whose every entry fails to normalize to a two-letter code, answers
-`400 select at least one destination country` and writes nothing, rather than
-storing a permit with no country restriction. The check is on shape, not on
-membership of the assigned ISO list, so a well-formed but unassigned code is
-stored as sent and then matches no destination — see
-[Outbound permits](/docs/policy-and-outbound#choose-profiles-channels-and-countries).
+The destination choice is explicit: `all_countries: true` (every destination
+except sanctioned countries) or `countries` naming at least one ISO 3166-1
+alpha-2 code. A request with neither, with an empty list, or with an entry
+that is not a two-letter code once normalized answers `400`, names the entry,
+and writes nothing. The check is on shape, not on membership of the assigned
+ISO list, so a well-formed but unassigned code is stored as sent and then
+matches no destination — see
+[Choose profiles, channels and destinations](/docs/policy-and-outbound#choose-profiles-channels-and-destinations).
 
 ## Wallet & usage
 
