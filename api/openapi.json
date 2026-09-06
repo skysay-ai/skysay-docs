@@ -2833,6 +2833,285 @@
         },
         "type": "object"
       },
+      "OutboundPermit": {
+        "description": "The workspace's stored outbound permit. `status` is `draft` until the first request; `approved` authorizes outbound within the listed channels, countries and limits.",
+        "properties": {
+          "approved_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approved_by": {
+            "description": "`self_serve` for an auto-approval, otherwise the operator who approved it.",
+            "type": "string"
+          },
+          "approved_profiles": {
+            "items": {
+              "enum": [
+                "personal_assistant",
+                "business_support",
+                "appointments_reservations",
+                "payment_reminder",
+                "internal_operations",
+                "customer_outreach",
+                "implementation_services_custom"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "channels": {
+            "items": {
+              "enum": [
+                "voice",
+                "sms"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "compliance_profile_id": {
+            "description": "The approved KYB profile this permit was granted against; empty until KYB clears.",
+            "type": "string"
+          },
+          "countries": {
+            "description": "Destination countries this permit authorizes, as ISO 3166-1 alpha-2 codes. An empty array on an APPROVED permit means no country restriction, which only an OpenPhonex operator can set; the request endpoint always requires at least one country.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "customer_visible_message": {
+            "description": "Server-composed status sentence for the workspace; display as-is.",
+            "type": "string"
+          },
+          "id": {
+            "description": "Empty string while the workspace has never requested a permit (`status: draft`).",
+            "type": "string"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Approved caps projected into the workspace's risk controls (per-day/per-minute call and SMS counts, unique destinations, daily voice and wallet spend in minor units).",
+            "type": "object"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "policy_accepted_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "policy_accepted_by": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "pending_review",
+              "approved",
+              "suspended"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OutboundPermitDetail": {
+        "description": "The permit, the profiles the workspace may select from, and live usage against its caps.",
+        "properties": {
+          "available_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/OutboundPermitProfile"
+            },
+            "type": "array"
+          },
+          "generated_at": {
+            "type": "string"
+          },
+          "operational_profile": {
+            "description": "The application-specific cadence contract recorded during OpenPhonex approval (calling windows, attempt intervals, escalation actions), or null when none applies. Configured by OpenPhonex, never by this API.",
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "permit": {
+            "$ref": "#/components/schemas/OutboundPermit"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/OutboundPermitUsage"
+          }
+        },
+        "type": "object"
+      },
+      "OutboundPermitPolicyAcceptance": {
+        "properties": {
+          "accepted_by": {
+            "type": "string"
+          },
+          "policy_version": {
+            "description": "Required unless the permit already carries one.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OutboundPermitProfile": {
+        "description": "One selectable use-case profile and the caps it grants by default.",
+        "properties": {
+          "allowed_purposes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowed_recipient_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "campaigns_allowed": {
+            "type": "boolean"
+          },
+          "channels": {
+            "items": {
+              "enum": [
+                "voice",
+                "sms"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "default_caps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "enum": [
+              "personal_assistant",
+              "business_support",
+              "appointments_reservations",
+              "payment_reminder",
+              "internal_operations",
+              "customer_outreach",
+              "implementation_services_custom"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OutboundPermitRequest": {
+        "properties": {
+          "accepted_by": {
+            "type": "string"
+          },
+          "channels": {
+            "description": "Omitted or empty falls back to the selected profiles' own channels.",
+            "items": {
+              "enum": [
+                "voice",
+                "sms"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "countries": {
+            "description": "Destination countries to authorize, as ISO 3166-1 alpha-2 codes. REQUIRED: at least one must be a well-formed code, and a missing, empty or all-invalid list is refused with 400 rather than stored as an unrestricted permit. A few aliases are normalized (UAE, USA, UK).",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Optional cap overrides; `live_call_concurrency` is always taken from the plan and never from this payload.",
+            "type": "object"
+          },
+          "metadata": {
+            "description": "`operational_profile` is refused here: that contract is set during OpenPhonex approval.",
+            "type": "object"
+          },
+          "policy_version": {
+            "description": "Accepting the outbound policy here is what makes auto-approval possible for a KYB-approved workspace; without it the request goes to review.",
+            "type": "string"
+          },
+          "profiles": {
+            "description": "At least one valid use-case profile. Unknown keys are dropped; a selection with none left is refused.",
+            "items": {
+              "enum": [
+                "personal_assistant",
+                "business_support",
+                "appointments_reservations",
+                "payment_reminder",
+                "internal_operations",
+                "customer_outreach",
+                "implementation_services_custom"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "profiles",
+          "countries"
+        ],
+        "type": "object"
+      },
+      "OutboundPermitUsage": {
+        "description": "Live usage for the same rolling windows the permit's limits are expressed in.",
+        "properties": {
+          "outbound_calls_last_day": {
+            "type": "integer"
+          },
+          "outbound_calls_last_minute": {
+            "type": "integer"
+          },
+          "sms_last_day": {
+            "type": "integer"
+          },
+          "unique_destinations_last_day": {
+            "type": "integer"
+          },
+          "wallet_spend_last_day_minor": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PhoneNumberRequest": {
         "properties": {
           "agent_endpoint_id": {
@@ -9045,6 +9324,138 @@
           }
         },
         "summary": "Create a sandbox customer workspace when signup mode allows it"
+      }
+    },
+    "/v1/organizations/{organization_id}/outbound-permit": {
+      "get": {
+        "description": "Pure read. `permit.status` is `draft` until the workspace has requested one. `permit.countries` lists the destinations outbound is authorized for as ISO 3166-1 alpha-2 codes; an empty array on an approved permit means no country restriction and can only be set by an OpenPhonex operator. Every outbound call and SMS is authorized against this permit (see POST /v1/policies/authorize-outbound).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboundPermitDetail"
+                }
+              }
+            },
+            "description": "Permit, available profiles and usage"
+          },
+          "403": {
+            "description": "The credential does not belong to this organization"
+          },
+          "404": {
+            "description": "Unknown organization"
+          }
+        },
+        "summary": "Read the workspace's outbound permit, the selectable use-case profiles, and live usage against its caps",
+        "x-required-scopes": [
+          "onboarding:read"
+        ]
+      },
+      "post": {
+        "description": "Select the use-case profiles, channels and destination countries outbound should be authorized for, and accept the outbound policy by sending `policy_version`. A KYB-approved workspace that accepts the policy and selects no custom profile is approved immediately within the profiles' default caps; anything else is recorded as `pending_review` and opens an OpenPhonex review. `countries` is required and must contain at least one well-formed ISO 3166-1 alpha-2 code: a missing, empty or all-invalid list is refused with 400 and nothing is written, because an empty stored list means no country restriction at authorization time. Re-requesting REPLACES the current selection and re-evaluates approval from scratch.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutboundPermitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboundPermit"
+                }
+              }
+            },
+            "description": "The stored permit, approved or pending review"
+          },
+          "400": {
+            "description": "No valid profile selected, no valid destination country selected, or metadata.operational_profile supplied"
+          },
+          "403": {
+            "description": "The credential does not belong to this organization"
+          },
+          "404": {
+            "description": "Unknown organization"
+          }
+        },
+        "summary": "Request or change the workspace's outbound permit",
+        "x-required-scopes": [
+          "onboarding:write"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/outbound-permit/accept-policy": {
+      "post": {
+        "description": "Stores `policy_version` with the acceptance time and actor and leaves the approved profiles, channels, countries and limits exactly as they are. A `draft` permit becomes `pending_review`; an already approved or suspended permit keeps its status. Use POST /v1/organizations/{organization_id}/outbound-permit to change what the permit authorizes.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutboundPermitPolicyAcceptance"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboundPermit"
+                }
+              }
+            },
+            "description": "The stored permit"
+          },
+          "400": {
+            "description": "No policy_version supplied and none already stored"
+          },
+          "403": {
+            "description": "The credential does not belong to this organization"
+          }
+        },
+        "summary": "Record acceptance of the outbound policy without changing the permit's selection",
+        "x-required-scopes": [
+          "onboarding:write"
+        ]
       }
     },
     "/v1/phone-numbers/{number_id}/detach-agent": {
