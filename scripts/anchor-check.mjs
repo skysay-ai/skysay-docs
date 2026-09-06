@@ -30,9 +30,7 @@
  * It cannot pass without checking:
  *   - a truncated HTTP response REJECTS instead of resolving a partial body;
  *   - checking zero links is a FAILURE, not "all anchors resolve";
- *   - the sitemap may not list fewer /docs pages than `content/docs` holds
- *     source files, so a page dropping out of the site's own list is caught;
- *   - the entry-point guard compares real paths, so running through a symlinked
+ * *   - the entry-point guard compares real paths, so running through a symlinked
  *     directory (`/tmp` -> `/private/tmp` on macOS) still runs it;
  *   - `<script>`/`<style>` contents are removed before anything is extracted.
  *     Next.js serializes the page into `self.__next_f.push(...)`, so a fenced
@@ -54,14 +52,15 @@
  *     the literal id `a&amp;b` stays distinct from one to `a&b`, and `&nbsp;`
  *     decodes to U+00A0 rather than a plain space;
  *   - percent-escapes are decoded run by run, so a literal `%` beside an escaped
- *     character (`#100%-caf%C3%A9`) does not defeat the whole fragment.
+ *     character (`#100%-caf%C3%A9`) does not defeat the whole fragment, and the
+ *     LITERAL fragment is accepted too, because that is what a browser matches
+ *     against an id first.
  *
  *   npm run start &            # or any running instance of this site
  *   npm run anchor-check
  *   node scripts/anchor-check.mjs --local http://127.0.0.1:3000
  */
 import { realpathSync } from "node:fs";
-import { readdir } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
@@ -196,13 +195,6 @@ export function sitemapPaths(xml) {
   return [...new Set(paths)].sort();
 }
 
-/** How many source pages the docs tree holds, by either supported extension. */
-async function docSourceFileCount() {
-  const base = path.join(ROOT, "content", "docs");
-  const entries = await readdir(base, { withFileTypes: true, recursive: true });
-  return entries.filter((entry) => entry.isFile() && /\.mdx?$/i.test(entry.name)).length;
-}
-
 // Script and style contents are TEXT, not markup: nothing in them is an element
 // a fragment can address. Next.js inlines the whole rendered page into
 // `self.__next_f.push(...)`, so a documented `<div id='ghost'>` inside a fenced
@@ -255,11 +247,14 @@ export function parseInSiteLink(href, fromPage, origin = RESOLUTION_ORIGIN) {
   if (!isInSiteHost(url, new URL(origin).host)) return null; // genuinely external
   const rawFragment = url.hash.slice(1);
   if (!rawFragment) return null; // no fragment, or a bare "#" no-op link
+  // Both spellings, because a browser matches the LITERAL fragment against ids
+  // first and only then the percent-decoded one. An id may legitimately contain
+  // a literal `%C3%A9`, and decoding unconditionally would fail that link.
   const fragment = decodeFragment(rawFragment);
   const targetPath = url.pathname.replace(/\/$/, "") || "/";
   // `.md`/`.txt` rewrites and asset routes serve plain text, which has no ids.
   if (/\.(md|txt|json|xml|png|svg|jpg|jpeg|webp|ico|css|js)$/i.test(targetPath)) return null;
-  return { targetPath, fragment };
+  return { targetPath, fragment, rawFragment };
 }
 
 async function main() {
@@ -271,17 +266,12 @@ async function main() {
   if (pages.length === 0) {
     throw new Error("the site's sitemap listed no pages");
   }
-  // The sitemap is the site's own answer, so a page it forgets would silently
-  // drop out of this gate. It cannot list FEWER /docs URLs than there are source
-  // files; comparing counts needs no routing rules of our own.
-  const docsUrls = pages.filter((page) => page === "/docs" || page.startsWith("/docs/")).length;
-  const sourceFiles = await docSourceFileCount();
-  if (docsUrls < sourceFiles) {
-    throw new Error(
-      `the sitemap lists ${docsUrls} /docs pages but content/docs holds ${sourceFiles} source files — ` +
-        `pages are missing from the sitemap, so checking it would not cover them`,
-    );
-  }
+  // Deliberately no count check against `content/docs` here. Sitemap
+  // completeness is `parity-check.mjs`'s job and it does it by PATH: it requests
+  // the union of the content tree and the sitemap, so a page the sitemap forgets
+  // is still visited there. A count comparison would be neither necessary (a
+  // source file need not be a published page) nor sufficient (an extra generated
+  // URL would mask a dropout).
 
   // Follow in-site redirects the way a browser does. `next.config.mjs` keeps
   // retired URLs resolving (`/docs/agents` -> `/docs/mcp`), and a browser carries
@@ -305,7 +295,7 @@ async function main() {
         if (!isInSiteHost(next, LOCAL_HOST)) {
           return { html: null, finalPath: current, fragmentOverride, reason: `redirects off this site to ${location}` };
         }
-        if (next.hash.length > 1) fragmentOverride = decodeFragment(next.hash.slice(1));
+        if (next.hash.length > 1) fragmentOverride = { raw: next.hash.slice(1), decoded: decodeFragment(next.hash.slice(1)) };
         current = `${next.pathname}${next.search}`;
         continue;
       }
@@ -348,8 +338,10 @@ async function main() {
       }
       // A redirect that supplies its own fragment REPLACES the one the link
       // carried; without one, the link's fragment is inherited across the hop.
-      const effective = target.fragmentOverride ?? link.fragment;
-      if (!idsIn(target.html).has(effective)) {
+      const effective = target.fragmentOverride?.decoded ?? link.fragment;
+      const effectiveRaw = target.fragmentOverride?.raw ?? link.rawFragment;
+      const ids = idsIn(target.html);
+      if (!ids.has(effective) && !ids.has(effectiveRaw)) {
         const where =
           target.finalPath === link.targetPath
             ? link.targetPath

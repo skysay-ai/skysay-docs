@@ -20,7 +20,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readdir, rm, symlink } from "node:fs/promises";
+import { mkdtemp, rm, symlink } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -125,6 +125,7 @@ test("an in-site link with a fragment is checked", () => {
   assert.deepEqual(parseInSiteLink("/docs/delivery-profiles#set-it-through-the-api", "/docs/changelog"), {
     targetPath: "/docs/delivery-profiles",
     fragment: "set-it-through-the-api",
+    rawFragment: "set-it-through-the-api",
   });
 });
 
@@ -132,6 +133,7 @@ test("a same-page fragment resolves against the page it appears on", () => {
   assert.deepEqual(parseInSiteLink("#how-the-worker-uses-it", "/docs/voice-behavior"), {
     targetPath: "/docs/voice-behavior",
     fragment: "how-the-worker-uses-it",
+    rawFragment: "how-the-worker-uses-it",
   });
 });
 
@@ -140,6 +142,7 @@ test("a scheme-absolute link to this same site is an in-site claim, not an exter
     assert.deepEqual(parseInSiteLink(`${host}/docs/voice-behavior#missing`, "/docs/changelog"), {
       targetPath: "/docs/voice-behavior",
       fragment: "missing",
+      rawFragment: "missing",
     });
   }
 });
@@ -148,8 +151,13 @@ test("a relative link resolves against the page it appears on", () => {
   assert.deepEqual(parseInSiteLink("voice-behavior#missing", "/docs/changelog"), {
     targetPath: "/docs/voice-behavior",
     fragment: "missing",
+    rawFragment: "missing",
   });
-  assert.deepEqual(parseInSiteLink("../scopes#x", "/docs/x"), { targetPath: "/scopes", fragment: "x" });
+  assert.deepEqual(parseInSiteLink("../scopes#x", "/docs/x"), {
+    targetPath: "/scopes",
+    fragment: "x",
+    rawFragment: "x",
+  });
 });
 
 test("a trailing slash on the target is normalized away", () => {
@@ -157,7 +165,11 @@ test("a trailing slash on the target is normalized away", () => {
 });
 
 test("a query string before the fragment is dropped", () => {
-  assert.deepEqual(parseInSiteLink("/docs/x?q=1#frag", "/docs/y"), { targetPath: "/docs/x", fragment: "frag" });
+  assert.deepEqual(parseInSiteLink("/docs/x?q=1#frag", "/docs/y"), {
+    targetPath: "/docs/x",
+    fragment: "frag",
+    rawFragment: "frag",
+  });
 });
 
 test("a percent-escaped fragment is decoded before comparison", () => {
@@ -204,20 +216,11 @@ test("plain-text and asset targets carry no ids and are skipped", () => {
 
 /* ------------------------------------------------------------------- gate */
 
-// The gate reads its page list from the site's sitemap and refuses to run when
-// that lists fewer /docs pages than there are source files, so every fixture
-// server publishes a sitemap padded to the real count. The filler pages answer
-// with the same body as any other page.
-const DOC_SOURCE_FILES = (
-  await readdir(path.join(path.dirname(SCRIPT), "..", "content", "docs"), { withFileTypes: true, recursive: true })
-).filter((entry) => entry.isFile() && /\.mdx?$/i.test(entry.name)).length;
-
-function sitemapXml(paths = []) {
-  const all = [...paths];
-  for (let i = 0; all.filter((one) => one.startsWith("/docs")).length < DOC_SOURCE_FILES; i += 1) {
-    all.push(`/docs/filler-${i}`);
-  }
-  return `<?xml version="1.0"?><urlset>${all.map((one) => `<url><loc>https://openphonex.com${one}</loc></url>`).join("")}</urlset>`;
+// The gate reads its page list from the site's own sitemap, so every fixture
+// server publishes one. Sitemap COMPLETENESS is parity-check.mjs's job, by path;
+// nothing here compares counts.
+function sitemapXml(paths = ["/docs/a"]) {
+  return `<?xml version="1.0"?><urlset>${paths.map((one) => `<url><loc>https://openphonex.com${one}</loc></url>`).join("")}</urlset>`;
 }
 
 function serve(handler, sitemapPathList) {
@@ -259,27 +262,6 @@ test("a run that finds no links at all FAILS instead of reporting success", asyn
     assert.equal(code, 1, out);
     assert.match(out, /no in-site anchor links found/);
     assert.doesNotMatch(out, /All in-site anchors resolve/);
-  } finally {
-    server.close();
-  }
-});
-
-test("a sitemap that lists fewer pages than the docs tree holds FAILS", async () => {
-  const short = `<?xml version="1.0"?><urlset><url><loc>https://openphonex.com/docs/only</loc></url></urlset>`;
-  const server = http.createServer((req, res) => {
-    if (req.url === "/docs/sitemap.xml") {
-      res.writeHead(200, { "content-type": "application/xml" });
-      res.end(short);
-      return;
-    }
-    res.writeHead(200, { "content-type": "text/html" });
-    res.end(html('<a href="#x">x</a><h2 id="x">x</h2>'));
-  });
-  await new Promise((done) => server.listen(0, "127.0.0.1", done));
-  try {
-    const { code, out } = await runCheck(SCRIPT, `http://127.0.0.1:${server.address().port}`);
-    assert.equal(code, 1, out);
-    assert.match(out, /pages are missing from the sitemap/);
   } finally {
     server.close();
   }
@@ -400,7 +382,7 @@ function redirectServer(location, destinationBody) {
 }
 
 test("an in-site redirect is followed and the fragment checked at its destination", async () => {
-  const { server, url } = await serve(redirectServer("/docs/new", '<h2 id="target">t</h2>'), ["/docs/new"]);
+  const { server, url } = await serve(redirectServer("/docs/new", '<h2 id="target">t</h2>'));
   try {
     const { code, out } = await runCheck(SCRIPT, url);
     assert.equal(code, 0, out);
@@ -417,7 +399,7 @@ test("a redirect naming the configured server by its absolute URL is still in-si
     const origin = `http://127.0.0.1:${server.address().port}`;
     if (req.url === "/docs/sitemap.xml") {
       res.writeHead(200, { "content-type": "application/xml" });
-      res.end(sitemapXml(["/docs/new"]));
+      res.end(sitemapXml());
       return;
     }
     if (req.url === "/docs/old") {
@@ -441,7 +423,7 @@ test("a redirect naming the configured server by its absolute URL is still in-si
 test("a fragment supplied by the redirect REPLACES the one the link carried", async () => {
   // Browsers use the Location's fragment when it has one. Checking the original
   // instead fails a working link and passes a broken one.
-  const good = await serve(redirectServer("/docs/new#current", '<h2 id="current">c</h2>'), ["/docs/new"]);
+  const good = await serve(redirectServer("/docs/new#current", '<h2 id="current">c</h2>'));
   try {
     const { code, out } = await runCheck(SCRIPT, good.url);
     assert.equal(code, 0, out);
@@ -450,7 +432,7 @@ test("a fragment supplied by the redirect REPLACES the one the link carried", as
     good.server.close();
   }
 
-  const bad = await serve(redirectServer("/docs/new#missing", '<h2 id="target">t</h2>'), ["/docs/new"]);
+  const bad = await serve(redirectServer("/docs/new#missing", '<h2 id="target">t</h2>'));
   try {
     const { code, out } = await runCheck(SCRIPT, bad.url);
     assert.equal(code, 1, out);
@@ -458,6 +440,22 @@ test("a fragment supplied by the redirect REPLACES the one the link carried", as
     assert.match(out, /redirected from \/docs\/old/);
   } finally {
     bad.server.close();
+  }
+});
+
+test("an id containing literal percent-escapes still matches its link", async () => {
+  // Chromium matches the LITERAL fragment against ids before trying the decoded
+  // one, so a custom id written `100%-caf%C3%A9` is reachable as written.
+  const { server, url } = await serve((_req, res) => {
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end(html('<a href="#100%-caf%C3%A9">x</a><h2 id="100%-caf%C3%A9">h</h2>'));
+  });
+  try {
+    const { code, out } = await runCheck(SCRIPT, url);
+    assert.equal(code, 0, out);
+    assert.match(out, /All in-site anchors resolve/);
+  } finally {
+    server.close();
   }
 });
 
