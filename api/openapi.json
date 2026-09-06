@@ -2086,6 +2086,300 @@
         },
         "type": "object"
       },
+      "Capabilities": {
+        "description": "The workspace's capabilities record: what it may do outbound. One per workspace, always. `active` authorizes outbound within the listed profiles, channels, destinations and limits; every other status authorizes nothing new.",
+        "properties": {
+          "all_countries": {
+            "description": "True: every destination except the sanctioned set is authorized and `countries` is empty. False: `countries` is the explicit allowlist. Activation through verification sets it true; a request chooses.",
+            "type": "boolean"
+          },
+          "approved_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approved_by": {
+            "description": "`self_serve` for a request approved within the catalog, the operator who approved it, or the verification door that activated it.",
+            "type": "string"
+          },
+          "approved_profiles": {
+            "items": {
+              "enum": [
+                "personal_assistant",
+                "business_support",
+                "appointments_reservations",
+                "payment_reminder",
+                "internal_operations",
+                "customer_outreach",
+                "implementation_services_custom"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "calling_rules": {
+            "description": "The application calling rules an operator recorded on approval; `{}` when none apply.",
+            "type": "object"
+          },
+          "channels": {
+            "items": {
+              "enum": [
+                "voice",
+                "sms"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "compliance_profile_id": {
+            "description": "The verified business profile the record was activated against; empty until verification clears.",
+            "type": "string"
+          },
+          "countries": {
+            "description": "The destination allowlist as ISO 3166-1 alpha-2 codes when `all_countries` is false. A call or text to any other country is held for review.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "customer_visible_message": {
+            "description": "Server-composed status sentence for the workspace; display as-is.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "The profile caps projected into the workspace's risk controls at its last activation or approval (per-day/per-minute call and SMS counts, unique destinations, daily voice and wallet spend in minor units). Empty when no profile caps were projected. The caps enforced right now are the workspace's risk controls, which an operator may have changed since; `/v1/dashboard/capabilities` reports those.",
+            "type": "object"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "policy_accepted_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "policy_accepted_by": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "not_activated",
+              "pending_review",
+              "active",
+              "suspended"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CapabilitiesDetail": {
+        "description": "The record, its calling rules, the profiles the workspace may select from, and live usage against its caps.",
+        "properties": {
+          "available_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilitiesProfile"
+            },
+            "type": "array"
+          },
+          "calling_rules": {
+            "description": "The customer-visible projection of the application calling rules recorded during OpenPhonex approval (effective period, time zone, calling windows, per-case cadence and attempt cap, escalation actions), or null when none apply. Configured by OpenPhonex, never by this API.",
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "calling_rules_active": {
+            "description": "True when calling rules are set and the record is active, i.e. they are enforced on every call right now.",
+            "type": "boolean"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/Capabilities"
+          },
+          "generated_at": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CapabilitiesUsage"
+          }
+        },
+        "type": "object"
+      },
+      "CapabilitiesPolicyAcceptance": {
+        "properties": {
+          "accepted_by": {
+            "type": "string"
+          },
+          "policy_version": {
+            "description": "Required unless the record already carries one.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CapabilitiesProfile": {
+        "description": "One selectable use-case profile and the caps it grants by default.",
+        "properties": {
+          "allowed_purposes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowed_recipient_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "campaigns_allowed": {
+            "description": "Whether campaigns and authorized application batches are permitted under this profile.",
+            "type": "boolean"
+          },
+          "channels": {
+            "items": {
+              "enum": [
+                "voice",
+                "sms"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "default_caps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "enum": [
+              "personal_assistant",
+              "business_support",
+              "appointments_reservations",
+              "payment_reminder",
+              "internal_operations",
+              "customer_outreach",
+              "implementation_services_custom"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CapabilitiesRequest": {
+        "properties": {
+          "accepted_by": {
+            "type": "string"
+          },
+          "all_countries": {
+            "description": "True authorizes every destination except the sanctioned set and ignores `countries`. Exactly one of `all_countries: true` or a non-empty `countries` is required; a request with neither is refused with 400 and nothing is written.",
+            "type": "boolean"
+          },
+          "channels": {
+            "description": "Omitted or empty falls back to the selected profiles' own channels.",
+            "items": {
+              "enum": [
+                "voice",
+                "sms"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "countries": {
+            "description": "The destination allowlist as ISO 3166-1 alpha-2 codes, used when `all_countries` is not true. An empty list is refused, and so is any entry that is not a well-formed two-letter code once normalized (the refusal names it). A few aliases are normalized (UAE, USA, UK).",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Optional cap overrides; `live_call_concurrency` is always taken from the plan and never from this payload.",
+            "type": "object"
+          },
+          "metadata": {
+            "description": "Free-form notes merged into the record. `calling_rules` and the retired `metadata.operational_profile` key are refused here: calling rules are set during OpenPhonex approval.",
+            "type": "object"
+          },
+          "policy_version": {
+            "description": "Accepting the outbound policy here is what makes immediate activation possible for a verified workspace; without it the request goes to review.",
+            "type": "string"
+          },
+          "profiles": {
+            "description": "At least one valid use-case profile. Unknown keys are dropped; a selection with none left is refused.",
+            "items": {
+              "enum": [
+                "personal_assistant",
+                "business_support",
+                "appointments_reservations",
+                "payment_reminder",
+                "internal_operations",
+                "customer_outreach",
+                "implementation_services_custom"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "profiles"
+        ],
+        "type": "object"
+      },
+      "CapabilitiesUsage": {
+        "description": "Live usage for the same rolling windows the record's limits are expressed in.",
+        "properties": {
+          "outbound_calls_last_day": {
+            "type": "integer"
+          },
+          "outbound_calls_last_minute": {
+            "type": "integer"
+          },
+          "sms_last_day": {
+            "type": "integer"
+          },
+          "unique_destinations_last_day": {
+            "type": "integer"
+          },
+          "wallet_spend_last_day_minor": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "ContactImport": {
         "properties": {
           "contacts": {
@@ -2726,7 +3020,7 @@
         "type": "object"
       },
       "OutboundCall": {
-        "description": "recipient_type is optional and recorded, never enforced. Destination country is authorized against the org's approved outbound permit (authorize_outbound), not a fixed platform allowlist. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
+        "description": "recipient_type is optional and recorded, never enforced. Destination country is authorized against the org's active workspace capabilities (authorize_outbound), not a fixed platform allowlist. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
         "properties": {
           "agent_endpoint_id": {
             "description": "Backwards-compatible alias for the selected agent endpoint; new integrations should send agent_id.",
@@ -2742,7 +3036,7 @@
             "type": "object"
           },
           "country": {
-            "description": "Destination country. Authorized per-organization by the approved outbound permit.",
+            "description": "Destination country. Authorized per-organization by the active workspace capabilities.",
             "type": "string"
           },
           "external_group_reference": {
@@ -2829,285 +3123,6 @@
             "maxLength": 35,
             "minLength": 2,
             "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "OutboundPermit": {
-        "description": "The workspace's stored outbound permit. `status` is `draft` until the first request; `approved` authorizes outbound within the listed channels, countries and limits.",
-        "properties": {
-          "approved_at": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "approved_by": {
-            "description": "`self_serve` for an auto-approval, otherwise the operator who approved it.",
-            "type": "string"
-          },
-          "approved_profiles": {
-            "items": {
-              "enum": [
-                "personal_assistant",
-                "business_support",
-                "appointments_reservations",
-                "payment_reminder",
-                "internal_operations",
-                "customer_outreach",
-                "implementation_services_custom"
-              ],
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "channels": {
-            "items": {
-              "enum": [
-                "voice",
-                "sms"
-              ],
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "compliance_profile_id": {
-            "description": "The approved KYB profile this permit was granted against; empty until KYB clears.",
-            "type": "string"
-          },
-          "countries": {
-            "description": "Destination countries this permit authorizes, as ISO 3166-1 alpha-2 codes. An empty array on an APPROVED permit means no country restriction, which only an OpenPhonex operator can set; the request endpoint always requires at least one country.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "created_at": {
-            "type": "string"
-          },
-          "customer_visible_message": {
-            "description": "Server-composed status sentence for the workspace; display as-is.",
-            "type": "string"
-          },
-          "id": {
-            "description": "Empty string while the workspace has never requested a permit (`status: draft`).",
-            "type": "string"
-          },
-          "limits": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "description": "Approved caps projected into the workspace's risk controls (per-day/per-minute call and SMS counts, unique destinations, daily voice and wallet spend in minor units).",
-            "type": "object"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "organization_id": {
-            "type": "string"
-          },
-          "policy_accepted_at": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "policy_accepted_by": {
-            "type": "string"
-          },
-          "policy_version": {
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "draft",
-              "pending_review",
-              "approved",
-              "suspended"
-            ],
-            "type": "string"
-          },
-          "updated_at": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "OutboundPermitDetail": {
-        "description": "The permit, the profiles the workspace may select from, and live usage against its caps.",
-        "properties": {
-          "available_profiles": {
-            "items": {
-              "$ref": "#/components/schemas/OutboundPermitProfile"
-            },
-            "type": "array"
-          },
-          "generated_at": {
-            "type": "string"
-          },
-          "operational_profile": {
-            "description": "The application-specific cadence contract recorded during OpenPhonex approval (calling windows, attempt intervals, escalation actions), or null when none applies. Configured by OpenPhonex, never by this API.",
-            "type": [
-              "object",
-              "null"
-            ]
-          },
-          "permit": {
-            "$ref": "#/components/schemas/OutboundPermit"
-          },
-          "usage": {
-            "$ref": "#/components/schemas/OutboundPermitUsage"
-          }
-        },
-        "type": "object"
-      },
-      "OutboundPermitPolicyAcceptance": {
-        "properties": {
-          "accepted_by": {
-            "type": "string"
-          },
-          "policy_version": {
-            "description": "Required unless the permit already carries one.",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "OutboundPermitProfile": {
-        "description": "One selectable use-case profile and the caps it grants by default.",
-        "properties": {
-          "allowed_purposes": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "allowed_recipient_types": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "campaigns_allowed": {
-            "type": "boolean"
-          },
-          "channels": {
-            "items": {
-              "enum": [
-                "voice",
-                "sms"
-              ],
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "default_caps": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object"
-          },
-          "description": {
-            "type": "string"
-          },
-          "key": {
-            "enum": [
-              "personal_assistant",
-              "business_support",
-              "appointments_reservations",
-              "payment_reminder",
-              "internal_operations",
-              "customer_outreach",
-              "implementation_services_custom"
-            ],
-            "type": "string"
-          },
-          "label": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "OutboundPermitRequest": {
-        "properties": {
-          "accepted_by": {
-            "type": "string"
-          },
-          "channels": {
-            "description": "Omitted or empty falls back to the selected profiles' own channels.",
-            "items": {
-              "enum": [
-                "voice",
-                "sms"
-              ],
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "countries": {
-            "description": "Destination countries to authorize, as ISO 3166-1 alpha-2 codes. REQUIRED: at least one must be a well-formed code, and a missing, empty or all-invalid list is refused with 400 rather than stored as an unrestricted permit. A few aliases are normalized (UAE, USA, UK).",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array"
-          },
-          "limits": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "description": "Optional cap overrides; `live_call_concurrency` is always taken from the plan and never from this payload.",
-            "type": "object"
-          },
-          "metadata": {
-            "description": "`operational_profile` is refused here: that contract is set during OpenPhonex approval.",
-            "type": "object"
-          },
-          "policy_version": {
-            "description": "Accepting the outbound policy here is what makes auto-approval possible for a KYB-approved workspace; without it the request goes to review.",
-            "type": "string"
-          },
-          "profiles": {
-            "description": "At least one valid use-case profile. Unknown keys are dropped; a selection with none left is refused.",
-            "items": {
-              "enum": [
-                "personal_assistant",
-                "business_support",
-                "appointments_reservations",
-                "payment_reminder",
-                "internal_operations",
-                "customer_outreach",
-                "implementation_services_custom"
-              ],
-              "type": "string"
-            },
-            "minItems": 1,
-            "type": "array"
-          }
-        },
-        "required": [
-          "profiles",
-          "countries"
-        ],
-        "type": "object"
-      },
-      "OutboundPermitUsage": {
-        "description": "Live usage for the same rolling windows the permit's limits are expressed in.",
-        "properties": {
-          "outbound_calls_last_day": {
-            "type": "integer"
-          },
-          "outbound_calls_last_minute": {
-            "type": "integer"
-          },
-          "sms_last_day": {
-            "type": "integer"
-          },
-          "unique_destinations_last_day": {
-            "type": "integer"
-          },
-          "wallet_spend_last_day_minor": {
-            "type": "integer"
           }
         },
         "type": "object"
@@ -7109,7 +7124,7 @@
     },
     "/v1/campaigns/{campaign_id}/launch": {
       "post": {
-        "description": "Existing-customer or consented lists on an approved outbound permit start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not approved, voice not in the permit, a destination country outside it, or a profile without campaigns) or blocked (sanctioned destination, blocked purpose, missing consent basis). Contacts already on the do-not-call register are marked and never dialed.",
+        "description": "Existing-customer or consented lists on active workspace capabilities start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not active, voice not an enabled channel, a destination country outside the allowlist, or a profile without campaigns) or blocked (sanctioned destination, blocked purpose, missing consent basis). Contacts already on the do-not-call register are marked and never dialed.",
         "parameters": [
           {
             "in": "path",
@@ -7898,6 +7913,17 @@
           }
         },
         "summary": "Bounded Campaigns page aggregate for the signed-in workspace"
+      }
+    },
+    "/v1/dashboard/capabilities": {
+      "get": {
+        "description": "Returns one read-only Capabilities page DTO: the workspace's capabilities record (status, approved profiles, channels, all_countries/countries, calling rules and whether they are active), the caps that bind right now as `limits` (the workspace's velocity and spend risk controls above zero, not the profile caps projected at activation; a cap of zero is disabled and not listed), live usage against the caps, the use-case profile catalog a request offers, the countries the workspace already has numbers in (bounded, with has_more), and its open capability reviews (bounded, with has_more). Tenant-bound to the bearer session; no provider request and no write.",
+        "responses": {
+          "200": {
+            "description": "Capabilities workspace aggregate"
+          }
+        },
+        "summary": "Read the bounded, customer-scoped Capabilities aggregate"
       }
     },
     "/v1/dashboard/integrations": {
@@ -9326,9 +9352,9 @@
         "summary": "Create a sandbox customer workspace when signup mode allows it"
       }
     },
-    "/v1/organizations/{organization_id}/outbound-permit": {
+    "/v1/organizations/{organization_id}/capabilities": {
       "get": {
-        "description": "Pure read. `permit.status` is `draft` until the workspace has requested one. `permit.countries` lists the destinations outbound is authorized for as ISO 3166-1 alpha-2 codes; an empty array on an approved permit means no country restriction and can only be set by an OpenPhonex operator. Every outbound call and SMS is authorized against this permit (see POST /v1/policies/authorize-outbound).",
+        "description": "Pure read. Every workspace has exactly one record from creation on: `capabilities.status` is `not_activated` until the workspace clears verification (an operator's business review, or its first registration-free number), when it becomes `active` on the default profile, the channels the workspace holds and every destination except the sanctioned set (`all_countries: true`). `pending_review` means a request is with an OpenPhonex operator and nothing new is authorized yet; `suspended` means an operator paused outbound. When `all_countries` is false, `countries` is the explicit allowlist (ISO 3166-1 alpha-2). `calling_rules` is the application cadence contract an operator recorded on approval, or null, and `calling_rules_active` says whether it is enforced right now. Every outbound call and SMS is authorized against this record (see POST /v1/policies/authorize-outbound).",
         "parameters": [
           {
             "in": "path",
@@ -9344,11 +9370,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboundPermitDetail"
+                  "$ref": "#/components/schemas/CapabilitiesDetail"
                 }
               }
             },
-            "description": "Permit, available profiles and usage"
+            "description": "Capabilities record, calling rules, available profiles and usage"
           },
           "403": {
             "description": "The credential does not belong to this organization"
@@ -9357,13 +9383,13 @@
             "description": "Unknown organization"
           }
         },
-        "summary": "Read the workspace's outbound permit, the selectable use-case profiles, and live usage against its caps",
+        "summary": "Read the workspace's capabilities record, the selectable use-case profiles, and live usage against its caps",
         "x-required-scopes": [
           "onboarding:read"
         ]
       },
       "post": {
-        "description": "Select the use-case profiles, channels and destination countries outbound should be authorized for, and accept the outbound policy by sending `policy_version`. A KYB-approved workspace that accepts the policy and selects no custom profile is approved immediately within the profiles' default caps; anything else is recorded as `pending_review` and opens an OpenPhonex review. `countries` is required and must contain at least one well-formed ISO 3166-1 alpha-2 code: a missing, empty or all-invalid list is refused with 400 and nothing is written, because an empty stored list means no country restriction at authorization time. Re-requesting REPLACES the current selection and re-evaluates approval from scratch.",
+        "description": "Select the use-case profiles, channels and destinations outbound should be authorized for, and accept the outbound policy by sending `policy_version`. The destination choice is explicit: `all_countries: true` (every destination except the sanctioned set) or `countries` naming at least one well-formed ISO 3166-1 alpha-2 code. A request with neither, with an empty list, or with an entry that is not a two-letter code is refused with 400 and nothing is written, so an active allowlist is never widened or emptied by a request that was refused. A verified workspace that accepts the policy and selects no custom profile is activated immediately within the profiles' default caps; anything else opens an OpenPhonex review, and what is already active stays active until the review resolves. `calling_rules` cannot be set here; an operator records them on approval.",
         "parameters": [
           {
             "in": "path",
@@ -9378,7 +9404,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutboundPermitRequest"
+                "$ref": "#/components/schemas/CapabilitiesRequest"
               }
             }
           },
@@ -9389,14 +9415,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboundPermit"
+                  "$ref": "#/components/schemas/Capabilities"
                 }
               }
             },
-            "description": "The stored permit, approved or pending review"
+            "description": "The stored record, active or pending review"
           },
           "400": {
-            "description": "No valid profile selected, no valid destination country selected, or metadata.operational_profile supplied"
+            "description": "No valid profile selected, no destination chosen (all_countries or a non-empty countries list), an unrecognized country code, or calling_rules / the retired metadata.operational_profile supplied"
           },
           "403": {
             "description": "The credential does not belong to this organization"
@@ -9405,15 +9431,15 @@
             "description": "Unknown organization"
           }
         },
-        "summary": "Request or change the workspace's outbound permit",
+        "summary": "Request or change the workspace's capabilities",
         "x-required-scopes": [
           "onboarding:write"
         ]
       }
     },
-    "/v1/organizations/{organization_id}/outbound-permit/accept-policy": {
+    "/v1/organizations/{organization_id}/capabilities/accept-policy": {
       "post": {
-        "description": "Stores `policy_version` with the acceptance time and actor and leaves the approved profiles, channels, countries and limits exactly as they are. A `draft` permit becomes `pending_review`; an already approved or suspended permit keeps its status. Use POST /v1/organizations/{organization_id}/outbound-permit to change what the permit authorizes.",
+        "description": "Stores `policy_version` with the acceptance time and actor and leaves the profiles, channels, destinations, limits and status exactly as they are: it never activates, suspends or queues anything by itself. Use POST /v1/organizations/{organization_id}/capabilities to change what the workspace is authorized for.",
         "parameters": [
           {
             "in": "path",
@@ -9428,7 +9454,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutboundPermitPolicyAcceptance"
+                "$ref": "#/components/schemas/CapabilitiesPolicyAcceptance"
               }
             }
           },
@@ -9439,11 +9465,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboundPermit"
+                  "$ref": "#/components/schemas/Capabilities"
                 }
               }
             },
-            "description": "The stored permit"
+            "description": "The stored record"
           },
           "400": {
             "description": "No policy_version supplied and none already stored"
@@ -9452,7 +9478,7 @@
             "description": "The credential does not belong to this organization"
           }
         },
-        "summary": "Record acceptance of the outbound policy without changing the permit's selection",
+        "summary": "Record acceptance of the outbound policy without changing the capabilities selection",
         "x-required-scopes": [
           "onboarding:write"
         ]
