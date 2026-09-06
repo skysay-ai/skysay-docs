@@ -124,44 +124,50 @@ mode: the caller asks for a language, and the agent switches if that language
 is one of the published ones. **Automatic switching** additionally needs the
 transcriber to report which language it heard, and only some do.
 
-| Transcriber | Languages you can select together | Automatic switching |
-| --- | --- | --- |
-| Azure AI Speech Real-time | English, Estonian, Russian | Yes |
-| Deepgram Nova-3 | English, Spanish, French, German, Russian, Portuguese, Italian, Dutch | No — explicit request only |
-| Soniox Real-time v5 | English, Tamil | Yes |
-| Google Chirp 2 | — not available in follow mode | — |
+Read each STT catalog entry's `language_detection` metadata for its supported
+language set, automatic or request-only behavior, and candidate limit. The
+editor combines that information with the selected voice configuration to
+show the accepted languages. Do not infer the final set from this table or
+from a provider's monolingual language count.
 
-Read the middle column strictly. It lists the languages that may appear
-**together in one follow-mode conversation**, which is narrower than the
-languages each transcriber can run in a fixed-language call. Estonian is the
-clearest example: Deepgram Nova-3 transcribes Estonian perfectly well on a
-fixed-language agent, and Estonian is still absent from its follow-mode column,
-because the provider's own multilingual model does not cover it. Tamil is the
-same story on Azure: it is fully supported for fixed-language calls and is
-deliberately not in Azure's follow-mode column, because in testing the
-recognizer sometimes continued transcribing other languages in Tamil script
-after a Tamil passage. For Tamil follow mode, choose Soniox. Any two or more
-languages from one row may be combined; a language from outside that row, or
-from a different row, is refused at publication.
+| Transcriber | Listening behavior | Automatic response-language switching |
+| --- | --- | --- |
+| Azure AI Speech Real-time | A selected candidate set, with a maximum of 10 simultaneously | Yes, when the adapter reports stable language evidence |
+| Deepgram Nova-3 | The model's declared multilingual set | Explicit request only with the current integration |
+| Soniox Real-time v5 | Broad language identification for new Auto configurations; existing strict-hint publications retain their construction | Yes, within the published reply-language set |
+| Google Chirp 2 | Fixed-language recognition | Not available in Follow mode |
+
+A provider may support more fixed languages than simultaneous candidates.
+Recognition of a language also does not prove that your selected TTS voice can
+speak it. OpenPhonex preserves your voice choice and shows configuration
+conflicts instead of choosing a different voice automatically.
+
+Soniox can hear languages outside a restricted reply-language set. That does
+not authorize a reply-profile switch outside the published set. Azure compares
+speech against its candidates and can select one even when the caller spoke
+another language. Neither mechanism guarantees that unsupported speech will
+be identified as unsupported.
 
 Where automatic switching is available it takes **two consecutive final results
 that agree** on the same language. That is deliberately conservative. A
 transcriber typically needs a moment to notice a language change, so the first
 moments after a caller switches are often still transcribed as the previous
 language; requiring two agreeing results means a single such result cannot
-move the call. The cost is that a switch takes about one extra sentence; the
-benefit is that a stray result cannot flip the agent mid-conversation. A single
-utterance in another language, surrounded by the current one, will usually not
-switch the call — ask for the language directly if you want the change to be
-immediate.
+move the call. The delay depends on when the recognizer returns those results;
+it is not a fixed number of milliseconds or sentences. A single final result
+in another language is insufficient. Ask for the language directly to use the
+explicit-request path, which does not wait for two detection results.
 
 Automatic switching happens between sentences, never inside one. A caller who
 drops single foreign words into an otherwise Estonian sentence stays on
 Estonian, which is the intended behavior.
 
-Automatic switching applies to phone calls. In an authenticated browser test,
-follow mode uses the explicit-request path only — ask for the language and the
-agent switches. Test automatic switching on a real call.
+Authenticated browser tests use the same production conversation runtime as
+phone calls, including supported provider language evidence. Publish the
+configuration before testing it. An anonymous homepage demo is a separate
+runtime path; do not assume its automatic-detection behavior from an
+authenticated browser test. Test browser and phone behavior separately when
+both transports matter to your deployment.
 
 ### What the caller hears when the language changes
 
