@@ -26,7 +26,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { decodeEntities, hrefsIn, idsIn, parseInSiteLink } from "./anchor-check.mjs";
+import { decodeEntities, decodeFragment, docPageUrl, hrefsIn, idsIn, parseInSiteLink } from "./anchor-check.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./anchor-check.mjs", import.meta.url));
 const cases = [];
@@ -46,12 +46,50 @@ test("attributes are read whichever way they are quoted", () => {
   assert.deepEqual(hrefsIn("<a href='/docs/a#b'>x</a>"), ["/docs/a#b"]);
 });
 
-test("extracted values are the DOM values, not the HTML serialization", () => {
+test("ids are the DOM values, not the HTML serialization", () => {
   // `## Custom [#a&b]` renders as id="a&amp;b" and is matched by #a%26b.
   assert.deepEqual([...idsIn('<h2 id="a&amp;b">x</h2>')], ["a&b"]);
-  assert.deepEqual(hrefsIn('<a href="/docs/x?a=1&amp;b=2#f">y</a>'), ["/docs/x?a=1&b=2#f"]);
   assert.equal(decodeEntities("&#39;&#x2F;&lt;&gt;&quot;"), "'/<>\"");
   assert.equal(decodeEntities("&notanentity; &amp"), "&notanentity; &amp");
+});
+
+test("HTML character references are decoded exactly once along each path", () => {
+  // Decoding twice would collapse the literal id `a&amp;b` onto `a&b`, so a
+  // link to one would silently resolve against the other.
+  const raw = hrefsIn('<a href="#a&amp;amp;b">x</a>')[0];
+  assert.equal(raw, "#a&amp;amp;b", "the extractor returns the attribute text");
+  const link = parseInSiteLink(raw, "/docs/x");
+  assert.equal(link.fragment, "a&amp;b");
+  assert.equal(idsIn('<h2 id="a&amp;amp;b">x</h2>').has(link.fragment), true);
+  assert.equal(idsIn('<h2 id="a&amp;b">x</h2>').has(link.fragment), false);
+});
+
+test("script, style and template text is not a source of ids or hrefs", () => {
+  // Next.js inlines the rendered page into self.__next_f.push(...), so a fenced
+  // example documenting `<div id='ghost'>` appears there verbatim.
+  const html =
+    `<script>self.__next_f.push([1,"<div id='ghost'>x</div><a href='/docs/x#ghost'>y</a>"])</script>` +
+    `<style>a[href='/docs/y#styled']{color:red}</style>` +
+    `<template><h2 id="inert">i</h2></template>` +
+    `<h2 id="real">r</h2><a href="/docs/z#real">z</a>`;
+  assert.deepEqual([...idsIn(html)], ["real"]);
+  assert.deepEqual(hrefsIn(html), ["/docs/z#real"]);
+});
+
+test("a folder's index page is served at the folder's own URL", () => {
+  assert.equal(docPageUrl("index.mdx"), "/docs");
+  assert.equal(docPageUrl("quickstart.mdx"), "/docs/quickstart");
+  assert.equal(docPageUrl(path.join("guide", "index.mdx")), "/docs/guide");
+  assert.equal(docPageUrl(path.join("guide", "nested", "index.mdx")), "/docs/guide/nested");
+  assert.equal(docPageUrl(path.join("guide", "start.mdx")), "/docs/guide/start");
+});
+
+test("a literal percent sign does not defeat the escapes beside it", () => {
+  // `## Custom [#100%-café]` is a supported heading; the URL parser encodes the
+  // accent, and decoding the whole fragment at once throws on the literal `%`.
+  assert.equal(parseInSiteLink("/docs/x#100%-caf%C3%A9", "/docs/y").fragment, "100%-café");
+  assert.equal(decodeFragment("100%"), "100%");
+  assert.equal(decodeFragment("caf%C3%A9"), "café");
 });
 
 test("an entity-encoded id matches its percent-escaped link, and the raw one does not", () => {
@@ -237,6 +275,72 @@ test("a page whose in-site anchor is missing FAILS, and the same page passes onc
     const fixed = await runCheck(SCRIPT, url);
     assert.equal(fixed.code, 0, fixed.out);
     assert.match(fixed.out, /All in-site anchors resolve/);
+  } finally {
+    server.close();
+  }
+});
+
+test("a broken anchor whose id appears only inside a script FAILS", async () => {
+  const { server, url } = await serve((_req, res) => {
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end(
+      `<html><body><a href="#ghost">x</a>` +
+        `<script>self.__next_f.push([1,"<div id='ghost'></div>"])</script></body></html>`,
+    );
+  });
+  try {
+    const { code, out } = await runCheck(SCRIPT, url);
+    assert.equal(code, 1, out);
+    assert.match(out, /no element with id="ghost"/);
+  } finally {
+    server.close();
+  }
+});
+
+test("an in-site redirect is followed and the fragment checked at its destination", async () => {
+  // `next.config.mjs` keeps `/docs/agents` resolving to `/docs/mcp`; a browser
+  // carries the fragment across that hop, so the gate must too.
+  const { server, url } = await serve((req, res) => {
+    if (req.url === "/docs/old") {
+      res.writeHead(308, { location: "/docs/new" });
+      res.end();
+      return;
+    }
+    if (req.url === "/docs/loop") {
+      res.writeHead(308, { location: "/docs/loop" });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end(
+      req.url === "/docs/new"
+        ? '<html><body><h2 id="target">t</h2></body></html>'
+        : '<html><body><a href="/docs/old#target">x</a></body></html>',
+    );
+  });
+  try {
+    const { code, out } = await runCheck(SCRIPT, url);
+    assert.equal(code, 0, out);
+    assert.match(out, /All in-site anchors resolve/);
+  } finally {
+    server.close();
+  }
+});
+
+test("a redirect loop FAILS instead of spinning", async () => {
+  const { server, url } = await serve((req, res) => {
+    if (req.url === "/docs/loop") {
+      res.writeHead(308, { location: "/docs/loop" });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end('<html><body><a href="/docs/loop#target">x</a></body></html>');
+  });
+  try {
+    const { code, out } = await runCheck(SCRIPT, url);
+    assert.equal(code, 1, out);
+    assert.match(out, /more than 5 redirects/);
   } finally {
     server.close();
   }
