@@ -24,21 +24,30 @@
  * Both the links and the ids are read from the rendered HTML for the same
  * reason, so a link a component emits is checked like any other.
  *
- * A gate is only worth having if it can fail, so every path that could report
- * success without having checked anything is closed deliberately:
+ * A gate is only worth having if it can fail, and a gate that fails on correct
+ * pages gets switched off, so both directions are closed deliberately.
  *
- *   - a truncated HTTP response REJECTS instead of resolving a partial body,
- *     because a body cut off mid-page carries fewer ids and would turn working
- *     anchors into silence rather than into failures;
+ * It cannot pass without checking:
+ *   - a truncated HTTP response REJECTS instead of resolving a partial body;
  *   - checking zero links is a FAILURE, not "all anchors resolve";
- *   - the entry-point guard compares real paths, so running the script through
- *     a symlinked directory (`/tmp` -> `/private/tmp` on macOS) still runs it;
- *   - hrefs are resolved as URLs against the page they appear on, so a
- *     scheme-absolute link to this same site (`https://openphonex.com/docs/x#y`)
- *     and a relative one (`voice-behavior#y`) are checked, not skipped;
- *   - HTML character references are decoded before comparison, because the
- *     anchor a browser matches is the DOM value (`a&b`), not the serialization
- *     (`a&amp;b`).
+ *   - the entry-point guard compares real paths, so running through a symlinked
+ *     directory (`/tmp` -> `/private/tmp` on macOS) still runs it;
+ *   - `<script>`/`<style>` contents are removed before anything is extracted.
+ *     Next.js serializes the page into `self.__next_f.push(...)`, so a fenced
+ *     code example containing `<div id='ghost'>` would otherwise be read as a
+ *     real element and make a broken `#ghost` link pass.
+ *
+ * And it cannot fail on a page that works:
+ *   - hrefs resolve as URLs against the page they appear on, so a link to this
+ *     same site written scheme-absolute or relative is checked, not skipped;
+ *   - in-site redirects are followed, because `next.config.mjs` keeps old URLs
+ *     resolving (`/docs/agents` -> `/docs/mcp`) and a browser carries the
+ *     fragment across them;
+ *   - a nested `content/docs/<dir>/index.mdx` is served at `/docs/<dir>`;
+ *   - HTML character references are decoded exactly ONCE, at extraction, so a
+ *     link to the literal id `a&amp;b` stays distinct from one to `a&b`;
+ *   - percent-escapes are decoded run by run, so a literal `%` beside an escaped
+ *     character (`#100%-caf%C3%A9`) does not defeat the whole fragment.
  *
  *   npm run start &            # or any running instance of this site
  *   npm run anchor-check
@@ -58,6 +67,7 @@ function flag(name, fallback) {
   return index === -1 ? fallback : args[index + 1];
 }
 const LOCAL = (flag("local", "http://127.0.0.1:3000") || "").replace(/\/$/, "");
+const MAX_REDIRECTS = 5;
 
 // The public hosts this site is served on. A rendered link that names one of
 // them is an in-site anchor claim even though it is written scheme-absolute,
@@ -71,13 +81,14 @@ const NAMED_ENTITIES = new Map([
   ["gt", ">"],
   ["quot", '"'],
   ["apos", "'"],
-  ["nbsp", " "],
+  ["nbsp", " "],
 ]);
 
 // An attribute in the HTML source is a SERIALIZATION; the value a browser
 // compares an anchor against is the decoded one. `## Custom [#a&b]` renders as
-// `id="a&amp;b"` and is matched by `#a%26b`, so comparing the raw attributes
-// would fail the working link and pass the broken `#a%26amp;b`.
+// `id="a&amp;b"` and is matched by `#a%26b`. This runs exactly once, at
+// extraction: decoding a second time downstream would collapse the literal id
+// `a&amp;b` (written `id="a&amp;amp;b"`) onto `a&b`.
 export function decodeEntities(value) {
   return String(value ?? "").replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]*);/g, (match, body) => {
     if (body[0] === "#") {
@@ -92,6 +103,20 @@ export function decodeEntities(value) {
     }
     const named = NAMED_ENTITIES.get(body.toLowerCase());
     return named === undefined ? match : named;
+  });
+}
+
+// Percent-escapes are decoded RUN BY RUN. `decodeURIComponent` on the whole
+// fragment throws when a literal `%` sits beside a valid escape, and falling
+// back to the raw string then compares `100%-caf%C3%A9` against the id
+// `100%-café`. A browser decodes the valid escapes and leaves the rest.
+export function decodeFragment(value) {
+  return String(value ?? "").replace(/(?:%[0-9a-fA-F]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
   });
 }
 
@@ -121,7 +146,7 @@ function request(url) {
             reject(new Error(`incomplete response body for ${url}`));
             return;
           }
-          resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString("utf8") });
+          resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString("utf8") });
         });
       },
     );
@@ -131,18 +156,38 @@ function request(url) {
   });
 }
 
+// `content/docs/quickstart.mdx` -> `/docs/quickstart`;
+// `content/docs/index.mdx` -> `/docs`;
+// `content/docs/guide/index.mdx` -> `/docs/guide`, which is where the Fumadocs
+// loader serves a folder's index page. Requesting `/docs/guide/index` 404s and
+// would fail the gate on a page that works.
+export function docPageUrl(relativePath) {
+  const slug = relativePath
+    .replace(/\.mdx$/, "")
+    .split(path.sep)
+    .join("/")
+    .replace(/(^|\/)index$/, "");
+  return slug === "" ? "/docs" : `/docs/${slug}`;
+}
+
 /** Every `/docs/**.mdx` page this site owns, as a URL path. */
 async function docPages() {
   const base = path.join(ROOT, "content", "docs");
   const entries = await readdir(base, { withFileTypes: true, recursive: true });
   return entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".mdx"))
-    .map((entry) => {
-      const relative = path.relative(base, path.join(entry.parentPath ?? entry.path, entry.name));
-      const slug = relative.replace(/\.mdx$/, "").split(path.sep).join("/");
-      return slug === "index" ? "/docs" : `/docs/${slug}`;
-    })
+    .map((entry) => docPageUrl(path.relative(base, path.join(entry.parentPath ?? entry.path, entry.name))))
     .sort();
+}
+
+// Script and style contents are TEXT, not markup: nothing in them is an element
+// a fragment can address. Next.js inlines the whole rendered page into
+// `self.__next_f.push(...)`, so a documented `<div id='ghost'>` inside a fenced
+// example appears there verbatim and would otherwise be extracted as an id.
+// `<template>` content is inert too and cannot be an anchor target.
+const NON_MARKUP_BLOCKS = /<(script|style|noscript|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+export function markupOnly(html) {
+  return String(html ?? "").replace(NON_MARKUP_BLOCKS, " ");
 }
 
 // `id="..."` on any element, not only headings: an anchor target is whatever
@@ -151,12 +196,14 @@ async function docPages() {
 // accepted because the attribute value, not the quoting style, is the contract.
 const ID_PATTERN = /\sid=(?:"([^"]*)"|'([^']*)')/g;
 export function idsIn(html) {
-  return new Set([...String(html ?? "").matchAll(ID_PATTERN)].map((match) => decodeEntities(match[1] ?? match[2])));
+  return new Set([...markupOnly(html).matchAll(ID_PATTERN)].map((match) => decodeEntities(match[1] ?? match[2])));
 }
 
+// Hrefs come back as the RAW attribute text. `parseInSiteLink` decodes them,
+// so the entity decoding on this path happens exactly once.
 const HREF_PATTERN = /\shref=(?:"([^"]*)"|'([^']*)')/g;
 export function hrefsIn(html) {
-  return [...String(html ?? "").matchAll(HREF_PATTERN)].map((match) => decodeEntities(match[1] ?? match[2]));
+  return [...markupOnly(html).matchAll(HREF_PATTERN)].map((match) => match[1] ?? match[2]);
 }
 
 // The origin used to resolve relative and same-page links. It never leaves this
@@ -180,12 +227,7 @@ export function parseInSiteLink(href, fromPage, origin = RESOLUTION_ORIGIN) {
   if (url.host !== ownHost && !IN_SITE_HOSTS.has(url.hostname)) return null; // genuinely external
   const rawFragment = url.hash.slice(1);
   if (!rawFragment) return null; // no fragment, or a bare "#" no-op link
-  let fragment;
-  try {
-    fragment = decodeURIComponent(rawFragment);
-  } catch {
-    fragment = rawFragment;
-  }
+  const fragment = decodeFragment(rawFragment);
   const targetPath = url.pathname.replace(/\/$/, "") || "/";
   // `.md`/`.txt` rewrites and asset routes serve plain text, which has no ids.
   if (/\.(md|txt|json|xml|png|svg|jpg|jpeg|webp|ico|css|js)$/i.test(targetPath)) return null;
@@ -198,21 +240,49 @@ async function main() {
     throw new Error("no content/docs/**.mdx pages found — is this the docs repository root?");
   }
 
-  const htmlByPath = new Map();
+  const resultByPath = new Map();
+
+  // Follow in-site redirects the way a browser does: `next.config.mjs` keeps
+  // retired URLs resolving, and the fragment survives the hop.
+  async function fetchPage(urlPath) {
+    let current = urlPath;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+      const { status, headers, body } = await request(`${LOCAL}${current}`);
+      if (status === 200) return { html: body, reason: null };
+      const location = headers?.location;
+      if (status >= 300 && status < 400 && location) {
+        let next;
+        try {
+          next = new URL(location, `${RESOLUTION_ORIGIN}${current}`);
+        } catch {
+          return { html: null, reason: `redirected to an unparseable location (${location})` };
+        }
+        const ownHost = new URL(RESOLUTION_ORIGIN).host;
+        if (next.host !== ownHost && !IN_SITE_HOSTS.has(next.hostname)) {
+          return { html: null, reason: `redirects off this site to ${location}` };
+        }
+        current = `${next.pathname}${next.search}`;
+        continue;
+      }
+      return {
+        html: null,
+        reason: `answered ${status}${current === urlPath ? "" : ` at ${current}`}`,
+      };
+    }
+    return { html: null, reason: `more than ${MAX_REDIRECTS} redirects` };
+  }
+
   async function load(urlPath) {
-    if (htmlByPath.has(urlPath)) return htmlByPath.get(urlPath);
-    const { status, body } = await request(`${LOCAL}${urlPath}`);
-    const value = status === 200 ? body : null;
-    htmlByPath.set(urlPath, value);
-    return value;
+    if (!resultByPath.has(urlPath)) resultByPath.set(urlPath, await fetchPage(urlPath));
+    return resultByPath.get(urlPath);
   }
 
   const failures = [];
   let checked = 0;
   for (const page of pages) {
-    const html = await load(page);
+    const { html, reason } = await load(page);
     if (html === null) {
-      failures.push(`${page}: page did not answer 200 (is \`npm run start\` running on ${LOCAL}?)`);
+      failures.push(`${page}: ${reason} (is \`npm run start\` running on ${LOCAL}?)`);
       continue;
     }
     const seen = new Set();
@@ -223,12 +293,12 @@ async function main() {
       if (seen.has(key)) continue;
       seen.add(key);
       checked += 1;
-      const targetHtml = await load(link.targetPath);
-      if (targetHtml === null) {
-        failures.push(`${page} -> ${key}: target page did not answer 200`);
+      const target = await load(link.targetPath);
+      if (target.html === null) {
+        failures.push(`${page} -> ${key}: target page ${target.reason}`);
         continue;
       }
-      if (!idsIn(targetHtml).has(link.fragment)) {
+      if (!idsIn(target.html).has(link.fragment)) {
         failures.push(`${page} -> ${key}: no element with id="${link.fragment}" on ${link.targetPath}`);
       }
     }
