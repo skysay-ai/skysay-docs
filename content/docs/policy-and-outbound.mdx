@@ -8,6 +8,63 @@ the agent **evaluate policy first**, surface the decision and cost, and only the
 authorize and place. Scopes fail closed, and the policy engine blocks whole
 categories of outbound regardless of scope.
 
+## Request your outbound permit in the workspace
+
+Every workspace needs an approved **outbound permit** before outbound calls or
+SMS can authorize — `authorize_outbound` checks it on every attempt. Request
+and track it from the **Onboarding** page in the workspace; no API call or MCP
+tool is required, though `get_outbound_permit` / `request_outbound_permit`
+(`onboarding:read` / `onboarding:write`) cover the same flow programmatically.
+
+<Steps>
+
+<Step>
+
+### Finish business verification
+
+Submit your business details on the Onboarding page and wait for operator
+approval. You can still fill in the permit request while this is pending — it
+queues for review as soon as verification finishes.
+
+</Step>
+
+<Step>
+
+### Choose profiles, channels, and countries
+
+Pick one or more use-case profiles (personal assistant, business support,
+appointments, payment reminders, internal operations, customer outreach
+campaigns, or a custom implementation-services profile), the channels you need
+(voice, SMS, or both), and the destination countries. Countries default to
+wherever your workspace already has numbers.
+
+</Step>
+
+<Step>
+
+### Accept the outbound policy
+
+Accept the current outbound policy version before submitting.
+
+</Step>
+
+</Steps>
+
+The result depends on your workspace's state:
+
+| Status | Meaning |
+| --- | --- |
+| Not requested | No permit has been submitted yet. |
+| Pending review | A standard profile was requested before business verification finished, or a custom (implementation-services) profile was selected — an OpenPhonex operator reviews it. |
+| Approved | Outbound is active immediately within the approved profiles, channels, countries, and caps. |
+| Suspended | An operator paused outbound for this workspace. |
+
+<Callout type="warn" title="Re-requesting an approved permit">
+  Submitting a new request replaces the currently approved permit rather than
+  adding to it. Adding the custom implementation-services profile always
+  requires a new review, which can pause outbound until it is approved again.
+</Callout>
+
 ## The outbound sequence
 
 <Steps>
