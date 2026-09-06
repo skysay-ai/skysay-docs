@@ -16,6 +16,51 @@ provider, or language to an active call.
 
 ## Configure languages on one agent
 
+### Auto multilingual
+
+In the AI agent editor, choose **Auto multilingual** to let the conversation
+follow the caller's language. Within Auto, choose **All supported languages**
+or restrict the conversation to **Selected languages only**. Keep a fixed
+language when you already know which language the caller needs.
+
+The accepted list belongs to the selected listening and voice configuration.
+It is not the union of every language advertised by every provider. A language
+must be usable by the complete call configuration, and automatic switching
+also needs language information from the recognizer. The editor shows the
+accepted languages and any provider constraints. It does not replace your
+transcriber or voice to make a larger set work.
+
+Some transcribers require a candidate list. If all compatible languages exceed
+that provider's simultaneous limit, choose a subset or another compatible
+transcriber. OpenPhonex does not silently select a smaller list for you.
+
+The opening language determines how the AI agent starts before the caller
+speaks. Publish the configuration to freeze its accepted languages for future
+calls. An inventory update or later draft edit does not expand a published or
+active call. Review new coverage when publishing again.
+
+Language detection may delay the first response or a language switch.
+Recognition accuracy and voice quality vary by language. Provider-reported
+support is not a quality guarantee; use the browser test to hear your actual
+conversation. A fixed latency penalty would be misleading because the model,
+region, endpointing and connection state all affect the result.
+
+### When the caller uses another language
+
+An allowed language can become the active response language after a clear
+request or supported stable recognition evidence. A request cannot add an
+unpublished language or change the selected provider or voice.
+
+If a request for an excluded language is understood, the AI agent should
+explain the available languages in its current language. Speech that the
+recognizer cannot understand may instead produce an incomplete or incorrect
+transcript. There is no guarantee that an unsupported language will be
+identified as unsupported: a candidate-based recognizer can label it as one
+of the configured languages. A clarification does not establish that the
+original language was correctly detected.
+
+### Shared settings and optional overrides
+
 You do not need to copy the same agent for each language. Choose the languages
 the agent will offer, its opening language, and one shared voice stack. Identity,
 instructions, model, tools, knowledge, and business policy stay on the same
@@ -178,7 +223,7 @@ set. The additional behavior field is:
 
 ```json
 {
-  "follow_caller": {"enabled": true}
+  "follow_caller": {"enabled": true, "scope": "selected"}
 }
 ```
 
@@ -187,6 +232,28 @@ voice-stack response to confirm the saved setting. Set `enabled` to `false` to
 publish fixed-language behavior for future calls. The call request's
 `runtime_config.language` still chooses the starting published language; it
 does not enable follow mode or supply a new profile set.
+
+Use `scope: "all"` to resolve all compatible languages when publishing:
+
+```json
+{
+  "follow_caller": {"enabled": true, "scope": "all"}
+}
+```
+
+The backend derives the concrete language set from your selected components
+and effective voices. Read the response's published language list to see the
+result. If a provider's simultaneous candidate limit prevents that set from
+working, publication fails with a configuration error; select a smaller set
+explicitly. An omitted `scope` retains the older selected-set behavior.
+Disabling Follow does not erase an existing set of fixed per-call profiles.
+
+Each applicable STT catalog entry exposes `language_detection` with
+`behavior` (`automatic` or `request_only`), `languages`, and
+`max_candidates`. These describe the listening model, not the final voice
+coverage of an AI agent. A null candidate limit does not promise support for
+every human language. Check the full selected configuration and the published
+language set. Provider constructor options are not part of this customer API.
 
 A caller can request a configured language directly—for example, “Please speak
 German” while speaking English. The agent can request a switch only to an
