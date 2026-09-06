@@ -24,28 +24,43 @@
  * Both the links and the ids are read from the rendered HTML for the same
  * reason, so a link a component emits is checked like any other.
  *
- * A gate is only worth having if it can fail, so every path that could report
- * success without having checked anything is closed deliberately:
+ * A gate is only worth having if it can fail, and a gate that fails on correct
+ * pages gets switched off, so both directions are closed deliberately.
  *
- *   - a truncated HTTP response REJECTS instead of resolving a partial body,
- *     because a body cut off mid-page carries fewer ids and would turn working
- *     anchors into silence rather than into failures;
+ * It cannot pass without checking:
+ *   - a truncated HTTP response REJECTS instead of resolving a partial body;
  *   - checking zero links is a FAILURE, not "all anchors resolve";
- *   - the entry-point guard compares real paths, so running the script through
- *     a symlinked directory (`/tmp` -> `/private/tmp` on macOS) still runs it;
- *   - hrefs are resolved as URLs against the page they appear on, so a
- *     scheme-absolute link to this same site (`https://openphonex.com/docs/x#y`)
- *     and a relative one (`voice-behavior#y`) are checked, not skipped;
- *   - HTML character references are decoded before comparison, because the
- *     anchor a browser matches is the DOM value (`a&b`), not the serialization
- *     (`a&amp;b`).
+ * *   - the entry-point guard compares real paths, so running through a symlinked
+ *     directory (`/tmp` -> `/private/tmp` on macOS) still runs it;
+ *   - `<script>`/`<style>` contents are removed before anything is extracted.
+ *     Next.js serializes the page into `self.__next_f.push(...)`, so a fenced
+ *     code example containing `<div id='ghost'>` would otherwise be read as a
+ *     real element and make a broken `#ghost` link pass.
+ *
+ * And it cannot fail on a page that works:
+ *   - hrefs resolve as URLs against the page they appear on, so a link to this
+ *     same site written scheme-absolute or relative is checked, not skipped;
+ *   - in-site redirects are followed, because `next.config.mjs` keeps old URLs
+ *     resolving (`/docs/agents` -> `/docs/mcp`) and a browser carries the
+ *     fragment across them;
+ *   - a redirect that supplies its own fragment REPLACES the incoming one, the
+ *     way a browser resolves it;
+ *   - the page list comes from the site's own sitemap, which is built from the
+ *     Fumadocs loader's resolved URLs, so folder indexes, `(group)` directories
+ *     and `.md` pages need no routing rules re-implemented here;
+ *   - HTML character references are decoded exactly ONCE per path, so a link to
+ *     the literal id `a&amp;b` stays distinct from one to `a&b`, and `&nbsp;`
+ *     decodes to U+00A0 rather than a plain space;
+ *   - percent-escapes are decoded run by run, so a literal `%` beside an escaped
+ *     character (`#100%-caf%C3%A9`) does not defeat the whole fragment, and the
+ *     LITERAL fragment is accepted too, because that is what a browser matches
+ *     against an id first.
  *
  *   npm run start &            # or any running instance of this site
  *   npm run anchor-check
  *   node scripts/anchor-check.mjs --local http://127.0.0.1:3000
  */
 import { realpathSync } from "node:fs";
-import { readdir } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
@@ -58,6 +73,17 @@ function flag(name, fallback) {
   return index === -1 ? fallback : args[index + 1];
 }
 const LOCAL = (flag("local", "http://127.0.0.1:3000") || "").replace(/\/$/, "");
+const MAX_REDIRECTS = 5;
+// The host `--local` names. A rendered page or a redirect may address the very
+// server being checked by its absolute URL, and treating that as "off this
+// site" fails a hop a browser would follow.
+const LOCAL_HOST = (() => {
+  try {
+    return new URL(LOCAL).host;
+  } catch {
+    return "";
+  }
+})();
 
 // The public hosts this site is served on. A rendered link that names one of
 // them is an in-site anchor claim even though it is written scheme-absolute,
@@ -71,13 +97,14 @@ const NAMED_ENTITIES = new Map([
   ["gt", ">"],
   ["quot", '"'],
   ["apos", "'"],
-  ["nbsp", " "],
+  ["nbsp", "\u00a0"],
 ]);
 
 // An attribute in the HTML source is a SERIALIZATION; the value a browser
 // compares an anchor against is the decoded one. `## Custom [#a&b]` renders as
-// `id="a&amp;b"` and is matched by `#a%26b`, so comparing the raw attributes
-// would fail the working link and pass the broken `#a%26amp;b`.
+// `id="a&amp;b"` and is matched by `#a%26b`. This runs exactly once, at
+// extraction: decoding a second time downstream would collapse the literal id
+// `a&amp;b` (written `id="a&amp;amp;b"`) onto `a&b`.
 export function decodeEntities(value) {
   return String(value ?? "").replace(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]*);/g, (match, body) => {
     if (body[0] === "#") {
@@ -92,6 +119,20 @@ export function decodeEntities(value) {
     }
     const named = NAMED_ENTITIES.get(body.toLowerCase());
     return named === undefined ? match : named;
+  });
+}
+
+// Percent-escapes are decoded RUN BY RUN. `decodeURIComponent` on the whole
+// fragment throws when a literal `%` sits beside a valid escape, and falling
+// back to the raw string then compares `100%-caf%C3%A9` against the id
+// `100%-café`. A browser decodes the valid escapes and leaves the rest.
+export function decodeFragment(value) {
+  return String(value ?? "").replace(/(?:%[0-9a-fA-F]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
   });
 }
 
@@ -121,7 +162,7 @@ function request(url) {
             reject(new Error(`incomplete response body for ${url}`));
             return;
           }
-          resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString("utf8") });
+          resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString("utf8") });
         });
       },
     );
@@ -131,18 +172,37 @@ function request(url) {
   });
 }
 
-/** Every `/docs/**.mdx` page this site owns, as a URL path. */
-async function docPages() {
-  const base = path.join(ROOT, "content", "docs");
-  const entries = await readdir(base, { withFileTypes: true, recursive: true });
-  return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".mdx"))
-    .map((entry) => {
-      const relative = path.relative(base, path.join(entry.parentPath ?? entry.path, entry.name));
-      const slug = relative.replace(/\.mdx$/, "").split(path.sep).join("/");
-      return slug === "index" ? "/docs" : `/docs/${slug}`;
-    })
-    .sort();
+// The page list comes from the site's OWN sitemap, which `src/app/docs/sitemap.js`
+// builds from `source.getPages()` -- the Fumadocs loader's resolved URLs. Deriving
+// URLs from filenames here meant re-implementing the loader's routing, and it got
+// three rules wrong in a row: a folder's `index.mdx` is served at the folder URL
+// unless a sibling `guide.mdx` collides with it, `(group)` directories are
+// dropped, and `.md` is a supported extension too. The loader already knows all
+// of that; asking it is not a shortcut, it is the same reason ids are read from
+// rendered HTML rather than re-slugged here.
+export function sitemapPaths(xml) {
+  const paths = [];
+  for (const match of String(xml ?? "").matchAll(/<loc>([^<]+)<\/loc>/g)) {
+    const raw = decodeEntities(match[1].trim());
+    let url;
+    try {
+      url = new URL(raw);
+    } catch {
+      continue;
+    }
+    paths.push(url.pathname.replace(/\/$/, "") || "/");
+  }
+  return [...new Set(paths)].sort();
+}
+
+// Script and style contents are TEXT, not markup: nothing in them is an element
+// a fragment can address. Next.js inlines the whole rendered page into
+// `self.__next_f.push(...)`, so a documented `<div id='ghost'>` inside a fenced
+// example appears there verbatim and would otherwise be extracted as an id.
+// `<template>` content is inert too and cannot be an anchor target.
+const NON_MARKUP_BLOCKS = /<(script|style|noscript|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+export function markupOnly(html) {
+  return String(html ?? "").replace(NON_MARKUP_BLOCKS, " ");
 }
 
 // `id="..."` on any element, not only headings: an anchor target is whatever
@@ -151,17 +211,25 @@ async function docPages() {
 // accepted because the attribute value, not the quoting style, is the contract.
 const ID_PATTERN = /\sid=(?:"([^"]*)"|'([^']*)')/g;
 export function idsIn(html) {
-  return new Set([...String(html ?? "").matchAll(ID_PATTERN)].map((match) => decodeEntities(match[1] ?? match[2])));
+  return new Set([...markupOnly(html).matchAll(ID_PATTERN)].map((match) => decodeEntities(match[1] ?? match[2])));
 }
 
+// Hrefs come back as the RAW attribute text. `parseInSiteLink` decodes them,
+// so the entity decoding on this path happens exactly once.
 const HREF_PATTERN = /\shref=(?:"([^"]*)"|'([^']*)')/g;
 export function hrefsIn(html) {
-  return [...String(html ?? "").matchAll(HREF_PATTERN)].map((match) => decodeEntities(match[1] ?? match[2]));
+  return [...markupOnly(html).matchAll(HREF_PATTERN)].map((match) => match[1] ?? match[2]);
 }
 
 // The origin used to resolve relative and same-page links. It never leaves this
 // process: only the resolved path is requested, from `--local`.
 const RESOLUTION_ORIGIN = "http://anchor-check.invalid";
+
+// This site answers on its public hosts, on whatever `--local` names, and on
+// the placeholder origin used to resolve relative links.
+function isInSiteHost(url, resolutionHost) {
+  return url.host === resolutionHost || url.host === LOCAL_HOST || IN_SITE_HOSTS.has(url.hostname);
+}
 
 // A fragment is compared to the id EXACTLY: ids are case-sensitive in the DOM,
 // and `%20`-style escapes have to be decoded first or a legitimate id with a
@@ -176,43 +244,83 @@ export function parseInSiteLink(href, fromPage, origin = RESOLUTION_ORIGIN) {
     return null; // not a resolvable URL at all
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return null; // mailto:, tel:, ...
-  const ownHost = new URL(origin).host;
-  if (url.host !== ownHost && !IN_SITE_HOSTS.has(url.hostname)) return null; // genuinely external
+  if (!isInSiteHost(url, new URL(origin).host)) return null; // genuinely external
   const rawFragment = url.hash.slice(1);
   if (!rawFragment) return null; // no fragment, or a bare "#" no-op link
-  let fragment;
-  try {
-    fragment = decodeURIComponent(rawFragment);
-  } catch {
-    fragment = rawFragment;
-  }
+  // Both spellings, because a browser matches the LITERAL fragment against ids
+  // first and only then the percent-decoded one. An id may legitimately contain
+  // a literal `%C3%A9`, and decoding unconditionally would fail that link.
+  const fragment = decodeFragment(rawFragment);
   const targetPath = url.pathname.replace(/\/$/, "") || "/";
   // `.md`/`.txt` rewrites and asset routes serve plain text, which has no ids.
   if (/\.(md|txt|json|xml|png|svg|jpg|jpeg|webp|ico|css|js)$/i.test(targetPath)) return null;
-  return { targetPath, fragment };
+  return { targetPath, fragment, rawFragment };
 }
 
 async function main() {
-  const pages = await docPages();
+  const sitemap = await request(`${LOCAL}/docs/sitemap.xml`);
+  if (sitemap.status !== 200) {
+    throw new Error(`${LOCAL}/docs/sitemap.xml answered ${sitemap.status} — is \`npm run start\` running there?`);
+  }
+  const pages = sitemapPaths(sitemap.body);
   if (pages.length === 0) {
-    throw new Error("no content/docs/**.mdx pages found — is this the docs repository root?");
+    throw new Error("the site's sitemap listed no pages");
+  }
+  // Deliberately no count check against `content/docs` here. Sitemap
+  // completeness is `parity-check.mjs`'s job and it does it by PATH: it requests
+  // the union of the content tree and the sitemap, so a page the sitemap forgets
+  // is still visited there. A count comparison would be neither necessary (a
+  // source file need not be a published page) nor sufficient (an extra generated
+  // URL would mask a dropout).
+
+  // Follow in-site redirects the way a browser does. `next.config.mjs` keeps
+  // retired URLs resolving (`/docs/agents` -> `/docs/mcp`), and a browser carries
+  // the fragment across the hop -- unless the Location supplies its own, which
+  // then REPLACES it. Getting that backwards fails a working link and passes a
+  // broken one.
+  async function fetchPage(urlPath) {
+    let current = urlPath;
+    let fragmentOverride = null;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+      const { status, headers, body } = await request(`${LOCAL}${current}`);
+      if (status === 200) return { html: body, finalPath: current, fragmentOverride, reason: null };
+      const location = headers?.location;
+      if (status >= 300 && status < 400 && location) {
+        let next;
+        try {
+          next = new URL(location, `${LOCAL}${current}`);
+        } catch {
+          return { html: null, finalPath: current, fragmentOverride, reason: `redirected to an unparseable location (${location})` };
+        }
+        if (!isInSiteHost(next, LOCAL_HOST)) {
+          return { html: null, finalPath: current, fragmentOverride, reason: `redirects off this site to ${location}` };
+        }
+        if (next.hash.length > 1) fragmentOverride = { raw: next.hash.slice(1), decoded: decodeFragment(next.hash.slice(1)) };
+        current = `${next.pathname}${next.search}`;
+        continue;
+      }
+      return {
+        html: null,
+        finalPath: current,
+        fragmentOverride,
+        reason: `answered ${status}${current === urlPath ? "" : ` at ${current}`}`,
+      };
+    }
+    return { html: null, finalPath: current, fragmentOverride, reason: `more than ${MAX_REDIRECTS} redirects` };
   }
 
-  const htmlByPath = new Map();
+  const resultByPath = new Map();
   async function load(urlPath) {
-    if (htmlByPath.has(urlPath)) return htmlByPath.get(urlPath);
-    const { status, body } = await request(`${LOCAL}${urlPath}`);
-    const value = status === 200 ? body : null;
-    htmlByPath.set(urlPath, value);
-    return value;
+    if (!resultByPath.has(urlPath)) resultByPath.set(urlPath, await fetchPage(urlPath));
+    return resultByPath.get(urlPath);
   }
 
   const failures = [];
   let checked = 0;
   for (const page of pages) {
-    const html = await load(page);
+    const { html, reason } = await load(page);
     if (html === null) {
-      failures.push(`${page}: page did not answer 200 (is \`npm run start\` running on ${LOCAL}?)`);
+      failures.push(`${page}: ${reason} (is \`npm run start\` running on ${LOCAL}?)`);
       continue;
     }
     const seen = new Set();
@@ -223,13 +331,22 @@ async function main() {
       if (seen.has(key)) continue;
       seen.add(key);
       checked += 1;
-      const targetHtml = await load(link.targetPath);
-      if (targetHtml === null) {
-        failures.push(`${page} -> ${key}: target page did not answer 200`);
+      const target = await load(link.targetPath);
+      if (target.html === null) {
+        failures.push(`${page} -> ${key}: target page ${target.reason}`);
         continue;
       }
-      if (!idsIn(targetHtml).has(link.fragment)) {
-        failures.push(`${page} -> ${key}: no element with id="${link.fragment}" on ${link.targetPath}`);
+      // A redirect that supplies its own fragment REPLACES the one the link
+      // carried; without one, the link's fragment is inherited across the hop.
+      const effective = target.fragmentOverride?.decoded ?? link.fragment;
+      const effectiveRaw = target.fragmentOverride?.raw ?? link.rawFragment;
+      const ids = idsIn(target.html);
+      if (!ids.has(effective) && !ids.has(effectiveRaw)) {
+        const where =
+          target.finalPath === link.targetPath
+            ? link.targetPath
+            : `${target.finalPath} (redirected from ${link.targetPath})`;
+        failures.push(`${page} -> ${key}: no element with id="${effective}" on ${where}`);
       }
     }
     process.stdout.write(`.`);
