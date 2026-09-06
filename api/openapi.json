@@ -2726,7 +2726,7 @@
         "type": "object"
       },
       "OutboundCall": {
-        "description": "recipient_type is optional and recorded, never enforced. Destination country is authorized against the org's approved risk envelope (authorize_outbound), not a fixed platform allowlist. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
+        "description": "recipient_type is optional and recorded, never enforced. Destination country is authorized against the org's approved outbound permit (authorize_outbound), not a fixed platform allowlist. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
         "properties": {
           "agent_endpoint_id": {
             "description": "Backwards-compatible alias for the selected agent endpoint; new integrations should send agent_id.",
@@ -2742,7 +2742,7 @@
             "type": "object"
           },
           "country": {
-            "description": "Destination country. Authorized per-organization by the approved risk envelope.",
+            "description": "Destination country. Authorized per-organization by the approved outbound permit.",
             "type": "string"
           },
           "external_group_reference": {
@@ -6830,7 +6830,7 @@
     },
     "/v1/campaigns/{campaign_id}/launch": {
       "post": {
-        "description": "Existing-customer or consented lists on an approved outbound envelope start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not approved, voice not in the envelope, a destination country outside it, or a profile without campaigns) or blocked (sanctioned destination, blocked purpose, missing consent basis). Contacts already on the do-not-call register are marked and never dialed.",
+        "description": "Existing-customer or consented lists on an approved outbound permit start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not approved, voice not in the permit, a destination country outside it, or a profile without campaigns) or blocked (sanctioned destination, blocked purpose, missing consent basis). Contacts already on the do-not-call register are marked and never dialed.",
         "parameters": [
           {
             "in": "path",
