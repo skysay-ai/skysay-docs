@@ -61,11 +61,34 @@ curl -X POST https://api.openphonex.com/v1/contact-lists \
 
 - `time_zone` defaults from the number's country (`+233…` becomes
   `Africa/Accra`); set it per row when you know better.
-- `variables` are flat, at most 28 keys, never secrets. They reach the agent as
+- `variables` are at most 28 keys, never secrets. They reach the agent as
   `call_context` together with the campaign metadata every attempt carries
   (`campaign_id`, `campaign_run_id`, `attempt_no`, `contact_name`), and the
   whole context must fit 32 keys / 4 KB: a row that would not is rejected at
   import, never at dial time. Those four names are reserved.
+- A variable is a string or a number, or a **list of flat objects** of them:
+  one debtor, several loans. A list holds at most 16 items of at most 16 keys
+  each; item keys are letters, digits and underscores (a workflow names them
+  in placeholders), values are strings or numbers under 512 characters,
+  `true`/`false` is refused, and the 4 KB budget still applies to the whole
+  row. A list is spoken only through a workflow section — see
+  [Several obligations on one account](/docs/agent-workflows#several-obligations-on-one-account).
+
+  ```json
+  {"phone_e164": "+94771234567", "name": "Nimal Perera", "language": "si",
+   "variables": {"obligations": [
+     {"reference_id": "LN-1", "overdue_amount": "45300.00", "currency": "LKR", "due_date": "2026-08-01"},
+     {"reference_id": "LN-2", "overdue_amount": "1200.00", "currency": "LKR", "due_date": "2026-08-28"}
+   ]}}
+  ```
+
+  In the workspace wizard, turn on **Several rows per phone number** when the
+  sheet has one row per loan: rows sharing a number become one contact, the
+  first row supplies the contact fields, and every row's other columns become
+  one item of that contact's `obligations` list. Grouped rows are reported as
+  joined, not as duplicates; a seventeenth row for one number is flagged, never
+  dropped. Through the API, aggregate before you send: a second row with the
+  same number in one request is still `skipped_duplicates`.
 - A row's `country` is derived from its number; a declared value only fills in
   for a number no calling code attributes, so a mislabelled row cannot steer
   the launch-time country check.
@@ -74,6 +97,25 @@ curl -X POST https://api.openphonex.com/v1/contact-lists \
   Re-uploading the same numbers is idempotent. At most 10,000 rows per request.
 
 Append later with `POST /v1/contact-lists/{contact_list_id}/contacts`.
+
+### Languages
+
+Each contact's `language` is the language its calls are made in, and the
+campaign's `language` is the default for contacts without one. The AI agent
+must publish that language ([multilingual agents](/docs/multilingual-outbound)):
+every attempt is admitted against the agent's published profiles and dials
+with that language's voice stack, so one campaign can carry `si`, `ta` and
+`en` contacts on one multilingual agent. A contact whose language the agent
+does not publish is never dialed; it ends `pre_dial_failed` with
+`skip_reason` `language_not_published`, and a contact with no language on a
+multilingual agent with no campaign default ends `language_required`. Both
+appear in the contact page and the export.
+
+Two things a language does not change: a conversation workflow speaks the
+text its author wrote, word for word, in whichever language it was written —
+a workflow campaign that must *sound* different per language uses one agent
+(and one campaign) per language; and the calling window is the contact's
+time zone, not its language.
 
 ## Do-not-call register
 
