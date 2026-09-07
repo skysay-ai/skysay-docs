@@ -2160,6 +2160,18 @@
             "description": "Server-composed status sentence for the workspace; display as-is.",
             "type": "string"
           },
+          "destination_restrictions": {
+            "description": "Optional customer narrowing, intersected with current capabilities at admission. null means no additional customer restriction.",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "destination_revision": {
+            "description": "Revision required when saving optional destination restrictions.",
+            "type": "integer"
+          },
           "id": {
             "type": "string"
           },
@@ -9799,6 +9811,115 @@
           }
         },
         "summary": "Record acceptance of the outbound policy without changing the capabilities selection",
+        "x-required-scopes": [
+          "onboarding:write"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/capabilities/destination-restrictions": {
+      "post": {
+        "description": "Active workspaces only. Store customer narrowing independently of operator-granted capabilities. countries=null removes only this extra restriction; a non-empty array narrows calls and SMS to those available countries. No activation, spending, caller-ID or operator permission changes. revision must match destination_settings.revision from the Capabilities dashboard; stale edits fail without writes. Runtime always intersects with current workspace, platform and number rules.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "countries": {
+                    "items": {
+                      "pattern": "^[A-Z]{2}$",
+                      "type": "string"
+                    },
+                    "maxItems": 300,
+                    "minItems": 1,
+                    "nullable": true,
+                    "type": "array"
+                  },
+                  "revision": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "countries",
+                  "revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Saved countries and incremented revision"
+          },
+          "400": {
+            "description": "Invalid, stale or inactive selection; no changes"
+          },
+          "403": {
+            "description": "Workspace access denied"
+          }
+        },
+        "summary": "Set optional workspace destination restrictions",
+        "x-required-scopes": [
+          "onboarding:write"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/capabilities/limit-requests": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "reason": {
+                    "maxLength": 2000,
+                    "minLength": 10,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Review id and status"
+          },
+          "400": {
+            "description": "Inactive workspace or invalid reason"
+          },
+          "403": {
+            "description": "Workspace access denied"
+          }
+        },
+        "summary": "Request higher limits without changing current permissions or buying a plan",
         "x-required-scopes": [
           "onboarding:write"
         ]
