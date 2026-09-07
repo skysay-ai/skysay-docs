@@ -44,6 +44,17 @@ day.
 Create a list and import rows in one request. A row needs `phone_e164`; every
 other field is optional.
 
+The workspace wizard builds the same request from a **CSV or an `.xlsx`
+workbook**: it reads the file in your browser — the first sheet, the first row
+as column names — maps the columns, shows you every row it could not use, and
+posts the rows this endpoint takes. The API itself never parses a spreadsheet,
+so a workbook and its CSV export produce the same list and the same per-row
+report. Date and number cells arrive as the text the sheet displays, not as
+Excel serial numbers; keep an account reference or a phone number in a
+**text-formatted column**, because a spreadsheet stores a number as a
+15-significant-digit float and a longer one has already lost digits before any
+export.
+
 ```bash
 curl -X POST https://api.openphonex.com/v1/contact-lists \
   -H "Authorization: Bearer $OPENPHONEX_TOKEN" \
@@ -89,6 +100,10 @@ curl -X POST https://api.openphonex.com/v1/contact-lists \
   joined, not as duplicates; a seventeenth row for one number is flagged, never
   dropped. Through the API, aggregate before you send: a second row with the
   same number in one request is still `skipped_duplicates`.
+- `source` records where the rows came from and is returned on the list:
+  `api`, `csv`, `xlsx`, or `mcp`. It is a label, not a parser — send whichever
+  one is true of your own import. It defaults to `api` on this endpoint and to
+  `mcp` through the MCP tool.
 - A row's `country` is derived from its number; a declared value only fills in
   for a number no calling code attributes, so a mislabelled row cannot steer
   the launch-time country check.
