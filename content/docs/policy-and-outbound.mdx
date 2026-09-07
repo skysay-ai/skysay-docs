@@ -43,64 +43,64 @@ state. Operators can tighten from there; you request more below.
 | Active | Outbound calls and SMS are authorized within the profiles, channels, destinations and caps on the record. |
 | Suspended | An operator paused outbound for this workspace. |
 
-### Request more
+### Destination controls
 
-<Steps>
+The Capabilities page shows your workspace's available destinations first.
+Ordinary business and personal calls do not require a separate use-case
+application. Workspace limits, acceptable-use rules, recipient permissions,
+number-specific requirements and carrier availability still apply.
 
-<Step>
+Use **Optional destination restrictions** to narrow the destinations your
+workspace can call or text. Choose all currently available destinations, or
+search and select specific countries. This setting is separate from your
+workspace's authorization: removing your restriction cannot undo an operator
+restriction or activate a suspended workspace.
 
-### Choose profiles, channels and destinations
+For API clients, read `destination_revision` from
+`GET /v1/organizations/{organization_id}/capabilities`, then send
+`POST /v1/organizations/{organization_id}/capabilities/destination-restrictions`
+with `onboarding:write`:
 
-Pick one or more use-case profiles (personal assistant, business support,
-appointments, payment reminders, internal operations, customer outreach
-campaigns, or a custom implementation-services profile), the channels you
-need, and the destinations: **all destinations except sanctioned countries**,
-or an allowlist of countries. An allowlist must name at least one country; an
-empty one is refused rather than read as "everywhere".
+```json
+{"countries": ["EE", "GB"], "revision": 0}
+```
 
-**The destination choice is explicit.** Over the API the request carries
-either `all_countries: true` or a `countries` allowlist naming at least one
-ISO 3166-1 alpha-2 code. A request with neither, with an empty list, or with an
-entry that is not a two-letter code once normalized (a country name, a
-three-letter code, a number) is refused with `400` — the refusal names the
-entry — and nothing is written: an active record keeps exactly the destinations
-it had. Neither default would be safe: reading an omitted choice as "every
-destination" would widen a workspace that named no list, and reading it as an
-empty allowlist would store a record that says active while every call is held
-for review.
+Use `countries: null` to remove only your optional restriction. An empty list
+is refused. Use uppercase supported two-letter country codes within your
+workspace's available destinations. A stale revision is refused; reload before
+saving instead of overwriting another user's change. The restriction is checked
+for calls, SMS and campaign admission; it does not hang up an existing call.
 
-What is checked is the **shape** of each value, not membership of the assigned
-ISO 3166-1 list. The picker offers regions that have no calling code, and the
-API accepts aliases such as `UAE`, `USA` and `UK`, so a list checked against
-assigned codes would refuse selections the workspace itself offers. A
-well-formed but unassigned code such as `ZZ` is therefore stored exactly as you
-sent it — and then matches nothing, because a call's country is derived from
-the number dialled: every call to it is held for review rather than authorized.
-The Capabilities page shows each stored country with its code for that reason;
-over the API, read them back from
-`GET /v1/organizations/{organization_id}/capabilities` and check they are the
-ones you meant.
+Syria is no longer on OpenPhonex's blanket country block. This does not remove
+targeted sanctions, acceptable-use rules, number restrictions, carrier routing
+requirements or pricing checks.
 
-</Step>
+### Workspace limits and higher-limit requests
 
-<Step>
+The limits table shows current operator spend/volume controls and the effective
+plan or operator allowance for simultaneous calls. Calls per day and
+simultaneous calls are different limits. Daily controls use a rolling 24-hour
+window.
 
-### Accept the outbound policy
+- **Wallet spending** limits posted wallet spending plus a proposed operation.
+  It is not your wallet balance.
+- **Voice spending** is an admission estimate for voice operations. Final
+  settlement uses actual metered usage; it is not an additional fee.
+- **Simultaneous calls** limits calls active together. A phone number or carrier
+  may impose a lower limit.
+- **Unique destinations** counts distinct recipients in the rolling window.
 
-Accept the current outbound policy version before submitting. Standard
-profiles are approved instantly once verification is done; the custom profile
-always goes to an operator.
+Use **Request higher limits** to describe the volume or concurrency you need.
+This creates an operator review without raising a cap, changing prices,
+reserving funds or approving any calls. The API equivalent is
+`POST /v1/organizations/{organization_id}/capabilities/limit-requests`
+(`onboarding:write`) with a `reason` of 10–2,000 characters. It returns the
+review ID and status.
 
-</Step>
-
-</Steps>
-
-<Callout type="warn" title="Re-requesting on an active record">
-  A new request replaces the active selection rather than adding to it. Adding
-  the custom implementation-services profile always requires a new review;
-  until it is approved, what was active stays active.
-</Callout>
-
+The existing profile-request API remains available for explicit configuration
+and custom implementation-service requests. It is not required to choose an
+ordinary use case on the Capabilities page. Existing operator restrictions and
+custom review requirements remain in force.
 ### Calling rules
 
 An operator can attach **calling rules** to your record for a customer
