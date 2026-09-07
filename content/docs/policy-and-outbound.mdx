@@ -112,13 +112,36 @@ stop / wrong-party / dispute actions). `GET .../capabilities` returns them as
 
 ### Authorized application batches
 
-A workspace whose active profile allows campaigns (`payment_reminder`,
-`customer_outreach`) may run its own batches through the single-call API: send
-each call with `bulk: true`, your own batch label as `campaign_id`, and a
-`user_authorization` naming who approved the batch. Under such a profile the
-call is an ordinary authorized call; under the default profile, or without an
-authorizer, it is held for review (`needs_review.campaign`). Every other gate
-still applies.
+Any active workspace may run its own batches through the single-call API;
+there is no per-profile campaign switch. Send each call with `bulk: true`,
+your own batch label as `campaign_id`, and a `user_authorization` naming who
+approved the batch. With a known relationship (the `user_authorization`
+itself counts as user-requested; or declare `relationship` as
+`existing_customer`, `known_business`, `user_personal_contact`, `internal` or
+`consented_contact`) the call is an ordinary authorized call. A batch without
+a non-empty `user_authorization.authorized_by`, or one that declares an
+unknown relationship (`user_requested: false` and no `relationship`), is held
+for review (`needs_review.campaign`); the custom implementation-services
+profile holds every batch (`needs_review.custom_always_review`). Every other
+gate still applies: blocked categories, sanctioned destinations, your
+destination allowlist, caps and calling rules.
+
+### Campaigns
+
+Campaigns are part of what every active workspace may do. A launch is checked
+against your capabilities record and the outbound policy, in this order: a
+sanctioned destination in the list blocks it (`blocked_country`); a suspended
+workspace blocks it (`workspace_suspended`); a workspace that is not active
+holds it (`workspace_not_approved`); voice missing from your channels holds it
+(`channel_not_enabled`); a destination outside your allowlist holds it for the
+usual first-use review (`new_country_requires_review`); a blocked purpose
+blocks it (`blocked_category.<token>`); a missing consent basis blocks it
+(`consent_basis_required`); and on the custom implementation-services profile
+every launch is reviewed (`needs_review.custom_always_review`). The
+`campaigns_not_in_profile` reason code no longer exists. Your caps are
+enforced per call while the campaign runs, never at launch: the wizard's
+review step shows each of these checks for the draft and how many days the
+list takes under your daily call cap. See [Campaigns](/docs/campaigns).
 
 ## The outbound sequence
 
