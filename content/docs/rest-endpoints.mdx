@@ -95,8 +95,8 @@ preset or substituting another version.
 ## Capabilities
 
 Outbound calls and SMS authorize against the workspace's **capabilities**
-record, so a machine client that provisions a workspace end to end needs these
-three. See
+record. Machine clients can inspect that record, manage optional destination
+restrictions, or request higher limits with these commands. See
 [Policy & outbound](/docs/policy-and-outbound#your-workspace-capabilities)
 for what each field means.
 
@@ -105,15 +105,18 @@ for what each field means.
 | `GET` | `/v1/organizations/{organization_id}/capabilities` | The record, its calling rules, the selectable profiles, and live usage against its caps. |
 | `POST` | `/v1/organizations/{organization_id}/capabilities` | Request or replace the selection. `profiles` is required, and so is a destination choice: `all_countries: true` or a `countries` allowlist. |
 | `POST` | `/v1/organizations/{organization_id}/capabilities/accept-policy` | Accept a policy version without changing what the record authorizes. |
+| `POST` | `/v1/organizations/{organization_id}/capabilities/destination-restrictions` | Save optional customer narrowing with the current `destination_revision`; `countries: null` removes only this extra restriction. |
+| `POST` | `/v1/organizations/{organization_id}/capabilities/limit-requests` | Request higher limits with a reason; does not change caps, prices or wallet funds. |
 
-The destination choice is explicit: `all_countries: true` (every destination
+For an explicit profile-selection request, the destination choice is
+`all_countries: true` (every destination
 except sanctioned countries) or `countries` naming at least one ISO 3166-1
 alpha-2 code. A request with neither, with an empty list, or with an entry
 that is not a two-letter code once normalized answers `400`, names the entry,
 and writes nothing. The check is on shape, not on membership of the assigned
 ISO list, so a well-formed but unassigned code is stored as sent and then
 matches no destination — see
-[Choose profiles, channels and destinations](/docs/policy-and-outbound#choose-profiles-channels-and-destinations).
+[Destination controls](/docs/policy-and-outbound#destination-controls).
 
 ## Wallet & usage
 
