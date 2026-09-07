@@ -13,6 +13,14 @@ services were confirmed deployed.
 
 ## 7 September 2026
 
+### Several obligations per contact, a payment reminder that reads contact variables, per-contact languages
+
+- A contact variable may be a list of flat objects (one debtor, several loans): at most 16 items of 16 keys, string or number values, within the same 4 KB row budget. The workspace wizard groups several CSV rows per phone number into one contact's `obligations` (**Several rows per phone number**).
+- A conversation workflow speaks a list only through a section you author in a disclosing step (`{{#obligations}} … {{/obligations}}`), once per item, in your own words; the all-or-nothing rules extend to lists.
+- New starter template **Payment reminder from contact variables** (`payment_reminder_variables`): the payment reminder whose one read tool is served from the campaign contact's own variables, with the same verification-before-disclosure gate and no customer endpoint.
+- Each contact's `language` is the language its calls are made in (the campaign's `language` is the default); a contact whose language the AI agent does not publish ends `pre_dial_failed` with `skip_reason` `language_not_published`, and a contact with no language on a multilingual agent ends `language_required`.
+- [Contact lists](/docs/campaigns#contact-lists) · [Languages](/docs/campaigns#languages) · [Several obligations on one account](/docs/agent-workflows#several-obligations-on-one-account)
+
 ### Campaign results with business outcomes, and a review inbox
 
 - The results export (`GET /v1/campaigns/{campaign_id}/export`) keeps its columns and appends the last call's business outcome: the workflow outcome and its label, the interrupt that ended the call, the post-call extraction status and one `extraction.<field>` column per field of the AI agent's extraction schema, and whether a recording and a transcript exist; `GET /v1/campaigns/{campaign_id}/results` is the same as JSON.
