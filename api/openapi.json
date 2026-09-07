@@ -2252,10 +2252,6 @@
             },
             "type": "array"
           },
-          "campaigns_allowed": {
-            "description": "Whether campaigns and authorized application batches are permitted under this profile.",
-            "type": "boolean"
-          },
           "channels": {
             "items": {
               "enum": [
@@ -7124,7 +7120,7 @@
     },
     "/v1/campaigns/{campaign_id}/launch": {
       "post": {
-        "description": "Existing-customer or consented lists on active workspace capabilities start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not active, voice not an enabled channel, a destination country outside the allowlist, or a profile without campaigns) or blocked (sanctioned destination, blocked purpose, missing consent basis). Contacts already on the do-not-call register are marked and never dialed.",
+        "description": "Existing-customer or consented lists on active workspace capabilities start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not active, voice not an enabled channel, a destination country outside the allowlist, or the custom implementation-services profile, whose every launch is reviewed) or blocked (sanctioned destination, blocked purpose, missing consent basis). Campaigns are open to every active workspace; there is no per-profile campaign switch. Contacts already on the do-not-call register are marked and never dialed.",
         "parameters": [
           {
             "in": "path",
@@ -7842,7 +7838,7 @@
     },
     "/v1/dashboard/campaigns": {
       "get": {
-        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency). Fixed query budget; never a caller-selected tenant.",
+        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). Fixed query budget; never a caller-selected tenant.",
         "parameters": [
           {
             "in": "query",
@@ -7917,7 +7913,7 @@
     },
     "/v1/dashboard/capabilities": {
       "get": {
-        "description": "Returns one read-only Capabilities page DTO: the workspace's capabilities record (status, approved profiles, channels, all_countries/countries, calling rules and whether they are active), the caps that bind right now as `limits` (the workspace's velocity and spend risk controls above zero, not the profile caps projected at activation; a cap of zero is disabled and not listed), live usage against the caps, the use-case profile catalog a request offers, the countries the workspace already has numbers in (bounded, with has_more), and its open capability reviews (bounded, with has_more). Tenant-bound to the bearer session; no provider request and no write.",
+        "description": "Returns one read-only Capabilities page DTO: the workspace's capabilities record (status, approved profiles, channels, all_countries/countries, calling rules and whether they are active), the caps that bind right now as `limits` (the workspace's velocity and spend risk controls above zero, not the profile caps projected at activation; a cap of zero is disabled and not listed), live usage against the caps, the use-case profile catalog a request offers, `campaigns` (whether campaigns are part of what this workspace may do: `included` for an active record with voice, `voice_required`, or `not_active`; and `every_launch_reviewed` for the custom implementation-services profile -- there is no per-profile campaign switch), the countries the workspace already has numbers in (bounded, with has_more), and its open capability reviews (bounded, with has_more). Tenant-bound to the bearer session; no provider request and no write.",
         "responses": {
           "200": {
             "description": "Capabilities workspace aggregate"
