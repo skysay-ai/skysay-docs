@@ -49,6 +49,31 @@ same draft, stale writes are refused with the current state rather than
 silently overwritten — saving, publishing, and restoring all carry the
 revision you reviewed.
 
+### Payment reminder identity clarification
+
+Both **Payment reminder** starter templates ask whether the caller is the
+account holder before reading or speaking account details. When a delivered
+reply is classified as **Unclear**, the workflow asks at most two clarification
+questions. This route covers hesitation, fragments, and empty replies rather
+than treating them as denial. If identity is still unconfirmed, it records
+**Identity unconfirmed** and ends without a case read or a wrong-party outcome.
+
+Wrong party requires explicit denial of being the intended person or a clear
+wrong-person or wrong-number statement; missing confirmation alone is not
+denial. Explicit wrong-party and cease-contact replies still take the immediate
+stop path. The template's stop outcome is a **review candidate**, not an
+automatic suppression command. Global interrupt precedence is unchanged.
+
+These routing instructions depend on the decision model interpreting the
+reply correctly. An incorrect global interrupt decision still preempts local
+clarification; synthetic tests do not prove speech-recognition or model accuracy.
+This does not add a no-speech timer: silence that produces no transcript turn
+does not advance the clarification steps.
+
+Template updates do not rewrite existing drafts, custom workflows, or immutable
+published versions. To adopt the clarification steps on an existing agent,
+explicitly update its draft, test the new routes, and publish a new version.
+
 ## Validation, then testing, then publishing
 
 ### Reconcile before an edit or publish
