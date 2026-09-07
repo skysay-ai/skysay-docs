@@ -1,0 +1,92 @@
+---
+title: Launch a campaign
+description: Test the agent, build the list, understand what happens to your per-contact variables, then launch and watch the results.
+---
+
+You need an active workspace with voice enabled, funds, a caller-ID number and
+an active hosted agent. There is no campaign switch to request.
+
+## Before you launch: test it
+
+- **Talk to the agent in your browser**, capped at 180 seconds, for voice,
+  recognition, latency and interruptions. See [Test an agent](/docs/trial-calls).
+- **Run a simulation suite** in the [Simulations Lab](/docs/simulations-lab):
+  scripted callers, your own pass and fail rules, text or voice.
+- A [conversation workflow](/docs/agent-workflows) adds **Chat** for wording and
+  branches, and **Phone**, which arms one number to answer your next call with
+  the pinned draft.
+- **None of these prove the carrier route.** Place one real call to your own
+  number, or a one-contact campaign with yourself.
+
+## Build the list
+
+- Upload a CSV, one row per person. Only the phone column, in international
+  format, is required.
+- Up to 10,000 rows per import. Duplicates are skipped, invalid numbers reported
+  per row.
+- Every other column becomes a **variable**: 28 per contact, 512 characters
+  each, 4 KB in total. No secrets.
+- Time zone defaults from the number's country. Calling hours run in each
+  contact's zone, or one fixed zone.
+- Numbers on your [do-not-call register](/docs/campaigns#do-not-call-register)
+  are marked and never dialed.
+
+## Per-customer data in the call
+
+- The wizard's **Message preview** fills a pasted line with the first contact's
+  values. It previews in your browser, not on the call.
+- Each attempt carries that contact's variables as the call's context, plus
+  campaign id, run id, attempt number and name.
+- **Your agent does not read them aloud on its own today.** Browser tests show
+  `{{field}}` unfilled.
+- A conversation workflow can state them: a read tool's projection is served from
+  that context, and a step flagged **discloses debt** fills its `{{field}}`
+  placeholders. See [Serving a read
+  tool](/docs/agent-workflows#serving-a-read-tool-from-the-calls-context).
+- Otherwise give it a read tool that fetches the fact mid-call: an
+  [Integration](/docs/integrations), whose URL and secret the model never sees,
+  or a webhook tool.
+- Speaking variables straight from your sheet is coming.
+
+## Create and launch
+
+- **Contacts** — the list, the purpose, and the consent basis: existing customers
+  or explicit consent.
+- **Agent and numbers** — the hosted agent and the numbers to rotate caller ID
+  across.
+- **Schedule and retries** — calling hours per weekday, at most four windows a
+  day, and a retry preset: sales, collections, single attempt or custom.
+- **Review and launch** — contact count, spend estimate, and a preview of every
+  launch check.
+
+Launch runs one check against your workspace capabilities: no sanctioned
+destination, workspace active, voice enabled, every country on your allowlist, a
+permitted purpose, a declared consent basis. Caps apply per call.
+
+## Watch the results
+
+- The campaign page shows audience, remaining, pick-up rate, outcomes and spend
+  as the run works.
+- Each attempt opens its call: recording, transcript and any post-call
+  extraction. See [Read call evidence](/docs/read-call-evidence).
+- **Export CSV** gives the disposition per contact, and webhooks push
+  `campaign.launched`, `campaign.contact.completed` and `campaign.completed`.
+  See [Post-call results](/docs/post-call-results).
+
+## Common questions
+
+- **Why did my launch go to review?** Your workspace is not active, voice is not
+  enabled, or a destination is not on your allowlist.
+- **Why did a country need review?** It is not on your workspace's destination
+  list yet.
+- **Why is a contact skipped?** It is on your do-not-call register, its calling
+  window is closed, or the campaign was cancelled.
+- **Can I change settings after launch?** Pause, then change hours, caller IDs,
+  retries, concurrency and end date. List, agent, purpose and consent are locked
+  — duplicate to change those.
+- **How many calls a day?** Whichever workspace cap binds first. The
+  **Capabilities** page lists them.
+- **How do I stop it?** **Pause** keeps the remaining contacts. **Cancel** ends
+  the run and skips them.
+- **Which lists may I call?** Your own customers, or people who explicitly
+  agreed. See [Policy and outbound](/docs/policy-and-outbound#campaigns).
