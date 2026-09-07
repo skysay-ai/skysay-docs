@@ -173,7 +173,9 @@ the SIP result and are never model-supplied.
   `remaining`).
 - `GET /v1/campaigns/{campaign_id}/contacts?status=` pages through the run's
   contacts with disposition, attempt count, next attempt and last call id, which
-  opens the ordinary [call evidence](/docs/read-call-evidence).
+  opens the ordinary [call evidence](/docs/read-call-evidence);
+  `GET /v1/campaigns/{campaign_id}/results` adds each contact's last-call
+  [business outcome](#business-outcomes).
 - Webhooks: `campaign.launched`, `campaign.contact.completed`,
   `campaign.completed`. Per-call events are unchanged and carry
   `external_reference` (the contact's reference) and
@@ -215,7 +217,8 @@ attachment with a fixed column set per contact: `phone_e164`, `name`,
 `external_reference`, `language`, `time_zone`, `status`, `disposition`,
 `attempt_count`, `next_attempt_at`, `callback_at`, `skip_reason`,
 `last_call_id`, `last_call_status`, `termination_cause`,
-`termination_detail` and `updated_at`. Rows follow the list order and cover
+`termination_detail` and `updated_at`, then the last call's business outcome
+(below). Rows follow the list order and cover
 the whole run up to the list cap (50,000 rows); `X-OpenPhonex-Row-Count`
 carries the count and `X-OpenPhonex-Truncated` says whether rows beyond the
 cap were left out. `phone_e164` is written verbatim: import that column as text in a
@@ -224,7 +227,82 @@ workspace (a caller-selected `organization_id` is ignored). Uploaded variables a
 start with a formula character are prefixed so a spreadsheet does not execute
 them. The workspace offers the same file as **Export CSV** on the campaign.
 
+### Business outcomes
+
+Every exported row carries what the contact's last call concluded, read from
+the call's own evidence:
+
+- `workflow_status`, `workflow_outcome_type` (`review_candidate`,
+  `informational` or `terminal_note`), `workflow_outcome` (the outcome step
+  the [conversation workflow](/docs/agent-workflows) landed on, for example
+  `promise_review`) and `workflow_outcome_label` (that step's label);
+- `workflow_interrupt`: the global interrupt that ended the conversation, if
+  one did (`wrong_party`, `cease_contact`, `dispute`, `hardship`, `callback`,
+  `human_request`, `language_change`);
+- `extraction_status` (empty when no extraction was requested for the call;
+  otherwise `pending`, `running`, `ready` or `failed`) and one
+  `extraction.<field>` column per field of the AI agent's
+  [post-call extraction](/docs/post-call-results#optional-post-call-extraction)
+  schema, filled only when the status is `ready`. Extraction is advisory
+  model output; an empty cell means the field was not extracted, never that
+  it was extracted as empty;
+- `recording_available` and `transcript_available` (`true`/`false`): whether
+  the call's recording and transcript exist, which
+  `GET /v1/calls/{call_id}/recording` and the [call evidence](/docs/read-call-evidence)
+  serve.
+
+A contact that was never dialed carries the empty outcome. Booleans are
+written as `true`/`false`; the outcome label and every extraction cell are
+formula-guarded like the other free text.
+
+`GET /v1/campaigns/{campaign_id}/results?status=&limit=&offset=` is the same
+information as JSON: the contact page of
+`GET /v1/campaigns/{campaign_id}/contacts` with an `outcome` object per
+contact (the fields above, `extraction` as an object,
+`extraction_schema_version`) and `extraction_fields`, the AI agent's current
+field list. Bounded and paged like the contact page (`has_more`).
+
+## Review inbox
+
+A conversation workflow ends most calls that need a person on a
+`review_candidate` outcome: a promise to pay, a payment already made, a
+dispute, hardship, a callback request, a language request, a wrong party.
+The review inbox lists those attempts for a campaign's latest run with the
+call's evidence inline, so a reviewer can decide and record what they did.
+
+- `GET /v1/campaigns/{campaign_id}/reviews?state=open|resolved|all&outcome=&language=&limit=&offset=`
+  pages through the candidates, newest first. Each item carries the attempt
+  (`attempt_id`, `attempt_no`, `call_id`, `disposition`, `termination_cause`,
+  `settled_at`), the contact (`phone_e164`, `name`, `external_reference`,
+  `language`, `status`), the call's `outcome` (the business outcome above,
+  including the extraction fields and the recording/transcript availability)
+  and its `resolution` (`null` while open; `id`, `note`, `resolved_at` and
+  `resolved_by` once resolved). `counts` gives the open and resolved totals;
+  `outcomes` (outcome step id, label, count) and `languages` are the facets
+  over the whole candidate set, whatever the page's filters;
+  `extraction_fields` is the field list.
+- `POST /v1/campaigns/{campaign_id}/reviews/{attempt_id}/resolve` with an
+  optional `note` (at most 2,000 characters) resolves one candidate. The
+  platform records who resolved it (the signed-in user, or the API key) and
+  when, writes a `campaign.review.resolved` audit event with the campaign,
+  call, workflow run, outcome and note, and returns the item as the inbox
+  lists it. A candidate resolved before answers `409` and keeps the first
+  reviewer's note; an attempt that is not a review candidate of this
+  campaign answers `404`.
+- `GET /v1/campaigns/{campaign_id}/reviews/export?state=resolved|open|all`
+  downloads the set as CSV: the contact, the attempt, the business-outcome
+  and extraction columns of the results export, then `resolved_at`,
+  `resolved_by` and `note`. Bounded and bound to the credential's own
+  workspace like the results export.
+
+In the workspace, a campaign shows **Review inbox (N)** with the number of
+candidates still open; the inbox page filters by state, outcome and
+language, plays the recording, links the transcript, shows the extracted
+fields, and resolves each item with a note. The inbox covers the campaign's
+latest run.
+
 The same operations are available over MCP as `create_contact_list`,
 `add_contacts`, `add_do_not_call`, `create_campaign`, `update_campaign`,
 `launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`,
-`list_campaigns` and `get_campaign`. The CSV export is REST-only.
+`list_campaigns` and `get_campaign`. The CSV exports, the results page and
+the review inbox are REST-only.

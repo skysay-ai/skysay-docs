@@ -7089,7 +7089,7 @@
     },
     "/v1/campaigns/{campaign_id}/export": {
       "get": {
-        "description": "One text/csv attachment with a fixed column set per contact: phone_e164, name, external_reference, language, time_zone, status, disposition, attempt_count, next_attempt_at, callback_at, skip_reason, last_call_id, last_call_status, termination_cause, termination_detail, updated_at. In list order, bounded by the contact-list cap (50,000 rows); X-OpenPhonex-Row-Count carries the row count and X-OpenPhonex-Truncated says whether rows beyond the cap were left out. Uploaded variables are not echoed back. Free-text cells that start with a formula character are prefixed; phone_e164 is written verbatim (import that column as text in a spreadsheet). Bound to the credential's own organization: an organization_id query value is ignored and a credential without an organization is refused.",
+        "description": "One text/csv attachment with a fixed column set per contact: phone_e164, name, external_reference, language, time_zone, status, disposition, attempt_count, next_attempt_at, callback_at, skip_reason, last_call_id, last_call_status, termination_cause, termination_detail, updated_at, then the last call's business outcome: workflow_status, workflow_outcome_type (review_candidate, informational, terminal_note), workflow_outcome (the outcome step the run landed on), workflow_outcome_label, workflow_interrupt (wrong_party, cease_contact, dispute, hardship, callback, human_request, language_change), extraction_status (empty when no extraction was requested; pending, running, ready or failed), recording_available and transcript_available (true/false), and one extraction.<field> column per field of the agent's post-call extraction schema (advisory model output; empty unless extraction_status is ready). In list order, bounded by the contact-list cap (50,000 rows); X-OpenPhonex-Row-Count carries the row count and X-OpenPhonex-Truncated says whether rows beyond the cap were left out. Uploaded variables are not echoed back. Free-text cells that start with a formula character are prefixed; phone_e164 is written verbatim (import that column as text in a spreadsheet). Bound to the credential's own organization: an organization_id query value is ignored and a credential without an organization is refused.",
         "parameters": [
           {
             "in": "path",
@@ -7165,6 +7165,67 @@
         ]
       }
     },
+    "/v1/campaigns/{campaign_id}/results": {
+      "get": {
+        "description": "The contact page (status, disposition, attempts, next attempt, last call) with an `outcome` object per contact: workflow_status, workflow_outcome_type, workflow_outcome, workflow_outcome_label, workflow_interrupt, extraction_status, extraction_schema_version, extraction (the schema fields, advisory, present only when ready), recording_available, transcript_available. `extraction_fields` lists the agent's current extraction fields. A contact without a call carries the empty outcome. Fixed query budget whatever the page size.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "scheduled",
+                "dispatched",
+                "completed",
+                "failed",
+                "skipped",
+                "pre_dial_failed",
+                "do_not_call"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Campaign contacts with outcomes, extraction_fields and pagination"
+          }
+        },
+        "summary": "List the latest run's contacts with each contact's last-call business outcome (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
     "/v1/campaigns/{campaign_id}/resume": {
       "post": {
         "parameters": [
@@ -7183,6 +7244,179 @@
           }
         },
         "summary": "Resume a paused campaign",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/reviews": {
+      "get": {
+        "description": "Each item carries the attempt (attempt_no, call_id, disposition, termination_cause, settled_at), the contact (phone_e164, name, external_reference, language, status), the call's `outcome` evidence (workflow outcome and label, interrupt, extraction fields, recording and transcript availability) and its `resolution` (null while open; id, note, resolved_at, resolved_by once resolved). `counts` gives open and resolved totals, `outcomes` and `languages` the facets over the whole candidate set with counts, `extraction_fields` the agent's fields. Latest run only; newest first.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "enum": [
+                "open",
+                "resolved",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "An outcome step id from `outcomes` (for example promise_review).",
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review candidates, counts, facets and pagination"
+          }
+        },
+        "summary": "The campaign's review inbox: attempts whose workflow landed on a review_candidate outcome (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/reviews/export": {
+      "get": {
+        "description": "One text/csv attachment: phone_e164, name, external_reference, language, attempt_no, call_id, disposition, termination_cause, settled_at, the outcome columns of the results export, one extraction.<field> column per schema field, then resolved_at, resolved_by and note. `state` selects resolved (default), open or all. Bounded like the results export (X-OpenPhonex-Row-Count, X-OpenPhonex-Truncated); free-text cells are formula-guarded. Bound to the credential's own organization.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "resolved",
+              "enum": [
+                "open",
+                "resolved",
+                "all"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "CSV file"
+          }
+        },
+        "summary": "Export the review inbox (resolved by default) as CSV",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/reviews/{attempt_id}/resolve": {
+      "post": {
+        "description": "Records the resolution (note of at most 2,000 characters, the resolving user or API key, the time) and writes a `campaign.review.resolved` audit event with the campaign, call, workflow run and outcome. Returns the item as the inbox lists it. A candidate resolved before answers 409; an attempt that is not a review candidate of this campaign answers 404. The tenant is the campaign's own.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "note": {
+                    "maxLength": 2000,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "The resolved review item"
+          },
+          "404": {
+            "description": "Not a review candidate of this campaign"
+          },
+          "409": {
+            "description": "Already resolved"
+          }
+        },
+        "summary": "Resolve one review candidate with a reviewer note",
         "x-required-scopes": [
           "calls:write"
         ]
@@ -7834,6 +8068,83 @@
           "calls:read",
           "wallet:read"
         ]
+      }
+    },
+    "/v1/dashboard/campaign-reviews": {
+      "get": {
+        "description": "Pure read: the campaign header (id, name, status, latest run), one filtered page of the campaign's review candidates with inline call evidence and resolutions, the counts and facets, and the compact wallet snapshot. `campaign` is null when the id is not in the session workspace (or the page's project). Fixed query budget; never a caller-selected tenant.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "enum": [
+                "open",
+                "resolved",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Review inbox page projection"
+          }
+        },
+        "summary": "Bounded review-inbox page aggregate for the signed-in workspace"
       }
     },
     "/v1/dashboard/campaigns": {
