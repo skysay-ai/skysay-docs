@@ -13,6 +13,13 @@ services were confirmed deployed.
 
 ## 7 September 2026
 
+### Campaign results with business outcomes, and a review inbox
+
+- The results export (`GET /v1/campaigns/{campaign_id}/export`) keeps its columns and appends the last call's business outcome: the workflow outcome and its label, the interrupt that ended the call, the post-call extraction status and one `extraction.<field>` column per field of the AI agent's extraction schema, and whether a recording and a transcript exist; `GET /v1/campaigns/{campaign_id}/results` is the same as JSON.
+- The review inbox lists the attempts whose workflow asked for a person (promise to pay, already paid, dispute, hardship, callback, language request, wrong party) with the call's evidence inline; a reviewer resolves each with a note (`POST /v1/campaigns/{campaign_id}/reviews/{attempt_id}/resolve`, audited, one resolution per attempt) and exports the resolved set (`GET .../reviews/export`).
+- The workspace shows **Review inbox (N)** on every campaign; the inbox filters by state, outcome and language, plays the recording, links the transcript and shows the extracted fields.
+- [Campaigns](/docs/campaigns#business-outcomes) · [Review inbox](/docs/campaigns#review-inbox) · [Post-call results](/docs/post-call-results#optional-post-call-extraction)
+
 ### Campaigns open to every active workspace
 
 - Campaigns and authorized application batches are part of what every active workspace may do; the per-profile switch `campaigns_allowed` and the launch reason code `campaigns_not_in_profile` no longer exist.
