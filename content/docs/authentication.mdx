@@ -162,6 +162,29 @@ belong to one workspace.
 
 ## Scope clamping (cannot self-escalate)
 
+### Staged hosted-worker contract
+
+The control plane now contains a disabled-by-default contract for shared hosted
+outbound and real-time simulation workers. This is preparation for a coordinated
+rollout, **not a statement that universal hosted execution is live**. Customer
+and self-hosted keys remain organization-bound; omitting an organization never
+grants cross-workspace access.
+
+The new operator-issued machine roles are separate credentials with a null
+organization and only job claim/settlement and heartbeat scopes. Each role can
+claim only its own kind of server-classified hosted job, never a self-hosted
+gateway's organization queue. Completion, failure, and renewal require the
+claim's worker identity and lease; expired leases cannot settle work. The worker
+does not choose the job's workspace. These internal worker routes are not part
+of the customer API reference.
+
+Existing workers, keys, and queued jobs are not switched by this contract alone.
+The shared runtime, per-call hosted authorization, and controlled cutover must
+be ready before activation. Customers should not mint platform roles or change
+their self-hosted gateway credentials for this preparation.
+
+### Customer scope limits
+
 Requested scopes are **clamped server-side** to what your admin credential
 already holds. A key can never grant itself more than its minter has. Ordinary
 agent keys omit control-plane scopes such as `api_keys:write`, `wallet:write`,
