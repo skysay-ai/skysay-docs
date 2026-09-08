@@ -183,9 +183,21 @@ The platform simulation-room runner implementation consumes this contract and
 binds room metadata and evidence receipts to the claimed job's workspace and
 job ID. It has no customer organization setting and does not fall back to a
 customer-key claim when platform authorization is unavailable.
-The shared runtime, per-call hosted authorization, and controlled cutover must
+The hosted outbound implementation separately uses a newly operator-issued
+gateway credential with only `calls:authorize` and `gateways:report`. Its explicit
+platform role authorizes an existing hosted call using that call's current
+worker lease and tenant-bound configuration; it cannot enqueue jobs or fetch
+arbitrary agent configuration. The gateway retains its platform owner's
+organization. Changing its deployment mode never upgrades existing tokens.
+Both platform consumers and the controlled cutover must
 be ready before activation. Customers should not mint platform roles or change
 their self-hosted gateway credentials for this preparation.
+
+New gateway tokens default to the two originator scopes above. The self-hosted
+bootstrap and workspace gateway action explicitly request their full runtime
+scope set, including number rules, inbound enqueue, artifact upload and component
+credential leases. Existing tokens retain their stored scopes; custom bootstrap
+clients must request every runtime permission they need.
 
 ### Customer scope limits
 

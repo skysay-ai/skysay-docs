@@ -8585,7 +8585,7 @@
     },
     "/v1/gateway-deployments/{gateway_id}/outbound-calls": {
       "post": {
-        "description": "Runs the same outbound admission a remote POST /v1/calls runs -- the outbound authorization decision, the wallet reserve, the call record and the bounded execution slot -- and returns the admitted call plus the single-use tca_ call authorization bound to (gateway, organization, from-number, to-number, call), instead of enqueueing a worker job. The organization and project come from the gateway deployment row, never from the body; a named organization_id or project_id may only agree with them. The caller ID may be an E.164 from_phone_number resolved inside that project, or a from_number_id; either must be an active number of the deployment's own project. Refused before the wallet reserve when live calling is disabled, because there is no queued job to retry. A refused authorization returns authorized=false with no token, and replaying an idempotency_key returns the original call with no token. Once an organization has a local-mode deployment and no queue-mode deployment left, a remote POST /v1/calls for its numbers fails closed rather than enqueueing a job nothing would claim; job claims are per-organization, so one remaining queue-mode deployment keeps every project working.",
+        "description": "For a self-hosted local-mode deployment, runs outbound admission, wallet reservation, call creation and bounded execution-slot allocation, then returns a single-use tca_ token and dial plan instead of enqueueing a job. Tenant/project authority comes from the deployment row; any supplied identity must agree. Caller ID must be an active number of that project. Gateway tokens require both calls:authorize and gateways:report; missing scopes and a disabled live gate refuse before reservation. Denied authorization returns no token; an idempotency replay returns the original call without a new token. Self-hosted queue-mode workers remain organization-bound. The separately operated platform_hosted mode is internal: it only authorizes an existing hosted call under its current worker lease, deriving tenant/configuration from that call, never creating a caller-selected tenant call. Platform mode is staged behind its rollout gate and is not available through customer deployment creation.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8603,7 +8603,8 @@
         },
         "summary": "Admit an outbound call a local-mode deployment will dial itself",
         "x-required-scopes": [
-          "calls:authorize"
+          "calls:authorize",
+          "gateways:report"
         ]
       }
     },
