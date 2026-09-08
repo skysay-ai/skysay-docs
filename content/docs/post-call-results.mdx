@@ -133,6 +133,41 @@ After the relevant ready event, use the generated reference routes for:
 Each read remains scoped to your organization and API key. Store only the
 evidence your policy and retention rules permit.
 
+## End a call that is still running
+
+`POST /v1/calls/{call_id}/cancel` withdraws a call that is still queued, before anything dials. Once
+a call is live that is no longer the right tool, and it fails closed rather than implying the carrier
+call was stopped.
+
+`POST /v1/calls/{call_id}/hangup` is for a call that is already live. It answers `202` with a
+`hangup_requested_at` timestamp and deliberately does **not** report the call as ended: the media
+session is torn down by the worker holding it, and the call then reaches `call.completed` through the
+ordinary path. Ask twice and you get the original request back rather than a second teardown.
+
+Until the teardown is acknowledged the request stays visible with `status` `pending`, so a request
+that nothing acted on is something you can see rather than silence. If a teardown fails, the call is
+still up, so asking again starts a fresh attempt; after three consecutive failures the endpoint
+refuses so the call is escalated rather than retried.
+
+A call still queued for origination is refused with a pointer to `cancel`, and a call that has
+already finished is refused too.
+
+## Why a call ended
+
+A completed call carries `ended_reason` on the call resource and in its terminal webhook:
+
+| Value | Meaning |
+| --- | --- |
+| `remote_party_disconnected` | the other party hung up |
+| `hangup_requested` | someone ended the call from your workspace or through the hangup endpoint |
+| `max_call_duration_reached` | the call reached its configured maximum length |
+| `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
+
+That is the whole set. The field is empty on a call that has not completed, and on calls that
+completed before this shipped. A call that **failed** reports its reason in
+`technical_failure.failure_reason_code` instead; the two vocabularies are separate and do not
+overlap.
+
 ## Reconcile a bounded external call group
 
 If your application supplied the same opaque `external_group_reference` when

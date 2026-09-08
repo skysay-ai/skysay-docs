@@ -1036,6 +1036,17 @@
             "description": "inbound, outbound, or web_test (a live browser test) for a call your agent placed or answered. A call seeded by the demo/artifact-import tooling can carry other values, such as imported, verbatim from that import.",
             "type": "string"
           },
+          "ended_reason": {
+            "description": "Why the call ended. `remote_party_disconnected` means the other party hung up. The other three are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, and `no_caller_speech_after_answer` when the call is answered but nobody ever speaks. That is the whole set for now. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "enum": [
+              "",
+              "hangup_requested",
+              "remote_party_disconnected",
+              "max_call_duration_reached",
+              "no_caller_speech_after_answer"
+            ],
+            "type": "string"
+          },
           "estimated_cost_minor": {
             "description": "The wallet reservation estimate in minor currency units, made at admission time. This is not settled billing: some statuses hold no reservation at all (see NO_LEDGER_MOVEMENT statuses), and a completed call's real charge is settled separately from recording/artifact import.",
             "type": "integer"
@@ -1203,6 +1214,7 @@
           "external_group_reference",
           "call_context",
           "source_kind",
+          "ended_reason",
           "created_at",
           "updated_at"
         ],
@@ -6564,6 +6576,23 @@
         "x-required-scopes": [
           "calls:read"
         ]
+      }
+    },
+    "/v1/calls/{call_id}/hangup": {
+      "post": {
+        "description": "Requests teardown of a call that is already live. Returns 202 with `hangup_requested_at`; it never reports the call as ended, because the media session is torn down by the worker holding it and the call reaches `call.ended` through the ordinary terminal path, recording the reason `hangup_requested`. Repeating the request is idempotent and returns the original timestamp. Until a worker acknowledges, the request stays visible with `status` `pending`. If the worker reports that the teardown FAILED, the call is still up, so a further request re-arms it with a fresh timestamp and the previous failure's reason stays visible beside it; after three consecutive failed teardowns further requests are refused so the call is escalated rather than retried. A call still queued for origination is refused: cancel it with POST /v1/calls/{call_id}/cancel instead. The response carries `hangup_requested_at`, `status` (`pending` or `acknowledged`), `hangup_acknowledged_at`, `hangup_acknowledged_outcome`, `hangup_acknowledged_reason`, `hangup_failed_attempts`, `hangup_unacknowledged_seconds` (null once acknowledged), `hangup_attempt` (which attempt this is; a re-arm increments it) and `already_requested`, which is false for a first or re-armed request and true when an existing one was returned unchanged.",
+        "responses": {
+          "202": {
+            "description": "Hangup requested; not yet acknowledged by the media worker."
+          },
+          "404": {
+            "description": "No such call."
+          },
+          "409": {
+            "description": "Call is not live: already terminal, or still queued (use cancel)."
+          }
+        },
+        "summary": "Ask a live call to hang up"
       }
     },
     "/v1/calls/{call_id}/observability": {
