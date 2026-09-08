@@ -423,7 +423,7 @@
           },
           "interruption_sensitivity": {
             "default": "balanced",
-            "description": "Hosted ENGLISH phone calls only; accepted and returned in every language. Preset interruption threshold: balanced 500 ms, low 750 ms, high 150 ms. `min_speech_ms` takes precedence.",
+            "description": "Hosted ENGLISH phone calls only; accepted and returned in every language. A preset names an English measurement, so it does not apply to other languages -- set `min_speech_ms`/`silence_hold_ms` explicitly there. Preset interruption threshold: balanced 500 ms, low 750 ms, high 150 ms. `min_speech_ms` takes precedence.",
             "enum": [
               "balanced",
               "low",
@@ -438,13 +438,13 @@
             "type": "integer"
           },
           "min_speech_ms": {
-            "description": "Hosted ENGLISH phone calls only; accepted and returned in every language. Explicit continuous-speech threshold before an interruption is considered.",
+            "description": "Hosted phone calls in every language. Explicit continuous-speech threshold before an interruption is considered; it overrides any sensitivity preset. On a phone call a value below 500 ms is raised to the 500 ms floor, which exists because shorter bursts of background noise were cutting agents off mid-word. Browser and web calls do not apply this value at all: it is still stored and returned, but those calls keep the stack's own threshold.",
             "maximum": 2000,
             "minimum": 80,
             "type": "integer"
           },
           "silence_hold_ms": {
-            "description": "Hosted ENGLISH phone calls only; accepted and returned in every language. Explicit endpointing delay after the caller stops speaking.",
+            "description": "Hosted phone calls in every language. Explicit endpointing delay after the caller stops speaking; it overrides the platform default hold and any sensitivity preset.",
             "maximum": 2000,
             "minimum": 100,
             "type": "integer"

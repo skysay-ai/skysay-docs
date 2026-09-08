@@ -29,6 +29,21 @@ services were confirmed deployed.
 - Extraction remains opt-in per agent, and nothing changes for an agent without a schema.
 - [Optional post-call extraction](/docs/post-call-results#optional-post-call-extraction) · [Configure an event endpoint](/docs/post-call-results#configure-an-event-endpoint)
 
+### Transcript confidence is a measurement, or nothing
+
+- `GET /v1/calls/{call_id}/transcript` returns `confidence: null` for a turn whose speech recogniser reported no confidence, instead of the fixed placeholder every turn used to carry.
+- Deepgram reports a real per-utterance confidence; Azure does not report one at all, so calls on an Azure recogniser return null for every turn.
+- Turn boundaries (`start_ms`, `end_ms`) are now the measured ones. A turn nothing measured has an equal start and end rather than an invented length.
+- [Read call evidence](/docs/read-call-evidence)
+
+### A longer endpointing hold, and per-agent thresholds in every language
+
+- Agents in a language with no trained turn detector now hold 800 ms after the caller stops speaking before treating the turn as finished, replacing a 200 ms-era default that could end a turn during a mid-sentence pause.
+- `min_speech_ms` and `silence_hold_ms` are explicit numbers and now apply in every language, overriding any sensitivity preset and the platform hold.
+- A `min_speech_ms` below the 500 ms interruption floor is raised to it on a phone call, because shorter bursts of background noise were cutting agents off mid-word.
+- `interruption_sensitivity` remains English-only, because a preset is a name for a measurement taken on English audio; set the two explicit values instead on an agent in another language.
+- [Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in)
+
 ## 7 September 2026
 
 ### Simpler workspace capabilities and optional destination restrictions
