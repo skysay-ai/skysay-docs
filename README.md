@@ -207,6 +207,10 @@ Only major customer-facing capabilities and serious customer-visible
 corrections get an entry; internal maintenance, CI and release machinery,
 refactors and disabled flags do not.
 
+A verified release without an editorial entry still advances `release-state.json`.
+Its checkpoint date may therefore be later than the latest changelog heading,
+but must never precede a published entry.
+
 ## Contributing
 
 Pull requests are welcome — typo fixes, clarifications, missing steps, and new
