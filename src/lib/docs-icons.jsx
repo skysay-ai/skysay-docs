@@ -36,10 +36,10 @@ import {
   Puzzle,
   Rocket,
   RssFeed,
-  Search,
   Server,
   ShieldCheck,
   SineWave,
+  SoundHigh,
   Terminal,
   TestTube,
   Voice,
@@ -125,7 +125,7 @@ const ICONS = {
   Language,
 
   // --- Agent surface ---
-  Search,
+  SoundHigh,
   List,
   BookStack,
 };
