@@ -14,6 +14,21 @@ services were confirmed deployed.
 
 ## 8 September 2026
 
+### Carrier verification progress reaches your number request on its own
+
+- A business profile whose identity is with the carrier is now re-checked on a schedule instead of only when someone presses Sync, so progress is picked up without anyone watching for it.
+- Your number request moves to the state the carrier check actually implies in the same pass, so a request no longer sits on "awaiting verification" while the carrier already has the identity.
+- When the carrier verifies the identity, the request continues from there without an operator step.
+- [Customer REST operations](/docs/api-reference#customer-rest-operations)
+
+### Post-call extraction runs without being asked twice
+
+- An agent with an active extraction schema now has its calls extracted automatically: the extraction worker is a deployed role, so `call.post_call_extraction` work is claimed as it is queued instead of waiting for someone to run it.
+- `call.extraction.ready` and `call.extraction.failed` webhooks fire for those calls, so an integration that derives an outcome from them stops seeing silence.
+- Calls that queued before this release are extracted too, oldest first, as long as their transcript is still retained.
+- Extraction remains opt-in per agent, and nothing changes for an agent without a schema.
+- [Optional post-call extraction](/docs/post-call-results#optional-post-call-extraction) · [Configure an event endpoint](/docs/post-call-results#configure-an-event-endpoint)
+
 ### Transcript confidence is a measurement, or nothing
 
 - `GET /v1/calls/{call_id}/transcript` returns `confidence: null` for a turn whose speech recogniser reported no confidence, instead of the fixed placeholder every turn used to carry.
