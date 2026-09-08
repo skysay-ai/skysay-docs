@@ -26,8 +26,8 @@ All prose lives in `content/`:
 
 ```
 content/
-  docs/            19 pages, one .mdx file each
-    meta.json      sidebar order and section headings
+  docs/            36 pages, one .mdx file each
+    meta.json      sidebar order, section headings, and their icons
   blog/            one .mdx file per post
 ```
 
@@ -37,6 +37,7 @@ A page is a plain MDX file with YAML frontmatter:
 ---
 title: Quickstart
 description: The five-minute path from install to a placed call.
+icon: FastArrowRight
 ---
 
 ## Install the connector
@@ -44,7 +45,13 @@ description: The five-minute path from install to a placed call.
 Body text. Standard markdown, plus the components below.
 ```
 
-Blog posts additionally support `date`, `author`, and `tag`.
+`icon` names one of the [Iconoir](https://iconoir.com) icons mapped in
+`src/lib/docs-icons.jsx` — it renders next to the page's entry in the sidebar.
+It is required: `next build` fails closed on a docs page with no `icon`, or one
+naming an icon the map doesn't have (add it to `src/lib/docs-icons.jsx` first,
+picking a name no other page or `meta.json` separator already uses — see the
+comment above the map, and run `npm run sidebar-icons:test`). Blog posts don't
+use `icon`; they additionally support `date`, `author`, and `tag`.
 
 The components available in MDX are the stock
 [Fumadocs](https://fumadocs.dev) set — `Steps` / `Step`, `Tabs` / `Tab`,
@@ -83,6 +90,7 @@ npm run scan-secrets                 # secret scan (also runs in CI on every pus
 python3 scripts/scan_secrets.py --self-test
 npm run parity -- --no-live          # every URL resolves, corpora complete
 npm run anchor-check                 # every in-site #anchor resolves
+npm run sidebar-icons:test           # every sidebar node has a real, unique icon
 ```
 
 `scripts/anchor-check.mjs` resolves every in-site `#fragment` link against the
@@ -97,6 +105,19 @@ here. Run it against the same server `parity` uses:
 npm start &
 npm run anchor-check -- --local http://127.0.0.1:3000
 npm run anchor-check:test            # its parsing rules, and that the gate can fail
+```
+
+`scripts/sidebar-icons.test.mjs` is the fail-closed gate behind the sidebar's
+icons (`content/docs/meta.json`'s `"---[Icon]Title---"` separators, every
+`content/docs/*.mdx` page's `icon` frontmatter, and the
+`src/lib/docs-icons.jsx` resolver `next build` uses). It checks every page and
+separator names a real, unique icon and that every name in the resolver's map
+is a real `iconoir-react` export — the resolver itself already throws at
+build time on a missing or unknown icon, this just proves that gate is intact
+without needing a full `next build` to see it fail:
+
+```bash
+npm run sidebar-icons:test
 ```
 
 `scripts/parity-check.mjs` is the migration acceptance gate. Against a running
