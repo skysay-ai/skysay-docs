@@ -14,6 +14,13 @@ services were confirmed deployed.
 
 ## 8 September 2026
 
+### Transcript confidence is a measurement, or nothing
+
+- `GET /v1/calls/{call_id}/transcript` returns `confidence: null` for a turn whose speech recogniser reported no confidence, instead of the fixed placeholder every turn used to carry.
+- Deepgram reports a real per-utterance confidence; Azure does not report one at all, so calls on an Azure recogniser return null for every turn.
+- Turn boundaries (`start_ms`, `end_ms`) are now the measured ones. A turn nothing measured has an equal start and end rather than an invented length.
+- [Read call evidence](/docs/read-call-evidence)
+
 ### A longer endpointing hold, and per-agent thresholds in every language
 
 - Agents in a language with no trained turn detector now hold 800 ms after the caller stops speaking before treating the turn as finished, replacing a 200 ms-era default that could end a turn during a mid-sentence pause.
