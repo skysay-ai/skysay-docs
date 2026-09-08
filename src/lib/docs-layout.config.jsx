@@ -1,4 +1,4 @@
-import { BookText } from "lucide-react";
+import { Book } from "iconoir-react";
 
 // Shared chrome for the Fumadocs /docs and /blog layouts: brand + "Docs" tag on
 // the left, Home / Blog / Pricing / API / llms.txt links, and a Start CTA.
@@ -11,7 +11,7 @@ import { BookText } from "lucide-react";
 export const baseNavOptions = {
   title: (
     <span className="inline-flex items-center gap-2 font-semibold">
-      <BookText className="size-5 text-fd-primary" aria-hidden />
+      <Book className="size-5 text-fd-primary" strokeWidth={1.5} aria-hidden />
       OpenPhonex
       <span className="rounded-md border border-fd-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fd-muted-foreground">
         Docs
