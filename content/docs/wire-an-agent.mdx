@@ -195,9 +195,9 @@ Every hosted phone call, in **every language**, requires **500 ms** of continuou
 caller speech before it interrupts the agent. This is a floor, not a default:
 `min_speech_ms` tunes above it, and a phone call given a lower value is raised
 back to 500 ms. Shorter bursts of background noise were cutting agents off
-mid-word, which is why the floor exists. Browser and web calls do not read
-this setting at all: they are not phone calls, so the value is ignored and
-the browser stack's own threshold stands. This deliberately reduces false
+mid-word, which is why the floor exists. Browser and web calls do not apply
+this setting: it is still stored on the agent and returned to you, but those
+calls are not phone calls and keep the browser stack's own threshold. This deliberately reduces false
 interruptions from very brief background audio and backchannels while keeping a
 sustained request such as “stop” interruptible. Sustained background speech can
 still be treated as caller speech.
@@ -225,7 +225,7 @@ an in-progress call.
 | Setting | Effect on a hosted phone call |
 | --- | --- |
 | `interruption_sensitivity` | English only, because a preset names an English measurement. `balanced` is the 500 ms default. `low` requires 750 ms of continuous speech. `high` uses 150 ms for callers who need a more responsive threshold. `min_speech_ms`, when set, takes precedence. In another language, set `min_speech_ms`/`silence_hold_ms` explicitly. |
-| `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call a value below 500 ms is raised to the 500 ms floor. Browser and web calls ignore this setting entirely. |
+| `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call a value below 500 ms is raised to the 500 ms floor. Browser and web calls store it but do not apply it. |
 | `silence_hold_ms` | Every language. An explicit 100–2000 ms endpointing hold after speech. It overrides the platform hold and any sensitivity preset. |
 | `min_interruption_words` | 0–5. Defaults to `1` on hosted **English** calls and to `0` (off) everywhere else. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
 | `barge_in_speech_rms` | Accepted and returned for compatibility, but not currently applied to call behavior. Do not use it to control interruptions. |
