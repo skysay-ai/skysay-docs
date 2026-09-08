@@ -24,6 +24,14 @@ services were confirmed deployed.
 
 ## 8 September 2026
 
+### Calls that end themselves
+
+- OpenPhonex now ends a live call on its own in three situations, so a call cannot run unattended against your balance: nobody left on the call, 29 minutes reached, or nobody heard for 20 seconds after answer.
+- Each reports the matching `ended_reason`: `remote_party_disconnected`, `max_call_duration_reached` or `no_caller_speech_after_answer`.
+- A caller who leaves is now noticed even when the network never says so: the media server is asked who is on the call every 15 seconds, and a call empty for 15 seconds continuously ends.
+- All three values are platform-wide and cannot be set per agent yet. A call ended by a rule is billed exactly like any other completed call, and ends sooner, so it can only cost less.
+- [When a call ends automatically](/docs/post-call-results#when-a-call-ends-automatically)
+
 ### End a live call, and see why a call ended
 
 - `POST /v1/calls/{call_id}/hangup` asks a call that is already live to hang up; it answers `202` with `hangup_requested_at` and never reports the call as ended, because the media session is torn down separately and the call then completes through its ordinary path.

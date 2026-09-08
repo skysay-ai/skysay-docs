@@ -168,6 +168,51 @@ completed before this shipped. A call that **failed** reports its reason in
 `technical_failure.failure_reason_code` instead; the two vocabularies are separate and do not
 overlap.
 
+## When a call ends automatically
+
+Most calls end because someone hung up. OpenPhonex also ends a live call by
+itself in three situations, so a call cannot run unattended against your
+balance. Each reports the matching `ended_reason` above, and each uses a fixed
+platform value that is the same for every agent.
+
+**Nobody is left on the call.** The call ends once the agent is the only one
+on it. Normally the network reports the moment the other party leaves. As a
+backstop OpenPhonex also asks the media server who is on the call every 15
+seconds and ends one that has been empty for 15 seconds continuously, so a
+notification that never arrives cannot leave an agent talking to nobody. Both
+routes report `remote_party_disconnected`, because they are the same ending;
+by the backstop the call ends within about 30 seconds of the line going empty.
+
+**The call reached its maximum length.** A call ends after **29 minutes** and
+reports `max_call_duration_reached`. The limit sits just under the 30 minute
+ceiling of the underlying media session, so the call ends with a stated reason
+rather than being cut off without one.
+
+**Nobody spoke after the call was answered.** If no speech is heard from the
+other party for **20 seconds** after the call is answered, the call ends and
+reports `no_caller_speech_after_answer`. Speech is detected from the audio
+itself rather than from a transcript, and once the other party has been heard
+once the rule does not apply again for the rest of that call. This measures
+audio, not intent: a voicemail greeting is speech, so this rule is not a
+voicemail detector. What it catches is a call that connects to silence.
+
+A hangup you request yourself is the fourth ending and is not automatic. If its
+teardown fails the request is reported back to you as failed rather than retried
+on your behalf, and asking again starts a fresh attempt.
+
+### What you are billed
+
+A call ended by one of these rules is billed exactly like any other completed
+call. Nothing extra is charged for the ending itself, and because the call
+stops sooner than it otherwise would, these rules can only reduce what a call
+costs.
+
+### Changing the values
+
+All three values are platform-wide today and cannot be set per agent. If one of
+them does not suit your use case, contact support rather than working around it
+in your agent.
+
 ## Reconcile a bounded external call group
 
 If your application supplied the same opaque `external_group_reference` when
