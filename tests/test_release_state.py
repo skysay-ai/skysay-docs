@@ -14,7 +14,15 @@ FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
 class ReleaseStateTests(unittest.TestCase):
-    def test_checkpoint_has_exact_live_lanes_and_a_matching_log_date(self) -> None:
+    def assert_log_not_ahead_of_checkpoint(self, updated: datetime, changelog: str) -> None:
+        # Checkpoints account for every verified release; editorial entries cover
+        # only major changes. A state-only release need not add a dated entry.
+        headings = re.findall(r"^## (\d{1,2} [A-Za-z]+ \d{4})$", changelog, re.MULTILINE)
+        self.assertTrue(headings, "release log must retain its dated history")
+        for heading in headings:
+            self.assertLessEqual(datetime.strptime(heading, "%d %B %Y").date(), updated.date())
+
+    def test_checkpoint_has_exact_live_lanes_and_covers_log_dates(self) -> None:
         state = json.loads((ROOT / "release-state.json").read_text(encoding="utf-8"))
 
         self.assertEqual(state["version"], 1)
@@ -27,8 +35,24 @@ class ReleaseStateTests(unittest.TestCase):
         changelog = (ROOT / "content" / "docs" / "changelog.mdx").read_text(
             encoding="utf-8"
         )
-        heading = f"## {updated.day} {updated.strftime('%B')} {updated.year}"
-        self.assertIn(heading, changelog)
+        self.assert_log_not_ahead_of_checkpoint(updated, changelog)
+
+    def test_state_only_checkpoint_can_follow_the_last_editorial_entry(self) -> None:
+        for day in (7, 8):
+            with self.subTest(checkpoint_day=day):
+                self.assert_log_not_ahead_of_checkpoint(
+                    datetime(2026, 9, day), "## 7 September 2026\n\n## 6 September 2026\n"
+                )
+
+    def test_checkpoint_cannot_precede_an_editorial_entry(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.assert_log_not_ahead_of_checkpoint(
+                datetime(2026, 9, 7), "## 8 September 2026\n"
+            )
+
+    def test_release_log_must_retain_dated_history(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.assert_log_not_ahead_of_checkpoint(datetime(2026, 9, 8), "No entries")
 
 
 if __name__ == "__main__":
