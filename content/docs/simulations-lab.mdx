@@ -83,8 +83,14 @@ stack is refused; the test does not silently switch your agent to another
 provider. These limits apply to this test mode, not to normal agent calls.
 
 Keep **Offline robustness** and **Real-time** results separate. Enabling offline
-voice does not enable real-time tests. Real-time additionally requires a
-provisioned room dispatcher for the workspace and a runnable synthetic caller.
+voice does not enable real-time tests. Real-time additionally requires the
+real-time runtime and a runnable synthetic caller — but nothing you provision.
+One [shared OpenPhonex runner](/docs/authentication#hosted-workers-hold-no-workspace-credential)
+drives real-time sessions for every workspace: there is no room dispatcher to
+deploy for yours, no host credential to install, and no restart to wait for.
+Each session's room metadata and evidence receipts stay bound to the workspace
+and run that asked for it. None of this removes the caller runtime, the authored
+audio, or the evidence-readiness requirements below.
 The caller uses an exact recorded line when the deployed readiness pack contains
 one. Otherwise, supported Azure scenarios synthesize the authored line with the
 exact provider, voice, language, and locale pinned into that immutable run. It
@@ -115,8 +121,8 @@ offline-only run still does **not** prove live caller noise, barge-in, overlap,
 playout, or timing. Treat it as offline speech robustness only; obtain
 real-time room evidence for those live-audio claims.
 
-A scenario may name a runner whose runtime is not deployed for your workspace
-yet — authoring is not gated on it. **Starting** a run that needs one is
+A scenario may name a runner that is not enabled on the deployment you are
+using — authoring is not gated on it. **Starting** a run that needs one is
 refused at the API with `422 unsupported_mode`, listing the runners that do
 work. Nothing is queued and nothing is charged: a run that could never finish is
 never accepted in the first place.

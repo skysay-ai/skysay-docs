@@ -160,6 +160,26 @@ Because `tools/list` has no target DID, the first inbound route — not the smok
 check — validates that `OPENPHONEX_ORGANIZATION_ID`, the token, and the DID
 belong to one workspace.
 
+## Hosted workers hold no workspace credential
+
+Managed outbound calls and real-time Simulations Lab sessions run on OpenPhonex's
+own shared workers: one hosted dialer and one hosted simulation runner serve every
+workspace. They authenticate with platform credentials that belong to no
+organization and carry only the job-claim and heartbeat scopes their own work
+needs. Each claims only its own kind of hosted job — never a self-hosted gateway's
+organization queue — and takes every job's workspace, project, agent, caller number
+and configuration from the call record it claimed, not from anything the worker
+holds or is told. The hosted outbound gateway credential likewise carries only
+`calls:authorize` and `gateways:report`: it can authorize a hosted call that already
+exists, and cannot enqueue work or read arbitrary agent configuration.
+
+You never create, hold, or install one of these credentials. They are not a customer
+credential option, and there is nothing to provision for your workspace before a
+managed call is placed or a real-time simulation runs. Your own keys are unchanged
+and stay organization-bound: omitting an organization never grants cross-workspace
+access, and a self-hosted gateway's `tgw_` token still reaches only the workspace
+its own deployment belongs to.
+
 ## Scope clamping (cannot self-escalate)
 
 Requested scopes are **clamped server-side** to what your admin credential

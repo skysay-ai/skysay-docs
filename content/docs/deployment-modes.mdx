@@ -17,6 +17,14 @@ carrier/provider account, numbers, credits, the compliance workflow, and abuse
 controls. You bring an agent and a scoped key; the phone side is entirely
 managed. This is the fastest path to a live line.
 
+Nothing here is provisioned per workspace. One hosted dialer places every managed
+outbound call and one hosted runner drives every real-time Simulations Lab
+session, for every workspace, and both read a job's workspace, project, agent,
+caller number and destination from the call record itself. There is no worker to
+run, no worker key to install and no gateway deployment to register before
+`POST /v1/calls` works. What outbound still depends on is your
+[outbound authorization](/docs/policy-and-outbound), not any setup of your own.
+
 ## `managed_numbers_self_hosted_gateway`
 
 You run the **media gateway** yourself (Docker/media locally), while OpenPhonex
@@ -92,6 +100,16 @@ It deliberately does not derive your carrier's SIP signalling ranges: the
 control plane holds none, and a guessed allowlist produces a stack that reports
 healthy and never rings.
 
+### What a new gateway token carries
+
+A token minted without an explicit `scopes` list carries only the two originator
+scopes, `gateways:report` and `calls:authorize`. Both `selfhost-bootstrap.sh` and
+the workspace's **Gateway Tokens** action request the full runtime set instead —
+adding `number-rules:read`, `worker_jobs:enqueue`, `artifacts:upload` and
+`component_credentials:lease` — so a gateway either of them sets up is complete.
+A client that mints its own token must ask for every scope its host needs.
+Tokens that already exist keep the scopes they were stored with.
+
 ### Your gateway publishes no URL
 
 A self-hosted gateway does not need a public hostname, a tunnel, or a TLS
@@ -119,6 +137,10 @@ and change it with
 | Who asks for the call | the gateway host itself | any client with an API key, through `POST /v1/calls` |
 | Who dials it | the same gateway host | that host's `--profile outbound` worker, after claiming the job |
 | Credentials on the host | the `tgw_` token only | the `tgw_` token **and** an organization-scoped `tai_` key |
+
+Both modes describe a gateway you run yourself. A workspace with no self-hosted
+deployment has nothing to choose here: its managed outbound calls are dialed by
+OpenPhonex's shared hosted dialer, which you neither run nor configure.
 
 `local` exists because on a self-hosted box the requester and the dialer are the
 same machine, so the shared job queue buys nothing and costs an
