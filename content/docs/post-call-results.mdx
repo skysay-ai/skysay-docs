@@ -163,11 +163,34 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `max_call_duration_reached` | the call reached its configured maximum length |
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
 | `agent_completed` | the agent finished the conversation and ended the call |
+| `media_session_lost` | the media session went away while the call was still live |
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
 `technical_failure.failure_reason_code` instead; the two vocabularies are separate and do not
 overlap.
+
+### When the media session is lost
+
+`media_session_lost` is the one reason that names something nobody chose. It
+means the media session underneath a live call went away: the room was removed,
+or the connection carrying the audio failed. Nobody hung up, no limit was
+reached, and the agent did not finish.
+
+It reports what was observed rather than guessing at a cause. In particular, if
+someone had just asked to end that call, the call is **not** reported as
+`hangup_requested`. The hangup request is answered separately, and its answer
+says the call was already gone. A reason that named a person who did not end
+the call would be worse than the empty reason this replaces.
+
+Calls that end this way used to carry no reason at all, so if you are counting
+reasons over time you will see empty values become `media_session_lost` from
+this release rather than a new kind of ending appearing.
+
+Test calls run from the Simulations Lab can also report it. A synthetic room
+sometimes closes before the synthetic caller's own departure is delivered,
+which is the same observation from the platform's point of view. A Lab result
+is judged on its assertions, not on this field.
 
 ## When a call ends automatically
 
