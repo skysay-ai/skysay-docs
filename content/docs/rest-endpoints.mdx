@@ -43,6 +43,34 @@ then supply only that existing credential reference in
 ciphertext, credential-binding ID, or provider credential; unsupported
 component, language, and credential combinations are rejected on update.
 
+### Voice settings belong to the voice-stack route
+
+`PATCH /v1/agents/{id}` edits the agent's own fields: its name, status, webhook
+and audio-stream URLs, prompt, first message, mode, tools, metadata and
+recording flag. It does **not** save voice settings.
+
+These six names belong to `PATCH /v1/agents/{id}/voice-stack` (MCP tool
+`set_agent_voice_stack`):
+
+| Setting | What it configures |
+| --- | --- |
+| `turn_taking` | interruption sensitivity, endpointing, and the automatic call limits |
+| `voice_polish` | end-of-call phrase, delivery profile, acknowledgements, tool-wait |
+| `audio_environment` | the pinned ambience preset |
+| `follow_caller` | the automatic multilingual policy |
+| `languages` | the selected language set |
+| `language_profiles` | per-locale voice, transcriber and greeting overrides |
+
+Sending any of them to `PATCH /v1/agents/{id}` returns **400** naming the route
+that does save them. Until this release the same request returned `200` and
+silently discarded the setting, so a limit you believed was saved was not, and
+the call then ran on the platform default. If you have code that sets
+`turn_taking` through the plain agent route and appears to succeed, it has never
+been taking effect; move it to the voice-stack route.
+
+Unrelated fields your client happens to send are still accepted and ignored, as
+before. Only these six recognised-but-misplaced names are refused.
+
 Before a workflow PATCH or publish, use
 `GET /v1/agents/{id}/workflow?version_limit=20&version_offset=0` with
 `agents:read`. It gives you the editable draft/revision, validation, safe
