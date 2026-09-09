@@ -179,9 +179,11 @@ empty before this release, so from here most completed calls carry a reason
 rather than none. In a scripted workflow `agent_completed` will usually be the
 commonest of all.
 
-OpenPhonex also ends a live call by itself in three situations, so a call
-cannot run unattended against your balance. Each reports the matching `ended_reason` above, and each uses a fixed
-platform value that is the same for every agent.
+Beyond those two, OpenPhonex ends a live call by itself in three situations, so
+a call cannot run unattended against your balance. These are safety limits
+rather than ordinary endings: they exist for a call that is going nowhere. Each
+reports the matching `ended_reason` above, and each uses a fixed platform value
+that is the same for every agent.
 
 **Nobody is left on the call.** The call ends once the agent is the only one
 on it. Normally the network reports the moment the other party leaves. As a
@@ -204,9 +206,12 @@ once the rule does not apply again for the rest of that call. This measures
 audio, not intent: a voicemail greeting is speech, so this rule is not a
 voicemail detector. What it catches is a call that connects to silence.
 
-A hangup you request yourself is the fourth ending and is not automatic. If its
-teardown fails the request is reported back to you as failed rather than retried
-on your behalf, and asking again starts a fresh attempt.
+A hangup you request yourself is not automatic either, and it reports
+`hangup_requested`. Ask before the call has started ending and that is what you
+get; ask once the agent's own ending is already under way and the call keeps
+`agent_completed`, because by then it was finishing anyway. If the teardown
+fails the request is reported back to you as failed rather than retried on your
+behalf, and asking again starts a fresh attempt.
 
 ### What you are billed
 
