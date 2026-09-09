@@ -61,9 +61,20 @@ than treating them as denial. If identity is still unconfirmed, it records
 
 Wrong party requires explicit denial of being the intended person or a clear
 wrong-person or wrong-number statement; missing confirmation alone is not
-denial. Explicit wrong-party and cease-contact replies still take the immediate
-stop path. The template's stop outcome is a **review candidate**, not an
-automatic suppression command. Global interrupt precedence is unchanged.
+denial. Explicit wrong-party and cease-contact replies both end the call
+immediately, but they are two different outcomes and the starter templates keep
+them apart. A **wrong party** stops this call and leaves the number exactly
+where it was. A **cease contact** stops this call and adds the number to your
+[do-not-call register](/docs/campaigns#do-not-call-register), which is honoured
+on every outbound path from then on. Each outcome's label says which of the two
+it did, so an exported row or a review-inbox entry states the consequence
+rather than only the category.
+
+Because the consequences differ, a workflow may not point both interrupts at
+one outcome step; validation refuses that draft. Both outcomes are still
+**review candidates** rather than automatic mutation commands: the register
+entry is the one thing a cease contact writes on its own. Global interrupt
+precedence is unchanged.
 
 These routing instructions depend on the decision model interpreting the
 reply correctly. An incorrect global interrupt decision still preempts local
@@ -93,9 +104,10 @@ will never synthesize one.
 
 Validation blocks testing and publishing on structural errors: dangling or
 type-invalid targets, unreachable required steps, cycles with no exit, missing
-interrupt targets, tool or language incompatibilities, blank spoken text,
-missing transfer destinations, and disclosure of account details before the
-right-party verification you declared succeeds. Warnings are separate and must
+interrupt targets, a wrong-party and a cease-contact interrupt sharing one
+outcome step, tool or language incompatibilities, blank spoken text, missing
+transfer destinations, and disclosure of account details before the right-party
+verification you declared succeeds. Warnings are separate and must
 be explicitly acknowledged before publishing.
 
 Four test modes run against the exact draft — its voice stack, knowledge,
