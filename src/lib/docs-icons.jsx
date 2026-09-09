@@ -37,6 +37,7 @@ import {
   Rocket,
   RssFeed,
   Server,
+  SecurityPass,
   ShieldCheck,
   SineWave,
   SoundHigh,
@@ -101,6 +102,7 @@ const ICONS = {
   ChatBubble,
   Forward,
   ShieldCheck,
+  SecurityPass,
 
   // --- Customer applications ---
   DataTransferBoth,
