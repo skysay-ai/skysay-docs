@@ -12,6 +12,16 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 9 September 2026
+
+### Outbound calls and Simulations Lab runs need nothing installed
+
+- One hosted dialer places every managed outbound call and one hosted runner drives every real-time Simulations Lab session, for every workspace: there is no worker to run, no worker key to install and no gateway deployment to register before `POST /v1/calls` works.
+- Each job's workspace, project, agent, caller number and destination are read from the call record itself, and every room's metadata and evidence receipts stay bound to the workspace and run that asked for it.
+- A workspace that runs its own self-hosted gateway in queue mode keeps dialing through that gateway; what outbound depends on is your outbound authorization, not any setup of your own.
+- A gateway token minted without an explicit `scopes` list now carries only `gateways:report` and `calls:authorize`; `selfhost-bootstrap.sh` and the workspace's Gateway Tokens action request the full runtime set instead, and tokens that already exist keep the scopes they were stored with.
+- [Hosted workers hold no workspace credential](/docs/authentication#hosted-workers-hold-no-workspace-credential) · [Deployment modes](/docs/deployment-modes) · [Simulations Lab](/docs/simulations-lab) · [Outbound authorization](/docs/policy-and-outbound)
+
 ## 8 September 2026
 
 ### End a live call, and see why a call ended
