@@ -90,21 +90,26 @@ preset or substituting another version.
 
 Some countries require the carrier to approve a registration before a number
 carries traffic. Two fields describe that wait, and both are deliberately silent
-when there is nothing to report.
+rather than guessing.
 
-`activation_estimate`, on the requirements for a country and number type, passes
-through the activation time the carrier publishes for that market. Where the
-carrier publishes none it is empty. It is an estimate for the market, never a
-commitment about your request.
+`activation_estimate`, on the requirements for a country and number type, is the
+activation time the carrier publishes for that market, passed through unchanged.
+Where the carrier publishes none it is empty. It describes the market, never your
+particular request, and OpenPhonex does not substitute a figure of its own. Where
+the carrier does publish one it is usually measured in weeks.
 
 The `headline` on `GET /v1/end-users/{end_user_profile_id}/registration-status`
-names a duration only while our record shows an open registration with the
-carrier for one of that profile's numbers. Before a number has been sent for
-registration, and once the carrier has answered, the field is empty. An empty
-`headline` is not a missing value: it means there is no open registration a
-duration could describe. Read `regulatory_status` on the number for the stage the
-request has reached, and `blocking_items` on
-`GET /v1/numbers/{number_id}/activation` for what it is waiting on.
+says how many of that profile's number registrations OpenPhonex has submitted to
+the carrier. It is empty before anything has been submitted, and empty while a
+refusal or a request for more information is outstanding, because that is what
+needs your attention instead. The per-number `headline` on
+`GET /v1/numbers/{number_id}/activation` reports the same submission for one
+number and adds the carrier's published activation time when that market has one.
+
+An empty `headline` is not a missing value: it means nothing has been submitted
+that it could report. For the stage a request has actually reached, read
+`regulatory_status` on the number, and `blocking_items` on the activation
+endpoint for what it is waiting on.
 
 ## Messages
 
