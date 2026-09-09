@@ -71,6 +71,23 @@ been taking effect; move it to the voice-stack route.
 Unrelated fields your client happens to send are still accepted and ignored, as
 before. Only these six recognised-but-misplaced names are refused.
 
+### A voice selection must name an exact voice
+
+`PATCH /v1/agents/{id}/voice-stack` returns **400** if you send a TTS provider
+and model without a `voice_id`, whenever that provider has voices to choose
+from. The message asks you to choose an exact provider voice for the selected
+TTS model.
+
+Until this release such a save could return `200` while storing a stack with no
+voice. Nothing reported a problem until the agent was called, and the call then
+failed before the caller heard anything. Refusing the save is how you find out
+at the moment you make the change rather than on the next live call.
+
+Two things are unchanged. Saving only a transcriber, with no voice selection in
+the request, is unaffected. And editing an older agent whose stored voice
+predates this rule still works: that repair path resolves the provider's own
+default voice rather than refusing your edit.
+
 Before a workflow PATCH or publish, use
 `GET /v1/agents/{id}/workflow?version_limit=20&version_offset=0` with
 `agents:read`. It gives you the editable draft/revision, validation, safe
