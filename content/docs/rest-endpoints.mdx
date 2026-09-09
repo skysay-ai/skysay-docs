@@ -86,6 +86,26 @@ preset or substituting another version.
 | `GET` | `/v1/numbers` | List numbers and registration status. |
 | `GET` `PUT` | `/v1/numbers/{id}/rules` | Read / update number rules. |
 
+### How long a regulated number takes to activate
+
+Some countries require the carrier to approve a registration before a number
+carries traffic. Two fields describe that wait, and both are deliberately silent
+when there is nothing to report.
+
+`activation_estimate`, on the requirements for a country and number type, passes
+through the activation time the carrier publishes for that market. Where the
+carrier publishes none it is empty. It is an estimate for the market, never a
+commitment about your request.
+
+The `headline` on `GET /v1/end-users/{end_user_profile_id}/registration-status`
+names a duration only while our record shows an open registration with the
+carrier for one of that profile's numbers. Before a number has been sent for
+registration, and once the carrier has answered, the field is empty. An empty
+`headline` is not a missing value: it means there is no open registration a
+duration could describe. Read `regulatory_status` on the number for the stage the
+request has reached, and `blocking_items` on
+`GET /v1/numbers/{number_id}/activation` for what it is waiting on.
+
 ## Messages
 
 | Method | Path | Purpose |
