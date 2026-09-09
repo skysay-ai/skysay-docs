@@ -14,6 +14,13 @@ services were confirmed deployed.
 
 ## 9 September 2026
 
+### A call the agent finishes now says so
+
+- A call the agent ends itself — its script reaches a goodbye, or its workflow completes — now reports `ended_reason` `agent_completed`, where that reason was previously empty.
+- This is the commonest ending in a scripted workflow, so it closes the largest remaining gap in "why did this call end": before, a conversation that simply finished looked the same as one with no reason recorded at all.
+- The four platform endings are unchanged and keep their own reasons; `agent_completed` is never reported for a hang-up, a call that hit a limit, or a call that failed before connecting.
+- [Why a call ended](/docs/post-call-results#why-a-call-ended) · [When a call ends automatically](/docs/post-call-results#when-a-call-ends-automatically)
+
 ### Outbound calls and Simulations Lab runs need nothing installed
 
 - One hosted dialer places every managed outbound call and one hosted runner drives every real-time Simulations Lab session, for every workspace: there is no worker to run, no worker key to install and no gateway deployment to register before `POST /v1/calls` works.
@@ -23,6 +30,14 @@ services were confirmed deployed.
 - [Hosted workers hold no workspace credential](/docs/authentication#hosted-workers-hold-no-workspace-credential) · [Deployment modes](/docs/deployment-modes) · [Simulations Lab](/docs/simulations-lab) · [Outbound authorization](/docs/policy-and-outbound)
 
 ## 8 September 2026
+
+### Calls that end themselves
+
+- OpenPhonex now ends a live call on its own, so a call cannot run unattended against your balance, when: nobody left on the call, 29 minutes reached, or nobody heard for 20 seconds after answer, reported as `remote_party_disconnected`, `max_call_duration_reached` and `no_caller_speech_after_answer`.
+- A caller who leaves is now noticed even when the network never says so: the media server is asked who is on the call every 15 seconds, and a call empty for 15 seconds continuously ends.
+- All three values are platform-wide and cannot be set per agent yet. A call ended by a rule is billed exactly like any other completed call, and ends sooner, so it can only cost less.
+- An ordinary hang-up by the other party is now reported as `remote_party_disconnected` on the call detail and in the `call.completed` and `call.ended` webhooks, where that reason was previously empty.
+- [When a call ends automatically](/docs/post-call-results#when-a-call-ends-automatically)
 
 ### End a live call, and see why a call ended
 
