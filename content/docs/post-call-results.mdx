@@ -158,10 +158,17 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 
 | Value | Meaning |
 | --- | --- |
+| `agent_completed` | the agent finished the conversation and ended the call |
 | `remote_party_disconnected` | the other party hung up |
 | `hangup_requested` | someone ended the call from your workspace or through the hangup endpoint |
 | `max_call_duration_reached` | the call reached its configured maximum length |
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
+
+The first two are how a call that went well normally ends. `agent_completed` is the ordinary
+outcome of a workflow that runs to its last step, and in a scripted workflow it is usually the
+commonest reason of all. Ending the call also drops the other party's line, but that is reported
+as the agent completing rather than as the other party disconnecting, because it answers why the
+call ended rather than whose line dropped first.
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
