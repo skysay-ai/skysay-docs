@@ -162,6 +162,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `hangup_requested` | someone ended the call from your workspace or through the hangup endpoint |
 | `max_call_duration_reached` | the call reached its configured maximum length |
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
+| `agent_completed` | the agent finished the conversation and ended the call |
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
@@ -170,10 +171,13 @@ overlap.
 
 ## When a call ends automatically
 
-Most calls end because someone hung up. That ending is now reported too: a call
-the other party hangs up on carries `remote_party_disconnected`, where the
-reason was previously empty, so from this release most completed calls carry a
-reason rather than none.
+Most calls end because someone hung up, or because the agent finished what it
+had to say. Both are reported now. A call the other party hangs up on carries
+`remote_party_disconnected`, and one the agent ends itself — its script reaches
+a goodbye, or its workflow completes — carries `agent_completed`. Both were
+empty before this release, so from here most completed calls carry a reason
+rather than none. In a scripted workflow `agent_completed` will usually be the
+commonest of all.
 
 OpenPhonex also ends a live call by itself in three situations, so a call
 cannot run unattended against your balance. Each reports the matching `ended_reason` above, and each uses a fixed
