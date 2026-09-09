@@ -76,11 +76,12 @@ approved, and it is never ordered on the strength of an unread requirement.
 ## The inbound rate the quote is based on
 
 Before any money moves, a number request carries a quote covering setup, monthly
-rental, and which traffic rates the number will be billed under. Read its
-coverage on the request in the workspace, or on
-`GET /v1/number-requests/{request_id}` under
-`quote_summary.source_breakdown.traffic_rates` — the per-minute figure itself is
-not returned to customers, only whether each rate group is covered.
+rental, and the per-minute price of the calls the number will carry. Read it on
+the request in the workspace, or on `GET /v1/number-requests/{request_id}` under
+`quote_summary.source_breakdown.traffic_rates`: each covered category appears in
+`matched_rate_groups` with a `customer_price` — the amount in micro-USD, the
+same figure as a decimal string, the unit it is charged per, and the billing
+increment.
 
 In most regulated markets the carrier does not price inbound minutes against the
 number itself. It prices them against a shared inbound-capacity plan the number
@@ -89,16 +90,17 @@ number says which plan that will be.
 
 Every managed OpenPhonex number is provisioned onto **one standard metered
 capacity plan**, so the plan is known before the number is ordered. The quote
-prices the inbound leg from that plan, and reports inbound voice as covered
-rather than waiting for someone to supply a rate. A request in a metered market
-therefore reaches a final quote on the same path as any other market.
+prices the inbound leg from that plan, so `matched_rate_groups` names inbound
+voice with its `customer_price` instead of waiting for someone to supply a rate.
+A request in a metered market therefore reaches a final quote on the same path
+as any other market.
 
 <Callout title="What that rate is, and is not">
-  It is OpenPhonex's rate for inbound minutes on the standard metered capacity
-  plan your number is provisioned onto. It is **not** a carrier quotation for
-  your specific number, and not a guarantee from the carrier. What you are
-  billed is derived when a call is admitted, from the activated number's own
-  carrier record.
+  `customer_price` is **your** price per minute for inbound calls on this
+  number — what OpenPhonex charges you, on our standard metered capacity plan.
+  It is **not** a carrier quotation for your specific number, and not a
+  guarantee from the carrier. What you are billed is derived when a call is
+  admitted, from the activated number's own carrier record.
 </Callout>
 
 Two consequences worth designing for:
@@ -112,8 +114,9 @@ Two consequences worth designing for:
 
 Where a deployment has no standard capacity plan configured — a self-hosted
 install, for example — `traffic_rates.status` stays
-`traffic_rates_pending_rate_card_or_invoice` and the inbound rate is reported as
-pending rather than shown. It never falls back to a default rate.
+`traffic_rates_pending_rate_card_or_invoice`, inbound voice stays in
+`missing_rate_groups`, and no `customer_price` is returned for it. It never
+falls back to a default rate.
 
 ## What OpenPhonex still checks
 
