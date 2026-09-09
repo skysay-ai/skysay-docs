@@ -179,6 +179,15 @@ empty before this release, so from here most completed calls carry a reason
 rather than none. In a scripted workflow `agent_completed` will usually be the
 commonest of all.
 
+When the agent ends the call itself, its closing line is now played to the end
+before the call is torn down. OpenPhonex learns that a line has finished playing
+slightly before the other party has actually heard it, and hanging up at that
+moment clipped the last word or two. The call is instead held open until the
+audio going to the caller has fallen quiet. That wait is short and bounded: it
+gives up after about a second and ends the call anyway, so a closing line that
+never finishes cannot hold a call open. Where the audio could not be observed,
+the ending is recorded as unconfirmed rather than as heard.
+
 Beyond those two, OpenPhonex ends a live call by itself when one of the
 following applies, so a call cannot run unattended against your balance. These are safety limits
 rather than ordinary endings: they exist for a call that is going nowhere. Each
