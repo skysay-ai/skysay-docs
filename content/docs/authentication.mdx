@@ -209,6 +209,30 @@ Every call runs pinned to the key's organization. A tool argument whose
 `organization_id` differs from the key's org is rejected with `MCP organization
 mismatch`. You cannot read or write another tenant.
 
+### A resource outside your workspace is absent, not forbidden
+
+Every REST route that names a resource by id in its path answers **`404`** when
+that id belongs to another workspace — the same status and the same body it
+answers for an id that never existed at all. The two cases are deliberately
+indistinguishable, so a status code can never be used to discover which ids are
+real in someone else's workspace.
+
+Treat `404` on these routes as *"not yours, or not there"*. Do not branch on
+`403` versus `404` to decide whether a record exists: a `403` on a by-id route
+now means something about your **credential** — a missing scope, or a request
+that named an organization other than the key's — and never something about the
+record.
+
+Two answers are unchanged, because neither depends on the id:
+
+- `401` — the credential is missing or invalid.
+- `403` — the credential lacks the scope the route requires, or the request
+  names another organization explicitly (as a body field or a query value).
+
+`GET /v1/organizations/{organization_id}/...` is the one shape where the path id
+*is* the tenant. It answers `403` for any organization that is not the
+credential's own, whether or not that organization exists.
+
 ## Rotate / revoke
 
 Mint a new key, swap the mcporter `env`, then revoke the old one:

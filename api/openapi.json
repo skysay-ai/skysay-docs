@@ -5277,7 +5277,7 @@
     },
     "/v1/agents/{agent_id}/workflow": {
       "get": {
-        "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation, a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404/403.",
+        "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation, a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404, and an agent in another workspace answers exactly as one that never existed.",
         "parameters": [
           {
             "in": "path",
@@ -6685,6 +6685,9 @@
               }
             },
             "description": "Recording metadata"
+          },
+          "404": {
+            "description": "The call is not in the authenticated workspace, or it has no recording -- a call in another workspace answers exactly as one that never existed"
           }
         },
         "summary": "Get call recording metadata and disclosure state",
@@ -6847,10 +6850,10 @@
             "description": "Missing or invalid bearer credential"
           },
           "403": {
-            "description": "The credential lacks recordings:read or belongs to another organization"
+            "description": "The credential lacks recordings:read"
           },
           "404": {
-            "description": "Recording content is unavailable or no longer registered"
+            "description": "The call is not in the authenticated workspace, the recording content is unavailable, or it is no longer registered -- one indistinguishable answer, so the status cannot be used to discover which call ids exist"
           },
           "416": {
             "description": "Invalid, multipart, or unsatisfiable byte range",
