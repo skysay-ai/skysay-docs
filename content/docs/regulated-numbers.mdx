@@ -49,6 +49,23 @@ for. Registration changes which waits apply:
 | `carrier_verification` | Your profile is approved by OpenPhonex, and the number is waiting on documents or on the carrier's own verdict. |
 | `fulfillment_queued` | Everything OpenPhonex needs is done and the number is being ordered. |
 
+## How the carrier learns who the end user is
+
+From your approved verification profile OpenPhonex creates two records at the
+carrier: an **identity** — the person or company — and an **address**, which
+belongs to that identity. Neither is bound to a phone number on its own.
+
+When a registered market number is ready, OpenPhonex opens a single
+**verification task** naming that number and that address. The carrier
+establishes the number's end user by approving the task; there is no separate
+step that attaches an identity to a number, and no state in which a number is
+waiting for one.
+
+That makes the task the only thing standing between an ordered number and an
+approved one, which is what `GET /v1/numbers/{number_id}/activation` reports:
+`submit_address_verification` while the task has still to be opened, and
+`wait_for_carrier_approval` once the carrier has it.
+
 ## Markets with no documents are ordered first
 
 Where `carrier_proof_requirement` is `none`, the request goes to
