@@ -431,6 +431,13 @@
             ],
             "type": "string"
           },
+          "max_call_seconds": {
+            "default": 1740,
+            "description": "How long a call may run before the platform ends it and reports `ended_reason: max_call_duration_reached`. Defaults to 1740 (29 minutes), which is also the ceiling: the underlying media session is dropped at 30 minutes, and a limit above that could never fire, so the call would end with no reason attached. Lower it to cap a call sooner; a value outside the range is refused rather than clamped.",
+            "maximum": 1740,
+            "minimum": 60,
+            "type": "integer"
+          },
           "min_interruption_words": {
             "description": "Defaults to 1 on hosted ENGLISH phone calls and to 0 everywhere else; set 0 explicitly to disable it. When set, an interruption must ALSO carry at least this many recognized words from the caller, in addition to the speech-duration threshold; it never lowers that threshold. On hosted ENGLISH calls, short listening noises (\"mm-hm\", \"uh-huh\", \"yeah\", \"okay\", \"right\", \"sure\", and filler words such as \"uh\") do not count toward it, so a caller showing they are following does not interrupt; every word counts in other languages. Not English-only, but effective only on stacks whose transcriber reports words fast enough to land inside the decision window (today the Deepgram stacks, English and Estonian). Elsewhere it is stored, returned unchanged, and ignored at call time.",
             "maximum": 5,
@@ -441,6 +448,13 @@
             "description": "Hosted phone calls in every language. Explicit continuous-speech threshold before an interruption is considered; it overrides any sensitivity preset. On a phone call a value below 500 ms is raised to the 500 ms floor, which exists because shorter bursts of background noise were cutting agents off mid-word. Browser and web calls do not apply this value at all: it is still stored and returned, but those calls keep the stack's own threshold.",
             "maximum": 2000,
             "minimum": 80,
+            "type": "integer"
+          },
+          "no_caller_speech_seconds": {
+            "default": 20,
+            "description": "How long after the call is answered the platform waits to hear the other party before ending the call and reporting `ended_reason: no_caller_speech_after_answer`. Defaults to 20. Speech is detected from the audio itself, not from a transcript, and once the other party has been heard once the rule does not apply again for the rest of that call. The floor is 10 because the witness is voice activity: a caller who is merely listening looks the same as one who is not there, and a shorter value ends the call partway through the agent's own opening line.",
+            "maximum": 120,
+            "minimum": 10,
             "type": "integer"
           },
           "silence_hold_ms": {
@@ -8363,7 +8377,7 @@
     },
     "/v1/dashboard/overview": {
       "get": {
-        "description": "Returns one read-only workspace DTO for Overview SSR and freshness polling. The aggregate is tenant-bound to the bearer session, uses no provider calls, and omits provider internals, full verification profiles, secrets, invoices, and voice-stack configuration.",
+        "description": "Returns one read-only workspace DTO for Overview SSR and freshness polling. Call rows include the compact component_billing wallet verdict used by Calls, without billing line items. The aggregate is tenant-bound to the bearer session, uses no provider calls, and omits provider internals, full verification profiles, secrets, invoices, and voice-stack configuration.",
         "responses": {
           "200": {
             "description": "Overview workspace aggregate"
@@ -9648,7 +9662,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "registration_required, field/document lists, activation estimate, conflict_note"
+            "description": "registration_required, carrier_proof_requirement (none|required|unknown), field/document lists, activation estimate, conflict_note"
           }
         },
         "summary": "Resolve honest activation requirements for a country/number-type/profile-type (override > live did_groups flag > dataset prefix flag; requirement text only documents fields)"

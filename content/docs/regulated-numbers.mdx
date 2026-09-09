@@ -1,0 +1,85 @@
+---
+title: Regulated numbers
+description: How carrier registration decides when a number can be ordered — reading the requirement, what you upload, and why some markets order first.
+icon: SecurityPass
+---
+
+Some countries let a carrier hand out a phone number immediately. Others require
+the carrier to register an **end user** against the number first. Which one you
+are in decides what you have to supply and when the number is ordered, so read
+the requirement before you build a checkout around it.
+
+## Read the requirement first
+
+`GET /v1/numbers/requirements` (`numbers:read`) resolves one country, number
+type and profile type:
+
+```bash
+curl -H "Authorization: Bearer $OPENPHONEX_API_KEY" \
+  "$OPENPHONEX_API_URL/v1/numbers/requirements?country=EE&number_type=national&profile_type=business"
+```
+
+Two fields drive everything else:
+
+| Field | Meaning |
+| --- | --- |
+| `registration_required` | `true` when the carrier registers an end user against the number, `false` when it does not, `null` when the sources disagree and an OpenPhonex operator has to decide. |
+| `carrier_proof_requirement` | What the carrier lists for that market: `none`, `required`, or `unknown`. |
+
+`carrier_proof_requirement` reports the carrier's published list and nothing
+else. It is **not** a statement that anything has been approved, and it never
+reflects your own profile's status.
+
+- `none` — the carrier publishes an explicit zero for every proof type and names
+  no document template. There is nothing for you to upload.
+- `required` — the carrier asks for at least one proof document or a template it
+  wants signed. `personal_identity_fields`, `business_identity_fields`,
+  `address_fields` and `document_names` on the same response say what to collect.
+- `unknown` — the carrier published nothing for this market. Treat it exactly
+  like `required`: OpenPhonex does, and the number waits.
+
+## Where a number request waits
+
+A number request reports a status and a sentence describing what it is waiting
+for. Registration changes which waits apply:
+
+| Status | What it means |
+| --- | --- |
+| `awaiting_verification` | Your OpenPhonex verification profile is not approved yet. Nothing carrier-side has started. |
+| `carrier_verification` | Your profile is approved by OpenPhonex, and the number is waiting on documents or on the carrier's own verdict. |
+| `fulfillment_queued` | Everything OpenPhonex needs is done and the number is being ordered. |
+
+## Markets with no documents are ordered first
+
+Where `carrier_proof_requirement` is `none`, the request goes to
+`fulfillment_queued` as soon as your profile is approved and the first payment
+is funded — **before** the carrier has verified anything.
+
+That is not a shortcut. In these markets the carrier only ever reviews a
+registration that names an already-ordered number, so there is no verdict to
+wait for beforehand, and nothing you could upload to speed it up. Ordering first
+is the only sequence that can complete. Estonian national numbers work this way.
+
+Two consequences worth designing for:
+
+- The number is **paid for before the carrier reviews the registration.** If the
+  carrier later refuses it, you hold a number that cannot carry production
+  traffic. `GET /v1/numbers/{number_id}/activation` reports that outcome.
+- The status copy on these requests says the carrier lists no documents and that
+  OpenPhonex approved your profile. It deliberately does **not** claim the
+  carrier approved anything, because at that point the carrier has not looked.
+
+Where `carrier_proof_requirement` is `required` or `unknown`, nothing changes:
+the request stays in `carrier_verification` until the documents are supplied and
+approved, and it is never ordered on the strength of an unread requirement.
+
+## What OpenPhonex still checks
+
+Ordering first removes the *carrier's* precondition, never OpenPhonex's. In every
+market, regardless of `carrier_proof_requirement`, a number request still waits
+for all of these:
+
+- your verification profile approved by OpenPhonex (identity check for a personal
+  profile, company review or identity check for a business one);
+- every requirement item OpenPhonex tracks for the market satisfied and reviewed;
+- the first payment funded.
