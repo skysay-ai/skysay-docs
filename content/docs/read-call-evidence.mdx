@@ -34,6 +34,15 @@ returns recording metadata, disclosure state, and a relative `download_url`;
 the same bearer credential to play or download the audio. The endpoint accepts
 one standard `Range: bytes=...` header, so browser audio players can seek and
 resume with `206 Partial Content`; an invalid or multipart range returns `416`.
+
+The downloaded full-call recording is a listening mix. OpenPhonex balances the
+caller and agent from speech-bearing sections with bounded gain and shared peak
+headroom, so a quiet participant is easier to hear without amplifying a silent
+or noise-only track. This processing does not change timing or transcript turn
+boundaries. The separate captured caller and agent tracks remain unchanged as
+the source evidence; they are storage inputs, not additional public download
+URLs.
+
 Do not construct a URL from `storage_key` or `media_url`—those fields describe
 storage internals and are not a stable download contract. Recording reads
 require the `recordings:read` scope, which is distinct from `calls:read` so you
