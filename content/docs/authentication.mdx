@@ -211,27 +211,42 @@ mismatch`. You cannot read or write another tenant.
 
 ### A resource outside your workspace is absent, not forbidden
 
-Every REST route that names a resource by id in its path answers **`404`** when
-that id belongs to another workspace — the same status and the same body it
-answers for an id that never existed at all. The two cases are deliberately
-indistinguishable, so a status code can never be used to discover which ids are
-real in someone else's workspace.
+Every REST **`GET`** route that names a resource by id in its path answers
+**`404`** when that id belongs to another workspace — the same status and the
+same body it answers for an id that never existed at all. The two cases are
+deliberately indistinguishable, so a status code can never be used to discover
+which ids are real in someone else's workspace.
 
-Treat `404` on these routes as *"not yours, or not there"*. Do not branch on
-`403` versus `404` to decide whether a record exists: a `403` on a by-id route
-now means something about your **credential** — a missing scope, or a request
+Treat `404` on a by-id read as *"not yours, or not there"*. Do not branch on
+`403` versus `404` to decide whether a record exists: on a by-id read a `403`
+now says something about your **credential** — a missing scope, or a request
 that named an organization other than the key's — and never something about the
 record.
 
-Two answers are unchanged, because neither depends on the id:
+Two answers are unchanged on those reads, because neither depends on the id:
 
 - `401` — the credential is missing or invalid.
 - `403` — the credential lacks the scope the route requires, or the request
   names another organization explicitly (as a body field or a query value).
 
-`GET /v1/organizations/{organization_id}/...` is the one shape where the path id
+`GET /v1/organizations/{organization_id}/...` is the one read where the path id
 *is* the tenant. It answers `403` for any organization that is not the
 credential's own, whether or not that organization exists.
+
+#### Writes are moving to the same answer, and are not all there yet
+
+Some by-id writes already answer this way: `PATCH /v1/campaigns/{campaign_id}`
+and its `launch`, `pause`, `resume`, `cancel` and `duplicate` actions,
+`POST /v1/campaigns/{campaign_id}/reviews/{attempt_id}/resolve`, and
+`POST /v1/agents/{agent_id}/workflow/phone-pin` with its `/disarm` sibling.
+
+Every other by-id write — `PATCH /v1/agents/{agent_id}` and
+`PATCH /v1/agents/{agent_id}/voice-stack` among them — still answers `403` for
+a record in another workspace, so on those routes a `403` does **not** yet carry
+the meaning it carries on a read. Write your client so that either status means
+"you cannot act on this record", and never treat a `403` as evidence that the
+record exists: these routes are being brought to the same answer, and when they
+are, a `403` you were branching on becomes a `404`.
 
 ## Rotate / revoke
 
