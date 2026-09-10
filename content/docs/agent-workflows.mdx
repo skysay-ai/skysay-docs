@@ -61,9 +61,46 @@ than treating them as denial. If identity is still unconfirmed, it records
 
 Wrong party requires explicit denial of being the intended person or a clear
 wrong-person or wrong-number statement; missing confirmation alone is not
-denial. Explicit wrong-party and cease-contact replies still take the immediate
-stop path. The template's stop outcome is a **review candidate**, not an
-automatic suppression command. Global interrupt precedence is unchanged.
+denial. Explicit wrong-party and cease-contact replies both end the call
+immediately, but they are two different outcomes and the starter templates keep
+them apart. A **wrong party** stops this call and leaves the number exactly
+where it was. A **cease contact** stops this call and adds the number to your
+[do-not-call register](/docs/campaigns#do-not-call-register), which is honoured
+on every outbound path from then on. Each outcome's label says which of the two
+it did, so an exported row or a review-inbox entry states the consequence
+rather than only the category.
+
+Because the consequences differ, a workflow may not point both interrupts at
+one outcome step, and nothing other than cease contact may reach the outcome
+cease contact lands on. Validation refuses either draft. The second rule is
+what keeps each label honest: the register entry is written by the cease-contact
+route itself, not by arriving at that step, so a route that reached it another
+way would show "added to the do-not-call register" on a call that registered
+nothing. Both outcomes are still
+**review candidates** rather than automatic mutation commands: the register
+entry is the one thing a cease contact writes on its own. Global interrupt
+precedence is unchanged.
+
+Any draft whose wrong-party and cease-contact interrupts point at one existing
+step was updated for you when this shipped -- drafts built from an earlier
+starter template, and drafts where you wired that shared outcome yourself. The
+cease-contact interrupt now lands on an outcome step of its own, with the id
+`cease_contact_stop` (suffixed if your draft already uses that id), and the step
+it used to share keeps its id and every other route that reached it, so nothing
+you had wired is broken. A label you wrote yourself is kept as it is; only the
+starter template's own wording was replaced. Versions you had already published
+are immutable and were not touched -- the updated draft takes effect the next
+time you publish. Without this your existing draft could not have been published
+again, because the validation rules above refuse the shape it was in.
+
+**If you send `base_revision`, re-read the draft first.** The repair is a write,
+so it advances the draft's `revision`. A client holding a revision from before
+the release -- an integrator that re-seeds a workflow on a schedule, for
+instance -- gets `409` on its first `PATCH /v1/agents/{id}/workflow` or publish
+after it. That is the ordinary someone-else-changed-this answer and the `409`
+body carries the current draft under `current`, so reconciling against it is
+enough; nothing is lost. `GET /v1/agents/{id}/workflow` returns the new revision
+and the split draft together.
 
 These routing instructions depend on the decision model interpreting the
 reply correctly. An incorrect global interrupt decision still preempts local
@@ -93,9 +130,12 @@ will never synthesize one.
 
 Validation blocks testing and publishing on structural errors: dangling or
 type-invalid targets, unreachable required steps, cycles with no exit, missing
-interrupt targets, tool or language incompatibilities, blank spoken text,
-missing transfer destinations, and disclosure of account details before the
-right-party verification you declared succeeds. Warnings are separate and must
+interrupt targets, a wrong-party and a cease-contact interrupt sharing one
+outcome step, anything other than cease contact reaching the cease-contact
+outcome, an outcome label from a starter template claiming the opposite of what
+the route landing on it does, tool or language incompatibilities, blank spoken text, missing
+transfer destinations, and disclosure of account details before the right-party
+verification you declared succeeds. Warnings are separate and must
 be explicitly acknowledged before publishing.
 
 Four test modes run against the exact draft — its voice stack, knowledge,
