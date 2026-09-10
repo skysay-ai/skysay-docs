@@ -38,6 +38,46 @@ reflects your own profile's status.
 - `unknown` — the carrier published nothing for this market. Treat it exactly
   like `required`: OpenPhonex does, and the number waits.
 
+## Some markets cannot be ordered at all
+
+Registration decides *when* a number is ordered. A separate field decides
+*whether* the market can be ordered, and it is worth reading before you show a
+country and number type as buyable.
+
+The carrier sells every market under one or more products. Most are sold with
+no call channels bundled into the number, and OpenPhonex prices their inbound
+calls per minute. Some markets are sold **only** with call channels bundled in.
+OpenPhonex has no per-minute inbound rate for a bundled-channel number, so it
+does not sell one, and an order naming that product is refused before anything
+reaches the carrier.
+
+`GET /v1/numbers/requirements` and `GET /v1/number-catalog` both answer this
+with the same pair of fields:
+
+| Field | Meaning |
+| --- | --- |
+| `orderable` | `true` when OpenPhonex sells this market, `false` when it does not, `null` when the catalogue has no rows for it and there is nothing to say. |
+| `not_orderable_reason` | The named reason when `orderable` is `false`. Today the only value is `carrier_bundles_channels`. Empty otherwise. |
+
+On `GET /v1/number-catalog` the pair appears on each catalogue row, describing
+that one product, and on each market summary, describing the country and number
+type as a whole. A market is orderable when at least one available row is the
+zero-channel product.
+
+Treat `null` as "not answered", never as a refusal. It means the catalogue held
+no rows for that market, so nothing was checked.
+
+<Callout type="warn">
+Most affected markets are toll-free and shared-cost, and a smaller number of
+national and local markets are too. Where `orderable` is `false`, offer another
+number type or another country: no amount of verification changes it, because
+it is the carrier's product for that market, not your profile.
+</Callout>
+
+If a request somehow reaches ordering for such a market, it stops with a number
+request that names the same reason rather than a generic activation failure, and
+no carrier order is placed.
+
 ## Where a number request waits
 
 A number request reports a status and a sentence describing what it is waiting

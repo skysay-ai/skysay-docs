@@ -14,6 +14,14 @@ services were confirmed deployed.
 
 ## 10 September 2026
 
+### Markets the carrier sells only with bundled call channels now say so before you buy
+
+- `GET /v1/number-catalog` and `GET /v1/numbers/requirements` carry `orderable` and `not_orderable_reason`. `orderable` is `false` with the reason `carrier_bundles_channels` where the carrier sells a country and number type only with call channels bundled into the number, which OpenPhonex cannot price per inbound minute and therefore does not sell. On the catalogue the pair appears on each row for that one product and on each market summary for the country and number type as a whole.
+- `orderable` is `null` where the catalogue holds no rows for a market. That means nothing was checked, not that the market is refused, and the workspace renders it exactly as before.
+- The Get-a-number table disables those rows and names the reason in place of the price and the buy button, so a market that cannot be bought is visible rather than missing. Most are toll-free and shared cost; a smaller number of national and local markets are affected too.
+- An order that still reaches the carrier step for such a market stops with that named reason and places no carrier order, where it previously reported a generic activation failure.
+- [Markets that cannot be ordered](/docs/regulated-numbers#some-markets-cannot-be-ordered-at-all) · [Number catalogue](/docs/api-reference)
+
 ### A wrong party and a cease contact are now two different outcomes
 
 - The payment-reminder starter template routes a wrong party and a request not to be contacted to two separate outcome steps, `wrong_party_stop` and `cease_contact_stop`, where both used to land on one `stop_and_suppress` step labelled "Wrong party or cease contact — immediate stop". Each label states its own consequence now: both stop the call, a cease contact also adds the number to your do-not-call register and a wrong party leaves it where it was. The dispute and hardship labels lost the word "suppress" for the same reason — neither ever registered anything either.
