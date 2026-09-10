@@ -232,9 +232,11 @@ guessed at, because nothing observed why the call ended.
 
 The billed length is measured to the moment the call actually ended, not to the
 moment the fault was noticed. If the worker had decided on an ending, that
-instant is used; otherwise it is the first check that saw the other party gone.
-A call that hung for half an hour after the other party left is billed to when
-they left.
+instant is used, whichever of the two checks settled the call. Where it decided
+nothing, each check falls back to the closest boundary it can actually observe:
+the worker's last report when the worker went silent, and the first check that
+saw the other party gone when the worker was still reporting. A call that hung
+for half an hour after the other party left is billed to when they left.
 
 A hangup you request yourself is not automatic either, and it reports
 `hangup_requested`. Ask before the call has started ending and that is what you
