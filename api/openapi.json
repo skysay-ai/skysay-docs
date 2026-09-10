@@ -3676,6 +3676,8 @@
           },
           "failure_reason_code": {
             "enum": [
+              "carrier_rate_missing",
+              "inbound_admission_rejected",
               "unknown",
               "outbound_ringing_timeout",
               "outbound_authorization_rejected",
@@ -3694,6 +3696,7 @@
           },
           "failure_stage": {
             "enum": [
+              "inbound_admission",
               "unknown",
               "outbound_authorization",
               "outbound_media_admission",
@@ -8355,7 +8358,7 @@
     },
     "/v1/dashboard/numbers": {
       "get": {
-        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, billing history, calls, SMS, and verification documents. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Each number includes calling_readiness: bounded inbound routing/pricing blockers and destination-dependent outbound configuration. Inbound readiness remains indeterminate when mandatory call-time admission checks were not evaluated; a purchased number is not proof that calls can connect. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, billing history, calls, SMS, and verification documents. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
         "responses": {
           "200": {
             "description": "Numbers workspace aggregate"
@@ -8562,7 +8565,7 @@
             "description": "Per-step mutation request ids and per-number registration state"
           }
         },
-        "summary": "Enqueue the carrier end-user registration chain (identity/address/attach/verification) through the operator queue; identity is org-level and reused"
+        "summary": "Enqueue the carrier end-user registration chain (identity/address/proofs/verification) through the operator queue; identity is org-level and reused"
       }
     },
     "/v1/gateway-deployments": {
@@ -9662,7 +9665,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "registration_required, field/document lists, activation estimate, conflict_note"
+            "description": "registration_required, carrier_proof_requirement (none|required|unknown), field/document lists, activation estimate, conflict_note"
           }
         },
         "summary": "Resolve honest activation requirements for a country/number-type/profile-type (override > live did_groups flag > dataset prefix flag; requirement text only documents fields)"
