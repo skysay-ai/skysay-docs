@@ -68,8 +68,16 @@ the call then ran on the platform default. If you have code that sets
 `turn_taking` through the plain agent route and appears to succeed, it has never
 been taking effect; move it to the voice-stack route.
 
+The MCP tool `update_agent` is the same route and behaves the same way: it is
+documented as applying "the same generic PATCH fields and validation as
+`PATCH /v1/agents/{agent_id}`", and from this release that includes the refusal.
+An agent script that sets `turn_taking` through `update_agent` now gets an error
+where it used to get a success it should never have had.
+
 Unrelated fields your client happens to send are still accepted and ignored, as
-before. Only these six recognised-but-misplaced names are refused.
+before. Only these six recognised-but-misplaced names are refused — they are not
+"unknown fields", so REST's no-op compatibility for genuinely unknown keys does
+not cover them.
 
 ### A voice selection must name an exact voice
 
