@@ -12,8 +12,17 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
-{/* SCH-839. Not yet released: add the `## <date>` heading for the verified production
-promotion above this entry, and delete this comment, when it goes live. */}
+{/* WAVE 2 -- not yet released. Add the `## <date>` heading for the verified
+production promotion above these entries, and delete this comment, when they go
+live. Dates follow the deployment record, not the merge date. */}
+
+### Voice settings are saved by the voice-stack route, and refused elsewhere
+
+- Sending `turn_taking`, `voice_polish`, `audio_environment`, `follow_caller`, `languages` or `language_profiles` to `PATCH /v1/agents/{agent_id}` now returns `400` naming the route that does save them. Until this release the same request returned `200` and discarded the setting, so a limit you believed was saved was not and the call ran on the platform default.
+- The MCP `update_agent` tool is the same route and behaves the same way. If you have code setting one of these through it that appears to succeed, it has never taken effect — move it to `PATCH /v1/agents/{agent_id}/voice-stack` or the `set_agent_voice_stack` tool.
+- Unrelated extra fields your client happens to send are still accepted and ignored, as before. Only these six recognised-but-misplaced names are refused.
+- `PATCH /v1/agents/{agent_id}/voice-stack` also returns `400` if you send a TTS provider and model with no `voice_id` where that provider has voices to choose from; such a save previously returned `200` and stored a stack with no voice, and the call then failed before the caller heard anything. Editing an older agent whose stored voice predates the rule still resolves the provider's own default.
+- [Voice settings belong to the voice-stack route](/docs/rest-endpoints#voice-settings-belong-to-the-voice-stack-route) · [A voice selection must name an exact voice](/docs/rest-endpoints#a-voice-selection-must-name-an-exact-voice)
 
 ### A Simulations Lab room that delivered nothing no longer reports a pass
 
@@ -23,7 +32,61 @@ promotion above this entry, and delete this comment, when it goes live. */}
 - Like every errored attempt it is excluded from your AI agent's score and counted in `totals.errored_cases`, never in `totals.failed_cases`.
 - [Reading verdicts](/docs/simulations-lab#reading-verdicts) · [Reading results from CI](/docs/simulations-lab#automation-reading-results-from-ci)
 
+## 10 September 2026
+
+### A record outside your workspace is absent, not forbidden
+
+- Every REST `GET` that names a record by id in its path answers `404` when that id belongs to another workspace: the same status and the same body an id that never existed gets, so a status code can no longer be used to discover which ids are real in someone else's workspace. Ids that previously answered `500` for a record that does not exist answer `404` as well.
+- On those reads a `403` now says something about your credential — a missing scope, or a request that named an organization other than the key's — and never something about the record.
+- Not every by-id **write** has moved: the campaign writes and the workflow phone-pin routes answer `404`, the rest still answer `403`, so write your client to treat either as "you cannot act on this record".
+- The workspace's own campaign exports answer the same way, so the same inference is closed in the browser as well as in the API.
+- [A resource outside your workspace is absent, not forbidden](/docs/authentication#a-resource-outside-your-workspace-is-absent-not-forbidden)
+
+### Verification documents now reach the carrier
+
+- In markets that require documents, OpenPhonex submits the documents from your approved verification profile to the carrier and reports what it actually did rather than describing a review that had not started.
+- That submission shipped earlier but could never run: the worker held the storage configuration and neither storage credential, so it failed reading your documents on every sweep and no verification document reached the carrier in any proof-required market. This is the release in which it began working.
+- Nothing is required from you. An affected request is picked up by the next sweep using the documents you already uploaded.
+- [Where a number request waits](/docs/regulated-numbers#where-a-number-request-waits)
+
 ## 9 September 2026
+
+### An ordered regulated number is now presented to the carrier
+
+- OpenPhonex now opens the carrier verification task that names your ordered number and its address; until this shipped a regulated number stayed at `registration_draft` and nothing about it was ever sent to the carrier.
+- The carrier establishes the number's end user by approving that task. There is no separate step that attaches an identity to a number — the carrier exposes no endpoint for one, and the request OpenPhonex used to send was always refused.
+- `GET /v1/numbers/{number_id}/activation` no longer reports `attach_identity_to_number` as a blocking item: an item that could never have been cleared and would otherwise have stayed on your list indefinitely.
+- [How the carrier learns who the end user is](/docs/regulated-numbers#how-the-carrier-learns-who-the-end-user-is)
+
+### Regulated numbers in document-free markets are ordered first
+
+- `GET /v1/numbers/requirements` returns `carrier_proof_requirement`, one of `none`, `required` or `unknown`, alongside `registration_required`.
+- Where it is `none` the carrier lists no end-user document for that market, so it can never mark your identity verified before the number exists. OpenPhonex orders the number first instead of waiting for a verdict that cannot arrive.
+- Every other market keeps the previous path: the carrier's verdict is waited for exactly as before, and `unknown` is treated as `required`.
+- [Markets with no documents are ordered first](/docs/regulated-numbers#markets-with-no-documents-are-ordered-first)
+
+### A number request in a metered market now quotes a real inbound price
+
+- In most regulated markets the carrier prices inbound minutes against a shared capacity plan rather than against the number, and before purchase there is no number to price — so these requests previously could not reach a final quote.
+- Every managed OpenPhonex number is provisioned onto one standard metered capacity plan, so `quote_summary.source_breakdown.traffic_rates` now names inbound voice with a `customer_price` taken from that plan.
+- That price is what OpenPhonex charges you per inbound minute on that plan. It is not a carrier quotation for your number: what you are billed is derived when a call is admitted, from the activated number's own carrier record.
+- [The inbound rate the quote is based on](/docs/regulated-numbers#the-inbound-rate-the-quote-is-based-on)
+
+### An incoming call rejected before it connects now says why
+
+- An incoming call can reach OpenPhonex and be rejected before your AI agent answers. When the called number identifies your workspace, that attempt now appears in Calls with its time, direction and a customer-readable reason.
+- Missing pricing for a managed number reports `carrier_rate_missing` rather than looking like a caller who hung up; a rejection at admission reports `inbound_admission_rejected`. Repeated delivery of the same carrier call does not create another attempt.
+- Each number now carries `calling_readiness` on the Numbers dashboard: bounded inbound routing and pricing blockers, and destination-dependent outbound configuration. It stays indeterminate where the call-time admission checks were not evaluated — a purchased number is not proof that calls can connect.
+- [Inbound attempts rejected before connection](/docs/read-call-evidence#inbound-attempts-rejected-before-connection) · [Check incoming-call configuration](/docs/wire-an-agent#check-incoming-call-configuration)
+
+### Overview call amounts and spend totals use the settled charge
+
+- For component-metered calls, Recent calls on Overview uses the same wallet billing verdict as Calls: once settlement is available the amount is the settled charge, not the larger amount reserved at admission.
+- Released holds show as **Released** and count as nothing; reservations awaiting usage stay explicitly labelled as reserved; a payment-due result separates the amount paid from the amount outstanding.
+- Overview spend totals combine settled charges with still-pending reservations and SMS charges. Released reservations and unpaid balances are not counted as settled spend.
+- Calls with no component-billing verdict keep the cost calculation they had, so nothing older is restated.
+- [Call amounts on Overview](/docs/billing#call-amounts-on-overview)
+
 
 ### Every automatic ending now records its reason
 

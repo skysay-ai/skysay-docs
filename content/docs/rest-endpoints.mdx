@@ -43,6 +43,59 @@ then supply only that existing credential reference in
 ciphertext, credential-binding ID, or provider credential; unsupported
 component, language, and credential combinations are rejected on update.
 
+### Voice settings belong to the voice-stack route
+
+`PATCH /v1/agents/{id}` edits the agent's own fields: its name, status, webhook
+and audio-stream URLs, prompt, first message, mode, tools, metadata and
+recording flag. It does **not** save voice settings.
+
+These six names belong to `PATCH /v1/agents/{id}/voice-stack` (MCP tool
+`set_agent_voice_stack`):
+
+| Setting | What it configures |
+| --- | --- |
+| `turn_taking` | interruption sensitivity, endpointing, and the automatic call limits |
+| `voice_polish` | end-of-call phrase, delivery profile, acknowledgements, tool-wait |
+| `audio_environment` | the pinned ambience preset |
+| `follow_caller` | the automatic multilingual policy |
+| `languages` | the selected language set |
+| `language_profiles` | per-locale voice, transcriber and greeting overrides |
+
+Sending any of them to `PATCH /v1/agents/{id}` returns **400** naming the route
+that does save them. Until this release the same request returned `200` and
+silently discarded the setting, so a limit you believed was saved was not, and
+the call then ran on the platform default. If you have code that sets
+`turn_taking` through the plain agent route and appears to succeed, it has never
+been taking effect; move it to the voice-stack route.
+
+The MCP tool `update_agent` is the same route and behaves the same way: it is
+documented as applying "the same generic PATCH fields and validation as
+`PATCH /v1/agents/{agent_id}`", and from this release that includes the refusal.
+An agent script that sets `turn_taking` through `update_agent` now gets an error
+where it used to get a success it should never have had.
+
+Unrelated fields your client happens to send are still accepted and ignored, as
+before. Only these six recognised-but-misplaced names are refused — they are not
+"unknown fields", so REST's no-op compatibility for genuinely unknown keys does
+not cover them.
+
+### A voice selection must name an exact voice
+
+`PATCH /v1/agents/{id}/voice-stack` returns **400** if you send a TTS provider
+and model without a `voice_id`, whenever that provider has voices to choose
+from. The message asks you to choose an exact provider voice for the selected
+TTS model.
+
+Until this release such a save could return `200` while storing a stack with no
+voice. Nothing reported a problem until the agent was called, and the call then
+failed before the caller heard anything. Refusing the save is how you find out
+at the moment you make the change rather than on the next live call.
+
+Two things are unchanged. Saving only a transcriber, with no voice selection in
+the request, is unaffected. And editing an older agent whose stored voice
+predates this rule still works: that repair path resolves the provider's own
+default voice rather than refusing your edit.
+
 Before a workflow PATCH or publish, use
 `GET /v1/agents/{id}/workflow?version_limit=20&version_offset=0` with
 `agents:read`. It gives you the editable draft/revision, validation, safe
