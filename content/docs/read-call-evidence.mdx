@@ -120,6 +120,41 @@ call, so older links and bookmarks keep working. Nothing about the evidence
 itself changed, and the API is unaffected: the tab reads the same telemetry the
 page read.
 
+## Carrier-leg call quality
+
+A recording is decoded after the browser-grade jitter buffer of the recorder,
+so it can sound clean while the phone on the other end heard something
+robotic. For a call carried by the OpenPhonex SIP bridge, the call's evidence
+now also carries the bridge's own per-call counters for the leg between the
+bridge and the carrier, so that case can be told apart from a problem inside
+the platform without a packet capture.
+
+Open the call in **[Calls](https://openphonex.com/calls)** and expand
+**Technical details**. Three rows sit beside **RTP receive**:
+
+- **Carrier leg** — the negotiated codec, the direction, whether the bridge's
+  jitter buffer was on, and what the bridge received from the carrier: packets,
+  sequence gaps, late and delayed packets, jitter-buffer loss and the maximum
+  per-packet latency, then the frames it sent toward the carrier.
+- **Room leg** — the AI agent's audio as the bridge received it from the media
+  room: packets, gaps, late and delayed packets (with the total delayed time),
+  jitter-buffer loss and reconnects. Delayed intervals between the agent's
+  utterances are normal; delayed or late packets *during* an utterance are
+  not.
+- **SIP mixer** — whether the bridge paced its output on time: mixes, on-time
+  mixes, timing jumps and dropped input frames.
+
+`GET /v1/calls/{call_id}/observability` returns the same projection as
+`dashboard_summary.media_evidence.sip_call_statistics`, with the sections
+`carrier_to_bridge`, `bridge_to_carrier`, `room_to_bridge` and `mixer`, plus
+`direction`, `audio_codec`, `jitter_buffer_enabled`, `logged_at` and the
+carrier-leg `sip_call_id` (the SIP `Call-ID`, the reference a carrier support
+ticket asks for). Its `status` is `complete`, `partial` (a section is missing
+and `reason` names it) or `unavailable` with a `reason` such as `not_captured`
+for a call recorded before this evidence existed. A counter the bridge did not
+report is absent rather than zero, and a call the capture never saw reads as
+not captured, never as a clean leg.
+
 ## Inbound attempts rejected before connection
 
 An incoming call can reach OpenPhonex but be rejected before the AI agent
