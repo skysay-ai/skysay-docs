@@ -81,15 +81,26 @@ nothing. Both outcomes are still
 entry is the one thing a cease contact writes on its own. Global interrupt
 precedence is unchanged.
 
-A draft built from an earlier starter template, where both interrupts shared
-one stop step, was updated for you when this shipped: the cease-contact
-interrupt now lands on an outcome step of its own, and the step it used to
-share keeps its id and every other route that reached it, so nothing you had
-wired is broken. A label you wrote yourself is kept as it is; only the starter
-template's own wording was replaced. Versions you had already published are
-immutable and were not touched -- the updated draft takes effect the next time
-you publish. You do not need to do anything, and without this your existing
-draft could not have been published again.
+Any draft whose wrong-party and cease-contact interrupts point at one existing
+step was updated for you when this shipped -- drafts built from an earlier
+starter template, and drafts where you wired that shared outcome yourself. The
+cease-contact interrupt now lands on an outcome step of its own, with the id
+`cease_contact_stop` (suffixed if your draft already uses that id), and the step
+it used to share keeps its id and every other route that reached it, so nothing
+you had wired is broken. A label you wrote yourself is kept as it is; only the
+starter template's own wording was replaced. Versions you had already published
+are immutable and were not touched -- the updated draft takes effect the next
+time you publish. Without this your existing draft could not have been published
+again, because the validation rules above refuse the shape it was in.
+
+**If you send `base_revision`, re-read the draft first.** The repair is a write,
+so it advances the draft's `revision`. A client holding a revision from before
+the release -- an integrator that re-seeds a workflow on a schedule, for
+instance -- gets `409` on its first `PATCH /v1/agents/{id}/workflow` or publish
+after it. That is the ordinary someone-else-changed-this answer and the `409`
+body carries the current draft under `current`, so reconciling against it is
+enough; nothing is lost. `GET /v1/agents/{id}/workflow` returns the new revision
+and the split draft together.
 
 These routing instructions depend on the decision model interpreting the
 reply correctly. An incorrect global interrupt decision still preempts local
