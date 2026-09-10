@@ -12,6 +12,40 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+{/* WAVE 4 — UNDATED, PENDING PROMOTION. The application commits are merged to
+    OpenPhonex/OpenPhonex main at 2c67e1d2 but the api and web lanes are not live
+    yet, so these three entries carry no `## <date>` heading. AT PROMOTION: replace
+    this comment with `## <the UTC day the LAST required lane went live>` if that
+    day has no heading yet, or move the three entries under the existing heading for
+    that day (wave 4 is later, so above the entries already there) and delete this
+    comment. Both api and web are required: #709 changes both. Also replace the
+    `_PLACEHOLDER_updated_at` note and `updated_at` in release-state.json with the
+    runtime-inspected timestamp of that last lane. */}
+
+### A wrong party and a cease contact are now two different outcomes
+
+- The payment-reminder starter template routes a wrong party and a request not to be contacted to two separate outcome steps, `wrong_party_stop` and `cease_contact_stop`, where both used to land on one `stop_and_suppress` step labelled "Wrong party or cease contact — immediate stop". Each label now states its own consequence: a cease contact stops the call and adds the number to your [do-not-call register](/docs/campaigns#do-not-call-register), a wrong party stops the call and leaves the number where it was. The dispute and hardship labels lost the word "suppress" for the same reason — neither ever registered anything either.
+- Campaign exports and the contacts page follow the labels: `workflow_outcome` and `workflow_outcome_label` carry the new step id and the new wording. Campaign dispositions do not change — a wrong party is still `connected_wrong_party` and a cease contact still `do_not_call` — and the workspace still renders runs recorded against the old `stop_and_suppress` id as it did before.
+- Validation now refuses three drafts it used to accept: one pointing both interrupts at a single outcome step, one letting anything other than the cease-contact interrupt reach the cease-contact outcome, and one carrying a starter-template label that claims the opposite of what the route landing on it does.
+- Any draft whose wrong-party and cease-contact interrupts named one existing step was split for you on this release — a draft from the earlier starter template and one where you wired that shared outcome yourself alike, except a draft with no step for the new outcome to end on, which is left as it was. The shared step keeps its id and every other route that reached it, a label you wrote yourself is kept, and published versions are untouched and keep running until you publish again. The repair is a write, so it advances the draft's `revision`: a client holding a `base_revision` from before the release gets one `409` on its first `PATCH /v1/agents/{agent_id}/workflow` or publish after it, with the current draft in the `409` body under `current`.
+- [Wrong party and cease contact](/docs/agent-workflows#payment-reminder-identity-clarification) · [Do-not-call register](/docs/campaigns#do-not-call-register)
+
+### Nothing promises a 48-hour carrier review that never started
+
+- The `headline` on `GET /v1/end-users/{end_user_profile_id}/registration-status` no longer reads "Registration usually completes within ~48h, often faster". It counts how many of that profile's number registrations OpenPhonex has actually submitted to the carrier, and is empty when none is — including for every profile before its first number order. The old sentence appeared whenever OpenPhonex's own checks were incomplete, which never established that anything had been sent.
+- That headline is also empty while the profile is rejected or needs more information, because that is what needs your attention instead. The per-number `headline` on `GET /v1/numbers/{number_id}/activation` reports the same submission for one number and adds the published activation time for that market when there is one — passed through, never composed, and described as the market's figure rather than as something the carrier said about your request.
+- `next_action` on that same endpoint no longer tells you to wait for carrier approval on a number nothing was ever sent for. It is one of three sentences now: submitted and awaiting the carrier, not submitted yet, or a registration that exists but is not showing as open.
+- `activation_estimate` on `GET /v1/numbers/requirements` is not always a duration and must be checked before it is shown as one. It holds the carrier's published activation time where registration is required and that market publishes one, and is now empty where it publishes none — Estonia among them — instead of substituting "~48h, usually faster". The other two values, `instant_after_payment_and_policy_checks` and `manual_review`, are routing states, not times.
+- [How long a regulated number takes to activate](/docs/rest-endpoints#how-long-a-regulated-number-takes-to-activate)
+
+### A reviewer can put a contact back in the queue
+
+- Resolving a campaign review accepts `requeue_contact: true`, for when you disagree with the outcome and want the contact called again. The commonest case is a wrong party: that verdict comes from one reading of one caller reply and it closes the contact. Resolving dials nobody — the contact becomes due and the next dispatch decides, applying every rule it normally does.
+- A requeue can be refused, and the refusal comes back on the `200` body rather than only in the audit trail: `requeue_requested`, `contact_requeued` and `requeue_refused_reason`, which is one of `do_not_call_register`, `contact_phone_unknown` or `campaign_run_not_dispatchable`. A refusal is still a successful resolution — the note and the audit event are recorded either way — and a `requeue_contact` that is not a boolean answers `400`.
+- A contact a dispatcher has already re-claimed comes back `contact_requeued: false` with an empty `requeue_refused_reason`: nothing was declined by policy, that contact is simply already back in the queue. A reviewer cannot undo an opt-out, and an opt-out that lands while a resolution is being decided now refuses the requeue as well, where it could previously reopen the contact and clear the suppression record that opt-out had written.
+- A call classified as a wrong party now records a `call.wrong_party_signals` event, readable on `GET /v1/calls/{call_id}/events` and never delivered to a webhook endpoint. It carries `route_id`, `from_step_id`, `turn_index`, `utterance_characters` and `utterance_words` — the size of the caller's reply, never its text. `turn_index` is `-1` when the turn count could not be read, never `0`, because `0` is a real turn index.
+- [Review inbox](/docs/campaigns#review-inbox) · [Do-not-call register](/docs/campaigns#do-not-call-register) · [`call.wrong_party_signals`](/docs/read-call-evidence#callwrong_party_signals)
+
 ## 10 September 2026
 
 ### Voice settings are saved by the voice-stack route, and refused elsewhere
