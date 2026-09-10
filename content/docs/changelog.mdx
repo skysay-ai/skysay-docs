@@ -22,6 +22,14 @@ services were confirmed deployed.
 - The **API keys** page's new **Connect an AI assistant** card lets you create a scoped key and copy a ready-made MCP server entry to paste into your assistant's settings.
 - [Where a call's telemetry lives](/docs/read-call-evidence#where-a-calls-telemetry-lives) · [Connect from the workspace](/docs/mcp#connect-from-the-workspace)
 
+### Inbound calls are priced in every standard metered market, not just two
+
+- Inbound calls to a managed OpenPhonex number are now priced in the 60 countries on the carrier's standard metered capacity plan. Until this release only United States and Estonian numbers had an inbound rate at all.
+- A managed number in any of the other markets refused every incoming call with `carrier_rate_missing` — the workspace reads "Pricing is unavailable for this number" — because a call OpenPhonex cannot price is never admitted. That blocker is gone; the number's other readiness checks are unchanged.
+- A number the carrier delivers with its own included or dedicated channels is still outside the plan, still has no metered rate to apply, and its incoming calls are still refused. `GET /v1/numbers/{number_id}/activation` reports that outcome, as before.
+- Outbound and SMS prices are untouched. This release replaced the inbound rates only; every other rate type was preserved exactly as it stood.
+- [The inbound rate the quote is based on](/docs/regulated-numbers#the-inbound-rate-the-quote-is-based-on) · [Inbound attempts rejected before connection](/docs/read-call-evidence#inbound-attempts-rejected-before-connection)
+
 ### A wrong party and a cease contact are now two different outcomes
 
 - The payment-reminder starter template routes a wrong party and a request not to be contacted to two separate outcome steps, `wrong_party_stop` and `cease_contact_stop`, where both used to land on one `stop_and_suppress` step labelled "Wrong party or cease contact — immediate stop". Each label states its own consequence now: both stop the call, a cease contact also adds the number to your do-not-call register and a wrong party leaves it where it was. The dispute and hardship labels lost the word "suppress" for the same reason — neither ever registered anything either.
