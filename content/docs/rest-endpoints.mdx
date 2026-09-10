@@ -129,6 +129,25 @@ preset or substituting another version.
 | `POST` | `/v1/calls/outbound` | Place a policy-gated outbound call. |
 | `GET` | `/v1/calls` | List calls. |
 | `GET` | `/v1/calls/{id}` | Call status + recording state. |
+| `GET` | `/v1/calls/stats` | Call volume, outcome, talk time and spend over one or more date windows. |
+
+### What a call-stats window counts
+
+`GET /v1/calls/stats` needs `calls:read`. Each window you ask for comes back
+with `since` and `until` plus five integers:
+
+| Field | What it counts |
+| --- | --- |
+| `calls` | Every call created in the window, including ones a policy blocked and ones that were never billable. |
+| `answered` | Calls somebody was on: completed, or answered, in progress, or with media started right now. Never a call the platform merely accepted. |
+| `failed` | Calls that ended with nobody on them: failed, busy, no answer, canceled, or refused by a policy or live-call gate. |
+| `talk_seconds` | Total talk time across the window's recorded calls. |
+| `spend_minor` | The wallet reservation estimate made when each call was admitted, in the wallet's minor units. This is not settled billing. |
+
+`answered` and `failed` do not have to add up to `calls`. A call that is still
+dialing or still queued is in neither, and a call waiting on operator review is
+in neither. Read the two figures the endpoint gives you; do not derive one from
+`calls` minus the other.
 
 ## Numbers
 
