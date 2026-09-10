@@ -130,30 +130,43 @@ bridge and the carrier, so that case can be told apart from a problem inside
 the platform without a packet capture.
 
 Open the call in **[Calls](https://openphonex.com/calls)** and expand
-**Technical details**. Three rows sit beside **RTP receive**:
+**Technical details**. Five rows sit beside **RTP receive**, each named by
+the direction the packets travelled:
 
-- **Carrier leg** — the negotiated codec, the direction, whether the bridge's
-  jitter buffer was on, and what the bridge received from the carrier: packets,
-  sequence gaps, late and delayed packets, jitter-buffer loss and the maximum
-  per-packet latency, then the frames it sent toward the carrier.
-- **Room leg** — the AI agent's audio as the bridge received it from the media
-  room: packets, gaps, late and delayed packets (with the total delayed time),
-  jitter-buffer loss and reconnects. Delayed intervals between the agent's
-  utterances are normal; delayed or late packets *during* an utterance are
-  not.
+- **Carrier → SIP bridge** — the negotiated codec, the direction, whether the
+  bridge's jitter buffer was on, and what the bridge received from the
+  carrier: packets, sequence gaps, late and delayed packets, jitter-buffer
+  loss and the maximum per-packet latency.
+- **SIP bridge → carrier** — the audio frames the bridge encoded and sent
+  toward the carrier, and its maximum output latency.
+- **Room → SIP bridge** — the AI agent's audio as the bridge received it from
+  the media room: packets, gaps, late and delayed packets (with the total
+  delayed time), jitter-buffer loss and reconnects. Delayed intervals between
+  the agent's utterances are normal; delayed or late packets *during* an
+  utterance are not.
 - **SIP mixer** — whether the bridge paced its output on time: mixes, on-time
   mixes, timing jumps and dropped input frames.
+- **Carrier reception (RTCP)** — the carrier's own reception report, kept as
+  a separate row on purpose: the four rows above are measured at the bridge
+  and cannot show what the carrier received. This row reads **Not captured**
+  today (the SIP bridge does not read RTCP). Even when captured, a receiver
+  report describes loss and jitter at the carrier's receiver only; it cannot
+  clear the path beyond the carrier to the handset or detect every audible
+  distortion.
 
 `GET /v1/calls/{call_id}/observability` returns the same projection as
 `dashboard_summary.media_evidence.sip_call_statistics`, with the sections
 `carrier_to_bridge`, `bridge_to_carrier`, `room_to_bridge` and `mixer`, plus
 `direction`, `audio_codec`, `jitter_buffer_enabled`, `logged_at` and the
 platform's own `livekit_sip_call_id` (an opaque reference OpenPhonex support
-can correlate with the carrier leg). Its `status` is `complete`, `partial` (a section is missing
-and `reason` names it) or `unavailable` with a `reason` such as `not_captured`
-for a call recorded before this evidence existed. A counter the bridge did not
-report is absent rather than zero, and a call the capture never saw reads as
-not captured, never as a clean leg.
+can correlate with the carrier leg). Its `status` is `complete`, `partial` (a
+section is missing and `reason` names it) or `unavailable` with a `reason`
+such as `not_captured` for a call recorded before this evidence existed. The
+carrier's report is the separate `media_evidence.carrier_reception` group
+(`status`, `reason`, `source: carrier_rtcp`), `unavailable / rtcp_not_captured`
+today. A counter the bridge did not report is absent rather than zero, and a
+group the capture never saw reads as not captured, never as a clean leg or
+zero loss.
 
 ## Inbound attempts rejected before connection
 
