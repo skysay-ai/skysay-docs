@@ -14,6 +14,45 @@ services were confirmed deployed.
 
 ## 10 September 2026
 
+### Voice settings are saved by the voice-stack route, and refused elsewhere
+
+- Sending `turn_taking`, `voice_polish`, `audio_environment`, `follow_caller`, `languages` or `language_profiles` to `PATCH /v1/agents/{agent_id}` now returns `400` naming the route that does save them. Until this release the same request returned `200` and discarded the setting, so a limit you believed was saved was not and the call ran on the platform default.
+- The MCP `update_agent` tool is the same route and behaves the same way. If you have code setting one of these through it that appears to succeed, it has never taken effect — move it to `PATCH /v1/agents/{agent_id}/voice-stack` or the `set_agent_voice_stack` tool.
+- Unrelated extra fields your client happens to send are still accepted and ignored, as before. Only these six recognised-but-misplaced names are refused.
+- `PATCH /v1/agents/{agent_id}/voice-stack` also returns `400` if you send a TTS provider and model with no `voice_id` where that provider has voices to choose from; such a save previously returned `200` and stored a stack with no voice, and the call then failed before the caller heard anything. Editing an older agent whose stored voice predates the rule still resolves the provider's own default.
+- [Voice settings belong to the voice-stack route](/docs/rest-endpoints#voice-settings-belong-to-the-voice-stack-route) · [A voice selection must name an exact voice](/docs/rest-endpoints#a-voice-selection-must-name-an-exact-voice)
+
+### A call whose media session disappears now says so
+
+- `ended_reason` gains one value, `media_session_lost`, for a call whose media session went away underneath it — the room was removed, or the connection carrying the audio failed — so nobody hung up, no limit fired and the agent did not finish.
+- It reports what was observed rather than guessing at a cause. If someone had just asked to end that call it is still not reported as `hangup_requested`; the hangup request is answered separately and says the call was already gone.
+- Calls that ended this way previously carried no reason at all, so a count of reasons over time will show empty values becoming `media_session_lost` from this release rather than a new kind of ending appearing.
+- Simulations Lab test calls can report it too, where a synthetic room closes before the synthetic caller's own departure is delivered. A Lab result is judged on its assertions, not on this field.
+- [Why a call ended](/docs/post-call-results#why-a-call-ended) · [When the media session is lost](/docs/post-call-results#when-the-media-session-is-lost)
+
+### A recipient who did not answer is no longer a technical rejection
+
+- An outbound call the recipient never answered is now recorded as `no_answer` with the reserved `outbound_ringing_timeout` reason, where it was previously classified as a technical rejection by the far end.
+- The misclassification fired whenever the ring deadline passed with no SIP response at all, which is the ordinary shape: on one measured batch 37 of 50 attempts landed in the rejection bucket, making a pilot look like a platform outage and hiding the failures that really were ours.
+- No new vocabulary. `outbound_ringing_timeout` and the `no_answer` terminal status are both already published, and a call is still only reported `no_answer` when that durable event proves it, so nothing downstream changes.
+- If you alert on technical-failure rates for outbound campaigns, expect that rate to fall and `no_answer` to rise by the same amount from this release.
+- [Verify every delivery](/docs/post-call-results#verify-every-delivery)
+
+### The agent's closing line is played to the end
+
+- When the agent ends the call itself, its closing line is now played to the end before the call is torn down.
+- OpenPhonex learns that a line has finished playing slightly before the other party has actually heard it, and hanging up at that moment clipped the last word or two.
+- The call is instead held open until the audio going to the caller has fallen quiet. That wait is short and bounded: it gives up after about a second and ends the call anyway, so a closing line that never finishes cannot hold a call open.
+- [Why a call ended](/docs/post-call-results#why-a-call-ended)
+
+### A Simulations Lab room that delivered nothing no longer reports a pass
+
+- A real-time attempt whose synthetic caller was admitted to the room and then delivered nothing now finalizes as `error` with the code `caller_delivery_failed`.
+- Such an attempt previously kept the `pass` its offline evaluation had earned, so a suite reported green for a room in which no audio ever reached your AI agent.
+- Nothing is newly broken by this: those attempts already delivered nothing, and a suite that starts reporting `caller_delivery_failed` is naming a fault it already had.
+- Like every errored attempt it is excluded from your AI agent's score and counted in `totals.errored_cases`, never in `totals.failed_cases`.
+- [Reading verdicts](/docs/simulations-lab#reading-verdicts) · [Reading results from CI](/docs/simulations-lab#automation-reading-results-from-ci)
+
 ### A record outside your workspace is absent, not forbidden
 
 - Every REST `GET` that names a record by id in its path answers `404` when that id belongs to another workspace: the same status and the same body an id that never existed gets, so a status code can no longer be used to discover which ids are real in someone else's workspace. Ids that previously answered `500` for a record that does not exist answer `404` as well.
