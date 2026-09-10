@@ -92,11 +92,21 @@ Some countries require the carrier to approve a registration before a number
 carries traffic. Two fields describe that wait, and both are deliberately silent
 rather than guessing.
 
-`activation_estimate`, on the requirements for a country and number type, is the
-activation time the carrier publishes for that market, passed through unchanged.
-Where the carrier publishes none it is empty. It describes the market, never your
-particular request, and OpenPhonex does not substitute a figure of its own. Where
-the carrier does publish one it is usually measured in weeks.
+`activation_estimate`, on the requirements for a country and number type, is not
+always a duration, and must be checked before it is displayed as one. It holds a
+duration only where the number needs a carrier registration **and** the carrier
+publishes an activation time for that market: that published figure, passed
+through unchanged, usually measured in weeks. Where registration is required and
+the carrier publishes nothing — Estonia among them — it is empty, because
+OpenPhonex does not substitute a figure of its own.
+
+The other two values are routing states, not times:
+
+- `instant_after_payment_and_policy_checks` — the number needs no carrier
+  registration at all.
+- `manual_review` — whether it needs one is not yet established.
+
+Either describes the market, never your particular request.
 
 The `headline` on `GET /v1/end-users/{end_user_profile_id}/registration-status`
 says how many of that profile's number registrations OpenPhonex has submitted to
