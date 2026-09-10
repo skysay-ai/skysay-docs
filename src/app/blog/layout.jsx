@@ -9,7 +9,10 @@ import { baseLinks, baseNavOptions } from "@/lib/docs-layout.config";
 export default function BlogRootLayout({ children }) {
   return (
     <RootProvider theme={{ enabled: false }}>
-      <HomeLayout nav={baseNavOptions} links={baseLinks}>
+      {/* Same reasoning as src/app/docs/layout.jsx: RootProvider's theme
+          integration is disabled and the root forces dark mode, so a theme
+          toggle here would render but do nothing. */}
+      <HomeLayout nav={baseNavOptions} links={baseLinks} themeSwitch={{ enabled: false }}>
         {children}
       </HomeLayout>
     </RootProvider>

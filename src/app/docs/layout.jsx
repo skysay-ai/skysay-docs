@@ -41,6 +41,12 @@ export default function DocsRootLayout({ children }) {
         links={baseLinks}
         tabMode="navbar"
         tabs={docsSectionTabs}
+        // The theme toggle has nothing to switch: the root layout forces
+        // dark mode (`<html className="dark">`) and RootProvider's theme
+        // integration is disabled above, so next-themes never runs. Left at
+        // its default, the notebook header renders a toggle that does
+        // nothing when clicked.
+        themeSwitch={{ enabled: false }}
       >
         {children}
       </DocsLayout>
