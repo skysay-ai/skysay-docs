@@ -139,6 +139,47 @@ preset or substituting another version.
 | `GET` | `/v1/numbers` | List numbers and registration status. |
 | `GET` `PUT` | `/v1/numbers/{id}/rules` | Read / update number rules. |
 
+### How long a regulated number takes to activate
+
+Some countries require the carrier to approve a registration before a number
+carries traffic. Two fields describe that wait, and both are deliberately silent
+rather than guessing.
+
+`activation_estimate`, on the requirements for a country and number type, is not
+always a duration, and must be checked before it is displayed as one. It holds a
+duration only where the number needs a carrier registration **and** the carrier
+publishes an activation time for that market: that published figure, passed
+through unchanged, usually measured in weeks. Where registration is required and
+the carrier publishes nothing — Estonia among them — it is empty, because
+OpenPhonex does not substitute a figure of its own.
+
+The other two values are routing states, not times:
+
+- `instant_after_payment_and_policy_checks` — the number needs no carrier
+  registration at all.
+- `manual_review` — whether it needs one is not yet established.
+
+Either describes the market, never your particular request.
+
+The `headline` on `GET /v1/end-users/{end_user_profile_id}/registration-status`
+says how many of that profile's number registrations OpenPhonex has submitted to
+the carrier. It is empty before anything has been submitted, and empty while a
+refusal or a request for more information is outstanding, because that is what
+needs your attention instead. The per-number `headline` on
+`GET /v1/numbers/{number_id}/activation` reports the same submission for one
+number and adds the carrier's published activation time when that market has one.
+
+An empty `headline` is not a missing value: it means nothing has been submitted
+that it could report. For the stage a request has actually reached, read
+`regulatory_status` on the number, and `blocking_items` on the activation
+endpoint for what it is waiting on.
+
+`next_action` on the activation endpoint is held to the same rule. It repeats the
+first blocking item when there is one. With nothing blocking it tells you to wait
+for carrier approval only when the registration really is open at the carrier;
+where nothing has been sent it says so, and where a registration exists but is
+not showing as open it says that instead of guessing either way.
+
 ## Messages
 
 | Method | Path | Purpose |
