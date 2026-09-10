@@ -45,6 +45,47 @@ can grant transcript access without call metadata, or vice versa.
   recorded — surface it when you summarize a call back to a human.
 </Callout>
 
+## The call event log
+
+`GET /v1/calls/{call_id}/events` returns one bounded page of the call's own
+event rows, oldest first, each with its raw payload. It is the platform's
+internal bookkeeping log rather than a webhook replay, so it contains types
+that are never delivered to any webhook endpoint. Reading it needs
+`calls:read`.
+
+### `call.wrong_party_signals`
+
+Written once when a call ends on a wrong-party verdict — the caller said they
+are not the person the agent asked for. That verdict comes from one decision
+model reading one caller reply and it ends the call, so this event records how
+much evidence it actually rested on. It is written for both routes to that
+outcome: the identity step's own `wrong_party` route, and the mid-call
+`interrupt:wrong_party` global interrupt.
+
+| Field | Meaning |
+| --- | --- |
+| `route_id` | Which path carried the verdict: `wrong_party` (the identity step's own route) or `interrupt:wrong_party` (the global interrupt). |
+| `from_step_id` | The workflow step the verdict was reached from. |
+| `turn_index` | The caller turn the verdict landed on. `1` is the caller's first reply. |
+| `utterance_characters` | Number of characters in that reply, after trimming whitespace. |
+| `utterance_words` | Number of whitespace-separated words in that reply. |
+
+`turn_index` is `-1` when the turn count could not be read, and **never `0`**
+for that case, because `0` is a real turn index: an unreadable turn must not be
+counted among the verdicts decided on the caller's first reply, which is the
+number this event exists to measure.
+
+<Callout type="info" title="The caller's words are not in the payload">
+  Only the two sizes are recorded, never the utterance itself. The transcript is
+  where speech belongs — read it with `get_call_transcript`. A short reply on
+  turn 1 is the signal that a wrong-party verdict was thin; pair it with the
+  transcript when you want to know what was actually said.
+</Callout>
+
+This event is readable here but is **not** part of the webhook catalogue, so it
+is never delivered to a webhook endpoint. Poll the events endpoint for it, or
+read it alongside the rest of a call's evidence.
+
 ## Listen turn by turn in Calls
 
 The Calls workspace keeps the mixed recording player and can also show a compact

@@ -7446,7 +7446,7 @@
     },
     "/v1/campaigns/{campaign_id}/reviews/{attempt_id}/resolve": {
       "post": {
-        "description": "Records the resolution (note of at most 2,000 characters, the resolving user or API key, the time) and writes a `campaign.review.resolved` audit event with the campaign, call, workflow run and outcome. Returns the item as the inbox lists it. A candidate resolved before answers 409; an attempt that is not a review candidate of this campaign answers 404. The tenant is the campaign's own.",
+        "description": "Records the resolution (note of at most 2,000 characters, the resolving user or API key, the time) and writes a `campaign.review.resolved` audit event with the campaign, call, workflow run and outcome. Returns the item as the inbox lists it, plus `requeue_requested`, `contact_requeued` and `requeue_refused_reason`.\n\nSend `requeue_contact: true` to put the contact back in the queue when you disagree with the outcome. Resolving dials nobody. The requeue is REFUSED, with `contact_requeued: false` and a `requeue_refused_reason`, when the number is on your do-not-call register or the contact is already marked `do_not_call` (`do_not_call_register`), when the contact has no readable number to check against that register (`contact_phone_unknown`), or when its campaign run can no longer be dispatched (`campaign_run_not_dispatchable`). A refusal is still a successful resolution: the note and the audit event are recorded either way.\n\nA candidate resolved before answers 409; an attempt that is not a review candidate of this campaign answers 404. The tenant is the campaign's own.",
         "parameters": [
           {
             "in": "path",
@@ -7473,6 +7473,10 @@
                   "note": {
                     "maxLength": 2000,
                     "type": "string"
+                  },
+                  "requeue_contact": {
+                    "description": "Put the contact back in the queue. Refused, and reported as such, when the number is suppressed or its run cannot be dispatched.",
+                    "type": "boolean"
                   }
                 },
                 "type": "object"
@@ -7483,7 +7487,10 @@
         },
         "responses": {
           "200": {
-            "description": "The resolved review item"
+            "description": "The resolved review item, with `requeue_requested`, `contact_requeued` and `requeue_refused_reason`"
+          },
+          "400": {
+            "description": "`requeue_contact` is not a boolean"
           },
           "404": {
             "description": "Not a review candidate of this campaign"
