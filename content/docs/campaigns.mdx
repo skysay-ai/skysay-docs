@@ -354,21 +354,38 @@ call's evidence inline, so a reviewer can decide and record what they did.
   outcome and want the contact called again. The commonest case is a wrong
   party: that verdict comes from one reading of one caller reply and it
   closes the contact, so a reviewer who can see the call was misjudged can
-  put the contact back in the queue. Nothing is dialed by resolving.
+  put the contact back in the queue. Nothing is dialed by resolving. A
+  `requeue_contact` that is not a boolean is refused with `400`.
 
-  A number already on your [do-not-call register](#do-not-call-register) is
-  **not** requeued at all: the request is refused, the contact keeps its
-  status and its suppression record, and the audit event carries
-  `requeue_refused_reason: "do_not_call_register"`. A reviewer cannot undo an
-  opt-out.
+  The response tells you what happened, because the audit event is not
+  something you can read back. Three fields are on every resolve, requeue or
+  not:
+
+  - `requeue_requested` — what you asked for.
+  - `contact_requeued` — whether the contact was actually put back in the queue.
+  - `requeue_refused_reason` — why it was not, or empty.
+
+  Three reasons refuse a requeue. In each the resolution still succeeds — the
+  note and the audit event are recorded — and the contact keeps the status
+  and the suppression record it had:
+
+  - `do_not_call_register` — the number is on your
+    [do-not-call register](#do-not-call-register), or the contact is already
+    marked `do_not_call`. A reviewer cannot undo an opt-out.
+  - `contact_phone_unknown` — the contact has no readable number, so there is
+    no way to establish it has not opted out. A contact with no number cannot
+    be dialed either way.
+  - `campaign_run_not_dispatchable` — its campaign run can no longer reach the
+    dispatcher. A run is dispatchable while it is `running`, `scheduled` or
+    `paused`; a completed or cancelled run is not.
 
   Otherwise the contact becomes due again and the next dispatch decides,
   applying every rule it normally does — so a number added to the register
   *after* the requeue is marked `do_not_call` rather than called, and a
   contact outside its calling window waits for the window. A contact a
-  dispatcher has already claimed keeps that claim and is not reset. The audit
-  event records what you asked for (`requeue_requested`) and whether it
-  happened (`contact_requeued`).
+  dispatcher has already claimed keeps that claim and is not reset: that
+  answers `contact_requeued: false` with an empty `requeue_refused_reason`,
+  because nothing refused you — the contact was already back in play.
 - `GET /v1/campaigns/{campaign_id}/reviews/export?state=resolved|open|all`
   downloads the set as CSV: the contact, the attempt, the business-outcome
   and extraction columns of the results export, then `resolved_at`,
