@@ -12,6 +12,21 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 11 September 2026
+
+### A call's technical details now show the carrier leg, not just the recording
+
+- Calls carried by the OpenPhonex SIP bridge now show the bridge's own counters for the leg between the bridge and the carrier, alongside the existing recording telemetry, so a call that sounded off on the phone can be checked without a packet capture.
+- New rows in the Calls page **Technical details**: **Carrier → SIP bridge**, **SIP bridge → carrier**, **Room → SIP bridge**, **SIP mixer**, and a separate **Carrier reception (RTCP)** row. A counter the bridge did not report is always absent rather than shown as zero, and a leg the capture never saw reads as not captured, never as clean.
+- `GET /v1/calls/{call_id}/observability` returns the same projection under `media_evidence.sip_call_statistics`, plus the carrier's own reception report as the separate `media_evidence.carrier_reception`.
+- [Carrier-leg call quality](/docs/read-call-evidence#carrier-leg-call-quality)
+
+### Downloaded call recordings balance a quiet caller against the agent
+
+- The full-call recording download now balances caller and agent speech using each track's own speech-bearing sections, so a quiet participant is easier to hear without amplifying silence or a noise-only track.
+- Timing and transcript turn boundaries are unchanged, and the separately stored caller and agent tracks remain the unmodified source evidence.
+- [What a recording contains](/docs/read-call-evidence#what-a-recording-contains)
+
 ## 10 September 2026
 
 ### The Phone numbers page is a table, and Overview opens with what needs you
