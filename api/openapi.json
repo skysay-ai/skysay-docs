@@ -1837,8 +1837,16 @@
       },
       "CallStatsWindow": {
         "properties": {
+          "answered": {
+            "description": "Calls in this window somebody was on: completed, or currently answered/in_progress/media_started. Never merely accepted by the platform.",
+            "type": "integer"
+          },
           "calls": {
             "description": "Every call in this window, including blocked and never-billable ones.",
+            "type": "integer"
+          },
+          "failed": {
+            "description": "Calls in this window that ended with nobody on them: failed, busy, no_answer, canceled, or refused by a policy or live-call gate. answered + failed need not equal calls -- a dialing or queued call is in neither -- so do not derive one from the other.",
             "type": "integer"
           },
           "since": {
@@ -1862,7 +1870,9 @@
           "until",
           "calls",
           "spend_minor",
-          "talk_seconds"
+          "talk_seconds",
+          "answered",
+          "failed"
         ],
         "type": "object"
       },
@@ -8391,7 +8401,7 @@
     },
     "/v1/dashboard/overview": {
       "get": {
-        "description": "Returns one read-only workspace DTO for Overview SSR and freshness polling. Call rows include the compact component_billing wallet verdict used by Calls, without billing line items. The aggregate is tenant-bound to the bearer session, uses no provider calls, and omits provider internals, full verification profiles, secrets, invoices, and voice-stack configuration.",
+        "description": "Returns one read-only workspace DTO for Overview SSR and freshness polling. Call rows include the compact component_billing wallet verdict used by Calls, without billing line items. Each number carries incoming_rule -- what that line does when it is called -- resolved for every number in one batched read, so the page can say which lines answer without a request per number. knowledge reports how many active knowledge bases the workspace has and how many documents are in them, as two counts rather than the bases themselves. The aggregate is tenant-bound to the bearer session, uses no provider calls, and omits provider internals, full verification profiles, secrets, invoices, and voice-stack configuration.",
         "responses": {
           "200": {
             "description": "Overview workspace aggregate"

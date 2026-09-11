@@ -12,7 +12,10 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
-## 10 September 2026
+{/* SCH-877 is merged but NOT deployed. This release log dates entries by
+    verified production promotion, not by merge, so this entry carries no
+    `## <date>` heading yet. At promotion: add the heading above it with the
+    UTC date the api lane went live, and delete this comment. */}
 
 ### Markets the carrier sells only with bundled call channels now say so before you buy
 
@@ -22,6 +25,37 @@ services were confirmed deployed.
 - The Get-a-number table disables those rows and names the reason in place of the price and the buy button, so a market that cannot be bought is visible rather than missing. Most are toll-free and shared cost; a smaller number of national and local markets are affected too.
 - An order that still reaches the carrier step stops before anything is sent and says OpenPhonex could not confirm the number is on a product it can price. That refusal is about the selected product rather than the market, so it does not tell you to abandon the country.
 - [Markets that cannot be ordered](/docs/regulated-numbers#some-markets-cannot-be-ordered-at-all) · [Number catalogue](/docs/api-reference)
+
+## 10 September 2026
+
+### The Phone numbers page is a table, and Overview opens with what needs you
+
+- Phone numbers is now one table with a selected-number panel, a **Routes to** column for every number, and Voice and SMS capability chips that each explain themselves on hover, with a review mark on Business SMS.
+- Getting a number browses by country first, with number-type and feature filters, shows the carrier's monthly price where it lists one and "Quote at review" where it does not, and charges nothing until you confirm the exact price; a request in flight shows three steps: submitted, in review, assigned.
+- Overview leads with one status line that always matches the checklist below it, a **Needs you** list of everything blocking you, each with the control that clears it, and a **Going live** checklist that disappears once you're live.
+- The activity chart compares each window's calls with the period before it, Recent calls now reads exactly like the Calls page, and `GET /v1/calls/stats` windows report `answered` and `failed` counts too.
+- [What a call-stats window counts](/docs/rest-endpoints#what-a-call-stats-window-counts) · [Bring your own agent](/docs/wire-an-agent#bring-your-own-agent)
+
+### A purchased number's activation status now reflects the current reading
+
+- A purchased number's activation status text now always reflects the current carrier and platform reading, instead of repeating a blocker's sentence after that blocker has cleared.
+- [Where a number request waits](/docs/regulated-numbers#where-a-number-request-waits)
+
+### The workspace gets one consistent design, and a call's telemetry moves into the call record
+
+- Voices, Billing, API keys, Calls, Campaigns, Knowledge bases, and every other workspace page now share one consistent look for sections, badges, statuses, and empty states.
+- A call's timing and cost evidence — latency, cost, and which figures are measured versus estimated — now lives on the **Performance** tab of that call's record in **Calls**.
+- The old `/calls/performance` page is gone; visiting it, with or without a `call_id`, redirects straight to the call's Performance tab, so existing links and bookmarks keep working.
+- The **API keys** page's new **Connect an AI assistant** card lets you create a scoped key and copy a ready-made MCP server entry to paste into your assistant's settings.
+- [Where a call's telemetry lives](/docs/read-call-evidence#where-a-calls-telemetry-lives) · [Connect from the workspace](/docs/mcp#connect-from-the-workspace)
+
+### Inbound calls are priced in every standard metered market, not just two
+
+- Eligible managed numbers on the carrier's standard metered capacity plan now have an inbound rate in 60 countries. The catalogue previously held rows for the `+1` and `+372` prefixes only.
+- A call OpenPhonex cannot price is refused at admission and reports `carrier_rate_missing`, shown in the workspace as "Pricing is unavailable for this number". Numbers the new rates cover no longer meet that blocker.
+- A number the carrier delivers with its own included or dedicated channels stays outside the plan and has no metered rate, so its incoming calls are still refused. `GET /v1/numbers/{number_id}/activation` reports that.
+- Outbound and SMS prices are untouched: this release replaced the inbound rates only.
+- [The inbound rate the quote is based on](/docs/regulated-numbers#the-inbound-rate-the-quote-is-based-on) · [Inbound attempts rejected before connection](/docs/read-call-evidence#inbound-attempts-rejected-before-connection)
 
 ### A wrong party and a cease contact are now two different outcomes
 

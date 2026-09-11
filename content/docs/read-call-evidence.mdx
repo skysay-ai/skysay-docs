@@ -34,6 +34,15 @@ returns recording metadata, disclosure state, and a relative `download_url`;
 the same bearer credential to play or download the audio. The endpoint accepts
 one standard `Range: bytes=...` header, so browser audio players can seek and
 resume with `206 Partial Content`; an invalid or multipart range returns `416`.
+
+The downloaded full-call recording is a listening mix. OpenPhonex balances the
+caller and agent from speech-bearing sections with bounded gain and shared peak
+headroom, so a quiet participant is easier to hear without amplifying a silent
+or noise-only track. This processing does not change timing or transcript turn
+boundaries. The separate captured caller and agent tracks remain unchanged as
+the source evidence; they are storage inputs, not additional public download
+URLs.
+
 Do not construct a URL from `storage_key` or `media_url`—those fields describe
 storage internals and are not a stable download contract. Recording reads
 require the `recordings:read` scope, which is distinct from `calls:read` so you
@@ -98,6 +107,27 @@ OpenPhonex resolves the linked clip through the signed-in workspace session,
 after applying the same recording-consent, retention, and deletion checks as
 the mixed recording. Deleting a recording removes turn playback as well; it
 does not cause historical audio to be regenerated or retranscribed.
+
+## Where a call's telemetry lives
+
+A call's timing and cost evidence — the per-turn latency budget, the cost
+breakdown, and which figures were measured rather than estimated — is part of
+the call, so it is read on the call. Open a call in
+**[Calls](https://openphonex.com/calls)** and pick the **Performance** tab of
+the record that slides open beside the table.
+
+The open record and the tab are both in the URL, so a performance view is a
+link you can send or bookmark:
+
+```text
+https://openphonex.com/calls?call_id=cl_...&tab=performance
+```
+
+The former standalone `/calls/performance` page is gone. It now redirects to
+the Calls table, carrying a `call_id` through to the Performance tab of that
+call, so older links and bookmarks keep working. Nothing about the evidence
+itself changed, and the API is unaffected: the tab reads the same telemetry the
+page read.
 
 ## Inbound attempts rejected before connection
 
