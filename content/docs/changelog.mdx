@@ -12,20 +12,6 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
-{/* SCH-877 is merged but NOT deployed. This release log dates entries by
-    verified production promotion, not by merge, so this entry carries no
-    `## <date>` heading yet. At promotion: add the heading above it with the
-    UTC date the api lane went live, and delete this comment. */}
-
-### Markets the carrier sells only with bundled call channels now say so before you buy
-
-- `GET /v1/number-catalog` and `GET /v1/numbers/requirements` carry `orderable` and `not_orderable_reason`. Reasons: `number_type_not_priced`, where OpenPhonex has no per-minute inbound rate for the number type at all; `carrier_bundles_channels` on a market summary, where every product the carrier currently has available there bundles call channels into the number; and `sku_bundles_channels` on a single catalogue row, where that one product does while another in the same market may not. Where both apply the first is reported, because it stays true regardless of how bundled-channel numbers come to be priced. On the catalogue the pair appears on each row for that one product and on each market summary for the country and number type as a whole.
-- `orderable` is `null` where nothing was established: the catalogue holds no rows for the market, or holds rows that recorded no channel count. That is not a refusal, and the workspace renders those markets exactly as before.
-- 89 of the 186 markets in the current catalogue are not orderable: 62 toll-free, 13 national, 8 local and 6 shared cost. A purchase in any of them previously produced a number the inbound rate catalogue cannot price, and one such number blocks rate-catalogue activation for every workspace. Every affected national and local market also has `exact_number_browsing_enabled` false, so only a category order ever reached them.
-- The Get-a-number table disables those rows and names the reason in place of the price and the buy button, so a market that cannot be bought is visible rather than missing. Most are toll-free and shared cost; a smaller number of national and local markets are affected too.
-- An order that still reaches the carrier step stops before anything is sent and says OpenPhonex could not confirm the number is on a product it can price. That refusal is about the selected product rather than the market, so it does not tell you to abandon the country.
-- [Markets that cannot be ordered](/docs/regulated-numbers#some-markets-cannot-be-ordered-at-all) · [Number catalogue](/docs/api-reference)
-
 ## 11 September 2026
 
 ### A call's technical details now show the carrier leg, not just the recording
