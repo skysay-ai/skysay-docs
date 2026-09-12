@@ -226,6 +226,13 @@ class PromotionTests(unittest.TestCase):
         self.run_release({**receipt(), "primitives": {**PRIMITIVES, "sha": "f" * 40, "tree": "e" * 40}})
         self.update_spec.assert_called()
 
+    def test_node_launcher_drift_prevents_promotion(self):
+        self.assertIn("scripts/ci/node22.sh", r.PRIMITIVES)
+        changed = {**PRIMITIVES, "blobs": {**PRIMITIVES["blobs"], "scripts/ci/node22.sh": "f" * 64}}
+        with self.assertRaises(r.Refused):
+            self.run_release({**receipt(), "primitives": changed})
+        self.update_spec.assert_not_called()
+
     def test_target_or_previous_digest_collision_prevents_update(self):
         self.module.direct_registry_digest = lambda *_: "sha256:" + "f" * 64
         with self.assertRaisesRegex(r.Refused, "registry"):
