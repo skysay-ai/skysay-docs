@@ -1,0 +1,80 @@
+---
+title: Conversation engines
+description: Choose Standard speech-to-text, model, and text-to-speech, or GPT-Live 1, which listens and speaks at once.
+icon: ChatLines
+---
+
+A hosted OpenPhonex AI agent answers the phone with one **conversation engine**.
+The default is **Standard**: speech-to-text, a model, then text-to-speech. You
+can instead choose **GPT-Live 1**, which listens and speaks at the same time.
+
+Telephony still uses OpenPhonex numbers and LiveKit. GPT-Live 1 does not send
+the call to OpenAI SIP.
+
+## Choose the engine
+
+In the workspace, open the AI agent and look at **Voice**. The first control is
+**Conversation engine**. The same choice is the first control on the create
+wizard's voice step.
+
+- **Standard** keeps separate transcriber, model, and voice rows. Interruptions,
+  acknowledgements, and tool-wait speech stay under your control.
+- **GPT-Live 1** replaces those three rows with a GPT-Live voice and a backend
+  model for tools. The live model owns barge-in, backchannels, and waiting
+  speech, so acknowledgements and turn-taking stay off for that engine.
+
+`GET /v1/agent-catalog` lists both engines under `conversation_engines`.
+Standard remains the default when you omit the field.
+
+## API and MCP
+
+The discriminator is `voice_frontend`: `cascade` or `gpt_live`. Omit it and
+the agent stays Standard.
+
+```json
+{
+  "voice_frontend": "gpt_live",
+  "voice": {
+    "provider": "openai",
+    "model": "gpt-live-1",
+    "voice_id": "marin"
+  },
+  "model": {
+    "provider": "openai",
+    "model": "gpt-5.6-luna"
+  }
+}
+```
+
+`POST /v1/agents` and `PATCH /v1/agents/{agent_id}/voice-stack` accept the
+field. So do MCP `create_agent` and `set_agent_voice_stack`.
+
+`GET /v1/agents/{agent_id}/voice-stack` always returns `transcriber`, `model`,
+and `voice`. For GPT-Live 1 those are an OpenAI compatibility projection:
+native captions as the transcriber, the Responses backend as the model, and
+`gpt-live-1` with the selected voice id.
+
+Patching a Standard transcriber onto a GPT-Live agent without switching the
+engine is refused. Switching back requires `voice_frontend: "cascade"` and a
+full Standard stack.
+
+## Voices, language, and opening
+
+GPT-Live voices are independent of spoken language. Do not filter them through
+Standard text-to-speech tables. Language is prompt guidance: the agent follows
+the caller by default. Opening language is configurable and does not lock the
+rest of the call.
+
+The opening message is intent, not a script. GPT-Live paraphrases it.
+
+A published workflow plus GPT-Live will not answer. Use a campaign, or detach
+the workflow, before you publish that combination.
+
+## Billing
+
+GPT-Live 1 is billed by call duration at **$0.05 per minute**, including
+silence, plus tokens for the backend that handles tools. Standard
+speech-to-text is not charged on that path.
+
+See the [generated API reference](/docs/api-reference) for the exact request
+and response shapes.

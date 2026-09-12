@@ -219,7 +219,7 @@
     "/v1/dashboard/agents": {
       "get": {
         "summary": "Read the bounded, customer-scoped Agents aggregate",
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate — never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -1282,7 +1282,7 @@
     "/v1/agent-catalog": {
       "get": {
         "summary": "List runnable agent stack entries",
-        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by OpenPhonex; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; OpenPhonex does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. This catalog does not authorize a provider credential or disclose provider secrets.",
+        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). The payload also includes conversation_engines: cascade (default STT/LLM/TTS) and gpt_live (GPT-Live-1 voices and Responses backends). A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by OpenPhonex; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; OpenPhonex does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. This catalog does not authorize a provider credential or disclose provider secrets.",
         "parameters": [
           {
             "name": "component",
@@ -7889,6 +7889,14 @@
           },
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
+          },
+          "voice_frontend": {
+            "type": "string",
+            "enum": [
+              "cascade",
+              "gpt_live"
+            ],
+            "description": "Optional conversation engine. Omitted or cascade is STT/LLM/TTS. gpt_live selects GPT-Live-1. GET still returns transcriber, model, and voice as an OpenAI compatibility projection."
           }
         }
       },
@@ -8063,6 +8071,14 @@
           },
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
+          },
+          "voice_frontend": {
+            "type": "string",
+            "enum": [
+              "cascade",
+              "gpt_live"
+            ],
+            "description": "cascade (default) or gpt_live. Always present on GET; omitted on older rows means cascade."
           }
         }
       },

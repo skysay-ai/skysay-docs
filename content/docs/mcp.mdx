@@ -67,9 +67,12 @@ capability is off returns the same not-found the equivalent REST route returns.
 An organization-scoped key with `agents:read` and `agents:write` can complete
 the normal customer configuration loop without switching to REST:
 
-1. Call `get_agent_catalog` to discover selectable STT, LLM, and TTS options.
-   It accepts either `agents:read` or `coverage:read`; use
-   `metered_only: true` when you need only component-metered choices.
+1. Call `get_agent_catalog` to discover selectable STT, LLM, and TTS options
+   plus conversation engines. It accepts either `agents:read` or
+   `coverage:read`; use `metered_only: true` when you need only
+   component-metered choices. Pass `voice_frontend: "gpt_live"` on
+   `create_agent` or `set_agent_voice_stack` to select GPT-Live 1; omit it to
+   keep Standard.
 2. Call `create_agent`, then use `list_agents` for a bounded newest-first page
    or `get_agent` for one current safe agent projection.
 3. Use `update_agent` for the ordinary mutable fields and
