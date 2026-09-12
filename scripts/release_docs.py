@@ -28,7 +28,7 @@ APP_ID = "7a0e8413-d3ab-4763-9286-0c944dd65be4"
 REGISTRY = "property-intel-cr"
 REPOSITORY = "openphonex-docs"
 IMAGE = f"registry.digitalocean.com/{REGISTRY}/{REPOSITORY}"
-PRIMITIVES = ("scripts/ci/prepared_release.py", "scripts/ci/registry_release_guard.sh")
+PRIMITIVES = ("scripts/ci/prepared_release.py", "scripts/ci/registry_release_guard.sh", "scripts/ci/node22.sh")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
@@ -363,7 +363,9 @@ def final_fence(module, spec, deployment, target):
 def _promote(module, receipt, primitive_identity, app_repo):
     started = time.monotonic()
     validate(receipt)
-    if clean_main(ROOT) != receipt["source"] or primitive_identity != receipt["primitives"] or hashlib.sha256(Path(__file__).read_bytes()).hexdigest() != receipt["adapter_sha256"]:
+    # The app SHA/tree records provenance; only imported helper bytes bind docs.
+    # primitives() still requires a clean, current-main app checkout.
+    if clean_main(ROOT) != receipt["source"] or primitive_identity["blobs"] != receipt["primitives"]["blobs"] or hashlib.sha256(Path(__file__).read_bytes()).hexdigest() != receipt["adapter_sha256"]:
         raise Refused("source or release primitives changed since preparation")
     for key in ("gate_sha256", "probe_sha256"):
         read(module, "evidence", directory(module, "evidence") / (receipt[key] + ".json"))
