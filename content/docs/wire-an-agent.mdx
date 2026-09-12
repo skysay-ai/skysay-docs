@@ -10,7 +10,9 @@ is heard, thought about, and spoken. There are three modes:
 - `external_audio` — your own audio agent, connected over a webhook + audio
   stream URL. Use `connect_external_agent` for the common case.
 - `external_text` — your own text agent; OpenPhonex handles STT/TTS around it.
-- `hosted` — OpenPhonex runs the whole STT/LLM/TTS stack for you.
+- `hosted` — OpenPhonex runs the conversation for you. The default engine is
+  Standard speech-to-text, a model, then text-to-speech. You can instead choose
+  [GPT-Live 1](/docs/conversation-engines), which listens and speaks at once.
 
 ## 1. Create the agent
 
@@ -25,10 +27,12 @@ with webhook and audio-stream URLs.
 
 ## 2. Choose a voice stack
 
-For hosted or external-text agents, pick STT / LLM / TTS providers from the
-catalog. `get_agent_catalog` lists selectable providers with cost, latency,
-languages, streaming, and runnability; filter by component and language (for
-example, `language=et` requests the current Estonian options).
+For hosted or external-text agents, pick a [conversation engine](/docs/conversation-engines)
+first. Standard uses STT / LLM / TTS providers from the catalog. GPT-Live 1
+uses a GPT-Live voice and a backend model instead. `get_agent_catalog` lists
+selectable providers plus `conversation_engines`; filter Standard rows by
+component and language (for example, `language=et` requests the current
+Estonian options).
 
 ```text
 → get_agent_catalog(component="tts", language="et", metered_only=true)   # agents:read or coverage:read

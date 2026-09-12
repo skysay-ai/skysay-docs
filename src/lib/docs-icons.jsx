@@ -5,6 +5,7 @@ import {
   BookStack,
   ChatBubble,
   ChatBubbleTranslate,
+  ChatLines,
   ClockRotateRight,
   CloudSync,
   CodeBrackets,
@@ -91,6 +92,7 @@ const ICONS = {
 
   // --- Guides ---
   Link,
+  ChatLines,
   SineWave,
   MicrophoneSpeaking,
   Voice,
