@@ -363,7 +363,9 @@ def final_fence(module, spec, deployment, target):
 def _promote(module, receipt, primitive_identity, app_repo):
     started = time.monotonic()
     validate(receipt)
-    if clean_main(ROOT) != receipt["source"] or primitive_identity != receipt["primitives"] or hashlib.sha256(Path(__file__).read_bytes()).hexdigest() != receipt["adapter_sha256"]:
+    # The app SHA/tree records provenance; only imported helper bytes bind docs.
+    # primitives() still requires a clean, current-main app checkout.
+    if clean_main(ROOT) != receipt["source"] or primitive_identity["blobs"] != receipt["primitives"]["blobs"] or hashlib.sha256(Path(__file__).read_bytes()).hexdigest() != receipt["adapter_sha256"]:
         raise Refused("source or release primitives changed since preparation")
     for key in ("gate_sha256", "probe_sha256"):
         read(module, "evidence", directory(module, "evidence") / (receipt[key] + ".json"))

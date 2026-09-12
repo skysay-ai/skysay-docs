@@ -217,10 +217,14 @@ class PromotionTests(unittest.TestCase):
         self.update_spec.assert_not_called()
 
     def test_source_or_primitive_drift_prevents_update(self):
-        for change in ({"source": {**SOURCE, "tree": "f" * 40}}, {"primitives": {**PRIMITIVES, "sha": "f" * 40}}, {"adapter_sha256": "f" * 64}):
+        for change in ({"source": {**SOURCE, "tree": "f" * 40}}, {"primitives": {**PRIMITIVES, "blobs": {key: "f" * 64 for key in PRIMITIVES["blobs"]}}}, {"adapter_sha256": "f" * 64}):
             with self.subTest(change=change), self.assertRaises(r.Refused):
                 self.run_release({**receipt(), **change})
         self.update_spec.assert_not_called()
+
+    def test_unrelated_app_commit_does_not_invalidate_helper_bytes(self):
+        self.run_release({**receipt(), "primitives": {**PRIMITIVES, "sha": "f" * 40, "tree": "e" * 40}})
+        self.update_spec.assert_called()
 
     def test_target_or_previous_digest_collision_prevents_update(self):
         self.module.direct_registry_digest = lambda *_: "sha256:" + "f" * 64
