@@ -38,6 +38,74 @@ reflects your own profile's status.
 - `unknown` — the carrier published nothing for this market. Treat it exactly
   like `required`: OpenPhonex does, and the number waits.
 
+## Some markets cannot be ordered at all
+
+Registration decides *when* a number is ordered. A separate field decides
+*whether* the market can be ordered, and it is worth reading before you show a
+country and number type as buyable.
+
+The carrier sells every market under one or more products. Most are sold with
+no call channels bundled into the number, and OpenPhonex prices their inbound
+calls per minute. Some markets are sold **only** with call channels bundled in.
+OpenPhonex has no per-minute inbound rate for a bundled-channel number, so it
+does not sell one, and an order naming that product is refused before anything
+reaches the carrier.
+
+`GET /v1/numbers/requirements` and `GET /v1/number-catalog` both answer this
+with the same pair of fields:
+
+| Field | Meaning |
+| --- | --- |
+| `orderable` | `true` when OpenPhonex sells this market, `false` when it does not, `null` when nothing was checked. |
+| `not_orderable_reason` | The named reason when `orderable` is `false`. Empty otherwise. |
+
+Three reasons exist. Two describe a market, and the third describes a
+single product within one:
+
+- `number_type_not_priced` — OpenPhonex prices incoming calls per minute and has
+  no per-minute rate for this number type at all. Toll-free and shared-cost
+  markets are in this group. Nothing about the carrier's stock changes it.
+- `carrier_bundles_channels` — every number product the carrier currently has
+  available for this country and number type bundles call channels into the
+  number. It describes available stock, not the carrier's whole price list: a
+  zero-channel product the carrier lists but has none of reads the same way.
+- `sku_bundles_channels` — the same fact about ONE product rather than the
+  market. It appears only on catalogue rows, where another product in the same
+  country and number type may still be orderable. A market summary never
+  carries it.
+
+Where both apply, `number_type_not_priced` is reported, because it is the one
+that stays true regardless of how bundled-channel numbers come to be priced.
+
+On `GET /v1/number-catalog` the pair appears on each catalogue row, describing
+that one product, and on each market summary, describing the country and number
+type as a whole. A market is orderable when at least one available row is the
+zero-channel product.
+
+Treat `null` as "not answered", never as a refusal. It means the catalogue held
+no rows for that market, or held rows that recorded no channel count, so
+nothing was established either way. A client should leave such a market exactly
+as it would have before these fields existed. An unknown refusal reason still
+blocks ordering, but should use neutral copy such as "Cannot order now" rather
+than asserting the market is permanently unavailable.
+
+<Callout type="warn">
+89 of the 186 markets in the current catalogue are not orderable: 62 toll-free,
+13 national, 8 local and 6 shared cost. Where `orderable` is `false`, offer
+another number type or another country. No amount of verification changes it,
+because it is about the carrier's product for that market and OpenPhonex's
+inbound pricing, not about your profile.
+</Callout>
+
+Every affected national and local market also has `exact_number_browsing_enabled`
+false, so exact-number selection never reached them; only a category order did.
+
+If a request somehow reaches ordering, it stops before anything is sent to the
+carrier and says that OpenPhonex could not confirm the number is on a product it
+can price. That refusal is about the selected product, not the market: it also
+fires when the product's channel count was never recorded, so it does not tell
+you to abandon the country.
+
 ## Where a number request waits
 
 A number request reports a status and a sentence describing what it is waiting
