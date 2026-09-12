@@ -117,6 +117,25 @@ for. Registration changes which waits apply:
 | `carrier_verification` | Your profile is approved by OpenPhonex, and the number is waiting on documents or on the carrier's own verdict. |
 | `fulfillment_queued` | Everything OpenPhonex needs is done and the number is being ordered. |
 
+## Inbound activation and outbound calling are separate
+
+A managed number becomes active for inbound routing once the carrier confirms
+its registration, routing and inbound capacity. Outbound caller-ID setup does
+not keep a carrier-ready number in provisioning. Routing, an AI agent and
+call-time funding still need to be ready before an inbound call can connect.
+
+The selected number panel shows **Outbound calling is being set up** while
+OpenPhonex registers its caller ID. Inbound calls can continue; outbound attempts
+from that number are refused until registration succeeds. OpenPhonex retries
+setup every five minutes for up to seven days, without ordering the number again.
+If setup still fails, the panel says **Outbound calling needs support**.
+
+The Numbers aggregate exposes this distinction in
+`calling_readiness.outbound.registration_status`: `pending`, `failed`,
+`registered`, `not_required`, or `legacy` for numbers activated under the earlier
+combined readiness contract. An outbound destination and the usual admission
+checks are still required after caller-ID registration succeeds.
+
 ## How the carrier learns who the end user is
 
 From your approved verification profile OpenPhonex creates two records at the
