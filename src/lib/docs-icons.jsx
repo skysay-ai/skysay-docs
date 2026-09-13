@@ -44,6 +44,7 @@ import {
   SoundHigh,
   Terminal,
   TestTube,
+  Translate,
   Voice,
   Wrench,
 } from "iconoir-react";
@@ -93,6 +94,7 @@ const ICONS = {
   // --- Guides ---
   Link,
   ChatLines,
+  Translate,
   SineWave,
   MicrophoneSpeaking,
   Voice,
