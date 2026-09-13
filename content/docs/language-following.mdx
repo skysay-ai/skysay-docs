@@ -1,0 +1,142 @@
+---
+title: Which languages the voice agent follows, and how to test yours
+description: How GPT-Live 1 decides what language to answer in, which languages OpenPhonex has tested, what "not tested" means, and how to test your own language before going live.
+icon: Translate
+---
+
+This page is about the **GPT-Live 1** conversation engine. A Standard
+(speech-to-text, model, text-to-speech) agent is configured for one language
+and qualified per provider; see
+[How OpenPhonex handles provider languages and voices](/docs/language-qualification).
+
+## How language following works
+
+GPT-Live 1 has no language setting. No API parameter tells it which language
+to speak, and none restricts it to one. The model listens to what the caller
+says and replies in the language it believes it heard.
+
+- **Voice and language are independent.** The voice you pick sets the timbre
+  of the reply, not the language. Any of the fourteen GPT-Live voices can
+  answer in any language the model recognises. In our tests the same voice
+  answered German callers in German and Tamil callers in Tamil.
+- **Language following is automatic and not enforceable.** You cannot pin an
+  agent to one language. An instruction such as "only ever speak English" is a
+  preference the model may or may not follow, not a rule it obeys. In our
+  tests it did not hold.
+
+There is nothing to configure, and so nothing to misconfigure. Plan around
+this instead: the agent replies in whatever language it believes the caller
+used, every time.
+
+## What OpenPhonex has tested
+
+We ran GPT-Live 1 through spoken test sessions in several languages, using
+synthetic callers speaking real, synthesised sentences. A session passed when
+the reply stayed in the caller's language, addressed the caller's actual
+question, and was coherent and on topic.
+
+| Language | Result | Sessions |
+|---|---|---|
+| English | Reliable: in-language and on topic every time | 4 |
+| Estonian | Reliable: in-language and on topic every time | 4 |
+| Russian | Reliable: in-language and on topic every time | 4 |
+| German | Reliable: in-language and on topic every time | 4 |
+| Hindi | Reliable: in-language and on topic every time | 4 |
+| Tamil | Reliable: in-language and on topic every time | 4 |
+| Sinhala | Unreliable: 9 of 60 sessions usable | 60 |
+
+Tested 13 September 2026 against `gpt-live-1`. Results apply to that model
+version; we re-run the same sessions when OpenAI ships a new one.
+
+All fourteen GPT-Live voices remain available for every language. OpenPhonex
+does not restrict voice choice by language, because voice is a timbre choice
+and has no bearing on how GPT-Live 1 follows language. In the
+[Voice Library](/docs/voice-library#openai-gpt-live-1-voices) they appear
+under every language filter in a Multilingual group.
+
+## What "not tested" means
+
+A language missing from the table is **not tested**, not unsupported. We have
+not run it through this process, so we have no result to report either way.
+If your business takes calls in a language that is not listed, test it
+yourself before relying on it.
+
+## What a failure looks like
+
+Sinhala is the one language where we found a real, repeatable problem, and it
+is a useful example of what "unreliable" means in practice.
+
+Speech recognition frequently misheard the caller's Sinhala sentence, and the
+reply did not just get the content wrong: it sometimes came back in a
+completely different language that nobody spoke. Across 60 sessions, replies
+landed in Tamil, Hindi, Marathi, Tagalog, Japanese, Portuguese and Hebrew at
+least once each.
+
+One example: a caller asked, in Sinhala, about their loan payment due date.
+The recogniser heard Japanese, and the model replied fluently in Japanese,
+apologising and asking the caller to repeat the question in Japanese, a
+language the caller never spoke.
+
+This is not tied to one voice. Identical audio produced different results on
+different sessions, so it is session-to-session randomness rather than
+something a voice or setting change would fix. German, Tamil and Hindi
+produced no such failures, so this looks specific to Sinhala rather than a
+general non-English or non-Latin-script problem.
+
+## How to test your own language
+
+Before routing real traffic to a language, test it in the
+[Simulations Lab](/docs/simulations-lab). It runs your actual agent
+configuration against a synthetic caller using real speech, so you see the
+same language-following behaviour a live call would produce.
+
+<Callout type="warn" title="Current limit">
+The synthetic caller can speak Sinhala and Tamil for any agent today. For
+other languages it needs a caller voice on the agent's own speech provider,
+which GPT-Live 1 agents do not have, so the caller stays silent. A caller
+voice for every language is planned; until then, test other languages with a
+real test call to your number.
+</Callout>
+
+<Steps>
+<Step>
+Open the Simulations Lab for the agent you want to test.
+</Step>
+<Step>
+Create a scenario and set its language field to the language you are testing.
+</Step>
+<Step>
+Author a persona for the synthetic caller: an identity, a goal, and how it
+behaves. The persona's lines are synthesised as real speech in the scenario's
+language, not typed text.
+</Step>
+<Step>
+Run the scenario. The Lab drives your agent through the call as a live caller
+would, using a real synthetic voice for that language.
+</Step>
+<Step>
+Read the transcript. Check whether replies stayed in the caller's language and
+addressed what was actually asked.
+</Step>
+<Step>
+Repeat with a few sentences. A single utterance will not catch
+session-to-session randomness; our own Sinhala testing needed many runs to see
+it.
+</Step>
+</Steps>
+
+The Simulations Lab does not yet flag a language mismatch automatically. Check
+the transcript yourself; it will not surface as an error elsewhere in the run.
+
+## If it fails
+
+If your tests come back unreliable for a language, there is no setting that
+fixes GPT-Live 1's language following. The alternative is the Standard
+engine: a dedicated speech-to-text provider and a separate text-to-speech
+provider, chosen and qualified per language, instead of one model handling
+both recognition and reply.
+
+OpenPhonex qualifies Standard languages per provider, and coverage varies:
+some languages have a qualified speech-to-text provider today, others do not
+yet. If yours is not qualified on the Standard engine, talk to us before
+committing it to production.
