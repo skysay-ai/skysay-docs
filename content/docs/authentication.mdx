@@ -1,10 +1,10 @@
 ---
 title: Authentication & keys
-description: Scoped tai_ keys and gateway tgw_ tokens, Bearer auth, scope clamping and fail-closed semantics, org isolation, and rotate/revoke.
+description: Scoped sky_ keys and gateway skygw_ tokens, Bearer auth, scope clamping and fail-closed semantics, org isolation, and rotate/revoke.
 icon: Key
 ---
 
-Every agent request authenticates with one scoped **`tai_` API key** passed as a
+Every agent request authenticates with one scoped **`sky_` API key** passed as a
 Bearer token. The key is also your permission boundary — it decides which tools
 run and which organization they run against. Numbers, compliance, billing, and
 provider operations are never on the key; the agent gets capability tools and
@@ -15,7 +15,7 @@ nothing else.
 Pass the key on every call to `POST /mcp` (or the REST API):
 
 ```http
-Authorization: Bearer tai_your_scoped_key
+Authorization: Bearer sky_your_scoped_key
 ```
 
 Over the OpenClaw connector the key lives in the mcporter `env` block as
@@ -136,8 +136,8 @@ workspace's exact, current lists rather than hardcoding one.
 
 An inbound self-hosted media gateway uses **one** credential, and it is not an
 ordinary API key. In the workspace **API Keys** page, use the **Gateway
-Tokens** card to create the deployment-bound `tgw_` value for
-`SKYSAY_GATEWAY_API_TOKEN=tgw_...`.
+Tokens** card to create the deployment-bound `skygw_` value for
+`SKYSAY_GATEWAY_API_TOKEN=skygw_...`.
 
 That token routes the inbound leg, reads that call's tenant-bound runtime
 configuration, and lists MCP tool schemas, in addition to its number-rules,
@@ -147,12 +147,12 @@ credential cannot act outside the workspace its deployment belongs to. Its MCP
 admission is exactly one method — `tools/list`, the static tool catalogue —
 and `tools/call` stays refused, so it never becomes an organization MCP key.
 
-`SKYSAY_WORKER_API_TOKEN` is an organization-scoped `tai_` key. It is still
+`SKYSAY_WORKER_API_TOKEN` is an organization-scoped `sky_` key. It is still
 accepted where a deployment already sets one, and the optional outbound-dial
 profile needs it (claiming outbound call jobs is `worker_jobs:*` authority a
 gateway token does not carry), but an inbound-only host holds no
-organization-wide credential. Do not put a `tgw_` token in that variable, or a
-`tai_` key in the gateway variable. Secrets are shown once only and are absent
+organization-wide credential. Do not put a `skygw_` token in that variable, or a
+`sky_` key in the gateway variable. Secrets are shown once only and are absent
 from list views. See
 [deployment modes](/docs/deployment-modes#credentials-for-a-self-hosted-gateway)
 for the full host setup, the two-value bootstrap, and fail-closed behavior.
@@ -177,7 +177,7 @@ You never create, hold, or install one of these credentials. They are not a cust
 credential option, and there is nothing to provision for your workspace before a
 managed call is placed or a real-time simulation runs. Your own keys are unchanged
 and stay organization-bound: omitting an organization never grants cross-workspace
-access, and a self-hosted gateway's `tgw_` token still reaches only the workspace
+access, and a self-hosted gateway's `skygw_` token still reaches only the workspace
 its own deployment belongs to.
 
 ## Scope clamping (cannot self-escalate)

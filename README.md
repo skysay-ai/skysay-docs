@@ -251,7 +251,7 @@ written.
 
 **Never commit a real phone number, API key, or IP address.** The secret scan
 fails the build on any dialable E.164 number outside the ranges reserved for
-documentation. Use `+1 555 0100`-style numbers and `tai_...` placeholders.
+documentation. Use `+1 555 0100`-style numbers and `sky_...` placeholders.
 
 ## Licence
 
