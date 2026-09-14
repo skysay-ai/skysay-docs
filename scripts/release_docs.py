@@ -26,7 +26,7 @@ import urllib.error
 ROOT = Path(__file__).resolve().parents[1]
 APP_ID = "7a0e8413-d3ab-4763-9286-0c944dd65be4"
 REGISTRY = "property-intel-cr"
-REPOSITORY = "openphonex-docs"
+REPOSITORY = "skysay-docs"
 IMAGE = f"registry.digitalocean.com/{REGISTRY}/{REPOSITORY}"
 PRIMITIVES = ("scripts/ci/prepared_release.py", "scripts/ci/registry_release_guard.sh", "scripts/ci/node22.sh")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -105,7 +105,7 @@ def primitives(app_repo):
 
 
 def docs_service(spec):
-    if not isinstance(spec, dict) or spec.get("name") != "openphonex-web" or spec.get("region") != "ams":
+    if not isinstance(spec, dict) or spec.get("name") != "skysay-web" or spec.get("region") != "ams":
         raise Refused("unexpected shared web app identity")
     services = spec.get("services")
     if not isinstance(services, list) or not all(isinstance(s, dict) for s in services):
@@ -213,7 +213,7 @@ def read(module, name, value):
 
 
 def request(url):
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "openphonex-docs-release/1.0", "Cache-Control": "no-cache"}), timeout=15) as response:
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "skysay-docs-release/1.0", "Cache-Control": "no-cache"}), timeout=15) as response:
         return response.status, response.headers, response.read()
 
 
@@ -252,7 +252,7 @@ def image_probe(module, target, revision, app_repo):
     arch = command(docker + ["image", "inspect", reference, "--format", "{{.Os}}/{{.Architecture}}"] ).strip()
     if arch != "linux/amd64":
         raise Refused("docs image is not linux/amd64")
-    container = "openphonex-docs-probe-" + secrets.token_hex(16)
+    container = "skysay-docs-probe-" + secrets.token_hex(16)
     original = None
     try:
         command(docker + ["run", "--name", container, "--detach", "--platform", "linux/amd64", "--publish", "127.0.0.1::8080", reference])
@@ -331,7 +331,7 @@ def prepare(module, primitive_identity, app_repo):
     context = module.builder(False)[0]
     command(["doctl", "registry", "login", "--expiry-seconds", "900"])
     # Archive only committed files: ignored local credentials cannot enter context.
-    with tempfile.TemporaryDirectory(prefix="openphonex-docs-build-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="skysay-docs-build-") as temporary:
         archive = Path(temporary) / "source.tar"
         command(["git", "archive", "--output", str(archive), source["sha"]])
         command(["tar", "-xf", str(archive), "-C", temporary])
