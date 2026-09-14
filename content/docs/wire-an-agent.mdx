@@ -4,13 +4,13 @@ description: Connect an external or hosted agent, set its voice stack, and answe
 icon: Link
 ---
 
-An OpenPhonex **agent** is the phone-side configuration that decides how a call
+An Skysay **agent** is the phone-side configuration that decides how a call
 is heard, thought about, and spoken. There are three modes:
 
 - `external_audio` — your own audio agent, connected over a webhook + audio
   stream URL. Use `connect_external_agent` for the common case.
-- `external_text` — your own text agent; OpenPhonex handles STT/TTS around it.
-- `hosted` — OpenPhonex runs the conversation for you. The default engine is
+- `external_text` — your own text agent; Skysay handles STT/TTS around it.
+- `hosted` — Skysay runs the conversation for you. The default engine is
   Standard speech-to-text, a model, then text-to-speech. You can instead choose
   [GPT-Live 1](/docs/conversation-engines), which listens and speaks at once.
 
@@ -139,7 +139,7 @@ proves that an unobserved voice was removed.
 
 On the full library page, a cached audio sample is a fast path for a selected
 target language only when its catalog provenance proves that match. At present,
-an OpenPhonex ingestion-synthesized sample proves English; a provider sample
+an Skysay ingestion-synthesized sample proves English; a provider sample
 with no spoken-language assertion is not assumed to be English. With no
 Language filter or chosen preview language, an existing recording can play as
 published and the row labels unverified spoken language rather than inferring
@@ -160,13 +160,13 @@ credential, its owned or cloned voice IDs remain private to that credential's
 workspace and project; test the exact ID with your own text before saving it.
 The preview does not substitute a managed credential or a fallback voice.
 
-On OpenPhonex credentials, a new selection must belong to the managed scoped
+On Skysay credentials, a new selection must belong to the managed scoped
 inventory. With your own provider credential, validation and preview stay
 scoped to that exact credential; cloned and private voice IDs can work without
 becoming visible to another workspace. A preview started with your credential
-never falls back to an OpenPhonex one.
+never falls back to an Skysay one.
 
-OpenPhonex does not automatically choose a default or recommended language or
+Skysay does not automatically choose a default or recommended language or
 voice. Select both explicitly. If a provider later withdraws an existing
 stored voice, the editor keeps that exact choice visible with a warning; it is
 never silently replaced by a fallback voice. An exact provider response that
@@ -379,7 +379,7 @@ whichever agent answers.
 
 ### Check incoming-call configuration
 
-Open **[Phone numbers](https://openphonex.com/numbers)** and select the number.
+Open **[Phone numbers](https://skysay.ai/numbers)** and select the number.
 The existing **Activation checks** distinguish purchase and carrier-order
 completion from incoming-call configuration. A purchased, active number can
 still need attention before its AI agent can answer.
@@ -399,29 +399,29 @@ call is requested. Refresh the page after correcting a prerequisite.
 
 Two of the three modes let your own application do the thinking. Both are
 created in the workspace from **Agents → [Bring your own
-agent](https://openphonex.com/agents/new/developer)**, or over the API with
+agent](https://skysay.ai/agents/new/developer)**, or over the API with
 `POST /v1/agents`.
 
 ### Webhook agent (`external_text`)
 
-OpenPhonex runs speech-to-text and text-to-speech around your app, so the app
+Skysay runs speech-to-text and text-to-speech around your app, so the app
 only deals in text.
 
-- **What OpenPhonex sends.** A `POST` to your webhook URL for each call
+- **What Skysay sends.** A `POST` to your webhook URL for each call
   lifecycle event and each transcript turn, carrying `X-OpenPhonex-Event-Id`,
   `X-OpenPhonex-Call-Id`, and `X-OpenPhonex-Signature` when a webhook secret is
   set.
 - **What your app returns.** The words to say next, as a text or NDJSON
-  response. OpenPhonex speaks them to the caller.
+  response. Skysay speaks them to the caller.
 - **Where the URL goes.** The **Webhook URL** field on the create form, or
   `webhook_url` on `POST /v1/agents` with `"mode": "external_text"`.
 
 ### Realtime audio agent (`external_audio`)
 
-Your app hears and speaks the call itself; OpenPhonex runs no speech stack for
+Your app hears and speaks the call itself; Skysay runs no speech stack for
 it.
 
-- **What OpenPhonex sends.** Call lifecycle events to your webhook URL, and
+- **What Skysay sends.** Call lifecycle events to your webhook URL, and
   bidirectional call audio to your realtime audio URL — the gateway opens that
   `wss://` connection while the route is active.
 - **What your app returns.** Audio, on the same connection.
@@ -436,5 +436,5 @@ contract for either mode: the endpoints it will call, the events to expect,
 and the headers to verify.
 
 To send a phone number's calls to a realtime audio agent, open
-**[Phone numbers](https://openphonex.com/numbers)**, select the number, and
+**[Phone numbers](https://skysay.ai/numbers)**, select the number, and
 pick **Send live audio to my app** under "When someone calls".

@@ -35,7 +35,7 @@ the same bearer credential to play or download the audio. The endpoint accepts
 one standard `Range: bytes=...` header, so browser audio players can seek and
 resume with `206 Partial Content`; an invalid or multipart range returns `416`.
 
-The downloaded full-call recording is a listening mix. OpenPhonex balances the
+The downloaded full-call recording is a listening mix. Skysay balances the
 caller and agent from speech-bearing sections with bounded gain and shared peak
 headroom, so a quiet participant is easier to hear without amplifying a silent
 or noise-only track. This processing does not change timing or transcript turn
@@ -49,7 +49,7 @@ require the `recordings:read` scope, which is distinct from `calls:read` so you
 can grant transcript access without call metadata, or vice versa.
 
 <Callout type="info" title="Retention">
-  Recording retention runs on the OpenPhonex side (dry-run or execute). The
+  Recording retention runs on the Skysay side (dry-run or execute). The
   disclosure state on each recording tells you whether the call was announced as
   recorded — surface it when you summarize a call back to a human.
 </Callout>
@@ -103,7 +103,7 @@ bounded Calls response marks the turn `has_audio`; older text-only imports and
 turns without an observed clip do not get a broken player.
 
 The browser never receives a recording bucket URL or an artifact identifier.
-OpenPhonex resolves the linked clip through the signed-in workspace session,
+Skysay resolves the linked clip through the signed-in workspace session,
 after applying the same recording-consent, retention, and deletion checks as
 the mixed recording. Deleting a recording removes turn playback as well; it
 does not cause historical audio to be regenerated or retranscribed.
@@ -113,14 +113,14 @@ does not cause historical audio to be regenerated or retranscribed.
 A call's timing and cost evidence — the per-turn latency budget, the cost
 breakdown, and which figures were measured rather than estimated — is part of
 the call, so it is read on the call. Open a call in
-**[Calls](https://openphonex.com/calls)** and pick the **Performance** tab of
+**[Calls](https://skysay.ai/calls)** and pick the **Performance** tab of
 the record that slides open beside the table.
 
 The open record and the tab are both in the URL, so a performance view is a
 link you can send or bookmark:
 
 ```text
-https://openphonex.com/calls?call_id=cl_...&tab=performance
+https://skysay.ai/calls?call_id=cl_...&tab=performance
 ```
 
 The former standalone `/calls/performance` page is gone. It now redirects to
@@ -133,12 +133,12 @@ page read.
 
 A recording is decoded after the browser-grade jitter buffer of the recorder,
 so it can sound clean while the phone on the other end heard something
-robotic. For a call carried by the OpenPhonex SIP bridge, the call's evidence
+robotic. For a call carried by the Skysay SIP bridge, the call's evidence
 now also carries the bridge's own per-call counters for the leg between the
 bridge and the carrier, so that case can be told apart from a problem inside
 the platform without a packet capture.
 
-Open the call in **[Calls](https://openphonex.com/calls)** and expand
+Open the call in **[Calls](https://skysay.ai/calls)** and expand
 **Technical details**. Five rows sit beside **RTP receive**, each named by
 the direction the packets travelled:
 
@@ -167,7 +167,7 @@ the direction the packets travelled:
 `dashboard_summary.media_evidence.sip_call_statistics`, with the sections
 `carrier_to_bridge`, `bridge_to_carrier`, `room_to_bridge` and `mixer`, plus
 `direction`, `audio_codec`, `jitter_buffer_enabled`, `logged_at` and the
-platform's own `livekit_sip_call_id` (an opaque reference OpenPhonex support
+platform's own `livekit_sip_call_id` (an opaque reference Skysay support
 can correlate with the carrier leg). Its `status` is `complete`, `partial` (a
 section is missing and `reason` names it) or `unavailable` with a `reason`
 such as `not_captured` for a call recorded before this evidence existed. The
@@ -179,9 +179,9 @@ zero loss.
 
 ## Inbound attempts rejected before connection
 
-An incoming call can reach OpenPhonex but be rejected before the AI agent
+An incoming call can reach Skysay but be rejected before the AI agent
 answers. When the called number identifies your workspace, the rejected
-attempt appears in **[Calls](https://openphonex.com/calls)** with its time,
+attempt appears in **[Calls](https://skysay.ai/calls)** with its time,
 direction and a customer-readable reason. Repeated delivery of the same
 carrier call does not create another attempt.
 

@@ -1,6 +1,6 @@
 ---
 title: Release log
-description: Major OpenPhonex releases, with links to the features and guides you can use today.
+description: Major Skysay releases, with links to the features and guides you can use today.
 icon: ClockRotateRight
 ---
 
@@ -27,7 +27,7 @@ services were confirmed deployed.
 - Product analytics now includes session replay, masked so text, typed values, phone numbers, recordings and message bodies are never captured in the clear.
 - Replay records nothing until you accept analytics, and stops immediately if you decline or withdraw consent later.
 - The privacy policy describes exactly what replay captures and what it blocks, effective September 14, 2026.
-- [Privacy policy](https://openphonex.com/privacy)
+- [Privacy policy](https://skysay.ai/privacy)
 
 ## 12 September 2026
 
@@ -71,7 +71,7 @@ services were confirmed deployed.
 
 ### A call's technical details now show the carrier leg, not just the recording
 
-- Calls carried by the OpenPhonex SIP bridge now show the bridge's own counters for the leg between the bridge and the carrier, alongside the existing recording telemetry, so a call that sounded off on the phone can be checked without a packet capture.
+- Calls carried by the Skysay SIP bridge now show the bridge's own counters for the leg between the bridge and the carrier, alongside the existing recording telemetry, so a call that sounded off on the phone can be checked without a packet capture.
 - New rows in the Calls page **Technical details**: **Carrier → SIP bridge**, **SIP bridge → carrier**, **Room → SIP bridge**, **SIP mixer**, and a separate **Carrier reception (RTCP)** row. A counter the bridge did not report is always absent rather than shown as zero, and a leg the capture never saw reads as not captured, never as clean.
 - `GET /v1/calls/{call_id}/observability` returns the same projection under `media_evidence.sip_call_statistics`, plus the carrier's own reception report as the separate `media_evidence.carrier_reception`.
 - [Carrier-leg call quality](/docs/read-call-evidence#carrier-leg-call-quality)
@@ -108,7 +108,7 @@ services were confirmed deployed.
 ### Inbound calls are priced in every standard metered market, not just two
 
 - Eligible managed numbers on the carrier's standard metered capacity plan now have an inbound rate in 60 countries. The catalogue previously held rows for the `+1` and `+372` prefixes only.
-- A call OpenPhonex cannot price is refused at admission and reports `carrier_rate_missing`, shown in the workspace as "Pricing is unavailable for this number". Numbers the new rates cover no longer meet that blocker.
+- A call Skysay cannot price is refused at admission and reports `carrier_rate_missing`, shown in the workspace as "Pricing is unavailable for this number". Numbers the new rates cover no longer meet that blocker.
 - A number the carrier delivers with its own included or dedicated channels stays outside the plan and has no metered rate, so its incoming calls are still refused. `GET /v1/numbers/{number_id}/activation` reports that.
 - Outbound and SMS prices are untouched: this release replaced the inbound rates only.
 - [The inbound rate the quote is based on](/docs/regulated-numbers#the-inbound-rate-the-quote-is-based-on) · [Inbound attempts rejected before connection](/docs/read-call-evidence#inbound-attempts-rejected-before-connection)
@@ -123,7 +123,7 @@ services were confirmed deployed.
 
 ### Nothing promises a 48-hour carrier review that never started
 
-- The `headline` on `GET /v1/end-users/{end_user_profile_id}/registration-status` no longer reads "Registration usually completes within ~48h, often faster". It counts how many of that profile's number registrations OpenPhonex has actually submitted to the carrier, and is empty when none is — including for every profile before its first number order. The old sentence appeared whenever OpenPhonex's own checks were incomplete, which never established that anything had been sent.
+- The `headline` on `GET /v1/end-users/{end_user_profile_id}/registration-status` no longer reads "Registration usually completes within ~48h, often faster". It counts how many of that profile's number registrations Skysay has actually submitted to the carrier, and is empty when none is — including for every profile before its first number order. The old sentence appeared whenever Skysay's own checks were incomplete, which never established that anything had been sent.
 - That headline is also empty while the profile is rejected or needs more information, because that is what needs your attention instead. The per-number `headline` on `GET /v1/numbers/{number_id}/activation` reports the same submission for one number and adds the published activation time for that market when there is one — passed through, never composed, and described as the market's figure rather than as something the carrier said about your request.
 - `next_action` on that same endpoint no longer tells you to wait for carrier approval on a number nothing was ever sent for. A blocking item still speaks first; with nothing blocking the number it is one of three sentences now — submitted and awaiting the carrier, not submitted yet, or a registration that exists but is not showing as open.
 - `activation_estimate` on `GET /v1/numbers/requirements` is not always a duration and must be checked before it is shown as one. It holds the carrier's published activation time where registration is required and that market publishes one, and is now empty where it publishes none — Estonia among them — instead of substituting "~48h, usually faster". The other two values, `instant_after_payment_and_policy_checks` and `manual_review`, are routing states, not times.
@@ -164,7 +164,7 @@ services were confirmed deployed.
 ### The agent's closing line is played to the end
 
 - When the agent ends the call itself, its closing line is now played to the end before the call is torn down.
-- OpenPhonex learns that a line has finished playing slightly before the other party has actually heard it, and hanging up at that moment clipped the last word or two.
+- Skysay learns that a line has finished playing slightly before the other party has actually heard it, and hanging up at that moment clipped the last word or two.
 - The call is instead held open until the audio going to the caller has fallen quiet. That wait is short and bounded: it gives up after about a second and ends the call anyway, so a closing line that never finishes cannot hold a call open.
 - [Why a call ended](/docs/post-call-results#why-a-call-ended)
 
@@ -186,7 +186,7 @@ services were confirmed deployed.
 
 ### Verification documents now reach the carrier
 
-- In markets that require documents, OpenPhonex submits the documents from your approved verification profile to the carrier and reports what it actually did rather than describing a review that had not started.
+- In markets that require documents, Skysay submits the documents from your approved verification profile to the carrier and reports what it actually did rather than describing a review that had not started.
 - That submission shipped earlier but could never run: the worker held the storage configuration and neither storage credential, so it failed reading your documents on every sweep and no verification document reached the carrier in any proof-required market. This is the release in which it began working.
 - Nothing is required from you. An affected request is picked up by the next sweep using the documents you already uploaded.
 - [Where a number request waits](/docs/regulated-numbers#where-a-number-request-waits)
@@ -195,28 +195,28 @@ services were confirmed deployed.
 
 ### An ordered regulated number is now presented to the carrier
 
-- OpenPhonex now opens the carrier verification task that names your ordered number and its address; until this shipped a regulated number stayed at `registration_draft` and nothing about it was ever sent to the carrier.
-- The carrier establishes the number's end user by approving that task. There is no separate step that attaches an identity to a number — the carrier exposes no endpoint for one, and the request OpenPhonex used to send was always refused.
+- Skysay now opens the carrier verification task that names your ordered number and its address; until this shipped a regulated number stayed at `registration_draft` and nothing about it was ever sent to the carrier.
+- The carrier establishes the number's end user by approving that task. There is no separate step that attaches an identity to a number — the carrier exposes no endpoint for one, and the request Skysay used to send was always refused.
 - `GET /v1/numbers/{number_id}/activation` no longer reports `attach_identity_to_number` as a blocking item: an item that could never have been cleared and would otherwise have stayed on your list indefinitely.
 - [How the carrier learns who the end user is](/docs/regulated-numbers#how-the-carrier-learns-who-the-end-user-is)
 
 ### Regulated numbers in document-free markets are ordered first
 
 - `GET /v1/numbers/requirements` returns `carrier_proof_requirement`, one of `none`, `required` or `unknown`, alongside `registration_required`.
-- Where it is `none` the carrier lists no end-user document for that market, so it can never mark your identity verified before the number exists. OpenPhonex orders the number first instead of waiting for a verdict that cannot arrive.
+- Where it is `none` the carrier lists no end-user document for that market, so it can never mark your identity verified before the number exists. Skysay orders the number first instead of waiting for a verdict that cannot arrive.
 - Every other market keeps the previous path: the carrier's verdict is waited for exactly as before, and `unknown` is treated as `required`.
 - [Markets with no documents are ordered first](/docs/regulated-numbers#markets-with-no-documents-are-ordered-first)
 
 ### A number request in a metered market now quotes a real inbound price
 
 - In most regulated markets the carrier prices inbound minutes against a shared capacity plan rather than against the number, and before purchase there is no number to price — so these requests previously could not reach a final quote.
-- Every managed OpenPhonex number is provisioned onto one standard metered capacity plan, so `quote_summary.source_breakdown.traffic_rates` now names inbound voice with a `customer_price` taken from that plan.
-- That price is what OpenPhonex charges you per inbound minute on that plan. It is not a carrier quotation for your number: what you are billed is derived when a call is admitted, from the activated number's own carrier record.
+- Every managed Skysay number is provisioned onto one standard metered capacity plan, so `quote_summary.source_breakdown.traffic_rates` now names inbound voice with a `customer_price` taken from that plan.
+- That price is what Skysay charges you per inbound minute on that plan. It is not a carrier quotation for your number: what you are billed is derived when a call is admitted, from the activated number's own carrier record.
 - [The inbound rate the quote is based on](/docs/regulated-numbers#the-inbound-rate-the-quote-is-based-on)
 
 ### An incoming call rejected before it connects now says why
 
-- An incoming call can reach OpenPhonex and be rejected before your AI agent answers. When the called number identifies your workspace, that attempt now appears in Calls with its time, direction and a customer-readable reason.
+- An incoming call can reach Skysay and be rejected before your AI agent answers. When the called number identifies your workspace, that attempt now appears in Calls with its time, direction and a customer-readable reason.
 - Missing pricing for a managed number reports `carrier_rate_missing` rather than looking like a caller who hung up; a rejection at admission reports `inbound_admission_rejected`. Repeated delivery of the same carrier call does not create another attempt.
 - Each number now carries `calling_readiness` on the Numbers dashboard: bounded inbound routing and pricing blockers, and destination-dependent outbound configuration. It stays indeterminate where the call-time admission checks were not evaluated — a purchased number is not proof that calls can connect.
 - [Inbound attempts rejected before connection](/docs/read-call-evidence#inbound-attempts-rejected-before-connection) · [Check incoming-call configuration](/docs/wire-an-agent#check-incoming-call-configuration)
@@ -262,7 +262,7 @@ services were confirmed deployed.
 
 ### Calls that end themselves
 
-- OpenPhonex now ends a live call on its own, so a call cannot run unattended against your balance, when: nobody left on the call, 29 minutes reached, or nobody heard for 20 seconds after answer, reported as `remote_party_disconnected`, `max_call_duration_reached` and `no_caller_speech_after_answer`.
+- Skysay now ends a live call on its own, so a call cannot run unattended against your balance, when: nobody left on the call, 29 minutes reached, or nobody heard for 20 seconds after answer, reported as `remote_party_disconnected`, `max_call_duration_reached` and `no_caller_speech_after_answer`.
 - A caller who leaves is now noticed even when the network never says so: the media server is asked who is on the call every 15 seconds, and a call empty for 15 seconds continuously ends.
 - All three values are platform-wide and cannot be set per agent yet. A call ended by a rule is billed exactly like any other completed call, and ends sooner, so it can only cost less.
 - An ordinary hang-up by the other party is now reported as `remote_party_disconnected` on the call detail and in the `call.completed` and `call.ended` webhooks, where that reason was previously empty.
@@ -313,7 +313,7 @@ services were confirmed deployed.
 - Open **Capabilities** to see available destinations first, followed by channels, effective call limits, and explanations of voice spending, wallet spending and simultaneous calls.
 - Add optional country restrictions for outbound calls and SMS; removing them restores only destinations already available to your workspace.
 - Request higher limits from the page without changing caps, prices or wallet funds; higher-limit requests still go through operator review.
-- Syria is no longer blanket-blocked by OpenPhonex; carrier availability, number rules, pricing checks and other applicable safeguards still apply.
+- Syria is no longer blanket-blocked by Skysay; carrier availability, number rules, pricing checks and other applicable safeguards still apply.
 - [Destination controls](/docs/policy-and-outbound#destination-controls) · [Workspace limits](/docs/policy-and-outbound#workspace-limits-and-higher-limit-requests)
 
 ### Import a campaign contact list from an Excel workbook
@@ -447,7 +447,7 @@ services were confirmed deployed.
 - Contact us for higher capacity.
 - Numbers, Billing, and number checkout show your billed-number usage and remaining allowance before you order.
 - Changing a use-case profile no longer changes your concurrency limit; explicit operator limits, available funds, rate limits, and carrier capacity still apply.
-- [Check your workspace allowance](/docs/billing#billed-number-allowance) · [Open Phone numbers](https://openphonex.com/numbers)
+- [Check your workspace allowance](/docs/billing#billed-number-allowance) · [Open Phone numbers](https://skysay.ai/numbers)
 
 ## 3 September 2026
 
@@ -466,7 +466,7 @@ services were confirmed deployed.
 
 - Failed calls now carry a bounded, versioned `technical_failure` object in signed lifecycle results, `GET /v1/call-results`, and the Calls workspace.
 - It identifies an allowlisted terminal status, reason, and failure stage without exposing raw provider errors, SIP headers, transcripts, phone numbers, credentials, or stack traces.
-- OpenPhonex reports `no_answer` only when a durable ringing-timeout event proves it.
+- Skysay reports `no_answer` only when a durable ringing-timeout event proves it.
 - Historical or unclassified failures remain explicitly unknown instead of being reinterpreted from call duration or current configuration.
 - [Read post-call technical evidence](/docs/post-call-results) · [Inspect call evidence](/docs/read-call-evidence)
 
@@ -565,7 +565,7 @@ services were confirmed deployed.
 ### Customer-owned DIDLogic accounts
 
 - Imported, customer-owned DIDLogic accounts can be used with hosted agents while the carrier continues billing the customer directly.
-- OpenPhonex bills its applicable agent components without charging that externally billed carrier usage to the workspace wallet again.
+- Skysay bills its applicable agent components without charging that externally billed carrier usage to the workspace wallet again.
 - [Understand deployment and billing ownership](/docs/deployment-modes)
 
 ## 25 August 2026

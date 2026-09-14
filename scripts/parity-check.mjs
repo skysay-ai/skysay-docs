@@ -15,7 +15,7 @@
  *
  * Usage:
  *   node scripts/parity-check.mjs
- *   node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://openphonex.com
+ *   node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://skysay.ai
  *   node scripts/parity-check.mjs --no-live      # local-only assertions
  *   node scripts/parity-check.mjs --json report.json
  */
@@ -34,7 +34,7 @@ function flag(name, fallback) {
   return i === -1 ? fallback : args[i + 1];
 }
 const LOCAL = (flag("local", "http://127.0.0.1:3000") || "").replace(/\/$/, "");
-const LIVE = (flag("live", "https://openphonex.com") || "").replace(/\/$/, "");
+const LIVE = (flag("live", "https://skysay.ai") || "").replace(/\/$/, "");
 const CHECK_LIVE = !args.includes("--no-live");
 const JSON_OUT = flag("json", null);
 
@@ -301,11 +301,11 @@ async function main() {
   // preserve the full path AND query string.
   {
     const target = "/docs/mcp?x=1&y=2";
-    const res = await request(`${LOCAL}${target}`, { host: "www.openphonex.com", redirect: "manual" });
+    const res = await request(`${LOCAL}${target}`, { host: "www.skysay.ai", redirect: "manual" });
     const problems = [];
     if (res.status !== 301) problems.push(`status ${res.status} (expected 301)`);
-    if (res.headers.location !== `https://openphonex.com${target}`) {
-      problems.push(`location ${res.headers.location} (expected https://openphonex.com${target})`);
+    if (res.headers.location !== `https://skysay.ai${target}`) {
+      problems.push(`location ${res.headers.location} (expected https://skysay.ai${target})`);
     }
     record("www-canonical", target, problems.length === 0, problems.join("; ") || `301 -> ${res.headers.location}`);
   }

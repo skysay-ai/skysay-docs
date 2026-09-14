@@ -5,14 +5,14 @@ import { Book } from "iconoir-react";
 // Docs content is English-only, so this chrome is intentionally not localized.
 //
 // The non-docs links (/, /pricing, /start, /control-plane/*) are served by the
-// main openphonex.com app, not by this one. They are same-origin absolute paths
+// main skysay.ai app, not by this one. They are same-origin absolute paths
 // on purpose: on the live domain a path-based ingress rule sends them to the
 // right component.
 export const baseNavOptions = {
   title: (
     <span className="inline-flex items-center gap-2 font-semibold">
       <Book className="size-5 text-fd-primary" strokeWidth={1.5} aria-hidden />
-      OpenPhonex
+      Skysay
       <span className="rounded-md border border-fd-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fd-muted-foreground">
         Docs
       </span>

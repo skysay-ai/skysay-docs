@@ -5,14 +5,14 @@ icon: CloudSync
 ---
 
 Every deployment answers two questions: **who provides the brain** (the LLM), and
-**where does the media run** (the gateway that carries call audio). OpenPhonex's
+**where does the media run** (the gateway that carries call audio). Skysay's
 two MVP launch paths differ only on the second.
 
-<img src="/diagrams/deployment-modes.svg" alt="OpenPhonex deployment modes: fully managed cloud versus managed numbers with a self-hosted gateway" />
+<img src="/diagrams/deployment-modes.svg" alt="Skysay deployment modes: fully managed cloud versus managed numbers with a self-hosted gateway" />
 
 ## `fully_managed_cloud`
 
-OpenPhonex Cloud runs everything: the API, the hosted **media gateway**, the
+Skysay Cloud runs everything: the API, the hosted **media gateway**, the
 carrier/provider account, numbers, credits, the compliance workflow, and abuse
 controls. You bring an agent and a scoped key; the phone side is entirely
 managed. This is the fastest path to a live line.
@@ -27,10 +27,10 @@ run, no worker key to install and no gateway deployment to register before
 
 ## `managed_numbers_self_hosted_gateway`
 
-You run the **media gateway** yourself (Docker/media locally), while OpenPhonex
+You run the **media gateway** yourself (Docker/media locally), while Skysay
 Cloud still manages the API account, carrier/provider numbers, billing, the
 compliance workflow, and abuse controls. Use this when call media must stay in
-your own network but you still want OpenPhonex to own numbers, compliance, and
+your own network but you still want Skysay to own numbers, compliance, and
 provider operations.
 
 Every number and gateway response includes `provider_account_id` and
@@ -83,7 +83,7 @@ Run it before `docker compose up` with exactly two inputs — the control-plane
 URL and one organization API key carrying `gateways:write`:
 
 ```bash
-OPENPHONEX_CONTROL_PLANE_URL=https://api.openphonex.com \
+OPENPHONEX_CONTROL_PLANE_URL=https://api.skysay.ai \
 OPENPHONEX_BOOTSTRAP_API_KEY=tai_... \
   bash selfhost-bootstrap.sh
 ```
@@ -113,7 +113,7 @@ Tokens that already exist keep the scopes they were stored with.
 ### Your gateway publishes no URL
 
 A self-hosted gateway does not need a public hostname, a tunnel, or a TLS
-certificate for OpenPhonex's benefit. Your carrier reaches it over SIP, and the
+certificate for Skysay's benefit. Your carrier reaches it over SIP, and the
 control plane never dials into it — every connection runs the other way, from
 your gateway out to the API. There is nothing to port-forward and no inbound
 address to register.
@@ -140,13 +140,13 @@ and change it with
 
 Both modes describe a gateway you run yourself. A workspace with no self-hosted
 deployment has nothing to choose here: its managed outbound calls are dialed by
-OpenPhonex's shared hosted dialer, which you neither run nor configure.
+Skysay's shared hosted dialer, which you neither run nor configure.
 
 `local` exists because on a self-hosted box the requester and the dialer are the
 same machine, so the shared job queue buys nothing and costs an
 organization-scoped credential. The host calls
 `POST /v1/gateway-deployments/{gateway_id}/outbound-calls` with its own `tgw_`
-token; OpenPhonex runs the same admission a remote `POST /v1/calls` gets — the
+token; Skysay runs the same admission a remote `POST /v1/calls` gets — the
 outbound authorization decision, the kill switches and caps, the wallet reserve,
 the call record — and answers with the admitted call plus a single-use
 authorization bound to that one (gateway, organization, from-number, to-number,
@@ -185,10 +185,10 @@ organization-wide credential at all.
 
 | | `fully_managed_cloud` | `managed_numbers_self_hosted_gateway` |
 | --- | --- | --- |
-| API account | OpenPhonex | OpenPhonex |
-| Numbers & provider ops | OpenPhonex | OpenPhonex |
-| Billing & compliance | OpenPhonex | OpenPhonex |
-| Media gateway | OpenPhonex (hosted) | **You** (Docker/media local) |
+| API account | Skysay | Skysay |
+| Numbers & provider ops | Skysay | Skysay |
+| Billing & compliance | Skysay | Skysay |
+| Media gateway | Skysay (hosted) | **You** (Docker/media local) |
 | Fastest to live | Yes | — |
 | Media stays in your network | — | Yes |
 

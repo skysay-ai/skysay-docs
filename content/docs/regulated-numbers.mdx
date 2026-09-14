@@ -23,7 +23,7 @@ Two fields drive everything else:
 
 | Field | Meaning |
 | --- | --- |
-| `registration_required` | `true` when the carrier registers an end user against the number, `false` when it does not, `null` when the sources disagree and an OpenPhonex operator has to decide. |
+| `registration_required` | `true` when the carrier registers an end user against the number, `false` when it does not, `null` when the sources disagree and an Skysay operator has to decide. |
 | `carrier_proof_requirement` | What the carrier lists for that market: `none`, `required`, or `unknown`. |
 
 `carrier_proof_requirement` reports the carrier's published list and nothing
@@ -36,7 +36,7 @@ reflects your own profile's status.
   wants signed. `personal_identity_fields`, `business_identity_fields`,
   `address_fields` and `document_names` on the same response say what to collect.
 - `unknown` — the carrier published nothing for this market. Treat it exactly
-  like `required`: OpenPhonex does, and the number waits.
+  like `required`: Skysay does, and the number waits.
 
 ## Some markets cannot be ordered at all
 
@@ -45,9 +45,9 @@ Registration decides *when* a number is ordered. A separate field decides
 country and number type as buyable.
 
 The carrier sells every market under one or more products. Most are sold with
-no call channels bundled into the number, and OpenPhonex prices their inbound
+no call channels bundled into the number, and Skysay prices their inbound
 calls per minute. Some markets are sold **only** with call channels bundled in.
-OpenPhonex has no per-minute inbound rate for a bundled-channel number, so it
+Skysay has no per-minute inbound rate for a bundled-channel number, so it
 does not sell one, and an order naming that product is refused before anything
 reaches the carrier.
 
@@ -56,13 +56,13 @@ with the same pair of fields:
 
 | Field | Meaning |
 | --- | --- |
-| `orderable` | `true` when OpenPhonex sells this market, `false` when it does not, `null` when nothing was checked. |
+| `orderable` | `true` when Skysay sells this market, `false` when it does not, `null` when nothing was checked. |
 | `not_orderable_reason` | The named reason when `orderable` is `false`. Empty otherwise. |
 
 Three reasons exist. Two describe a market, and the third describes a
 single product within one:
 
-- `number_type_not_priced` — OpenPhonex prices incoming calls per minute and has
+- `number_type_not_priced` — Skysay prices incoming calls per minute and has
   no per-minute rate for this number type at all. Toll-free and shared-cost
   markets are in this group. Nothing about the carrier's stock changes it.
 - `carrier_bundles_channels` — every number product the carrier currently has
@@ -93,7 +93,7 @@ than asserting the market is permanently unavailable.
 89 of the 186 markets in the current catalogue are not orderable: 62 toll-free,
 13 national, 8 local and 6 shared cost. Where `orderable` is `false`, offer
 another number type or another country. No amount of verification changes it,
-because it is about the carrier's product for that market and OpenPhonex's
+because it is about the carrier's product for that market and Skysay's
 inbound pricing, not about your profile.
 </Callout>
 
@@ -101,7 +101,7 @@ Every affected national and local market also has `exact_number_browsing_enabled
 false, so exact-number selection never reached them; only a category order did.
 
 If a request somehow reaches ordering, it stops before anything is sent to the
-carrier and says that OpenPhonex could not confirm the number is on a product it
+carrier and says that Skysay could not confirm the number is on a product it
 can price. That refusal is about the selected product, not the market: it also
 fires when the product's channel count was never recorded, so it does not tell
 you to abandon the country.
@@ -113,9 +113,9 @@ for. Registration changes which waits apply:
 
 | Status | What it means |
 | --- | --- |
-| `awaiting_verification` | Your OpenPhonex verification profile is not approved yet. Nothing carrier-side has started. |
-| `carrier_verification` | Your profile is approved by OpenPhonex, and the number is waiting on documents or on the carrier's own verdict. |
-| `fulfillment_queued` | Everything OpenPhonex needs is done and the number is being ordered. |
+| `awaiting_verification` | Your Skysay verification profile is not approved yet. Nothing carrier-side has started. |
+| `carrier_verification` | Your profile is approved by Skysay, and the number is waiting on documents or on the carrier's own verdict. |
+| `fulfillment_queued` | Everything Skysay needs is done and the number is being ordered. |
 
 ## Inbound activation and outbound calling are separate
 
@@ -125,8 +125,8 @@ not keep a carrier-ready number in provisioning. Routing, an AI agent and
 call-time funding still need to be ready before an inbound call can connect.
 
 The selected number panel shows **Outbound calling is being set up** while
-OpenPhonex registers its caller ID. Inbound calls can continue; outbound attempts
-from that number are refused until registration succeeds. OpenPhonex retries
+Skysay registers its caller ID. Inbound calls can continue; outbound attempts
+from that number are refused until registration succeeds. Skysay retries
 setup every five minutes for up to seven days, without ordering the number again.
 If setup still fails, the panel says **Outbound calling needs support**.
 
@@ -138,11 +138,11 @@ checks are still required after caller-ID registration succeeds.
 
 ## How the carrier learns who the end user is
 
-From your approved verification profile OpenPhonex creates two records at the
+From your approved verification profile Skysay creates two records at the
 carrier: an **identity** — the person or company — and an **address**, which
 belongs to that identity. Neither is bound to a phone number on its own.
 
-When a registered market number is ready, OpenPhonex opens a single
+When a registered market number is ready, Skysay opens a single
 **verification task** naming that number and that address. The carrier
 establishes the number's end user by approving the task; there is no separate
 step that attaches an identity to a number, and no state in which a number is
@@ -170,7 +170,7 @@ Two consequences worth designing for:
   carrier later refuses it, you hold a number that cannot carry production
   traffic. `GET /v1/numbers/{number_id}/activation` reports that outcome.
 - The status copy on these requests says the carrier lists no documents and that
-  OpenPhonex approved your profile. It deliberately does **not** claim the
+  Skysay approved your profile. It deliberately does **not** claim the
   carrier approved anything, because at that point the carrier has not looked.
 
 Where `carrier_proof_requirement` is `required` or `unknown`, nothing changes:
@@ -192,7 +192,7 @@ number itself. It prices them against a shared inbound-capacity plan the number
 is attached to — and before purchase there is no number yet, so nothing on the
 number says which plan that will be.
 
-Every managed OpenPhonex number is provisioned onto **one standard metered
+Every managed Skysay number is provisioned onto **one standard metered
 capacity plan**, so the plan is known before the number is ordered. The quote
 prices the inbound leg from that plan, so `matched_rate_groups` names inbound
 voice with its `customer_price` instead of waiting for someone to supply a rate.
@@ -201,7 +201,7 @@ as any other market.
 
 <Callout title="What that rate is, and is not">
   `customer_price` is **your** price per minute for inbound calls on this
-  number — what OpenPhonex charges you, on our standard metered capacity plan.
+  number — what Skysay charges you, on our standard metered capacity plan.
   It is **not** a carrier quotation for your specific number, and not a
   guarantee from the carrier. What you are billed is derived when a call is
   admitted, from the activated number's own carrier record.
@@ -213,7 +213,7 @@ Two consequences worth designing for:
   quote was based on. The quote and the charge read one plan, not two.
 - A number that ends up **outside** it — one the carrier delivers with its own
   included or dedicated channels, for example — has no metered rate to apply.
-  OpenPhonex refuses the inbound call rather than billing it at the assumed
+  Skysay refuses the inbound call rather than billing it at the assumed
   rate. `GET /v1/numbers/{number_id}/activation` reports that outcome.
 
 Where a deployment has no standard capacity plan configured — a self-hosted
@@ -222,15 +222,15 @@ install, for example — `traffic_rates.status` stays
 `missing_rate_groups`, and no `customer_price` is returned for it. It never
 falls back to a default rate.
 
-## What OpenPhonex still checks
+## What Skysay still checks
 
-Ordering first removes the *carrier's* precondition, never OpenPhonex's. In every
+Ordering first removes the *carrier's* precondition, never Skysay's. In every
 market, regardless of `carrier_proof_requirement`, a number request still waits
 for all of these:
 
-- your verification profile approved by OpenPhonex (identity check for a personal
+- your verification profile approved by Skysay (identity check for a personal
   profile, company review or identity check for a business one);
-- every requirement item OpenPhonex tracks for the market satisfied and reviewed;
+- every requirement item Skysay tracks for the market satisfied and reviewed;
 - the first payment funded.
 
 

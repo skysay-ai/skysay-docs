@@ -1,24 +1,24 @@
 ---
 title: Customer applications
-description: Orchestrate governed outbound calls from your application while OpenPhonex runs the managed voice agent.
+description: Orchestrate governed outbound calls from your application while Skysay runs the managed voice agent.
 icon: Cube
 ---
 
 Use a customer application when your system owns the changing business record
-and wants OpenPhonex to run the phone conversation. Your application selects
+and wants Skysay to run the phone conversation. Your application selects
 the case and recipient, calls the API, answers approved live-data requests
 through [Integrations](/docs/integrations), and reconciles signed results.
-OpenPhonex owns the governed call execution.
+Skysay owns the governed call execution.
 
 ## Ownership boundary
 
-| Your application owns | OpenPhonex owns |
+| Your application owns | Skysay owns |
 | --- | --- |
 | Recipients, cases, current balances, call cadence, retries, and final business outcomes | Policy- and wallet-gated call execution, managed agent runtime, tool allowlist, recordings/transcripts, and call results |
-| CRM, calendar, billing, database, correct-person policy, and business idempotency | Phone number/media operation and OpenPhonex authorization boundaries |
+| CRM, calendar, billing, database, correct-person policy, and business idempotency | Phone number/media operation and Skysay authorization boundaries |
 | Live data through an Integration Action | Stable private reference material through a Knowledge Base |
 
-The hosted agent is managed in OpenPhonex. Its AI model can be Gemini or another
+The hosted agent is managed in Skysay. Its AI model can be Gemini or another
 supported model. The model decides whether to use an allowed read Action; it
 does not receive your application's credentials or authority to choose arbitrary
 URLs.
@@ -26,7 +26,7 @@ URLs.
 ```mermaid
 sequenceDiagram
   participant App as Your application
-  participant OP as OpenPhonex
+  participant OP as Skysay
   participant Agent as Hosted agent
   participant Adapter as Your Integration adapter
   participant System as CRM or billing system
@@ -49,7 +49,7 @@ the optional `idempotency_key` body field. The [generated API
 reference](/docs/api-reference) contains the exact current schema.
 
 ```bash
-curl -X POST https://api.openphonex.com/v1/calls \
+curl -X POST https://api.skysay.ai/v1/calls \
   -H "Authorization: Bearer $OPENPHONEX_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: reminder-case-456-attempt-1" \
@@ -71,7 +71,7 @@ curl -X POST https://api.openphonex.com/v1/calls \
   }'
 ```
 
-`external_reference` is your stable case ID; OpenPhonex stores it but does not
+`external_reference` is your stable case ID; Skysay stores it but does not
 interpret it. `external_group_reference` can identify your batch. Keep
 `call_context` small and non-secret—at most 32 JSON properties—and use it only
 for facts valid when the call begins. It is not a place for case history,
@@ -106,7 +106,7 @@ the call completed.
 ## Live facts come from typed Actions
 
 Attach only the read Actions that this agent needs. At call time the model can
-supply only that Action's declared business arguments. OpenPhonex injects the
+supply only that Action's declared business arguments. Skysay injects the
 canonical organization, project, call, agent, external references, and call
 context; it signs the request to your adapter. Your adapter verifies the
 signature, checks its own business authorization, dispatches `tool.name`, and
@@ -128,7 +128,7 @@ and the conversation is sensitive.
 1. Your application selects a permitted case and recipient under its own
    cadence, suppression, dispute, time-window, and retry rules. It creates a
    bounded call with an `external_reference` such as `case_456`.
-2. OpenPhonex independently authorizes the requested call under its policy,
+2. Skysay independently authorizes the requested call under its policy,
    wallet, and organization controls, then runs the configured managed agent.
 3. Stable explanation of your payment policy can live in a Knowledge Base.
    Account status and payment link must be requested through a narrow read
@@ -143,16 +143,16 @@ and the conversation is sensitive.
    the evidence it needs, and determines its own next business step. Advisory
    extraction can assist triage but cannot be the accounting or policy record.
 
-OpenPhonex does not replace your CRM, debt/case system, consent process, or
+Skysay does not replace your CRM, debt/case system, consent process, or
 correct-person verification. It provides the governed telephony and managed
 agent layer around the call.
 
 ## Build for reconciliation
 
-Persist your own case ID, the returned OpenPhonex call ID, idempotency key, and
+Persist your own case ID, the returned Skysay call ID, idempotency key, and
 the final event ID. Deduplicate signed events by their event `id`; deliveries
 are retryable. Treat terminal lifecycle events and call evidence as authoritative
-for the OpenPhonex outcome. Treat your own case state as authoritative for your
+for the Skysay outcome. Treat your own case state as authoritative for your
 business outcome.
 
 For a compact, schema-validated summary after a completed call, configure

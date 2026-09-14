@@ -4,7 +4,7 @@ description: Verify signed lifecycle and artifact events, then optionally read a
 icon: BadgeCheck
 ---
 
-Use signed lifecycle events to reconcile what OpenPhonex did, and use the call
+Use signed lifecycle events to reconcile what Skysay did, and use the call
 evidence endpoints when you need the recording, transcript, or artifact itself.
 An optional post-call extraction is a convenience summary derived after a call;
 it is never the authoritative billing, policy, or customer-system record.
@@ -54,7 +54,7 @@ when an endpoint needs attention.
 
 ## Verify every delivery
 
-OpenPhonex sends a canonical JSON envelope and the same HMAC headers described
+Skysay sends a canonical JSON envelope and the same HMAC headers described
 for [Integration Actions](/docs/integrations):
 
 ```json
@@ -76,7 +76,7 @@ event `id`, and make your event handler idempotent. Deliveries are retried with
 backoff, so the same event can arrive more than once. A successful response from
 your endpoint is an acknowledgement, not permission to skip deduplication.
 
-Use terminal call events and the evidence endpoints as the OpenPhonex outcome
+Use terminal call events and the evidence endpoints as the Skysay outcome
 record. The `data` body contains result context; fetch the scoped resource when
 you need the full artifact instead of relying on event bodies as a data export.
 `GET /v1/calls/{call_id}` (using `data.call_id` from the event) is the
@@ -101,9 +101,9 @@ reinterpreted:
 ```
 
 Treat this as structured technical evidence, not a business outcome. The fields
-come from a fixed OpenPhonex vocabulary; raw provider error text, SIP headers,
+come from a fixed Skysay vocabulary; raw provider error text, SIP headers,
 exceptions, phone numbers, transcripts, credentials, and stack traces are not
-included. `sip_status_code` is nullable. When OpenPhonex cannot prove a safe
+included. `sip_status_code` is nullable. When Skysay cannot prove a safe
 cause, `availability` and `terminal_status` remain `unknown` rather than being
 inferred from call duration or today’s configuration.
 
@@ -203,7 +203,7 @@ rather than none. In a scripted workflow `agent_completed` will usually be the
 commonest of all.
 
 When the agent ends the call itself, its closing line is now played to the end
-before the call is torn down. OpenPhonex learns that a line has finished playing
+before the call is torn down. Skysay learns that a line has finished playing
 slightly before the other party has actually heard it, and hanging up at that
 moment clipped the last word or two. The call is instead held open until the
 audio going to the caller has fallen quiet. That wait is short and bounded: it
@@ -211,7 +211,7 @@ gives up after about a second and ends the call anyway, so a closing line that
 never finishes cannot hold a call open. Where the audio could not be observed,
 the ending is recorded as unconfirmed rather than as heard.
 
-Beyond those two, OpenPhonex ends a live call by itself when one of the
+Beyond those two, Skysay ends a live call by itself when one of the
 following applies, so a call cannot run unattended against your balance. These are safety limits
 rather than ordinary endings: they exist for a call that is going nowhere. Each
 reports the matching `ended_reason` above. The maximum length and the silence
@@ -220,7 +220,7 @@ empty-line check uses a platform value that is the same for every agent.
 
 **Nobody is left on the call.** The call ends once the agent is the only one
 on it. Normally the network reports the moment the other party leaves. As a
-backstop OpenPhonex also asks the media server who is on the call every 15
+backstop Skysay also asks the media server who is on the call every 15
 seconds and ends one that has been empty for 15 seconds continuously, so a
 notification that never arrives cannot leave an agent talking to nobody. Both
 routes report `remote_party_disconnected`, because they are the same ending;
@@ -243,13 +243,13 @@ voicemail detector. What it catches is a call that connects to silence.
 
 A call is handled by a worker process, and that worker normally reports the
 ending itself. If it stops — it crashes, or it stops making progress while the
-call is still open — OpenPhonex settles the call for you rather than leaving it
+call is still open — Skysay settles the call for you rather than leaving it
 open against your balance. Two checks do this, and neither is configurable:
 
 - **The worker stops reporting.** Its status is checked every 5 seconds, and a
   worker silent for more than 15 seconds is treated as gone. The call is settled
   within roughly 20 seconds.
-- **The worker keeps reporting but the call is empty.** OpenPhonex asks the
+- **The worker keeps reporting but the call is empty.** Skysay asks the
   media server who is on the call. If the other party has been absent for
   **2 minutes** continuously while the worker is still reporting, the call is
   settled anyway. The wait is deliberately longer than a healthy ending takes,
@@ -284,7 +284,7 @@ call. Nothing extra is charged for the ending itself, and because the call
 stops sooner than it otherwise would, these rules can only reduce what a call
 costs.
 
-A call's recorded end is the moment the call ended, not the moment OpenPhonex
+A call's recorded end is the moment the call ended, not the moment Skysay
 finished tearing it down. Those are normally a second apart. Where they are
 not, because a teardown was slow, the gap between them is not billed to you and
 does not appear in the call's duration.
@@ -328,7 +328,7 @@ GET /v1/call-results?organization_id=org_123&project_id=proj_123&external_group_
 ```
 
 The key is meaningful only to your application. It must be inside the
-authenticated organization and project, and OpenPhonex does not give it
+authenticated organization and project, and Skysay does not give it
 campaign, collection, retry, or business-state semantics. The route requires
 both `calls:read` and `recordings:read` because its evidence pointers can lead
 to authenticated recording or transcript resources.
@@ -360,8 +360,8 @@ validated signal, `human_answered` and `voicemail` are explicitly
 
 For optional extraction, `schema_version` identifies the immutable customer
 schema used for that call, while `analysis_version` identifies the
-OpenPhonex-owned advisory evidence envelope. `analysis_version` is snapshotted
-when the extraction is enqueued: a later OpenPhonex analysis release never
+Skysay-owned advisory evidence envelope. `analysis_version` is snapshotted
+when the extraction is enqueued: a later Skysay analysis release never
 relabels an existing call's result, although newly enqueued work can use a
 newer version. Preserve both when you store a reference to an extraction.
 Handle `call.extraction.ready` and

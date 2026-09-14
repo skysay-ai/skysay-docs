@@ -88,8 +88,8 @@ const LOCAL_HOST = (() => {
 // The public hosts this site is served on. A rendered link that names one of
 // them is an in-site anchor claim even though it is written scheme-absolute,
 // and skipping it as "external" is how a broken fragment gets a pass.
-// `next.config.mjs` keeps `openphonex.com` canonical and redirects `www`.
-export const IN_SITE_HOSTS = new Set(["openphonex.com", "www.openphonex.com"]);
+// `next.config.mjs` keeps `skysay.ai` canonical and redirects `www`.
+export const IN_SITE_HOSTS = new Set(["skysay.ai", "www.skysay.ai"]);
 
 const NAMED_ENTITIES = new Map([
   ["amp", "&"],

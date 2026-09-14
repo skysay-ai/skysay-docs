@@ -5,7 +5,7 @@ import { blogSource, getLLMText, source } from "@/lib/source";
 // one request.
 export const dynamic = "force-static";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://openphonex.com";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://skysay.ai";
 
 export async function GET() {
   const docsPages = source.getPages();
@@ -13,10 +13,10 @@ export async function GET() {
     (a, b) => (b.data.date ? new Date(b.data.date).getTime() : 0) - (a.data.date ? new Date(a.data.date).getTime() : 0),
   );
 
-  const header = `# OpenPhonex — full docs + blog corpus
+  const header = `# Skysay — full docs + blog corpus
 
 Agent-native telephony: real phone numbers, calls, and SMS an AI agent runs on
-its own over MCP. This file is the entire OpenPhonex documentation and blog in
+its own over MCP. This file is the entire Skysay documentation and blog in
 one pull. The machine-readable API lives at:
 
 - OpenAPI: ${SITE}/control-plane/openapi.json

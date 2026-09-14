@@ -3,9 +3,9 @@ import { blogSource, source } from "@/lib/source";
 // Sitemap for everything this app owns: every /docs page, the /blog index, and
 // every /blog post. It is published at /docs/sitemap.xml rather than
 // /sitemap.xml because only the docs prefixes are routed to this component on
-// openphonex.com — the site-root sitemap stays with the main app and links here
+// skysay.ai — the site-root sitemap stays with the main app and links here
 // as a sitemap index entry.
-const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://openphonex.com").replace(/\/$/, "");
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://skysay.ai").replace(/\/$/, "");
 
 function absoluteUrl(pathname) {
   return `${SITE}${pathname === "/" ? "" : pathname}`;

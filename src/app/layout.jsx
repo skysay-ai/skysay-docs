@@ -1,28 +1,28 @@
 import "./globals.css";
 
-// Root layout for the standalone docs app. On openphonex.com this app serves
+// Root layout for the standalone docs app. On skysay.ai this app serves
 // only /docs, /blog, /llms.txt, /llms-full.txt, /raw and /api/search; the rest
 // of the site is a separate app behind the same hostname. Metadata below
 // mirrors the site-wide metadata so page <title> and social cards are identical
 // at those paths.
 export const metadata = {
   title: {
-    default: "OpenPhonex - Telephony for AI Agents",
-    template: "%s - OpenPhonex",
+    default: "Skysay - Telephony for AI Agents",
+    template: "%s - Skysay",
   },
   description: "Phone numbers, calls, SMS, recordings, transcripts, and compliance-aware onboarding for AI agents.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://openphonex.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://skysay.ai"),
   openGraph: {
-    title: "OpenPhonex - Telephony for AI Agents",
+    title: "Skysay - Telephony for AI Agents",
     description: "Phone numbers, calls, SMS, recordings, transcripts, and compliance-aware onboarding for AI agents.",
-    images: ["/brand/preview/openphonex-header-implementation.png"],
+    images: ["/brand/preview/skysay-header-implementation.png"],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "OpenPhonex - Telephony for AI Agents",
+    title: "Skysay - Telephony for AI Agents",
     description: "Phone numbers, calls, SMS, recordings, transcripts, and compliance-aware onboarding for AI agents.",
-    images: ["/brand/preview/openphonex-header-implementation.png"],
+    images: ["/brand/preview/skysay-header-implementation.png"],
   },
   icons: {
     icon: [

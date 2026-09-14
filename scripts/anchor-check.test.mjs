@@ -83,11 +83,11 @@ test("the page list is read from the site's own sitemap", () => {
   // sitemap is built from `source.getPages()`, so it already knows all of it.
   assert.deepEqual(
     sitemapPaths(
-      "<urlset><url><loc>https://openphonex.com/docs/guide/index</loc></url>" +
-        "<url><loc>https://openphonex.com/docs/(group)/x</loc></url>" +
-        "<url><loc>https://openphonex.com/docs/extra/</loc></url>" +
-        "<url><loc>https://openphonex.com/blog/launch</loc></url>" +
-        "<url><loc>https://openphonex.com/docs/guide/index</loc></url></urlset>",
+      "<urlset><url><loc>https://skysay.ai/docs/guide/index</loc></url>" +
+        "<url><loc>https://skysay.ai/docs/(group)/x</loc></url>" +
+        "<url><loc>https://skysay.ai/docs/extra/</loc></url>" +
+        "<url><loc>https://skysay.ai/blog/launch</loc></url>" +
+        "<url><loc>https://skysay.ai/docs/guide/index</loc></url></urlset>",
     ),
     ["/blog/launch", "/docs/(group)/x", "/docs/extra", "/docs/guide/index"],
   );
@@ -95,7 +95,7 @@ test("the page list is read from the site's own sitemap", () => {
 
 test("sitemap locs are entity-decoded and unparseable ones are skipped", () => {
   assert.deepEqual(
-    sitemapPaths("<urlset><loc>https://openphonex.com/docs/a?x=1&amp;y=2</loc><loc>not a url</loc></urlset>"),
+    sitemapPaths("<urlset><loc>https://skysay.ai/docs/a?x=1&amp;y=2</loc><loc>not a url</loc></urlset>"),
     ["/docs/a"],
   );
   assert.deepEqual(sitemapPaths(""), []);
@@ -138,7 +138,7 @@ test("a same-page fragment resolves against the page it appears on", () => {
 });
 
 test("a scheme-absolute link to this same site is an in-site claim, not an external link", () => {
-  for (const host of ["https://openphonex.com", "https://www.openphonex.com"]) {
+  for (const host of ["https://skysay.ai", "https://www.skysay.ai"]) {
     assert.deepEqual(parseInSiteLink(`${host}/docs/voice-behavior#missing`, "/docs/changelog"), {
       targetPath: "/docs/voice-behavior",
       fragment: "missing",
@@ -199,8 +199,8 @@ test("a bare '#' is a no-op link, not an anchor claim", () => {
 test("genuinely external targets and non-http schemes are skipped", () => {
   for (const href of [
     "http://example.test/#y",
-    "https://github.com/OpenPhonex#y",
-    "mailto:support@openphonex.com#y",
+    "https://github.com/Skysay#y",
+    "mailto:support@skysay.ai#y",
     "tel:+3725555555#y",
     "//cdn.example.test/a#y",
   ]) {
@@ -220,7 +220,7 @@ test("plain-text and asset targets carry no ids and are skipped", () => {
 // server publishes one. Sitemap COMPLETENESS is parity-check.mjs's job, by path;
 // nothing here compares counts.
 function sitemapXml(paths = ["/docs/a"]) {
-  return `<?xml version="1.0"?><urlset>${paths.map((one) => `<url><loc>https://openphonex.com${one}</loc></url>`).join("")}</urlset>`;
+  return `<?xml version="1.0"?><urlset>${paths.map((one) => `<url><loc>https://skysay.ai${one}</loc></url>`).join("")}</urlset>`;
 }
 
 function serve(handler, sitemapPathList) {

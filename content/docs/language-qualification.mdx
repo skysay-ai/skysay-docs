@@ -1,14 +1,14 @@
 ---
-title: How OpenPhonex handles provider languages and voices
-description: How provider-reported inventories become searchable, what OpenPhonex still validates for live calls, and what happens when a provider changes its catalog.
+title: How Skysay handles provider languages and voices
+description: How provider-reported inventories become searchable, what Skysay still validates for live calls, and what happens when a provider changes its catalog.
 icon: Language
 ---
 
-OpenPhonex separates two different questions:
+Skysay separates two different questions:
 
 1. **What does the provider currently advertise?** The provider reports its
    voices, voice identifiers, languages, models, and metadata.
-2. **What can this OpenPhonex runtime execute?** OpenPhonex declares the
+2. **What can this Skysay runtime execute?** Skysay declares the
    speech-to-text, model, and text-to-speech adapters and languages that its
    workers can run end to end.
 
@@ -23,16 +23,16 @@ opening language does not lock the rest of the call.
 
 ## Provider-backed voice cache
 
-For each configured provider, OpenPhonex reads the provider's voice inventory
+For each configured provider, Skysay reads the provider's voice inventory
 through its adapter and stores a scoped cache. The workspace reads that cache;
 opening the Voices page or an AI agent never waits for a provider request.
 
-- A managed OpenPhonex credential contributes to the shared managed inventory.
+- A managed Skysay credential contributes to the shared managed inventory.
 - A bring-your-own credential has a private inventory scoped to that workspace,
   project, credential, and provider. It is never copied into the managed
   inventory or another workspace.
 - The cache refreshes in the background. If a refresh fails or returns an
-  invalid response, OpenPhonex continues serving the last good inventory.
+  invalid response, Skysay continues serving the last good inventory.
 - Large provider inventories are bounded and marked as truncated. A partial
   result never proves that an unobserved voice was removed.
 - Providers that do not expose a listing API may use provider documentation as
@@ -40,12 +40,12 @@ opening the Voices page or an AI agent never waits for a provider request.
   as a live provider result.
 
 The provider's language and descriptive metadata are provider-reported
-information, not an OpenPhonex quality score or accuracy guarantee.
+information, not an Skysay quality score or accuracy guarantee.
 
 ### Cartesia Sonic 3.6
 
 Cartesia Sonic 3.6 is a streaming TTS option in the same catalog. It does not
-ship with a checked-in OpenPhonex voice list: the managed inventory contains
+ship with a checked-in Skysay voice list: the managed inventory contains
 only Cartesia voices the provider marks public and not owned by the managed
 account. With your own Cartesia credential, the inventory is private to that
 credential and can include its owned or cloned voices.
@@ -64,7 +64,7 @@ Azure AI Speech contributes two catalog options, and they are independent of
 each other:
 
 - **Transcription** — an Azure real-time speech-to-text option, offered for
-  every language OpenPhonex runs. It is offered alongside the existing options
+  every language Skysay runs. It is offered alongside the existing options
   rather than replacing any of them, and it is not the default for any
   language: an agent uses Azure transcription only if you select it.
 - **Voices** — Azure's neural voice catalog, through the same provider-cached
@@ -82,7 +82,7 @@ The catalog offers many more voices than there are languages an agent can be
 saved in, because the inventory reports every language Azure declares for a
 voice. **Test voice** works across the whole imported library, so you can hear
 a voice before knowing whether an agent can be built on it; saving an agent
-still requires a language OpenPhonex runs, and the editor says so at the point
+still requires a language Skysay runs, and the editor says so at the point
 of saving.
 
 Choose the exact provider-reported voice ID and a language the catalog offers
@@ -90,9 +90,9 @@ for the declared runtime stack. The worker never infers a runnable language
 from a voice name: a multilingual Azure voice speaks the language you selected,
 not the one in its identifier. Azure transcription is priced in audio seconds
 and Azure synthesis in submitted text characters — including the markup
-OpenPhonex adds around your text, and with some scripts counted at more than
+Skysay adds around your text, and with some scripts counted at more than
 one billable character each. The catalog is the current source for the
-applicable price and reserve estimate. Azure runs on an OpenPhonex-managed
+applicable price and reserve estimate. Azure runs on an Skysay-managed
 credential only — there is no bring-your-own-key path for it today.
 
 ### OpenAI GPT-Live 1
@@ -101,13 +101,13 @@ GPT-Live 1's fourteen voices come from OpenAI's documented voice table rather
 than a listing API, so their inventory is documentation-derived like Gemini's.
 They carry no per-voice language list on purpose: the engine follows the
 caller's language and is not qualified per language through the Standard
-speech-to-text and text-to-speech tables. What OpenPhonex has measured per
+speech-to-text and text-to-speech tables. What Skysay has measured per
 language, and how to test yours, is on
 [Which languages the voice agent follows](/docs/language-following).
 
 ## Choosing a language and voice
 
-OpenPhonex does not choose a default or recommended language or voice for a new
+Skysay does not choose a default or recommended language or voice for a new
 AI agent. Choose its languages and opening language explicitly, then a shared
 voice stack that can run them. Optional per-language overrides do not require
 separate agent copies or a manually generated sample for each language. The
@@ -119,7 +119,7 @@ nationality.
 
 In **Choose before the call**, the selected language profile stays fixed for
 that call. **Follow the caller** additionally needs a transcriber mode that can
-recognize the selected languages in the same conversation. OpenPhonex checks
+recognize the selected languages in the same conversation. Skysay checks
 that separate capability against the existing provider/model declaration; it
 does not infer simultaneous recognition by adding together monolingual
 language lists. A model may therefore work for a fixed-language call but not
@@ -154,7 +154,7 @@ from a provider's monolingual language count.
 
 A provider may support more fixed languages than simultaneous candidates.
 Recognition of a language also does not prove that your selected TTS voice can
-speak it. OpenPhonex preserves your voice choice and shows configuration
+speak it. Skysay preserves your voice choice and shows configuration
 conflicts instead of choosing a different voice automatically.
 
 Soniox can hear languages outside a restricted reply-language set. That does
@@ -210,19 +210,19 @@ curated collection. Its horizontal **Language**, **Accent**, **Character**, and
 - clearing every selection means all cached voices again.
 
 The filter values come from the cached provider metadata. **Character** means
-provider-reported style or persona tags, not a gender inferred by OpenPhonex.
+provider-reported style or persona tags, not a gender inferred by Skysay.
 A duplicated human language label stays distinguishable by its provider code
 rather than collapsing one provider claim into another.
 
 Use **Play** to hear a voice. When a target language is selected, a compatible
 cached recording plays immediately only when its catalog provenance proves that
 it matches the target. At present, that proof exists for English only on an
-OpenPhonex ingestion-synthesized sample; a provider recording without a
+Skysay ingestion-synthesized sample; a provider recording without a
 spoken-language assertion is not assumed to be English. With no Language
 filter or chosen preview language, an existing recording can instead play as
 published, and the row labels unverified spoken language rather than inferring
 one. If no suitable recording exists, or if you enter your own text,
-OpenPhonex uses the same explicit live preview command as **Test voice**. That
+Skysay uses the same explicit live preview command as **Test voice**. That
 command is bounded, metered and rate-limited for the workspace. If it cannot
 run, the page gives a local safe error; it does not show a provider credential,
 trace, or raw provider response.
@@ -247,21 +247,21 @@ managed scoped inventory. For a bring-your-own credential, the exact voice ID
 must be accepted through that credential's own validation/preview path; a
 similarly named or identical managed voice does not authorize it.
 
-The runnable language set is still bounded by the OpenPhonex worker registry.
+The runnable language set is still bounded by the Skysay worker registry.
 The selected provider, model, and language must form a declared streaming stack
 for calls. Provider-advertised languages outside that set may be browsable or
 previewable, but they are not silently admitted to a live agent.
 
 ## When a provider removes a voice
 
-OpenPhonex never replaces an AI agent's stored voice with a fallback voice.
+Skysay never replaces an AI agent's stored voice with a fallback voice.
 Changing a voice changes the agent's identity and must remain an explicit user
 choice.
 
 If a completed provider inventory no longer contains an existing stored voice,
 the editor keeps that exact selection visible and warns you. An unavailable or
 partial provider listing is not enough to disable it. If an exact provider
-request definitively reports that the voice no longer exists, OpenPhonex marks
+request definitively reports that the voice no longer exists, Skysay marks
 that exact scoped voice unavailable and blocks new call admission until you
 choose another voice or an explicit successful validation clears the marker.
 

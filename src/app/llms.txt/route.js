@@ -5,7 +5,7 @@ import { blogSource, source } from "@/lib/source";
 // serves its own /control-plane/llms.txt — different paths, cross-linked.
 export const dynamic = "force-static";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://openphonex.com";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://skysay.ai";
 
 function line(page) {
   const desc = page.data.description ? `: ${page.data.description}` : "";
@@ -20,7 +20,7 @@ export function GET() {
     .map(line)
     .join("\n");
 
-  const body = `# OpenPhonex
+  const body = `# Skysay
 
 > Agent-native telephony: real phone numbers, calls, and SMS an AI agent runs on its own over MCP, described in llms.txt so any AI already knows how to use it.
 
