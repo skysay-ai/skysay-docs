@@ -424,13 +424,24 @@ def promote(module, receipt, primitive_identity, app_repo):
         _promote(module, receipt, primitive_identity, app_repo)
     except Exception as failure:
         outcome = "rollback_failed" if isinstance(failure, RollbackFailed) else "rolled_back" if isinstance(failure, RolledBack) else "not_started" if isinstance(failure, NotStarted) else "refused"
-        result = {"receipt_sha256": digest(receipt), "outcome": outcome, "failure_class": type(failure).__name__, "elapsed_seconds": round(time.monotonic() - started, 3), "completed_at": dt.datetime.now(dt.timezone.utc).isoformat()}
+        result = {"receipt_sha256": digest(receipt), "outcome": outcome, "failure_class": type(failure).__name__, "reason": refusal(failure), "elapsed_seconds": round(time.monotonic() - started, 3), "completed_at": dt.datetime.now(dt.timezone.utc).isoformat()}
         try:
             evidence = str(save(module, "promotions", result))
         except Exception:
             evidence = None
-        diagnostic({"outcome": outcome, "evidence": evidence})
+        diagnostic({"outcome": outcome, "evidence": evidence, "reason": result["reason"]})
         raise
+
+
+def refusal(failure):
+    # Which proof refused. A rolled-back promotion names the proof that failed,
+    # not the rollback; the class alone ("Refused") told the operator nothing
+    # on 2026-09-14 and cost a burned tag to find out. Every Refused message is
+    # adapter-authored -- a literal, an executable name, a status code or an
+    # exception class -- so it can be printed and persisted; captured command
+    # output never reaches one. Anything else is reported by class only.
+    cause = failure.__cause__ if isinstance(failure, (RolledBack, RollbackFailed)) and failure.__cause__ is not None else failure
+    return str(cause) if isinstance(cause, Refused) else type(cause).__name__
 
 
 def diagnostic(value):

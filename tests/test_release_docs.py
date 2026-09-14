@@ -247,6 +247,20 @@ class PromotionTests(unittest.TestCase):
         self.assertEqual(self.update_spec.call_count, 2)
         self.assertEqual(self.save_evidence.call_args.args[2]["outcome"], "rolled_back")
 
+    def test_rolled_back_promotion_names_the_proof_that_refused(self):
+        self.probe.side_effect = [r.Refused("docs route proof failed: revision header mismatch"), {"rollback_passed": True}]
+        with patch.object(r, "diagnostic") as diagnostic:
+            with self.assertRaises(r.RolledBack):
+                self.run_release()
+        self.assertEqual(diagnostic.call_args.args[0]["reason"], "docs route proof failed: revision header mismatch")
+        self.assertEqual(self.save_evidence.call_args.args[2]["reason"], "docs route proof failed: revision header mismatch")
+
+    def test_refusal_reports_a_foreign_exception_by_class_only(self):
+        self.assertEqual(r.refusal(r.RolledBack("x")), "x")
+        wrapped = r.RolledBack("docs promotion failed and was rolled back: KeyError")
+        wrapped.__cause__ = KeyError("spec")
+        self.assertEqual(r.refusal(wrapped), "KeyError")
+
     def test_failed_proof_with_foreign_spec_does_not_overwrite_it(self):
         def fail(*_):
             self.spec["services"][0]["image"]["tag"] = "foreign-new-web"
@@ -292,7 +306,7 @@ class PromotionTests(unittest.TestCase):
             with self.assertRaises(r.RollbackFailed) as raised:
                 self.run_release()
         self.assertIs(raised.exception, failure)
-        self.assertEqual(diagnostic.call_args.args[0], {"outcome": "rollback_failed", "evidence": None})
+        self.assertEqual(diagnostic.call_args.args[0], {"outcome": "rollback_failed", "evidence": None, "reason": "production restore requires attention"})
 
     def test_stderr_failure_cannot_downgrade_rollback_failure(self):
         with patch.object(r, "primitives", return_value=(self.module, PRIMITIVES)), patch.object(r, "_promote", side_effect=r.RollbackFailed("restore failed")), patch.object(r, "read", return_value=receipt()), patch("builtins.print", side_effect=BrokenPipeError()):
