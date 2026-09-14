@@ -100,7 +100,7 @@ class ApiReferenceTests(unittest.TestCase):
             slug: (ROOT / "content" / "docs" / f"{slug}.mdx").read_text(encoding="utf-8")
             for slug in ("integrations", "customer-applications", "post-call-results", "voice-library")
         }
-        self.assertIn("openphonex.integration_tool_call", guide_text["integrations"])
+        self.assertIn("skysay.integration_tool_call", guide_text["integrations"])
         self.assertIn("X-Agent-Telco-Signature", guide_text["integrations"])
         self.assertIn("POST /v1/calls", guide_text["customer-applications"])
         self.assertIn("Idempotency-Key", guide_text["customer-applications"])
