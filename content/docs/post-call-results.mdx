@@ -239,6 +239,37 @@ once the rule does not apply again for the rest of that call. This measures
 audio, not intent: a voicemail greeting is speech, so this rule is not a
 voicemail detector. What it catches is a call that connects to silence.
 
+### If the software handling your call faults
+
+A call is handled by a worker process, and that worker normally reports the
+ending itself. If it stops — it crashes, or it stops making progress while the
+call is still open — OpenPhonex settles the call for you rather than leaving it
+open against your balance. Two checks do this, and neither is configurable:
+
+- **The worker stops reporting.** Its status is checked every 5 seconds, and a
+  worker silent for more than 15 seconds is treated as gone. The call is settled
+  within roughly 20 seconds.
+- **The worker keeps reporting but the call is empty.** OpenPhonex asks the
+  media server who is on the call. If the other party has been absent for
+  **2 minutes** continuously while the worker is still reporting, the call is
+  settled anyway. The wait is deliberately longer than a healthy ending takes,
+  so a merely slow worker is never overtaken and still gets to report its own
+  reason.
+
+A call settled this way is `completed`, and it carries the `ended_reason` the
+worker had already decided — `remote_party_disconnected` when the other party
+left, and so on from the table above. No new value is introduced. When the
+worker faulted before deciding anything, `ended_reason` is empty rather than
+guessed at, because nothing observed why the call ended.
+
+The billed length is measured to the moment the call actually ended, not to the
+moment the fault was noticed. If the worker had decided on an ending, that
+instant is used, whichever of the two checks settled the call. Where it decided
+nothing, each check falls back to the closest boundary it can actually observe:
+the worker's last report when the worker went silent, and the first check that
+saw the other party gone when the worker was still reporting. A call that hung
+for half an hour after the other party left is billed to when they left.
+
 A hangup you request yourself is not automatic either, and it reports
 `hangup_requested`. Ask before the call has started ending and that is what you
 get; ask once the agent's own ending is already under way and the call keeps
@@ -252,6 +283,11 @@ A call ended by one of these rules is billed exactly like any other completed
 call. Nothing extra is charged for the ending itself, and because the call
 stops sooner than it otherwise would, these rules can only reduce what a call
 costs.
+
+A call's recorded end is the moment the call ended, not the moment OpenPhonex
+finished tearing it down. Those are normally a second apart. Where they are
+not, because a teardown was slow, the gap between them is not billed to you and
+does not appear in the call's duration.
 
 ### Changing the values
 
