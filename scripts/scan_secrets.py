@@ -15,7 +15,7 @@ slip through in a .csv/.svg/.xml/.log file.
 Rules:
   * PEM / OpenSSH / PGP private-key headers
   * AWS access key ids (AKIA...)
-  * Skysay tokens: tai_/tapi_<24+> (org key), tgw_<24+> (gateway token)
+  * Skysay tokens: sky_/tai_/tapi_<24+> (org key), skygw_/tgw_<24+> (gateway token)
   * OpenAI keys (sk-<20+>), Google/Gemini keys (AIza<35>), ElevenLabs (sk_<hex>)
   * GitHub tokens (gh[pousr]_<36+>), Slack tokens (xox[baprs]-...)
   * generic `password/secret/api_key/token = <high-entropy literal>`
@@ -93,7 +93,8 @@ PLACEHOLDER_SUBSTRINGS = (
 )
 
 PLACEHOLDER_TOKENS = frozenset(
-    {"tai_...", "tapi_...", "tgw_...", "gw_...", "sk-...", "tai_", "tapi_", "tgw_"}
+    {"sky_...", "skygw_...", "tai_...", "tapi_...", "tgw_...", "gw_...", "sk-...",
+     "sky_", "skygw_", "tai_", "tapi_", "tgw_"}
 )
 
 
@@ -224,15 +225,16 @@ _TOKEN_RULES = [
     ),
     Rule(
         "skysay-org-token",
-        # Org API keys are minted as `tai_`; `tapi_` is the legacy/doc form. The
-        # body is base64url, so `-`/`_` are part of the token.
-        re.compile(r"(?<![A-Za-z0-9_-])t(?:ai|api)_[A-Za-z0-9_-]{24,}"),
-        "This is a live org API key (tai_/tapi_). Rotate it; docs must use tai_... placeholders.",
+        # Org API keys are minted as `sky_`; `tai_`/`tapi_` are the prior
+        # generations, still valid since verification is by hash. The body is
+        # base64url, so `-`/`_` are part of the token.
+        re.compile(r"(?<![A-Za-z0-9_-])(?:sky|tai|tapi)_[A-Za-z0-9_-]{24,}"),
+        "This is a live org API key (sky_/tai_/tapi_). Rotate it; docs must use sky_... placeholders.",
     ),
     Rule(
         "skysay-gateway-token",
-        re.compile(r"(?<![A-Za-z0-9_-])tgw_[A-Za-z0-9_-]{24,}"),
-        "Live per-gateway token (tgw_). Rotate it and use a placeholder.",
+        re.compile(r"(?<![A-Za-z0-9_-])(?:skygw|tgw)_[A-Za-z0-9_-]{24,}"),
+        "Live per-gateway token (skygw_/tgw_). Rotate it and use a placeholder.",
     ),
     Rule(
         "openai-key",
@@ -605,6 +607,8 @@ _POSITIVE_FIXTURES = {
     "planted_org_token.env": "SKYSAY_WORKER_API_TOKEN=" + "tai_" + "A1b2C3d4E5f6G7h8I9j0K1l2" + "\n",
     "planted_gateway_urlsafe.env": "SKYSAY_GATEWAY_API_TOKEN=" + "tgw_" + "A1b2-C3d4_E5f6-G7h8_I9j0K1" + "\n",
     "planted_org_urlsafe.env": "SKYSAY_WORKER_API_TOKEN=" + "tapi_" + "aa-bb_cc-dd_ee-ff_gg-hh_ii1" + "\n",
+    "planted_gateway_token_sky.env": "SKYSAY_GATEWAY_API_TOKEN=" + "skygw_" + "A1b2C3d4E5f6G7h8I9j0K1l2" + "\n",
+    "planted_org_token_sky.env": "SKYSAY_WORKER_API_TOKEN=" + "sky_" + "A1b2C3d4E5f6G7h8I9j0K1l2" + "\n",
     "planted_sip.conf": "password=" + "Zx4Qw9Rt2Yu7Bn3Kp" + "\nmatch=8.8.8.8\n",
     "planted_openai.txt": "key: " + "sk-" + "ABCDEFGHIJKLMNOPQRSTUV12" + "\n",
     "planted_github.txt": "token " + "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8" + "\n",
@@ -621,6 +625,7 @@ _POSITIVE_FIXTURES = {
 _NEGATIVE_FIXTURES = {
     "ok_env_ref.conf": "password=${SIP_PASSWORD}\nusername=${SIP_TRUNK_USERNAME}\n",
     "ok_placeholder.md": "Use `tai_...` as your key, or `<your-api-key>`.\n",
+    "ok_placeholder_sky.md": "Use `sky_...` as your key, or `skygw_...` as your gateway token.\n",
     "ok_private_ip.conf": "bind=10.0.0.4\nadvertise=127.0.0.1\ndocs=203.0.113.9\n",
     # Reserved-for-documentation numbers and structural placeholders.
     "ok_reserved_did.md": "Call +1 555 0100 or +1 (555) 010-0142 in examples.\n",

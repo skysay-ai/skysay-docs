@@ -40,13 +40,13 @@ self-managed provider, and sandbox accounts apart.
 ## Credentials for a self-hosted gateway
 
 An inbound self-hosted gateway holds **one** runtime credential: the
-deployment-bound `tgw_` token. Create it in the **Gateway Tokens** card after
+deployment-bound `skygw_` token. Create it in the **Gateway Tokens** card after
 the gateway deployment is registered. Its one-time reveal includes this exact
 line; replace the blank `SKYSAY_GATEWAY_API_TOKEN=` assignment in the
 gateway host's `.env.livekit` with the whole revealed line:
 
 ```dotenv
-SKYSAY_GATEWAY_API_TOKEN=tgw_...
+SKYSAY_GATEWAY_API_TOKEN=skygw_...
 ```
 
 That token performs the whole call path: the number-rules sync, the inbound
@@ -59,7 +59,7 @@ Two limits make that boundary real rather than nominal:
 
 - `tools/list` is the only MCP method a gateway token may call. It returns the
   static tool catalogue and reads no workspace row; `tools/call` and the
-  resource methods stay refused, so a stolen `tgw_` cannot send an SMS or read
+  resource methods stay refused, so a stolen `skygw_` cannot send an SMS or read
   a recording through MCP.
 - The token's `kind_allowlist` carries `call.inbound_route`. Mint one without
   that entry and the deployment cannot route calls at all — which is how you
@@ -84,11 +84,11 @@ URL and one organization API key carrying `gateways:write`:
 
 ```bash
 SKYSAY_CONTROL_PLANE_URL=https://api.skysay.ai \
-SKYSAY_BOOTSTRAP_API_KEY=tai_... \
+SKYSAY_BOOTSTRAP_API_KEY=sky_... \
   bash selfhost-bootstrap.sh
 ```
 
-It registers the deployment, mints the `tgw_` token (with no expiry — an expiry
+It registers the deployment, mints the `skygw_` token (with no expiry — an expiry
 without auto-rotation only manufactures a lockout), resolves the organization,
 picks the agent-routed number when there is exactly one, and generates the
 LiveKit key pair into `livekit.yaml`, `sip.yaml` and `.env.livekit`
@@ -136,7 +136,7 @@ and change it with
 | --- | --- | --- |
 | Who asks for the call | the gateway host itself | any client with an API key, through `POST /v1/calls` |
 | Who dials it | the same gateway host | that host's `--profile outbound` worker, after claiming the job |
-| Credentials on the host | the `tgw_` token only | the `tgw_` token **and** an organization-scoped `tai_` key |
+| Credentials on the host | the `skygw_` token only | the `skygw_` token **and** an organization-scoped `sky_` key |
 
 Both modes describe a gateway you run yourself. A workspace with no self-hosted
 deployment has nothing to choose here: its managed outbound calls are dialed by
@@ -145,7 +145,7 @@ Skysay's shared hosted dialer, which you neither run nor configure.
 `local` exists because on a self-hosted box the requester and the dialer are the
 same machine, so the shared job queue buys nothing and costs an
 organization-scoped credential. The host calls
-`POST /v1/gateway-deployments/{gateway_id}/outbound-calls` with its own `tgw_`
+`POST /v1/gateway-deployments/{gateway_id}/outbound-calls` with its own `skygw_`
 token; Skysay runs the same admission a remote `POST /v1/calls` gets — the
 outbound authorization decision, the kill switches and caps, the wallet reserve,
 the call record — and answers with the admitted call plus a single-use
@@ -164,7 +164,7 @@ returns no authorization at all.
 
 ### The organization-scoped worker key
 
-`SKYSAY_WORKER_API_TOKEN` is an organization-scoped `tai_` key. Inbound
+`SKYSAY_WORKER_API_TOKEN` is an organization-scoped `sky_` key. Inbound
 calling no longer needs it — the change above is additive, so an existing
 deployment that still sets one keeps working unchanged — and the only part of
 the shipped stack that still reads it is the legacy `queue` outbound mode's
