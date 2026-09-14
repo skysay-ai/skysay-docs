@@ -42,11 +42,11 @@ self-managed provider, and sandbox accounts apart.
 An inbound self-hosted gateway holds **one** runtime credential: the
 deployment-bound `tgw_` token. Create it in the **Gateway Tokens** card after
 the gateway deployment is registered. Its one-time reveal includes this exact
-line; replace the blank `OPENPHONEX_GATEWAY_API_TOKEN=` assignment in the
+line; replace the blank `SKYSAY_GATEWAY_API_TOKEN=` assignment in the
 gateway host's `.env.livekit` with the whole revealed line:
 
 ```dotenv
-OPENPHONEX_GATEWAY_API_TOKEN=tgw_...
+SKYSAY_GATEWAY_API_TOKEN=tgw_...
 ```
 
 That token performs the whole call path: the number-rules sync, the inbound
@@ -65,7 +65,7 @@ Two limits make that boundary real rather than nominal:
   that entry and the deployment cannot route calls at all — which is how you
   quarantine a suspect host without touching the rest of the workspace.
 
-Set `OPENPHONEX_ORGANIZATION_ID` to the workspace that registered the gateway
+Set `SKYSAY_ORGANIZATION_ID` to the workspace that registered the gateway
 and owns the managed DID; a mismatch with the token's own organization is
 refused before the call is routed. The smoke test checks the token on both
 surfaces a call needs it for (number-rules and `tools/list`). Neither is a DID
@@ -83,8 +83,8 @@ Run it before `docker compose up` with exactly two inputs — the control-plane
 URL and one organization API key carrying `gateways:write`:
 
 ```bash
-OPENPHONEX_CONTROL_PLANE_URL=https://api.skysay.ai \
-OPENPHONEX_BOOTSTRAP_API_KEY=tai_... \
+SKYSAY_CONTROL_PLANE_URL=https://api.skysay.ai \
+SKYSAY_BOOTSTRAP_API_KEY=tai_... \
   bash selfhost-bootstrap.sh
 ```
 
@@ -164,7 +164,7 @@ returns no authorization at all.
 
 ### The organization-scoped worker key
 
-`OPENPHONEX_WORKER_API_TOKEN` is an organization-scoped `tai_` key. Inbound
+`SKYSAY_WORKER_API_TOKEN` is an organization-scoped `tai_` key. Inbound
 calling no longer needs it — the change above is additive, so an existing
 deployment that still sets one keeps working unchanged — and the only part of
 the shipped stack that still reads it is the legacy `queue` outbound mode's

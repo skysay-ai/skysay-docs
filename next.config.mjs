@@ -43,8 +43,8 @@ const nextConfig = {
       {
         source: "/((?!docs-assets|_next).*)",
         headers: [
-          ...(/^[0-9a-f]{40}$/.test(process.env.OPENPHONEX_DOCS_REVISION || "")
-            ? [{ key: "X-OpenPhonex-Docs-Revision", value: process.env.OPENPHONEX_DOCS_REVISION }]
+          ...(/^[0-9a-f]{40}$/.test(process.env.SKYSAY_DOCS_REVISION || "")
+            ? [{ key: "X-Skysay-Docs-Revision", value: process.env.SKYSAY_DOCS_REVISION }]
             : []),
           {
             key: "Cache-Control",

@@ -93,7 +93,7 @@ def clean_main(repo):
 
 def primitives(app_repo):
     # A different state root would create an independent lease over the same app.
-    if "OPENPHONEX_RELEASE_STATE_ROOT" in os.environ:
+    if "SKYSAY_RELEASE_STATE_ROOT" in os.environ:
         raise Refused("alternate production lease root is not allowed")
     identity = clean_main(app_repo)
     identity["blobs"] = {path: hashlib.sha256((app_repo / path).read_bytes()).hexdigest() for path in PRIMITIVES}
@@ -222,7 +222,7 @@ def probe_url(base, revision=None):
     for attempt in range(12):
         try:
             status, headers, body = request(base + "/docs?release_probe=" + str(time.time_ns()))
-            if status == 200 and (revision is None or headers.get("X-OpenPhonex-Docs-Revision") == revision):
+            if status == 200 and (revision is None or headers.get("X-Skysay-Docs-Revision") == revision):
                 break
             last = "revision header mismatch" if status == 200 else f"status {status}"
         except urllib.error.HTTPError as exc:
@@ -232,7 +232,7 @@ def probe_url(base, revision=None):
         time.sleep(2)
     else:
         raise Refused(f"docs route proof failed: {last}")
-    result = {"docs_status": status, "revision": headers.get("X-OpenPhonex-Docs-Revision"), "body_sha256": hashlib.sha256(body).hexdigest()}
+    result = {"docs_status": status, "revision": headers.get("X-Skysay-Docs-Revision"), "body_sha256": hashlib.sha256(body).hexdigest()}
     for path in ("/docs/multilingual-outbound.md", "/llms.txt", "/llms-full.txt"):
         status, _, body = request(base + path + "?release_probe=" + str(time.time_ns()))
         if status != 200 or not body:
