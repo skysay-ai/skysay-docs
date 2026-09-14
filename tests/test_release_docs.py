@@ -71,7 +71,7 @@ class ContractTests(unittest.TestCase):
             r.clean_main(ROOT)
 
     def test_alternate_shared_lease_root_is_refused(self):
-        with patch.dict(os.environ, {"OPENPHONEX_RELEASE_STATE_ROOT": "/tmp/independent-lock"}), self.assertRaises(r.Refused):
+        with patch.dict(os.environ, {"SKYSAY_RELEASE_STATE_ROOT": "/tmp/independent-lock"}), self.assertRaises(r.Refused):
             r.primitives(ROOT)
 
     def test_image_architecture_failure_prevents_running_container(self):

@@ -5,8 +5,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN npm ci
 ARG DOCS_REVISION
-ENV OPENPHONEX_DOCS_REVISION=$DOCS_REVISION
-RUN node -e 'if (!/^[0-9a-f]{40}$/.test(process.env.OPENPHONEX_DOCS_REVISION)) process.exit(1)'
+ENV SKYSAY_DOCS_REVISION=$DOCS_REVISION
+RUN node -e 'if (!/^[0-9a-f]{40}$/.test(process.env.SKYSAY_DOCS_REVISION)) process.exit(1)'
 RUN npm run build
 ENV NODE_ENV=production PORT=8080
 EXPOSE 8080

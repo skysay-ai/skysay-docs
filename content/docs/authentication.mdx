@@ -19,14 +19,14 @@ Authorization: Bearer tai_your_scoped_key
 ```
 
 Over the OpenClaw connector the key lives in the mcporter `env` block as
-`OPENPHONEX_API_KEY`; the stdio bridge attaches it to each JSON-RPC call. It is a
+`SKYSAY_API_KEY`; the stdio bridge attaches it to each JSON-RPC call. It is a
 secret — never commit it, never put it in `SKILL.md`.
 
 ## Minting a key
 
 ```bash
-curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
-  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN" \
+curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
+  -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"organization_id":"org_...",
        "name":"OpenClaw agent",
@@ -46,8 +46,8 @@ time — a scope added to the catalogue after the key was minted is covered
 automatically, with no need to reissue the key.
 
 ```bash
-curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys" \
-  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN" \
+curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
+  -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"organization_id":"org_...",
        "name":"Read-only reporting key",
@@ -93,8 +93,8 @@ no workspace key can ever hold. It requires `api_keys:read`, the same scope as
 `GET /v1/api-keys`.
 
 ```bash
-curl -s "$OPENPHONEX_BASE_URL/v1/api-keys/scopes" \
-  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN"
+curl -s "$SKYSAY_BASE_URL/v1/api-keys/scopes" \
+  -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN"
 ```
 
 ```json
@@ -137,7 +137,7 @@ workspace's exact, current lists rather than hardcoding one.
 An inbound self-hosted media gateway uses **one** credential, and it is not an
 ordinary API key. In the workspace **API Keys** page, use the **Gateway
 Tokens** card to create the deployment-bound `tgw_` value for
-`OPENPHONEX_GATEWAY_API_TOKEN=tgw_...`.
+`SKYSAY_GATEWAY_API_TOKEN=tgw_...`.
 
 That token routes the inbound leg, reads that call's tenant-bound runtime
 configuration, and lists MCP tool schemas, in addition to its number-rules,
@@ -147,7 +147,7 @@ credential cannot act outside the workspace its deployment belongs to. Its MCP
 admission is exactly one method — `tools/list`, the static tool catalogue —
 and `tools/call` stays refused, so it never becomes an organization MCP key.
 
-`OPENPHONEX_WORKER_API_TOKEN` is an organization-scoped `tai_` key. It is still
+`SKYSAY_WORKER_API_TOKEN` is an organization-scoped `tai_` key. It is still
 accepted where a deployment already sets one, and the optional outbound-dial
 profile needs it (claiming outbound call jobs is `worker_jobs:*` authority a
 gateway token does not carry), but an inbound-only host holds no
@@ -157,7 +157,7 @@ from list views. See
 [deployment modes](/docs/deployment-modes#credentials-for-a-self-hosted-gateway)
 for the full host setup, the two-value bootstrap, and fail-closed behavior.
 Because `tools/list` has no target DID, the first inbound route — not the smoke
-check — validates that `OPENPHONEX_ORGANIZATION_ID`, the token, and the DID
+check — validates that `SKYSAY_ORGANIZATION_ID`, the token, and the DID
 belong to one workspace.
 
 ## Hosted workers hold no workspace credential
@@ -253,8 +253,8 @@ without that being a breaking change.
 Mint a new key, swap the mcporter `env`, then revoke the old one:
 
 ```bash
-curl -s -X POST "$OPENPHONEX_BASE_URL/v1/api-keys/{key_id}/revoke" \
-  -H "Authorization: Bearer $OPENPHONEX_ADMIN_TOKEN"
+curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys/{key_id}/revoke" \
+  -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN"
 ```
 
 The bridge is stateless, so there is no downtime on the Skysay side. See the

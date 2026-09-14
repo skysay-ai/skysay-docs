@@ -601,10 +601,10 @@ def scan(root: Path, allow: AllowList, base: Path | None = None) -> list[Finding
 _POSITIVE_FIXTURES = {
     "planted_aws.txt": "aws_key = " + "AKIA" + "1234567890ABCDEF" + "\n",
     "planted_pem.txt": "-----BEGIN RSA " + "PRIVATE KEY-----\nMIIabc\n-----END RSA PRIVATE KEY-----\n",
-    "planted_gateway_token.env": "OPENPHONEX_GATEWAY_API_TOKEN=" + "tgw_" + "A1b2C3d4E5f6G7h8I9j0K1l2" + "\n",
-    "planted_org_token.env": "OPENPHONEX_WORKER_API_TOKEN=" + "tai_" + "A1b2C3d4E5f6G7h8I9j0K1l2" + "\n",
-    "planted_gateway_urlsafe.env": "OPENPHONEX_GATEWAY_API_TOKEN=" + "tgw_" + "A1b2-C3d4_E5f6-G7h8_I9j0K1" + "\n",
-    "planted_org_urlsafe.env": "OPENPHONEX_WORKER_API_TOKEN=" + "tapi_" + "aa-bb_cc-dd_ee-ff_gg-hh_ii1" + "\n",
+    "planted_gateway_token.env": "SKYSAY_GATEWAY_API_TOKEN=" + "tgw_" + "A1b2C3d4E5f6G7h8I9j0K1l2" + "\n",
+    "planted_org_token.env": "SKYSAY_WORKER_API_TOKEN=" + "tai_" + "A1b2C3d4E5f6G7h8I9j0K1l2" + "\n",
+    "planted_gateway_urlsafe.env": "SKYSAY_GATEWAY_API_TOKEN=" + "tgw_" + "A1b2-C3d4_E5f6-G7h8_I9j0K1" + "\n",
+    "planted_org_urlsafe.env": "SKYSAY_WORKER_API_TOKEN=" + "tapi_" + "aa-bb_cc-dd_ee-ff_gg-hh_ii1" + "\n",
     "planted_sip.conf": "password=" + "Zx4Qw9Rt2Yu7Bn3Kp" + "\nmatch=8.8.8.8\n",
     "planted_openai.txt": "key: " + "sk-" + "ABCDEFGHIJKLMNOPQRSTUV12" + "\n",
     "planted_github.txt": "token " + "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8" + "\n",
@@ -635,7 +635,7 @@ _NEGATIVE_FIXTURES = {
     + "Xz4TqQw9RtYuBnKpLmVcDfGhJkNpQrStUvWx"
     + "YzAbCdEfGhIjKlMnOpQrStUvWxYz12345678"
     + '=="\n',
-    "ok_prose.mdx": "Set `OPENPHONEX_API_KEY` in your environment before running.\n",
+    "ok_prose.mdx": "Set `SKYSAY_API_KEY` in your environment before running.\n",
 }
 
 
