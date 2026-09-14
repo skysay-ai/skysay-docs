@@ -97,7 +97,7 @@ def primitives(app_repo):
         raise Refused("alternate production lease root is not allowed")
     identity = clean_main(app_repo)
     identity["blobs"] = {path: hashlib.sha256((app_repo / path).read_bytes()).hexdigest() for path in PRIMITIVES}
-    spec = importlib.util.spec_from_file_location("openphonex_prepared_release", app_repo / PRIMITIVES[0])
+    spec = importlib.util.spec_from_file_location("skysay_prepared_release", app_repo / PRIMITIVES[0])
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     # Reuse the canonical lease, private state directory and registry read path.
@@ -380,8 +380,8 @@ def _promote(module, receipt, primitive_identity, app_repo):
         current = docs_service(spec)["image"]["tag"]
         if current == receipt["target"]["tag"]:
             # A retry after success verifies serving state without another update.
-            proof = probe_url("https://openphonex.com", receipt["source"]["sha"])
-            proof["parity_sha256"] = parity(app_repo, "https://openphonex.com")
+            proof = probe_url("https://skysay.ai", receipt["source"]["sha"])
+            proof["parity_sha256"] = parity(app_repo, "https://skysay.ai")
             final_fence(module, target_spec, deployment, receipt["target"])
             outcome = "already_live"
         elif current == receipt["previous"]["tag"] and deployment == receipt["deployment_id"]:
@@ -389,8 +389,8 @@ def _promote(module, receipt, primitive_identity, app_repo):
                 update_spec(target_spec)
                 deployment = await_spec(module, target_spec)
                 identity(module, receipt["target"])
-                proof = probe_url("https://openphonex.com", receipt["source"]["sha"])
-                proof["parity_sha256"] = parity(app_repo, "https://openphonex.com")
+                proof = probe_url("https://skysay.ai", receipt["source"]["sha"])
+                proof["parity_sha256"] = parity(app_repo, "https://skysay.ai")
                 final_fence(module, target_spec, deployment, receipt["target"])
                 outcome = "promoted"
             except Exception as failure:
@@ -404,7 +404,7 @@ def _promote(module, receipt, primitive_identity, app_repo):
                     update_spec(previous_spec)
                     await_spec(module, previous_spec)
                     identity(module, receipt["previous"])
-                    probe_url("https://openphonex.com")
+                    probe_url("https://skysay.ai")
                     _, restored_deployment = snapshot(module)
                     final_fence(module, previous_spec, restored_deployment, receipt["previous"])
                 except Exception as rollback:

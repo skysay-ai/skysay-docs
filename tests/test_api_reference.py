@@ -14,7 +14,7 @@ GENERATOR_PATH = ROOT / "scripts" / "generate_openapi_reference.py"
 
 
 def load_generator():
-    spec = importlib.util.spec_from_file_location("openphonex_api_reference", GENERATOR_PATH)
+    spec = importlib.util.spec_from_file_location("skysay_api_reference", GENERATOR_PATH)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -105,7 +105,7 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("POST /v1/calls", guide_text["customer-applications"])
         self.assertIn("Idempotency-Key", guide_text["customer-applications"])
         self.assertIn("call.extraction.ready", guide_text["post-call-results"])
-        self.assertIn("later OpenPhonex analysis release never", guide_text["post-call-results"])
+        self.assertIn("later Skysay analysis release never", guide_text["post-call-results"])
         self.assertIn("/docs/post-call-results", guide_text["integrations"])
         self.assertIn("/docs/integrations", guide_text["customer-applications"])
         self.assertIn("complete cached catalog", guide_text["voice-library"])

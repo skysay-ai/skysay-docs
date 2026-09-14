@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 """Secret scanner for the openphonex-docs public repository.
 
-Stdlib only, offline, Python 3.11+. Adapted from the OpenPhonex OSS-release
+Stdlib only, offline, Python 3.11+. Adapted from the Skysay OSS-release
 scanner. It runs in CI on every push and pull request and fails the build
 (non-zero exit) on any un-allowlisted finding, so "the docs tree is clean" is
 enforced rather than assumed.
@@ -15,7 +15,7 @@ slip through in a .csv/.svg/.xml/.log file.
 Rules:
   * PEM / OpenSSH / PGP private-key headers
   * AWS access key ids (AKIA...)
-  * OpenPhonex tokens: tai_/tapi_<24+> (org key), tgw_<24+> (gateway token)
+  * Skysay tokens: tai_/tapi_<24+> (org key), tgw_<24+> (gateway token)
   * OpenAI keys (sk-<20+>), Google/Gemini keys (AIza<35>), ElevenLabs (sk_<hex>)
   * GitHub tokens (gh[pousr]_<36+>), Slack tokens (xox[baprs]-...)
   * generic `password/secret/api_key/token = <high-entropy literal>`
@@ -30,7 +30,7 @@ Rules:
 
 DERIVATIVE — DO NOT SYNC THE UPSTREAM VERSION OVER THIS FILE.
 
-This is a deliberately reduced fork of OpenPhonex's internal OSS-release
+This is a deliberately reduced fork of Skysay's internal OSS-release
 scanner. The upstream version carries a blocklist of *specific* internal
 infrastructure IPs and owned, callable, billable test DIDs as literal constants.
 Those literals cannot exist in a public repository: committing the blocklist
@@ -223,14 +223,14 @@ _TOKEN_RULES = [
         "Rotate the AWS key and move it to a secret store / env var.",
     ),
     Rule(
-        "openphonex-org-token",
+        "skysay-org-token",
         # Org API keys are minted as `tai_`; `tapi_` is the legacy/doc form. The
         # body is base64url, so `-`/`_` are part of the token.
         re.compile(r"(?<![A-Za-z0-9_-])t(?:ai|api)_[A-Za-z0-9_-]{24,}"),
         "This is a live org API key (tai_/tapi_). Rotate it; docs must use tai_... placeholders.",
     ),
     Rule(
-        "openphonex-gateway-token",
+        "skysay-gateway-token",
         re.compile(r"(?<![A-Za-z0-9_-])tgw_[A-Za-z0-9_-]{24,}"),
         "Live per-gateway token (tgw_). Rotate it and use a placeholder.",
     ),
@@ -663,8 +663,8 @@ def _self_test() -> int:
         expected_rules = {
             "private-key",
             "aws-access-key-id",
-            "openphonex-org-token",
-            "openphonex-gateway-token",
+            "skysay-org-token",
+            "skysay-gateway-token",
             "openai-key",
             "github-token",
             "secret-assignment",

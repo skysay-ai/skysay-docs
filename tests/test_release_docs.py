@@ -24,7 +24,7 @@ def app_spec():
     return {"name": "openphonex-web", "region": "ams", "services": [
         {"name": "web", "image": {"repository": "openphonex-web", "tag": "web-unchanged"}, "envs": [{"key": "PRIVATE", "type": "SECRET", "value": "EV[opaque-test-value]"}], "future_provider_field": {"preserve": True}},
         {"name": "openphonex-docs", "image": {"registry_type": "DOCR", "registry": r.REGISTRY, "repository": r.REPOSITORY, "tag": OLD["tag"]}, "http_port": 8080, "instance_count": 1},
-    ], "ingress": {"rules": [{"component": {"name": "web"}}]}, "domains": [{"domain": "openphonex.com"}], "workers": [{"name": "foreign-worker", "envs": [{"key": "OTHER", "value": "EV[other-opaque-test-value]"}]}]}
+    ], "ingress": {"rules": [{"component": {"name": "web"}}]}, "domains": [{"domain": "skysay.ai"}], "workers": [{"name": "foreign-worker", "envs": [{"key": "OTHER", "value": "EV[other-opaque-test-value]"}]}]}
 
 
 def receipt(spec=None):

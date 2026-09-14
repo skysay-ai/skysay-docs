@@ -1,11 +1,11 @@
-# OpenPhonex documentation
+# Skysay documentation
 
-The public documentation and blog for [OpenPhonex](https://openphonex.com) —
+The public documentation and blog for [Skysay](https://skysay.ai) —
 agent-native telephony: real phone numbers, calls, and SMS an AI agent runs on
 its own over MCP.
 
 This repository **is** the site. Its released image serves these paths on
-`openphonex.com`:
+`skysay.ai`:
 
 | Path | What it is |
 | --- | --- |
@@ -17,7 +17,7 @@ This repository **is** the site. Its released image serves these paths on
 | `/api/search` | full-text search over the docs |
 | `/docs/sitemap.xml` | sitemap for every URL this app owns |
 
-Everything else on `openphonex.com` — the marketing site, the dashboard, the
+Everything else on `skysay.ai` — the marketing site, the dashboard, the
 API — is a separate application. Only the paths above come from here.
 
 ## Editing content
@@ -129,7 +129,7 @@ canonical redirect:
 
 ```bash
 npm start &
-node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://openphonex.com
+node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://skysay.ai
 ```
 
 ## Deployment
@@ -142,14 +142,14 @@ record that retryable documentation failure; do not invent a checkpoint or
 block publishing otherwise verified documentation.
 
 The operator needs a clean, current `main` checkout of this repository and the
-private OpenPhonex application repository, Docker's `desktop-linux` context,
+private Skysay application repository, Docker's `desktop-linux` context,
 Node 22, Python 3.11+, and authenticated `doctl` and registry access. The private
 checkout supplies the existing promotion lease and registry guards; the docs
 release uses that same lease so it cannot race an application promotion.
 
 ```bash
-python3 scripts/release_docs.py prepare --app-repo /path/to/OpenPhonex
-python3 scripts/release_docs.py promote --app-repo /path/to/OpenPhonex \
+python3 scripts/release_docs.py prepare --app-repo /path/to/Skysay
+python3 scripts/release_docs.py promote --app-repo /path/to/Skysay \
   --receipt /private/path/printed-by-prepare.json --execute
 ```
 
@@ -187,7 +187,7 @@ the way down.
 | Run command | `npm start` (binds `0.0.0.0` on `$PORT`, default 3000) |
 | Output | `.next/` — served by `next start`, not a static export |
 | Node | 22 or newer (`engines.node` is `>=22.0.0 <27`) |
-| Env | `NEXT_PUBLIC_SITE_URL` — absolute-URL base for `llms.txt`, `llms-full.txt` and the sitemap. Needed at **build** time. Defaults to `https://openphonex.com`. |
+| Env | `NEXT_PUBLIC_SITE_URL` — absolute-URL base for `llms.txt`, `llms-full.txt` and the sitemap. Needed at **build** time. Defaults to `https://skysay.ai`. |
 
 Some pages are prerendered at build time and `/api/search` is rendered on
 demand, so the app needs a Node runtime — a static-site host will not work.

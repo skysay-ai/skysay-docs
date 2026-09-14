@@ -5,7 +5,7 @@ icon: ChatBubbleTranslate
 ---
 
 Use a multilingual campaign when your application already knows, or an operator
-has chosen, the recipient's preferred language. OpenPhonex starts every
+has chosen, the recipient's preferred language. Skysay starts every
 outbound call with one saved hosted agent and one resolved language profile.
 With **Choose before the call**, the admitted profile's STT, model, TTS, and
 language remain fixed for that call. **Follow the caller** is an explicit
@@ -33,7 +33,7 @@ transcriber or voice to make a larger set work.
 
 Some transcribers require a candidate list. If all compatible languages exceed
 that provider's simultaneous limit, choose a subset or another compatible
-transcriber. OpenPhonex does not silently select a smaller list for you.
+transcriber. Skysay does not silently select a smaller list for you.
 
 The opening language determines how the AI agent starts before the caller
 speaks. Publish the configuration to freeze its accepted languages for future
@@ -87,8 +87,8 @@ last-good provider cache and never calls a provider while you read it. Use
 `voice_count` and `voices_truncated` before assuming that one provider/model
 inventory is complete. A partial inventory does not prove an unobserved voice
 was removed, and a provider-advertised language becomes callable only when the
-OpenPhonex worker registry declares the complete runnable stack.
-[How OpenPhonex handles provider languages and
+Skysay worker registry declares the complete runnable stack.
+[How Skysay handles provider languages and
 voices](/docs/language-qualification) explains the difference between browsing
 provider-reported voices and admitting a runnable call stack. A cached sample
 or a manual language approval is not required to configure a language.
@@ -112,7 +112,7 @@ These are fields of the existing voice-stack request, not a complete stack
 configuration. The selected shared components must be runnable in every
 selected language, or you must explicitly choose a compatible per-language
 override. This example does not imply that every multilingual voice can run
-every listed language in OpenPhonex.
+every listed language in Skysay.
 
 Optional per-language overrides can supply an exact greeting,
 voice, or transcriber. Unspecified settings inherit the shared configuration;
@@ -192,7 +192,7 @@ credentials, mutable case history, or a requested voice-stack override in
 The selected language must belong to that agent's published configuration.
 The voice-stack response's `language_profiles.published_version` and
 `language_profiles.published_at` identify its latest publication.
-OpenPhonex resolves and validates it before reserving funds or dispatching the
+Skysay resolves and validates it before reserving funds or dispatching the
 call. The estimate and admitted runtime use the same effective components;
 later edits cannot change an already-admitted call's voice stack. Credential
 revocation and policy checks still apply. An existing single-language agent
@@ -213,10 +213,10 @@ starts; it does not force the caller to stay in that language.
 Follow mode requires at least two selected languages, one shared transcriber,
 and listening support for the selected languages together.
 A transcriber that supports English and German in separate monolingual calls
-does not necessarily support recognizing both in one conversation. OpenPhonex
+does not necessarily support recognizing both in one conversation. Skysay
 checks the configured listening mode and complete published profiles before
 admission. If the combination is unsupported, change the configuration yourself
-or keep fixed-language mode; OpenPhonex does not select a replacement voice or
+or keep fixed-language mode; Skysay does not select a replacement voice or
 transcriber for you.
 
 Use the existing voice-stack PATCH to publish the behavior with the language
@@ -266,7 +266,7 @@ for the current per-transcriber table.
 
 Where automatic switching is available, it takes **two consecutive final
 results that agree** on the same language within the selected set. Conflicting
-or unrecognized signals reset that sequence. OpenPhonex does not guess the
+or unrecognized signals reset that sequence. Skysay does not guess the
 language from individual transcript words. Provider detection can still be
 wrong, so test your actual conversation.
 
@@ -379,7 +379,7 @@ and extraction events as the evidence path. Verify every signed delivery,
 deduplicate by event ID, and retain only what your policy permits. See
 [Post-call results](/docs/post-call-results) for verification and retrieval.
 
-OpenPhonex does not impose a 90-second hard cap for this flow. The outbound
+Skysay does not impose a 90-second hard cap for this flow. The outbound
 worker defaults to a 1,800-second maximum and a deployment can set a value from
 30 through 14,400 seconds. A language retry is still a separate future call,
 never an automatic in-call mutation.

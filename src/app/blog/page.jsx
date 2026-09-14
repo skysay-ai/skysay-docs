@@ -4,7 +4,7 @@ import { blogSource } from "@/lib/source";
 
 export const metadata = {
   title: "Blog",
-  description: "Product news and engineering notes from the OpenPhonex team.",
+  description: "Product news and engineering notes from the Skysay team.",
 };
 
 function formatDate(value) {
@@ -33,7 +33,7 @@ export default function BlogIndexPage() {
           Product news &amp; engineering notes
         </h1>
         <p className="mt-3 max-w-xl text-fd-muted-foreground">
-          How OpenPhonex ships agent-native telephony — launches, deployment modes, and the MCP + llms.txt story.
+          How Skysay ships agent-native telephony — launches, deployment modes, and the MCP + llms.txt story.
         </p>
       </header>
 

@@ -106,7 +106,7 @@ def _scopes(operation: dict[str, Any]) -> str:
 
 def render(schema: dict[str, Any], coverage: dict[str, Any]) -> str:
     info = schema.get("info") if isinstance(schema.get("info"), dict) else {}
-    title = _cell(info.get("title") or "OpenPhonex API")
+    title = _cell(info.get("title") or "Skysay API")
     version = _cell(info.get("version") or "")
     operations = customer_operations(schema, coverage)
     lines = [

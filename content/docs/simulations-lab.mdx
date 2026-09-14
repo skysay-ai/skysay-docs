@@ -85,7 +85,7 @@ provider. These limits apply to this test mode, not to normal agent calls.
 Keep **Offline robustness** and **Real-time** results separate. Enabling offline
 voice does not enable real-time tests. Real-time additionally requires the
 real-time runtime and a runnable synthetic caller — but nothing you provision.
-One [shared OpenPhonex runner](/docs/authentication#hosted-workers-hold-no-workspace-credential)
+One [shared Skysay runner](/docs/authentication#hosted-workers-hold-no-workspace-credential)
 drives real-time sessions for every workspace: there is no room dispatcher to
 deploy for yours, no host credential to install, and no restart to wait for.
 Each session's room metadata and evidence receipts stay bound to the workspace
@@ -114,7 +114,7 @@ setting: it uses `noise_level`, never `volume`, and it never changes the
 agent's TTS, outgoing ambience, or production STT configuration. Off with
 `noise_level: 0` is the quiet baseline; an enabled preset needs a positive
 whole-number level. The scenario must also give a non-blank explicit
-`language`; OpenPhonex does not silently fall back to English.
+`language`; Skysay does not silently fall back to English.
 
 Saving that condition records what the synthetic caller should receive. An
 offline-only run still does **not** prove live caller noise, barge-in, overlap,
@@ -266,7 +266,7 @@ else's run.
 
 ```bash
 curl -X POST \
-  https://api.openphonex.com/v1/agents/AGENT_ID/simulation-suites/SUITE_ID/runs \
+  https://api.skysay.ai/v1/agents/AGENT_ID/simulation-suites/SUITE_ID/runs \
   -H "Authorization: Bearer tai_..." \
   -H "Content-Type: application/json" \
   -d '{"idempotency_key": "nightly-2026-08-25", "pinned_source": "published"}'
@@ -382,7 +382,7 @@ The offline voice runner currently supports **Deepgram STT**, paired with
 supported ElevenLabs, Fish Audio, Gemini or Soniox synthesis configurations.
 This is narrower than the production voice catalog. A production agent using
 Google Chirp 2 is not automatically eligible for offline Adaptive voice.
-OpenPhonex must not replace that transcriber silently: doing so would test a
+Skysay must not replace that transcriber silently: doing so would test a
 different stack. Keep the production configuration intact and check the run
 preview before choosing the appropriate validation path.
 
@@ -467,7 +467,7 @@ returns the redacted pass/fail projection described under
 
 While the Simulations Lab is not enabled on a deployment, every one of these
 tools answers not-found, exactly as the HTTP routes do. They still appear in
-`tools/list`, which is a catalog of what OpenPhonex can do rather than an
+`tools/list`, which is a catalog of what Skysay can do rather than an
 inventory of what one deployment has switched on.
 
 ## Automation: reading results from CI
@@ -479,7 +479,7 @@ scope — issue a key with only that scope for a CI job, rather than granting it
 
 ```bash
 curl -H "Authorization: Bearer $OPENPHONEX_API_KEY" \
-  "https://api.openphonex.com/v1/agents/$AGENT_ID/simulation-suite-runs/$RUN_ID/results?limit=100"
+  "https://api.skysay.ai/v1/agents/$AGENT_ID/simulation-suite-runs/$RUN_ID/results?limit=100"
 ```
 
 The response opens with `contract_version`. Fields may be **added** under the
@@ -533,7 +533,7 @@ calls, and this endpoint can only reference a session a person already created.
 
 The linked session must belong to the same workspace and the same AI agent. A
 phone session additionally requires that a phone test you armed actually matched
-a real incoming call — OpenPhonex has no phone-ownership proof, so a matched pin
+a real incoming call — Skysay has no phone-ownership proof, so a matched pin
 is the closest honest substitute and no stronger claim is made.
 
 The attempt's own verdict is unchanged. Linked evidence sits beside a verdict

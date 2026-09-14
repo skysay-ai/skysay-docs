@@ -6,7 +6,7 @@ const root = fileURLToPath(new URL(".", import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Both this app and the private web app sit on openphonex.com behind
+  // Both this app and the private web app sit on skysay.ai behind
   // path-based ingress, and BOTH emit /_next/static/*. That path cannot be
   // routed by prefix without breaking one of them, so this app's assets are
   // published under /docs-assets, which ingress routes here while stripping
@@ -57,14 +57,14 @@ const nextConfig = {
   async redirects() {
     return [
       // Keep one canonical host for search engines and shared links. On
-      // openphonex.com the path-based ingress rules route the docs prefixes to
+      // skysay.ai the path-based ingress rules route the docs prefixes to
       // this app on BOTH hostnames, so the www -> apex redirect has to exist
-      // here too or www.openphonex.com/docs would answer 200 at a
+      // here too or www.skysay.ai/docs would answer 200 at a
       // non-canonical host and split indexing.
       {
         source: "/:path*",
-        has: [{ type: "host", value: "www.openphonex.com" }],
-        destination: "https://openphonex.com/:path*",
+        has: [{ type: "host", value: "www.skysay.ai" }],
+        destination: "https://skysay.ai/:path*",
         statusCode: 301,
       },
       // The old /docs/agents stub is superseded by the Fumadocs /docs tree.

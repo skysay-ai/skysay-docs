@@ -18,7 +18,7 @@ import { source } from "@/lib/source";
 // back to rendering them inside the sidebar/drawer only below the `lg`
 // breakpoint (`.../slots/sidebar.js`), so mobile reachability is unchanged.
 //
-// `nav.mode: "top"` (vs. the default "auto") keeps the "OpenPhonex / Docs"
+// `nav.mode: "top"` (vs. the default "auto") keeps the "Skysay / Docs"
 // brand block and the sidebar-collapse control always in the header row. In
 // "auto" mode that block only appears in the header once the sidebar is
 // collapsed on desktop, living in the sidebar the rest of the time — with a
