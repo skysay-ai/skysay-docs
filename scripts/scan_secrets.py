@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Secret scanner for the openphonex-docs public repository.
+"""Secret scanner for the skysay-docs public repository.
 
 Stdlib only, offline, Python 3.11+. Adapted from the Skysay OSS-release
 scanner. It runs in CI on every push and pull request and fails the build

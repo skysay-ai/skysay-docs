@@ -134,7 +134,7 @@ node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://skysa
 
 ## Deployment
 
-Merging to `main` does not publish the site. The `openphonex-docs` image
+Merging to `main` does not publish the site. The `skysay-docs` image
 component shares the production web application with the private dashboard.
 Release it after the application release is verified and public release-log
 reconciliation has been attempted. If reconciliation refuses its checkpoint,
