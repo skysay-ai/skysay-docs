@@ -164,11 +164,17 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
 | `agent_completed` | the agent finished the conversation and ended the call |
 | `media_session_lost` | the media session went away while the call was still live |
+| `no_human_after_answer` | the call was answered but only music or tones were ever heard |
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
 `technical_failure.failure_reason_code` instead; the two vocabularies are separate and do not
 overlap.
+
+A call also carries `answer_classification` and `reason_detail`, which say what was heard after
+it was answered rather than why it ended. `no_human_after_answer` is the ending that goes with
+the `non_human_audio` classification; see [Answer detection](/docs/answer-detection) for the
+whole set and for the per-agent setting that controls it.
 
 ### When the media session is lost
 

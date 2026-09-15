@@ -1,0 +1,135 @@
+---
+title: Answer detection
+description: What a call carries about who answered it, what happens when only music or tones are heard, and how to change it per agent.
+icon: MusicDoubleNote
+---
+
+A carrier reports a call answered the moment it starts carrying audio. That is
+true of a person picking up, and equally true of a ringback replacement tune, a
+hold-music loop, or a line that answers into silence. So "answered" on its own
+cannot tell you whether anybody was there.
+
+Every answered call therefore carries two separate facts:
+
+- its **status**, which says the transport answered, and
+- its **`answer_classification`**, which says what was heard afterwards.
+
+## What the classification says
+
+| Value | Meaning |
+| --- | --- |
+| `human` | a person was heard |
+| `non_human_audio` | continuous music or tones held the line and nothing a person did was ever heard |
+| `silent` | the line answered and nothing at all was heard |
+| `unknown` | detection ran and reached no conclusion within its window |
+| `""` | no verdict was reported at all |
+
+The last two are not the same thing, and the difference is worth keeping.
+`unknown` means detection ran and could not say. The empty string means nothing
+was reported: the call was placed before this field existed, the agent has
+collection switched off, or the call never carried media.
+
+`reason_detail` qualifies the classification and nothing else:
+
+| Value | Appears with |
+| --- | --- |
+| `caller_tune` | `non_human_audio` |
+| `hold_music` | `non_human_audio` |
+| `no_audio` | `silent` |
+| `""` | every other classification |
+
+It is not `ended_reason`. That field says why the call ended; this pair says
+what was heard when it started. A call can carry both.
+
+## Where the fields appear
+
+Both fields are on the call resource returned by `GET /v1/calls` and
+`GET /v1/calls/{call_id}`, on each call in
+[call group results](/docs/post-call-results), and in the `call.completed`
+webhook body. They are also on the call rows in your workspace.
+
+```json
+{
+  "call_id": "call_...",
+  "status": "completed",
+  "ended_reason": "no_human_after_answer",
+  "answer_classification": "non_human_audio",
+  "reason_detail": "hold_music"
+}
+```
+
+## What counts as a person
+
+A person is heard when speech starts and then stops. Concretely, either a burst
+of speech-shaped audio that is followed by a pause, or a recognised word whose
+audio has come to a stop. The pause is the part that matters: it is what
+separates somebody saying "hello" from a recording that never breaks.
+
+The reverse verdict is deliberately harder to reach. Skysay only calls audio
+non-human when it runs continuously for several seconds with no pause in it, its
+shape lacks the rhythm of speech, and no word is recognised in that window.
+Anything short of all three is `unknown`.
+
+That narrowness is on purpose, and it has a stated cost in both directions:
+
+- **A recorded announcement is treated as a person.** Announcements and menu
+  prompts have pauses in them, so they read as `human` or `unknown` and are left
+  alone. Recognising those is a separate problem and is not what this does.
+- **Somebody talking over music that never stops is missed.** Their words never
+  land in a pause, so they are not counted. What bounds such a call is the
+  platform's own limit on how long it will listen, not hearing them.
+
+Detection runs on the audio itself, in every language. It does not depend on a
+transcript being available, and it never stores audio: only the verdict, its
+score and the timings are recorded.
+
+## When the call is ended
+
+`no_human_after_answer` is the [ended reason](/docs/post-call-results#why-a-call-ended)
+for a call the platform ended because only non-human audio was ever heard after
+pickup. A call that ends this way always carries `answer_classification`
+`non_human_audio` and the detail naming which kind.
+
+This only happens when the agent is set to **Act**, below. A person heard at any
+point before the call ends cancels the pending ending, and the agent greets once
+more, so a late pickup is not hung up on.
+
+Such a call is reported as not connected:
+
+- it is excluded from a campaign's connect rate, and from talk time;
+- it is retried like an unanswered call, with backoff, rather than being treated
+  as a conversation that happened;
+- carrier minutes up to the point it ends are real and are billed as usual.
+  Ending early is what keeps them small.
+
+## Choose what an agent does
+
+`answer_detection.non_human_audio` is set per agent, in the **Answer detection**
+card of the agent editor or through
+`PATCH /v1/agents/{agent_id}/voice-stack`. It has three values.
+
+| Value | What it does |
+| --- | --- |
+| `shadow` | **The default.** Records what was heard on every answered call and changes nothing the caller experiences. No call is ended by it. |
+| `end_call` | Acts on the verdict: mutes the agent, says nothing about the customer, and ends the call with `no_human_after_answer`. |
+| `off` | Collects nothing. Calls carry no answer classification at all. |
+
+The workspace labels them Shadow (default), Act and Off.
+
+```bash
+curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"answer_detection": {"non_human_audio": "end_call"}}'
+```
+
+The default is not stored, so an agent that has never set this has no
+`answer_detection` key in its voice stack at all, and sending `shadow`
+explicitly clears it back to that state. Sending any other value is refused with
+`400`. The setting applies when a call starts; saving it never changes a call
+already in progress.
+
+`shadow` is the default on purpose. It is the only setting that measures how
+often the verdict would have been wrong, on real calls in real languages, while
+being unable to end any of them. Move an agent to `end_call` once you have
+looked at what shadow recorded for it.
