@@ -222,7 +222,9 @@ following applies, so a call cannot run unattended against your balance. These a
 rather than ordinary endings: they exist for a call that is going nowhere. Each
 reports the matching `ended_reason` above. The maximum length and the silence
 window can be set per agent, as described under Changing the values below; the
-empty-line check uses a platform value that is the same for every agent.
+empty-line check uses a platform value that is the same for every agent. The
+last of them, for a call only music answered, is switched off for every agent
+until you turn it on.
 
 **Nobody is left on the call.** The call ends once the agent is the only one
 on it. Normally the network reports the moment the other party leaves. As a
@@ -246,6 +248,15 @@ Once the other party has been heard once the rule does not apply again for the
 rest of that call. This measures audio, not intent: a voicemail greeting is
 speech, so this rule is not a voicemail detector. What it catches is a call
 that connects to silence.
+
+**Only music or tones were heard after the call was answered.** A call that a
+caller tune or a hold-music loop answered ends and reports
+`no_human_after_answer`, with `answer_classification` `non_human_audio` and the
+detail naming which kind. This one is **off for every agent by default**: the
+per-agent setting `answer_detection.non_human_audio` starts at `shadow`, which
+records what was heard and ends nothing, and only `end_call` lets it end a call.
+A person heard at any point cancels the pending ending, and the agent greets
+once more. See [Answer detection](/docs/answer-detection).
 
 ### If the software handling your call faults
 
