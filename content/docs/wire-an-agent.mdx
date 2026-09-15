@@ -246,29 +246,41 @@ After the caller stops speaking, the agent waits for a fixed **endpointing
 hold** before it treats the turn as finished. An agent whose language has a
 trained turn detector holds for 200 ms and lets the detector decide; every other
 language holds for **800 ms**, so that a mid-sentence pause is less likely to
-end the turn.
+end the turn. The `interruption_sensitivity` presets move that hold by a
+different amount in each class, because in a language without the turn detector
+the hold is the whole end-of-turn decision:
+
+| Preset | Interruption threshold | Hold, language with the turn detector | Hold, every other language |
+| --- | --- | --- | --- |
+| `balanced` (default) | 500 ms | 200 ms | 800 ms |
+| `low` | 750 ms | 520 ms | 1100 ms |
+| `high` | 150 ms | 260 ms | 600 ms |
+
+Languages with the trained turn detector are Arabic, German, English, Spanish,
+French, Hindi, Indonesian, Italian, Japanese, Korean, Dutch, Portuguese, Turkish
+and Chinese. Every other language, including Sinhala, Tamil and Estonian, uses
+the right-hand hold column.
 
 What `turn_taking` in `set_agent_voice_stack` adds is per-agent control over
 that threshold, the endpointing hold, and whether an interruption must also
-carry recognized words. `min_speech_ms` and `silence_hold_ms` are explicit
-numbers and apply in **every language**. `interruption_sensitivity` is a preset,
-and a preset is a name for a measurement taken on English audio, so it applies
-to a hosted **English** agent only — setting it on an agent in another language
-is accepted and returned, but that agent keeps the 500 ms default and the
-platform hold. Set `min_speech_ms` or `silence_hold_ms` explicitly there
-instead. `min_interruption_words` has its own condition and is the one setting
-here with a non-zero default; both are described under the table.
+carry recognized words. `interruption_sensitivity`, `min_speech_ms` and
+`silence_hold_ms` all apply in **every language**. The preset sets both the
+threshold and the hold from the table above; an explicit `min_speech_ms` or
+`silence_hold_ms` takes precedence over the preset for its own knob, so you can
+combine a preset with one explicit number. `min_interruption_words` has its own
+condition and is the one setting here with a non-zero default; it is described
+under the table.
 
 The controls are applied when a call starts; saving a voice stack never changes
 an in-progress call.
 
 | Setting | Effect on a hosted phone call |
 | --- | --- |
-| `interruption_sensitivity` | English only, because a preset names an English measurement. `balanced` is the 500 ms default. `low` requires 750 ms of continuous speech. `high` uses 150 ms for callers who need a more responsive threshold. `min_speech_ms`, when set, takes precedence. In another language, set `min_speech_ms`/`silence_hold_ms` explicitly. |
-| `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call it is honoured down to 150 ms; a value below 150 ms is raised to 150 ms. A phone call without it, and without an English preset, uses the 500 ms default. Browser and web calls store it but do not apply it. |
+| `interruption_sensitivity` | Every language. `balanced` is the default: the 500 ms threshold and the platform hold. `low` requires 750 ms of continuous speech and holds longer after it. `high` uses 150 ms for callers who need a more responsive threshold and holds for less. The hold each preset sets depends on whether the language has the trained turn detector (table above). `min_speech_ms` and `silence_hold_ms`, when set, take precedence for their knob. |
+| `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call it is honoured down to 150 ms; a value below 150 ms is raised to 150 ms. A phone call without it, and without a preset, uses the 500 ms default. Browser and web calls store it but do not apply it. |
 | `silence_hold_ms` | Every language. An explicit 100–2000 ms endpointing hold after speech. It overrides the platform hold and any sensitivity preset. |
 | `min_interruption_words` | 0–5. Defaults to `1` on hosted **English** calls and to `0` (off) everywhere else. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
-| `barge_in_speech_rms` | Accepted and returned for compatibility, but not currently applied to call behavior. Do not use it to control interruptions. |
+| `barge_in_speech_rms` | **Deprecated.** Accepted, stored and returned for compatibility only; the runtime does not apply it to call behavior. Use `interruption_sensitivity`, `min_speech_ms` and `min_interruption_words` to control interruptions. |
 
 A wordless burst that clears the threshold does not end the reply. If no caller
 speech follows, the runtime classifies the interruption as false: the agent’s
