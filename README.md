@@ -134,48 +134,27 @@ node scripts/parity-check.mjs --local http://127.0.0.1:3000 --live https://skysa
 
 ## Deployment
 
-Merging to `main` does not publish the site. The `skysay-docs` image
-component shares the production web application with the private dashboard.
-Release it after the application release is verified and public release-log
-reconciliation has been attempted. If reconciliation refuses its checkpoint,
-record that retryable documentation failure; do not invent a checkpoint or
-block publishing otherwise verified documentation.
+The site deploys on push. The `skysay-docs` component of the production web
+application (DigitalOcean App Platform, app `skysay-web`) is built from this
+repository's `main` branch with the `Dockerfile` here, `deploy_on_push`
+enabled, so merging to `main` publishes the site once DigitalOcean's build and
+health check pass. A failed build leaves the previous deployment live.
 
-The operator needs a clean, current `main` checkout of this repository and the
-private Skysay application repository, Docker's `desktop-linux` context,
-Node 22, Python 3.11+, and authenticated `doctl` and registry access. The private
-checkout supplies the existing promotion lease and registry guards; the docs
-release uses that same lease so it cannot race an application promotion.
+Before merging, run what the build and the reviewers rely on:
 
 ```bash
-python3 scripts/release_docs.py prepare --app-repo /path/to/Skysay
-python3 scripts/release_docs.py promote --app-repo /path/to/Skysay \
-  --receipt /private/path/printed-by-prepare.json --execute
+npm ci && npm run build
+python3 -m unittest discover -s tests
+python3 scripts/scan_secrets.py
+python3 scripts/generate_openapi_reference.py --check --app-repo /path/to/Skysay
 ```
 
-Preparation checks committed source, builds once for Linux AMD64, pushes a
-unique full-commit image tag, and probes the image by digest. It writes a
-private content-addressed receipt binding the source, checks, digest, existing
-docs image, active deployment and complete app-spec fingerprint. It cannot
-include ignored local files in the build context. Receipts and logs do not
-contain the app spec or credentials.
-
-Promotion never builds or retags. It verifies the receipt and current live
-fences, changes only the docs image tag, checks the deployed revision header
-and public routes, and records timing. A repeat after successful promotion
-verifies the existing deployment. Failed promotion restores the previous docs
-tag only while the spec still belongs to that operation; concurrent spec
-changes refuse rollback. A rollback failure exits with code 2 for operator
-attention. The previous healthy application remains the rollback target.
-
-Coordinate with other release operators. A changed main commit, app spec or
-deployment invalidates preparation; do not edit receipts or manually overwrite
-an image tag to bypass a refusal.
-
-If a push succeeds but preparation is interrupted or its image proof fails,
-the tag remains unpromoted. A repeated preparation refuses that existing tag;
-automatic recovery of an incomplete preparation is intentionally unsupported.
-Keep its immutable digest for investigation and never overwrite the tag.
+`scripts/release_docs.py` is the retired image-based release (registry image
+`skysay-docs`, receipt-gated promotion). It refuses a source-built docs
+service by design and is kept only for the history of the receipts it wrote.
+The `X-Skysay-Docs-Revision` header is emitted only when the image was built
+with a `DOCS_REVISION` build argument; source builds omit it, and the deployed
+commit is read from the DigitalOcean deployment instead.
 
 A standard Next.js app with no custom server and **no `basePath`** — the
 hosting layer passes the full path through, so `/docs/...` is `/docs/...` all
