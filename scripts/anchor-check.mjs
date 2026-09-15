@@ -147,7 +147,7 @@ function request(url) {
         port: target.port,
         path: target.pathname + target.search,
         method: "GET",
-        headers: { "user-agent": "openphonex-docs-anchor-check/1.0", accept: "text/html" },
+        headers: { "user-agent": "skysay-docs-anchor-check/1.0", accept: "text/html" },
       },
       (res) => {
         const chunks = [];

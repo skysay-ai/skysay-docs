@@ -54,7 +54,7 @@ function request(url, { host, method = "GET", redirect = "follow", depth = 0 } =
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const mod = u.protocol === "https:" ? https : http;
-    const headers = { "user-agent": "openphonex-docs-parity/1.0", accept: "*/*" };
+    const headers = { "user-agent": "skysay-docs-parity/1.0", accept: "*/*" };
     if (host) headers.host = host;
     const req = mod.request(
       { protocol: u.protocol, hostname: u.hostname, port: u.port, path: u.pathname + u.search, method, headers },
