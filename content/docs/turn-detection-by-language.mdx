@@ -1,0 +1,73 @@
+---
+title: Turn detection by language
+description: How Skysay decides a caller has finished speaking, why the hold after silence differs by language, and how to tune it.
+icon: Timer
+---
+
+On every hosted phone call, the agent decides a caller has finished a turn
+using two signals.
+
+## Two signals
+
+**Voice activity** is the first: it tells the agent when the caller is making
+sound versus staying silent. It runs on every call, in every language.
+
+**The turn model** is the second, and it does not run everywhere. Where it is
+available, it listens to the caller's words and intonation and judges whether
+the sentence sounds complete, rather than just whether the caller has gone
+quiet. That is what tells "I want to... let me check" apart from an actual
+end of turn, when a pure silence measurement cannot.
+
+## Two language classes
+
+The turn model currently covers Arabic, Chinese, Dutch, English, French,
+German, Hindi, Indonesian, Italian, Japanese, Korean, Portuguese, Spanish and
+Turkish. An agent in one of these languages gets both signals: voice activity
+narrows the window, and the model decides whether the sentence is actually
+finished.
+
+Every other language — including Sinhala, Tamil and Estonian — runs on voice
+activity alone. With no model judging intent, the length of silence itself is
+the whole decision, so the hold that follows it matters much more.
+
+## How long the agent waits
+
+After the caller stops speaking, the agent holds for a moment before treating
+the turn as finished. The `interruption_sensitivity` presets on the agent's
+voice stack move that hold, and by a different amount depending on the
+language class:
+
+| Language class | `low` | `balanced` (default) | `high` |
+| --- | --- | --- | --- |
+| Turn model languages | 520 ms | 200 ms | 260 ms |
+| Every other language | 1100 ms | 800 ms | 600 ms |
+
+A turn-model language only needs a short pad, because the model is doing the
+real work of judging completeness; a language without one needs the full hold
+to stand in for that judgment instead.
+
+The interruption threshold — how long the caller must speak before they can
+cut the agent off — does not follow this split: it is one value for every
+language, 500 ms by default, 750 ms on `low` and 150 ms on `high`. See
+[Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in)
+for that table and every other `turn_taking` setting.
+
+## Overrides
+
+An explicit `silence_hold_ms` replaces the hold above, in any language,
+including a turn-model one — set it directly instead of picking a preset. An
+explicit `min_speech_ms` replaces the interruption threshold the same way, and
+is honoured on phone calls down to 150 ms.
+
+## Choosing a preset
+
+In a language without the turn model, the hold is the entire end-of-turn
+decision, so it is worth tuning directly: if callers are being cut off
+mid-sentence, move to `low` or raise `silence_hold_ms`; if the agent feels
+slow to respond, move to `high` or lower `silence_hold_ms`. Try the change in
+the [Simulations Lab](/docs/simulations-lab) before pushing it to a live
+campaign.
+
+Whichever preset an agent runs, interruption itself is unaffected: barge-in is
+governed by the threshold above, not by the hold, so a caller who wants to cut
+in is never held up by how long the agent waits after they go quiet.
