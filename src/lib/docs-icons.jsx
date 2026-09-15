@@ -44,6 +44,7 @@ import {
   SoundHigh,
   Terminal,
   TestTube,
+  Timer,
   Translate,
   Voice,
   Wrench,
@@ -93,6 +94,7 @@ const ICONS = {
 
   // --- Guides ---
   Link,
+  Timer,
   ChatLines,
   Translate,
   SineWave,
