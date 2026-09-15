@@ -146,7 +146,7 @@ Before merging, run what the build and the reviewers rely on:
 npm ci && npm run build
 python3 -m unittest discover -s tests
 python3 scripts/scan_secrets.py
-python3 scripts/generate_openapi_reference.py --check --app-repo /path/to/Skysay
+python3 scripts/generate_openapi_reference.py --check   # against api/openapi.json; refresh it with scripts/refresh_openapi_snapshot.py
 ```
 
 `scripts/release_docs.py` is the retired image-based release (registry image
