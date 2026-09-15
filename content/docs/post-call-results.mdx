@@ -234,10 +234,12 @@ rather than being cut off without one.
 **Nobody spoke after the call was answered.** If no speech is heard from the
 other party for **20 seconds** after the call is answered, by default, the call
 ends and reports `no_caller_speech_after_answer`. Speech is detected from the audio
-itself rather than from a transcript, and once the other party has been heard
-once the rule does not apply again for the rest of that call. This measures
-audio, not intent: a voicemail greeting is speech, so this rule is not a
-voicemail detector. What it catches is a call that connects to silence.
+itself by voice activity detection; on a GPT-Live 1 agent the engine's own live
+captions of the other party count as well, since it hears the caller directly.
+Once the other party has been heard once the rule does not apply again for the
+rest of that call. This measures audio, not intent: a voicemail greeting is
+speech, so this rule is not a voicemail detector. What it catches is a call
+that connects to silence.
 
 ### If the software handling your call faults
 
@@ -309,7 +311,7 @@ cannot exceed its default, so this setting can only make a call end sooner: the
 media session behind a call is dropped at 30 minutes, and a limit above the
 ceiling could never fire, which would leave the call ending with no reason
 attached. `no_caller_speech_seconds` has a floor because the platform listens
-for voice activity rather than for words, so somebody who is merely listening
+for voice activity rather than for meaning, so somebody who is merely listening
 looks the same as somebody who is not there; a shorter window would end the
 call partway through the agent's own opening line.
 
