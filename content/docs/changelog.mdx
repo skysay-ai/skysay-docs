@@ -28,6 +28,15 @@ services were confirmed deployed.
 - A per-call opening set through the Calls API replaces the saved opening for that call.
 - [Conversation engines](/docs/conversation-engines) · [Which languages the voice agent follows](/docs/language-following)
 
+### Every answered call now says what answered it
+
+- A call carries `answer_classification` (`human`, `non_human_audio`, `silent` or `unknown`) and `reason_detail` (`caller_tune`, `hold_music` or `no_audio`) on the call resource, in call group results and in the `call.completed` webhook.
+- `ended_reason` gains `no_human_after_answer` for a call ended because only music or tones were heard after pickup; nothing ends a call that way yet, and the value is published so an integration can be ready for it.
+- A call that ends that way will be excluded from connect rate and talk time and will take the `no_answer` disposition, so the contact is dialled again; its `termination_cause` stays `connected`, because that field describes the transport.
+- The per-agent setting `answer_detection.non_human_audio` chooses `shadow`, which records the verdict on every answered call and changes nothing, or `off`, which collects nothing; unlike the other tuning settings an explicit choice is stored, so it survives a later change to the platform default.
+- Detection needs a pause to call something a person, so a recorded announcement or a menu prompt reads as a person and is left alone.
+- [Answer detection](/docs/answer-detection) · [Why a call ended](/docs/post-call-results#why-a-call-ended)
+
 ### Interruption presets apply in every language
 
 - `interruption_sensitivity` (`balanced`, `low`, `high`) now applies on hosted phone calls in every language, not only English; `balanced` stays the default and changes nothing.
