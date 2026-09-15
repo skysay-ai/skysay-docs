@@ -76,60 +76,79 @@ That narrowness is on purpose, and it has a stated cost in both directions:
   prompts have pauses in them, so they read as `human` or `unknown` and are left
   alone. Recognising those is a separate problem and is not what this does.
 - **Somebody talking over music that never stops is missed.** Their words never
-  land in a pause, so they are not counted. What bounds such a call is the
-  platform's own limit on how long it will listen, not hearing them.
+  land in a pause, so they are not counted, and the call is classified on the
+  audio's shape alone.
 
 Detection runs on the audio itself, in every language. It does not depend on a
 transcript being available, and it never stores audio: only the verdict, its
 score and the timings are recorded.
 
-## When the call is ended
+## The ending it is paired with
 
-`no_human_after_answer` is the [ended reason](/docs/post-call-results#why-a-call-ended)
-for a call the platform ended because only non-human audio was ever heard after
-pickup. A call that ends this way always carries `answer_classification`
-`non_human_audio` and the detail naming which kind.
+`ended_reason` has a value, `no_human_after_answer`, for a call the platform
+ended because only non-human audio was ever heard after pickup. A call that ends
+that way carries `answer_classification` `non_human_audio` and the detail naming
+which kind, so the reason says that nobody was there and the classification says
+what was heard instead.
 
-This only happens when the agent is set to **Act**, below. A person heard at any
-point before the call ends cancels the pending ending, and the agent greets once
-more, so a late pickup is not hung up on.
+Nothing ends a call this way today. The value exists in the published vocabulary
+so that your integration can be ready for it, and the ending itself arrives with
+a later release. When it does, a person heard at any point before the call ends
+cancels it, and the agent greets once more, so a late pickup is not hung up on.
 
-Such a call is reported as not connected:
+A call that ends this way is reported as not connected:
 
 - it is excluded from a campaign's connect rate, and from talk time;
-- it is retried like an unanswered call, with backoff, rather than being treated
-  as a conversation that happened;
+- its campaign disposition is `no_answer`, because no person was reached, so the
+  contact is dialled again under your campaign's existing backoff rather than
+  being treated as a conversation that happened;
+- its `termination_cause` stays `connected`, because that field describes the
+  transport and the transport genuinely did answer. The two are separate
+  questions and the fields answer one each;
 - carrier minutes up to the point it ends are real and are billed as usual.
-  Ending early is what keeps them small.
 
-## Choose what an agent does
+## Choose what an agent collects
 
 `answer_detection.non_human_audio` is set per agent, in the **Answer detection**
 card of the agent editor or through
-`PATCH /v1/agents/{agent_id}/voice-stack`. It has three values.
+`PATCH /v1/agents/{agent_id}/voice-stack`.
 
 | Value | What it does |
 | --- | --- |
-| `shadow` | **The default.** Records what was heard on every answered call and changes nothing the caller experiences. No call is ended by it. |
-| `end_call` | Acts on the verdict: mutes the agent, says nothing about the customer, and ends the call with `no_human_after_answer`. |
+| `shadow` | Records what was heard on every answered call and changes nothing the caller experiences. |
 | `off` | Collects nothing. Calls carry no answer classification at all. |
 
-The workspace labels them Shadow (default), Act and Off.
+`shadow` is what an agent with no stored value gets. A third value that acts on
+the verdict and ends the call arrives with the release that can perform it;
+until then sending it is refused with `400`, because a setting you could select
+that did nothing would be worse than one that is not offered.
 
 ```bash
 curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
   -H "Authorization: Bearer $SKYSAY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"answer_detection": {"non_human_audio": "end_call"}}'
+  -d '{"answer_detection": {"non_human_audio": "off"}}'
 ```
 
-The default is not stored, so an agent that has never set this has no
-`answer_detection` key in its voice stack at all, and sending `shadow`
-explicitly clears it back to that state. Sending any other value is refused with
-`400`. The setting applies when a call starts; saving it never changes a call
-already in progress.
+### Choosing a value is not the same as leaving it alone
 
-`shadow` is the default on purpose. It is the only setting that measures how
-often the verdict would have been wrong, on real calls in real languages, while
-being unable to end any of them. Move an agent to `end_call` once you have
-looked at what shadow recorded for it.
+This setting deliberately behaves differently from the other per-agent tuning
+sections. Everywhere else, saving a value equal to the current default is the
+same as saving nothing. Here it is not:
+
+- an **absent** `answer_detection` key means "follow the platform default",
+  which is `shadow` today and is expected to change once the detector has been
+  measured;
+- an **explicit** value is stored as you sent it, including `shadow`, and the
+  agent keeps it when the platform default moves.
+
+So if you want an agent to observe and never do anything else, send `shadow`
+rather than leaving the section out. The editor makes the same distinction: the
+first choice is Platform default, and Shadow beside it is the explicit one.
+
+The setting applies when a call starts; saving it never changes a call already
+in progress.
+
+`shadow` is the platform default on purpose. It is the only setting that
+measures how often the verdict would have been wrong, on real calls in real
+languages, while being unable to end any of them.
