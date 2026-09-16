@@ -64,9 +64,10 @@ Azure AI Speech contributes two catalog options, and they are independent of
 each other:
 
 - **Transcription** — an Azure real-time speech-to-text option, offered for
-  every language Skysay runs. It is offered alongside the existing options
-  rather than replacing any of them, and it is not the default for any
-  language: an agent uses Azure transcription only if you select it.
+  every language Skysay runs, Sinhala included. It is offered alongside the
+  existing options rather than replacing any of them, and it is not the default
+  for any language: an agent uses Azure transcription only if you select it.
+  Sinhala on Azure has one behavior of its own, below.
 - **Voices** — Azure's neural voice catalog, through the same provider-cached
   inventory as the options above rather than a checked-in list. Voices appear
   once the first refresh has completed.
@@ -94,6 +95,29 @@ Skysay adds around your text, and with some scripts counted at more than
 one billable character each. The catalog is the current source for the
 applicable price and reserve estimate. Azure runs on an Skysay-managed
 credential only — there is no bring-your-own-key path for it today.
+
+#### Sinhala agents on Azure listen for Sinhala and English
+
+A Sinhala agent that uses Azure transcription listens for Sinhala and English
+on every call. There is no setting for this: selecting Azure as a Sinhala
+agent's transcriber is what enables it.
+
+- The reply language does not change. The agent still answers in Sinhala, and
+  this is not [automatic switching](#automatic-switching-availability-by-language).
+  Only what the recognizer listens for is wider.
+- English speech comes back as English text. Listening for Sinhala alone,
+  Azure writes an English sentence into Sinhala script that looks plausible and
+  carries no error or low-confidence signal, so the agent answers a question
+  nobody asked. Sinhala lines take English-speaking callers often enough that
+  this is the shipped shape rather than an option.
+- It applies to Azure only. A Sinhala agent on Google Chirp 2 listens for
+  Sinhala alone, as before.
+- An agent published to follow the caller keeps the candidate languages you
+  published. Nothing is added to that set.
+
+Recognition speed for this shape has not been measured separately from
+single-language recognition on Azure. Test your own conversation before
+relying on a response time.
 
 ### OpenAI GPT-Live 1
 
