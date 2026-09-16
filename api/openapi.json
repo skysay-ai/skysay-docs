@@ -1943,6 +1943,9 @@
         "responses": {
           "200": {
             "description": "Agent"
+          },
+          "400": {
+            "description": "Invalid field value, a voice-stack setting sent to this route, or a status this route may not write"
           }
         }
       }
@@ -7407,7 +7410,12 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "description": "Whether this agent answers. `active` answers; `inactive` stops it answering every call path -- inbound and outbound telephony, the browser test, and the public homepage demo -- while keeping the agent, its configuration and its number attachments intact, so `active` puts it back exactly as it was. Any other value is refused with 400. An agent an operator has suspended cannot be reinstated here: that status is lifted by an operator only."
           },
           "webhook_url": {
             "type": "string"

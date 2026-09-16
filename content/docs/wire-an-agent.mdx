@@ -21,6 +21,7 @@ have built, one row per AI agent, and each row says where it has got to:
 
 | Status | What it means |
 | --- | --- |
+| **Stopped** | You switched it off, so it answers nothing until you resume it |
 | **Needs a voice** | Something is unchosen or refused, so nothing would answer yet |
 | **Ready to test** | It can hold a conversation in the browser; nothing is dialled |
 | **Tested** | It has taken at least one call |
@@ -49,6 +50,44 @@ blocks publishing, each beside the control that fixes it.
 **Voice** or **Chat** and whether you are testing the **Draft** or the
 **Published** snapshot. Editing does not publish: **Publish changes** shows
 exactly which fields changed and asks before it writes.
+
+## Stopping and resuming an agent
+
+**Stop answering**, at the top of the agent editor, takes one AI agent off the
+air without deleting anything. **Resume** puts it back.
+
+A stopped agent answers nothing:
+
+- no inbound or outbound telephone calls,
+- no browser test, and
+- no homepage demo.
+
+Nothing else changes. The agent, its voice stack, its knowledge, its tools and
+its attached numbers all stay exactly as they were, and you can keep editing
+and publishing the draft while it is stopped. Resuming puts it back on the same
+numbers with the settings it had when you stopped it, so this is the safe way
+to take an agent out of service for an hour, a weekend, or a season.
+
+The one visible consequence is on your numbers: a number routed to a stopped
+agent stops answering, and the **Phone numbers** page shows it as a problem
+naming the stopped agent as the reason, until you resume the agent or route
+that number somewhere else.
+
+Over the API the same control is the `status` field:
+
+```text
+you › stop my receptionist answering
+→ update_agent(agent_id=..., status="inactive")    # agents:write
+```
+
+`status` accepts `active` and `inactive`, and rejects anything else with a
+`400`. A call to a stopped agent is refused with the `agent_inactive` reason.
+
+<Callout title="A suspended agent is not a stopped one">
+  If an Skysay operator has suspended an agent, that is a different state and
+  you cannot clear it yourself — `status` will not move the agent out of it.
+  Contact support.
+</Callout>
 
 ## 1. Create the agent
 
