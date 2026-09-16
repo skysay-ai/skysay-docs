@@ -216,6 +216,66 @@
         }
       }
     },
+    "/v1/dashboard/agent-create": {
+      "get": {
+        "summary": "Read the bounded New-agent wizard aggregate",
+        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header \u2014 not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
+        "x-required-scopes": [
+          "account:read",
+          "agents:read",
+          "wallet:read"
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional project in the authenticated organization."
+          },
+          {
+            "name": "step",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "starting-point",
+                "identity",
+                "voice",
+                "review"
+              ]
+            },
+            "description": "Current wizard step. voice and the retired review value include the voice-step catalogue and gallery."
+          },
+          {
+            "name": "voice",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Pinned provider::model::voice_id so a library link remains in the bounded gallery."
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Draft language used to filter the voice-step gallery."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "New-agent wizard aggregate"
+          }
+        }
+      }
+    },
     "/v1/dashboard/agents": {
       "get": {
         "summary": "Read the bounded, customer-scoped Agents aggregate",
@@ -230,7 +290,7 @@
     "/v1/dashboard/agent-config": {
       "get": {
         "summary": "Read the bounded, customer-scoped hosted-agent editor aggregate",
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish and audio_environment settings, which components were actually configured, the same inbound-admission verdict the Agents list carries, the launch-supported component-metered catalog, a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured, the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
         "x-required-scopes": [
           "account:read",
           "agents:read",
@@ -1943,6 +2003,9 @@
         "responses": {
           "200": {
             "description": "Agent"
+          },
+          "400": {
+            "description": "Invalid field value, a voice-stack setting sent to this route, or a status this route may not write"
           }
         }
       }
@@ -7401,13 +7464,18 @@
       },
       "AgentUpdate": {
         "type": "object",
-        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: turn_taking, voice_polish, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
+        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
         "properties": {
           "name": {
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "description": "Whether this agent is offered to callers. `inactive` stops it being admitted on every call path -- inbound and outbound telephony, the browser test, and the public homepage demo -- while keeping the agent, its configuration and its number attachments intact; a call already in progress is not torn down. `active` removes that gate and nothing else: no configuration is snapshotted or restored, so the agent is then admitted on its CURRENT published configuration and readiness, which may have changed while it was inactive. Accepts these two values only; any other is refused with 400, as is any change to an agent whose stored status is not already one of them (an operator-suspended agent is reinstated by an operator only)."
           },
           "webhook_url": {
             "type": "string"
@@ -7891,6 +7959,9 @@
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
           },
+          "answer_detection": {
+            "$ref": "#/components/schemas/AgentAnswerDetection"
+          },
           "voice_frontend": {
             "type": "string",
             "enum": [
@@ -7898,6 +7969,22 @@
               "gpt_live"
             ],
             "description": "Optional conversation engine. Omitted or cascade is STT/LLM/TTS. gpt_live selects GPT-Live-1. GET still returns transcriber, model, and voice as an OpenAI compatibility projection."
+          }
+        }
+      },
+      "AgentAnswerDetection": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "What the platform does when a call the carrier reported answered turns out to be non-human audio. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
+        "properties": {
+          "non_human_audio": {
+            "type": "string",
+            "enum": [
+              "shadow",
+              "end_call",
+              "off"
+            ],
+            "description": "`shadow` records what was heard on every answered call and changes nothing the caller experiences: the classification and its detail appear on the call, and no call is ever ended by it. `off` collects nothing, so such a call carries no classification at all. `shadow` is what an agent with no stored value gets; sending it explicitly stores it, which is how you keep it if the platform default later moves. This property carries no JSON Schema `default` on purpose, unlike the other tuning properties: a generated client that pre-filled one would send `shadow` on every save and pin a choice the customer never made, which is the one outcome the storage rule above exists to prevent. A further value that acts on the verdict, ending the call with `ended_reason: no_human_after_answer`, is not accepted yet and is refused with 400: the worker that performs it ships separately, and a value you could select that did nothing would be worse than one that is not offered."
           }
         }
       },
@@ -8072,6 +8159,9 @@
           },
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
+          },
+          "answer_detection": {
+            "$ref": "#/components/schemas/AgentAnswerDetection"
           },
           "voice_frontend": {
             "type": "string",
@@ -8946,7 +9036,9 @@
         "required": [
           "call_id",
           "direction",
-          "status"
+          "status",
+          "answer_classification",
+          "reason_detail"
         ],
         "description": "Authoritative technical call facts, intentionally separate from advisory extraction.",
         "properties": {
@@ -8964,6 +9056,27 @@
           },
           "status": {
             "type": "string"
+          },
+          "answer_classification": {
+            "type": "string",
+            "enum": [
+              "",
+              "human",
+              "non_human_audio",
+              "silent",
+              "unknown"
+            ],
+            "description": "What was heard after the answer, with the same meanings as on the Call resource. It sits here rather than with the analysis because it is an observation of the line, not a reading of the conversation."
+          },
+          "reason_detail": {
+            "type": "string",
+            "enum": [
+              "",
+              "caller_tune",
+              "hold_music",
+              "no_audio"
+            ],
+            "description": "Qualifies answer_classification, with the same meanings as on the Call resource."
           }
         }
       },
@@ -9271,7 +9384,7 @@
           },
           "answered_or_voicemail": {
             "type": "boolean",
-            "description": "Observed call.answered/media.started evidence. This can be voicemail and is not a human answer classification."
+            "description": "Observed call.answered/media.started evidence: the transport answered. It is not a human answer classification and can be voicemail, a caller tune or hold music. Read `call.answer_classification` for what was actually heard on the line."
           },
           "technical_failure": {
             "$ref": "#/components/schemas/TechnicalCallFailureEvidence"
@@ -9301,7 +9414,7 @@
           },
           "summary": {
             "type": "object",
-            "description": "Factual counters only. answered_or_voicemail publishes numerator and denominator; human_answered/voicemail remain unavailable unless independently observable.",
+            "description": "Factual counters only. answered_or_voicemail publishes numerator and denominator; human_answered/voicemail remain unavailable unless independently observable. Per-call answer classification is published on each item rather than summarised here, because a summary counter would imply a coverage this summary cannot promise for calls placed before the classification existed.",
             "properties": {
               "calls": {
                 "type": "object"
@@ -10045,6 +10158,8 @@
           "call_context",
           "source_kind",
           "ended_reason",
+          "answer_classification",
+          "reason_detail",
           "created_at",
           "updated_at"
         ],
@@ -10075,9 +10190,31 @@
               "agent_completed",
               "max_call_duration_reached",
               "no_caller_speech_after_answer",
-              "media_session_lost"
+              "media_session_lost",
+              "no_human_after_answer"
             ],
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Three are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, and `no_caller_speech_after_answer` when the call is answered but nobody ever speaks. The last names an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- so nobody hung up, no limit fired and the agent did not finish. It reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate."
+            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Four are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, and `no_human_after_answer` when the call is answered but only music or tones are ever heard, so nothing on the line was a person. The last names an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- so nobody hung up, no limit fired and the agent did not finish. It reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate."
+          },
+          "answer_classification": {
+            "type": "string",
+            "enum": [
+              "",
+              "human",
+              "non_human_audio",
+              "silent",
+              "unknown"
+            ],
+            "description": "What was heard after the call was answered, which is a different question from whether it was answered at all: a carrier bridges audio for a ringback replacement tune or a hold-music loop exactly as it does for a person, so the status says the line answered and this says what was on it. `human` means a person was heard. `non_human_audio` means continuous music or tones held the line and nothing a person did was ever heard; `reason_detail` names which kind. `silent` means the line answered and nothing at all was heard. `unknown` means the detector ran and reached no decision inside its window, which is deliberately NOT the same as the empty string: empty means no verdict was reported at all, on a call placed before this field shipped, on an agent whose collection is switched off, or on a call whose media never started. Detection is deliberately narrow and only claims `non_human_audio` for unbroken non-human audio, so a recorded announcement or an IVR menu with pauses in it reads as `human` or `unknown` rather than being classified here."
+          },
+          "reason_detail": {
+            "type": "string",
+            "enum": [
+              "",
+              "caller_tune",
+              "hold_music",
+              "no_audio"
+            ],
+            "description": "Qualifies `answer_classification` and nothing else. `caller_tune` and `hold_music` appear only with `non_human_audio`, and `no_audio` only with `silent`; every other classification carries the empty string. This is not `ended_reason`: that one says why the call ended, this one says what the platform heard when it started."
           },
           "from_number_id": {
             "type": [
