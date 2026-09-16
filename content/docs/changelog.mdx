@@ -12,6 +12,16 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 16 September 2026
+
+### An agent can be told to end a call nobody is on
+
+- `answer_detection.non_human_audio` gains `end_call`: the agent stops speaking and the call is ended with `no_human_after_answer` when only a tone is heard after pickup, or when the far end holds the line for twenty seconds without ever pausing long enough for anybody to reply.
+- A person stops it by pausing, which also brings the agent's voice back; the call is not restarted and they are not greeted again.
+- `shadow` stays the default and changes nothing a caller experiences. `end_call` is opt-in per agent, in the Answer detection card of the agent editor or through the voice-stack API.
+- A call ended this way is excluded from connect rate and talk time, takes the `no_answer` campaign disposition so the contact is dialled again, and keeps `termination_cause` `connected`, because that field describes the transport.
+- [Answer detection](/docs/answer-detection) · [Why a call ended](/docs/post-call-results#why-a-call-ended)
+
 ## 15 September 2026
 
 ### GPT-Live 1 calls also listen for the other party's captions
@@ -31,9 +41,9 @@ services were confirmed deployed.
 ### Every answered call now says what answered it
 
 - A call carries `answer_classification` (`human`, `non_human_audio`, `silent` or `unknown`) and `reason_detail` (`caller_tune`, `hold_music` or `no_audio`) on the call resource, in call group results and in the `call.completed` webhook.
-- `ended_reason` gains `no_human_after_answer` for a call ended because only music or tones were heard after pickup; nothing ends a call that way yet, and the value is published so an integration can be ready for it.
+- `ended_reason` gains `no_human_after_answer` for a call ended because only music or tones were heard after pickup.
 - A call that ends that way will be excluded from connect rate and talk time and will take the `no_answer` disposition, so the contact is dialled again; its `termination_cause` stays `connected`, because that field describes the transport.
-- The per-agent setting `answer_detection.non_human_audio` chooses `shadow`, which records the verdict on every answered call and changes nothing, or `off`, which collects nothing; unlike the other tuning settings an explicit choice is stored, so it survives a later change to the platform default.
+- The per-agent setting `answer_detection.non_human_audio` chooses `shadow`, which records the verdict on every answered call and changes nothing, or `off`, which collects nothing; unlike the other tuning settings an explicit choice is stored, so it survives a later change to the platform default. `end_call`, which acts on the verdict, followed the next day.
 - Detection needs a pause to call something a person, so a recorded announcement or a menu prompt reads as a person and is left alone.
 - [Answer detection](/docs/answer-detection) · [Why a call ended](/docs/post-call-results#why-a-call-ended)
 
