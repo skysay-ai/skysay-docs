@@ -64,9 +64,14 @@ A stopped agent answers nothing:
 
 Nothing else changes. The agent, its voice stack, its knowledge, its tools and
 its attached numbers all stay exactly as they were, and you can keep editing
-and publishing the draft while it is stopped. Resuming puts it back on the same
-numbers with the settings it had when you stopped it, so this is the safe way
-to take an agent out of service for an hour, a weekend, or a season.
+and publishing the draft while it is stopped.
+
+**Resume** lifts the stop and does nothing else. It restores no snapshot: the
+agent comes back on whatever is published at that point and on the numbers
+routed to it then, and it answers as soon as the rest of its setup allows. So
+this is the safe way to take an agent out of service for an hour, a weekend, or
+a season — and if you publish changes while it is stopped, those are the
+changes it comes back with.
 
 The one visible consequence is on your numbers: a number routed to a stopped
 agent stops answering, and the **Phone numbers** page shows it as a problem
@@ -81,7 +86,9 @@ you › stop my receptionist answering
 ```
 
 `status` accepts `active` and `inactive`, and rejects anything else with a
-`400`. A call to a stopped agent is refused with the `agent_inactive` reason.
+`400` — as it does any change to an agent whose stored status is neither of
+those. A call to a stopped agent is refused with the `agent_inactive` reason.
+A call already in progress when you stop the agent is not cut off.
 
 <Callout title="A suspended agent is not a stopped one">
   If an Skysay operator has suspended an agent, that is a different state and
