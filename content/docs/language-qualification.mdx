@@ -121,6 +121,12 @@ for. Azure AI Speech and Google Chirp 2 both work this way.
   of them listens for the one language its call is in, as before.
 - **An agent published to follow the caller** keeps the candidate languages it
   published, and nothing is added to that set.
+- **Outbound calls name their language.** Selecting a second language is a
+  change to how the agent is called, not only to what it hears: starting an
+  outbound call on an agent with more than one selected language requires
+  `language` in the request, since that is what chooses the published profile
+  the call runs on. A caller that omits it is refused with 400. Inbound calls
+  are unaffected.
 
 Azure compares speech against at most ten candidates at once. An agent
 configured with more selected languages than its transcriber can compare keeps
