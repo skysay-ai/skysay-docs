@@ -1943,6 +1943,9 @@
         "responses": {
           "200": {
             "description": "Agent"
+          },
+          "400": {
+            "description": "Invalid field value, a voice-stack setting sent to this route, or a status this route may not write"
           }
         }
       }
@@ -7407,7 +7410,12 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "description": "Whether this agent is offered to callers. `inactive` stops it being admitted on every call path -- inbound and outbound telephony, the browser test, and the public homepage demo -- while keeping the agent, its configuration and its number attachments intact; a call already in progress is not torn down. `active` removes that gate and nothing else: no configuration is snapshotted or restored, so the agent is then admitted on its CURRENT published configuration and readiness, which may have changed while it was inactive. Accepts these two values only; any other is refused with 400, as is any change to an agent whose stored status is not already one of them (an operator-suspended agent is reinstated by an operator only)."
           },
           "webhook_url": {
             "type": "string"
