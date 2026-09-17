@@ -64,9 +64,11 @@ Azure AI Speech contributes two catalog options, and they are independent of
 each other:
 
 - **Transcription** — an Azure real-time speech-to-text option, offered for
-  every language Skysay runs. It is offered alongside the existing options
-  rather than replacing any of them, and it is not the default for any
-  language: an agent uses Azure transcription only if you select it.
+  every language Skysay runs, Sinhala and Tamil included. It is offered
+  alongside the existing options rather than replacing any of them, and it is
+  not the default for any language: an agent uses Azure transcription only if
+  you select it. What it listens for follows the agent's selected languages;
+  see below.
 - **Voices** — Azure's neural voice catalog, through the same provider-cached
   inventory as the options above rather than a checked-in list. Voices appear
   once the first refresh has completed.
@@ -94,6 +96,46 @@ Skysay adds around your text, and with some scripts counted at more than
 one billable character each. The catalog is the current source for the
 applicable price and reserve estimate. Azure runs on an Skysay-managed
 credential only — there is no bring-your-own-key path for it today.
+
+#### An agent listens for every language it is configured for
+
+An agent whose transcriber can compare several languages at once listens for
+all of its configured languages, in any combination. There is no setting for
+this: the languages you selected for the agent are the languages it listens
+for. Azure AI Speech and Google Chirp 2 both work this way.
+
+- **The reply language does not change.** In **Choose before the call**, the
+  agent still answers in the language that call was published in. This is not
+  [automatic switching](#automatic-switching-availability-by-language); only
+  what the recognizer listens for is wider.
+- **One selected language means one locale.** Nothing is added to a
+  single-language agent, and no language is treated specially.
+- **Speech in another selected language comes back in that language.**
+  Listening for one locale alone, a recognizer writes what it heard into that
+  language's script even when the caller used another, with no error and no
+  low-confidence signal, so the agent answers a question nobody asked. A
+  Sinhala line taking English-speaking callers is the case this was measured
+  on.
+- **It depends on the transcriber.** Deepgram Nova-3 and Soniox detect
+  languages a different way, without a per-agent list, so an agent on either
+  of them listens for the one language its call is in, as before.
+- **An agent published to follow the caller** keeps the candidate languages it
+  published, and nothing is added to that set.
+- **Outbound calls name their language.** Selecting a second language is a
+  change to how the agent is called, not only to what it hears: starting an
+  outbound call on an agent with more than one selected language requires
+  `language` in the request, since that is what chooses the published profile
+  the call runs on. A caller that omits it is refused with 400. Inbound calls
+  are unaffected.
+
+Azure compares speech against at most ten candidates at once. An agent
+configured with more selected languages than its transcriber can compare keeps
+listening for the one language its call is in. The call is not refused, and
+nothing about it changes.
+
+Recognition speed with several candidates has not been measured separately
+from single-language recognition. Test your own conversation before relying on
+a response time.
 
 ### OpenAI GPT-Live 1
 

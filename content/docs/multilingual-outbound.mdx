@@ -17,6 +17,21 @@ provider, or language to an active call.
 
 ## Configure languages on one agent
 
+### When you create the AI agent
+
+The **Identity** step of the new-agent flow asks for languages, not a language.
+The first one you choose opens the call; add the others as chips beside it. The
+**Voice** step then offers only the voices and transcription that cover *every*
+language you picked, so the agent you create can be published without changing
+its stack afterwards. Remove a chip to widen that choice again.
+
+You are not committed to what you pick here. Everything on this page can be
+changed later in the AI agent editor's **Languages** section.
+
+GPT-Live 1 is the exception: it has no language setting at all, so it shows
+only the opening language and answers in whichever language the caller speaks.
+See [Which languages the voice agent follows](/docs/language-following).
+
 ### Auto multilingual
 
 In the AI agent editor, choose **Auto multilingual** to let the conversation
@@ -206,9 +221,25 @@ request; use signed lifecycle and evidence events to reconcile its outcome.
 ## Optional: follow the caller
 
 Keep **Single language per call** when each call should stay in its selected
-language. Existing agents keep that behavior unless you explicitly enable and
-publish **Follow the caller**. The opening language determines how the agent
-starts; it does not force the caller to stay in that language.
+language. The opening language determines how the agent starts; it does not
+force the caller to stay in that language.
+
+Whether **Follow the caller** starts on depends on where the agent came from:
+
+- **Agents that already exist, and any change you make in the editor.** Off
+  until you enable and publish it yourself. Adding a second language in the
+  editor's **Languages** section does not switch it on.
+- **Agents created through the new-agent flow.** On, but only when both are
+  true at the moment you create it: you chose two or more languages, *and* the
+  transcriber you chose declares that it can listen for all of them at once. If
+  either is not true it is off, and nothing about the agent is blocked -- you
+  simply get single-language behaviour until you change the transcriber and
+  publish.
+
+To turn it off on a newly created agent, open the AI agent editor, go to
+**Languages**, choose **Single language per call**, and publish. The
+[voice-stack API](#optional-follow-the-caller) does the same thing with
+`{"follow_caller": {"enabled": false}}`.
 
 Follow mode requires at least two selected languages, one shared transcriber,
 and listening support for the selected languages together.
@@ -318,9 +349,20 @@ for the difference between the two hosting paths.
 ### Public homepage demos
 
 The anonymous homepage demo can use Follow only for a published, frozen set of
-platform-managed profiles. It starts in the selected published language and can
-move only within that same frozen set. BYOK-bound profiles are not eligible, and
-the demo never selects a replacement provider or voice.
+platform-managed profiles. BYOK-bound profiles are not eligible, and the demo
+never selects a replacement provider or voice.
+
+An agent with Follow enabled over two or more published profiles is offered as a
+single **Multilingual** choice naming the languages it speaks, rather than as one
+choice per language. A visitor who picks it does not choose a starting language:
+the session opens in the agent's published opening language and then follows the
+caller within the same frozen set, as a phone call does. An agent without Follow
+is still offered once per published language, and picking one starts and stays
+there.
+
+The Multilingual choice appears only when every published profile is currently
+runnable. If one of them is not, the agent is not offered at all rather than
+offered for a narrower set of languages than it promises.
 
 The visitor token contains an opaque session, the starting stack, and (where
 needed) a public capability revision. It does not contain the agent prompt,

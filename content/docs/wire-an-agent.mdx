@@ -21,9 +21,11 @@ have built, one row per AI agent, and each row says where it has got to:
 
 | Status | What it means |
 | --- | --- |
+| **Stopped** | You switched it off, so it answers nothing until you resume it |
 | **Needs a voice** | Something is unchosen or refused, so nothing would answer yet |
 | **Ready to test** | It can hold a conversation in the browser; nothing is dialled |
 | **Tested** | It has taken at least one call |
+| **Needs attention** | A number is attached and its registration is waiting on you -- the carrier asked for more information, or turned the registration down |
 | **Number activating** | A number is attached and the carrier has not finished |
 | **Live** | A number is attached and activated, and nothing about the agent blocks a call |
 
@@ -32,6 +34,11 @@ that does it, so a row is never a dead end. **Needs a voice** covers more than
 a missing voice -- a suspended agent or an unreachable external endpoint lands
 there too -- so a row whose problem is something else sends you to the agent's
 **Overview**, where every problem is listed beside the control that clears it.
+**Needs attention** is the one state where the wait is yours rather than the
+carrier's: its next step is **Fix the number**, which opens that number on the
+[Numbers](/docs/regulated-numbers) page, where the checklist names what was
+asked for. **Number activating** prescribes no step, because nothing in the
+workspace makes the carrier finish sooner.
 
 **New AI agent** opens three steps: **Start** (a blank agent, a preset, or
 bring your own), **Identity** (name, opening language, first message and
@@ -49,6 +56,51 @@ blocks publishing, each beside the control that fixes it.
 **Voice** or **Chat** and whether you are testing the **Draft** or the
 **Published** snapshot. Editing does not publish: **Publish changes** shows
 exactly which fields changed and asks before it writes.
+
+## Stopping and resuming an agent
+
+**Stop answering**, at the top of the agent editor, takes one AI agent off the
+air without deleting anything. **Resume** puts it back.
+
+A stopped agent answers nothing:
+
+- no inbound or outbound telephone calls,
+- no browser test, and
+- no homepage demo.
+
+Nothing else changes. The agent, its voice stack, its knowledge, its tools and
+its attached numbers all stay exactly as they were, and you can keep editing
+and publishing the draft while it is stopped.
+
+**Resume** lifts the stop and does nothing else. It restores no snapshot: the
+agent comes back on whatever is published at that point and on the numbers
+routed to it then, and it answers as soon as the rest of its setup allows. So
+this is the safe way to take an agent out of service for an hour, a weekend, or
+a season — and if you publish changes while it is stopped, those are the
+changes it comes back with.
+
+The one visible consequence is on your numbers: a number routed to a stopped
+agent stops answering, and the **Phone numbers** page shows it as a problem
+naming the stopped agent as the reason, until you resume the agent or route
+that number somewhere else.
+
+Over the API the same control is the `status` field:
+
+```text
+you › stop my receptionist answering
+→ update_agent(agent_id=..., status="inactive")    # agents:write
+```
+
+`status` accepts `active` and `inactive`, and rejects anything else with a
+`400` — as it does any change to an agent whose stored status is neither of
+those. A call to a stopped agent is refused with the `agent_inactive` reason.
+A call already in progress when you stop the agent is not cut off.
+
+<Callout title="A suspended agent is not a stopped one">
+  If an Skysay operator has suspended an agent, that is a different state and
+  you cannot clear it yourself — `status` will not move the agent out of it.
+  Contact support.
+</Callout>
 
 ## 1. Create the agent
 
