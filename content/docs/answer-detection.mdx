@@ -125,35 +125,43 @@ and the call is not restarted; the agent picks up from where it is.
 **A recording on repeat.** The other party says the same ordered cycle of two
 to four different things three times over: a hold loop, a voicemail menu, an
 announcement that restarts. Text is compared after lowercasing, dropping
-invisible formatting characters (the joiners some South Asian scripts carry),
-and reading punctuation as a gap between words rather than deleting it, in any
-language; the words themselves are never stored. Two further readings keep this
-from catching a person who happens to repeat themselves: every text in the
-cycle has to be more than one word, so a caller answering a run of yes-or-no
+invisible formatting characters (the joiners some South Asian scripts carry;
+a zero-width space is kept as a word gap rather than dropped, since some
+scripts use it exactly that way instead of an ordinary space), and reading
+punctuation as a gap between words rather than deleting it, in any language;
+the words themselves are never stored. Two further readings keep this from
+catching a person who happens to repeat themselves: every text in the cycle
+has to be more than one word, so a caller answering a run of yes-or-no
 questions never qualifies, and the three recitations have to complete at a
 fairly steady pace, so a caller re-reading something at their own, uneven pace
-does not either. This rule has no clock and no window of its own: it ends the
-call the moment the third recitation completes, however long that takes, and it
-is not released by another recitation. A person saying the same one thing
-several times, "hello? hello? hello?" into a greeting that was cut off, is not
-a cycle and never trips it. The call carries `answer_classification`
-`non_human_audio` and `reason_detail` `looping_recording`. Measured on every
-completed call of the five days before it shipped, sixty-five calls across
-every agent and both conversation engines, fifty-five of them with a
-transcript, no call repeated any such cycle even once, while the call that
-prompted it recited a four-line loop fifteen times and would have ended at its
-third recitation, three and a half minutes in, instead of at its
-twenty-nine-minute maximum.
+does not either. A script with no spacing between words at all -- ordinary
+Chinese text, for instance -- never reaches the two-word floor either reading
+needs, so this rule records nothing for such a caption rather than guessing;
+that is a known limit of this rule, not a defect elsewhere in detection. This
+rule has no clock and no window of its own: it ends the call the moment the
+third recitation completes, however long that takes, and it is not released by
+another recitation. A person saying the same one thing several times, "hello?
+hello? hello?" into a greeting that was cut off, is not a cycle and never
+trips it. The call carries `answer_classification` `non_human_audio` and
+`reason_detail` `looping_recording`. Measured on every completed call of the
+five days before it shipped, sixty-five calls across every agent and both
+conversation engines, fifty-five of them with a transcript, no call repeated
+any such cycle even once, while the call that prompted it recited a four-line
+loop fifteen times and would have ended at its third recitation, three and a
+half minutes in, instead of at its twenty-nine-minute maximum.
 
-The cost of this rule is stated the same way as the others: a person who gives
-the same two to four multi-word answers in the same order, three times over, at
-a steady pace close to the recording's own, for instance repeating an address
-because an agent keeps asking for it, can still be treated as a recording and
-ended -- the two readings above narrow that risk without removing it. Nobody
-in those sixty-five calls came within two recitations of that, but five days
-of one customer's traffic is not a promise about every caller. The advice
-above stands: run an agent on `shadow` first and read what it records for your
-own traffic before you move it to `end_call`.
+**Do not set this agent setting to `end_call` on the strength of this rule
+yet.** A person who gives the same two to four multi-word answers in the same
+order, three times over, at a steady pace close to the recording's own -- for
+instance repeating an address because an agent keeps asking for it -- can
+still be treated as a recording and ended; the two readings above narrow that
+risk without removing it. Nobody in those sixty-five calls came within two
+recitations of that, but five days of one customer's traffic is not a promise
+about every caller, and this specific reachable case has not yet had a third
+reading built against it. The rule's value today is the `shadow` record
+itself -- whether it would have ended the call, and on which cycle -- read
+against your own traffic. The advice every rule on this page gives stands
+here too: run an agent on `shadow` first before you move it to `end_call`.
 
 Neither of the first two rules ends a call in its first forty-five seconds.
 Both silence the agent the moment they stand, and a pause before that point
