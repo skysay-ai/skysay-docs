@@ -35,6 +35,7 @@ collection switched off, or the call never carried media.
 | --- | --- |
 | `caller_tune` | `non_human_audio` |
 | `hold_music` | `non_human_audio` |
+| `looping_recording` | `non_human_audio` |
 | `no_audio` | `silent` |
 | `""` | every other classification |
 
@@ -75,9 +76,13 @@ Anything short of all three is `unknown`.
 
 That narrowness is on purpose, and it has a stated cost in both directions:
 
-- **A recorded announcement is treated as a person.** Announcements and menu
-  prompts have pauses in them, so they read as `human` or `unknown` and are left
-  alone. Recognising those is a separate problem and is not what this does.
+- **A recorded announcement is treated as a person, until it repeats.**
+  Announcements and menu prompts have pauses in them, so they read as `human`
+  or `unknown` and are left alone. The one exception is a recording that
+  repeats itself: when the other party says the same cycle of things three
+  times over, the call is classified `non_human_audio` with the detail
+  `looping_recording`. That is the only verdict here that reads what was said
+  rather than how it sounded, and it is described under the ending below.
 - **Somebody talking over music that never stops is missed.** Their words never
   land in a pause, so they are not counted, and the call is classified on the
   audio's shape alone.
@@ -94,9 +99,9 @@ that way carries `answer_classification` `non_human_audio` and the detail naming
 which kind, so the reason says that nobody was there and the classification says
 what was heard instead.
 
-An agent set to `end_call` ends a call this way in two situations and no others.
-An agent left on `shadow`, which is every agent that has not been changed, still
-ends nothing.
+An agent set to `end_call` ends a call this way in three situations and no
+others. An agent left on `shadow`, which is every agent that has not been
+changed, still ends nothing.
 
 **A flat, unbroken tone or tune.** The audio runs continuously with no pause in
 it, its shape lacks the rhythm of speech, and no word is recognised in the
@@ -117,9 +122,34 @@ else does within a second or two. The pause is the release, so nothing has to
 recognise them first and the call simply carries on. They are not greeted again
 and the call is not restarted; the agent picks up from where it is.
 
-Neither rule ends a call in its first forty-five seconds. Both silence the
-agent the moment they stand, and a pause before that point releases the rule
-and the silence together.
+**A recording on repeat.** The other party says the same ordered cycle of two
+to four different things three times over: a hold loop, a voicemail menu, an
+announcement that restarts. Text is compared after lowercasing and removing
+punctuation, in any language; the words themselves are never stored. This rule
+has no clock and no window of its own: it ends the call the moment the third
+recitation completes, however long that takes, and it is not released by
+another recitation. A person saying the same one thing several times, "hello?
+hello? hello?" into a greeting that was cut off, is not a cycle and never
+trips it. The call carries `answer_classification` `non_human_audio` and
+`reason_detail` `looping_recording`. Measured on every completed call of the
+five days before it shipped, sixty-five calls across every agent and both
+conversation engines, fifty-five of them with a transcript, no call repeated
+any such cycle even once, while the call that prompted it recited a four-line
+loop fifteen times and would have ended at its third recitation, three and a
+half minutes in, instead of at its twenty-nine-minute maximum.
+
+The cost of this rule is stated the same way as the others: a person who gives
+the same two to four answers in the same order three times over, for instance
+to an agent that keeps re-asking a pair of questions it cannot validate, is
+treated as a recording and ended. Nobody in those sixty-five calls came within
+two recitations of that, but five days of one customer's traffic is not a
+promise about every caller. The advice above stands: run an agent on `shadow`
+first and read what it records for your own traffic before you move it to
+`end_call`.
+
+Neither of the first two rules ends a call in its first forty-five seconds.
+Both silence the agent the moment they stand, and a pause before that point
+releases the rule and the silence together.
 
 On the four caller tunes measured below, that grace period never came into it.
 A song stops between phrases and between tracks, so the far end keeps yielding
