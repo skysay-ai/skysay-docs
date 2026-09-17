@@ -108,6 +108,75 @@ after applying the same recording-consent, retention, and deletion checks as
 the mixed recording. Deleting a recording removes turn playback as well; it
 does not cause historical audio to be regenerated or retranscribed.
 
+## Tool calls and language switches in the transcript
+
+Between the transcript turns, the Calls workspace shows each tool the agent
+finished and each language switch it made, in the order they happened on the
+call.
+
+A tool row shows the tool's name, whether it succeeded or failed, how long it
+took, and its offset into the call. A language switch shows the language the
+agent moved to and why. Both sit inline with the turns, so you can see that the
+agent looked something up before it answered, or that it changed language after
+the caller did.
+
+### What is recorded, and what is not
+
+The rows are built from a fixed set of typed fields. **Nothing the model or the
+caller wrote is kept with them.** Skysay does not store, and cannot show, a
+tool's arguments, its result, the URL or headers it was called with, its
+response body, or any error message — redacted or otherwise. A tool row holds
+only:
+
+- the tool's **kind** (webhook, connection, `send_sms`, `end_call`, and so on),
+- an opaque internal reference to the configured tool,
+- whether it **succeeded**,
+- a closed **error class** if it failed, which is `cancelled` for a tool that
+  was cancelled and otherwise unclassified,
+- its **duration**, which is empty when nothing measured it,
+- its **offset** into the call.
+
+A language switch holds only the language moved from and to — checked against
+the languages frozen with the call, not against the agent's current settings —
+the reason (the agent followed the caller, or the switch was requested), and the
+offset. The utterance that triggered it is not recorded with the row; it is
+already an ordinary transcript turn.
+
+The name on a tool row is **looked up when the drawer opens**, from the call's
+own agent configuration. It is never copied into the stored row. A tool that has
+since been deleted, or whose identity cannot be established, shows its kind's
+label — "Webhook tool" — rather than a guess. A tool renamed after the call
+shows its current name.
+
+### Limits, and why a blank list is never "no tools ran"
+
+At most 200 rows are recorded per call; past that the list is marked incomplete
+rather than silently trimmed, and the drawer says so.
+
+Absence is always explained. A call handled before this existed, a call whose
+audio arrived through a self-hosted gateway, a call that failed before media
+started, and a call that ran a conversation flow each get a one-line reason
+instead of an empty list. GPT-Live calls record tool rows but not language
+switches, because that engine follows the caller's language on its own rather
+than through a controlled switch, and the drawer says that too. **An empty list
+never means the agent made no tool calls** — only an explicit "none recorded"
+does, and that appears only when the call was actually observed.
+
+Ordering is by offset on the recording clock. A tool row marks when the call
+finished, not which turn caused it, so a row sits between turns rather than
+being attributed to one of them.
+
+Deleting a recording, a retention expiry, or re-importing a corrected recording
+removes these rows along with it.
+
+### What this does not change
+
+The public transcript API and its stream are unchanged: `get_call_transcript`
+returns turns only, exactly as before. The `call.completed`,
+`call.transcript.ready` and `call.recording.ready` webhooks are unchanged, as
+are post-call extraction, turn counts, and campaign and call-group readiness —
+all of which read transcript turns and nothing else.
+
 ## Where a call's telemetry lives
 
 A call's timing and cost evidence — the per-turn latency budget, the cost
