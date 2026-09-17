@@ -9,6 +9,14 @@
           "begin_message": {
             "type": "string"
           },
+          "follow_caller": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentFollowCaller"
+              }
+            ],
+            "description": "Answer each caller in whichever selected language they speak. Accepted at creation so a multilingual agent can be created in one request; enabling it requires at least two languages and is refused with 400 otherwise. Creation stores the opt-in only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set, and refuses the publication when none can. Changing it afterwards is a voice-stack save, not an agent update."
+          },
           "language": {
             "type": "string"
           },
@@ -4393,6 +4401,39 @@
               "schema": {
                 "properties": {
                   "draft": {
+                    "description": "Only read when snapshot is 'draft'. `first_message`, `instructions` and `language` apply to an agent without a selected language set (a published set pins the per-locale greeting, prompt and language). `stack` applies to every draft test and names its conversation engine in `stack.voice_frontend` ('cascade' or 'gpt_live') plus that engine's own fields: for cascade the `transcriber`, `model` and `voice` selections (`{provider, model, voice_id}`; leaving GPT-Live needs all three); for GPT-Live the `voice` (`{provider: 'openai', model: 'gpt-live-1', voice_id}`) and `model` (`{provider: 'openai', model: <backend>}`) -- no transcriber, a cascade one riding along is refused. A stack with no `voice_frontend` is a partial cascade overlay on the stored engine. A draft stack is refused while Follow the caller is published for the agent.",
+                    "properties": {
+                      "first_message": {
+                        "type": "string"
+                      },
+                      "instructions": {
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "stack": {
+                        "properties": {
+                          "model": {
+                            "type": "object"
+                          },
+                          "transcriber": {
+                            "type": "object"
+                          },
+                          "voice": {
+                            "type": "object"
+                          },
+                          "voice_frontend": {
+                            "enum": [
+                              "cascade",
+                              "gpt_live"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
                     "type": "object"
                   },
                   "organization_id": {
@@ -8220,7 +8261,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
