@@ -14,6 +14,14 @@ services were confirmed deployed.
 
 ## 17 September 2026
 
+### A call the media worker fails to start is ended by the platform, not left silent
+
+- When Skysay's media worker fails after a call is admitted and before it reports that media started, the platform now hangs up the phone leg, closes the room and records one `call.failed` result with `technical_failure.failure_reason_code` `worker_entry_failed` and `failure_stage` `worker_entry`.
+- The wallet reservation is released and nothing is charged; previously such a call stayed `dialing` with no result while the person who answered heard silence.
+- No setting and no override: a call that never delivered media is never continued. The reason is published on the call resource, in `GET /v1/call-results` and on the `call.failed` webhook.
+- [Read call evidence](/docs/post-call-results)
+
+
 ### Choose every language an AI agent answers in while you create it
 
 - The new-agent **Identity** step now asks for languages rather than a language: the first opens the call, and the rest are added as chips beside it.
