@@ -28,14 +28,43 @@ Standard remains the default when you omit the field.
 
 ## Browser testing
 
-Browser tests involving GPT-Live use the **Published** snapshot. Publish engine,
-voice or backend changes before testing them. The test dock names the saved
-stack that will run, including while you have unsaved engine changes.
+The test panel offers two targets. **Current draft** runs the engine, voice
+and backend as they stand on the page, before you publish -- switch a
+Standard agent to GPT-Live 1, pick a voice, and talk to it. **Published** runs
+the last published snapshot. The panel names what each target will run: for
+GPT-Live 1 the voice and engine ("Marin · GPT-Live 1"), the backend for tools,
+and that speech-to-text is built into the engine.
+
+Two things to know:
+
+- On an agent with published languages, a **Current draft** test takes the
+  voice and engine from the draft and the prompt and greeting from the
+  published languages. The panel says so.
+- While **Follow the caller** is published for an agent, the panel offers only
+  **Published**: the published Follow contract is bound to the published
+  transcriber. Publish the voice change to test it.
+
+If a test cannot start because of the agent's setup, the panel lists what
+needs fixing in the same words the Agents page uses, with a link to the
+section, rather than an error code.
 
 ## API and MCP
 
 The discriminator is `voice_frontend`: `cascade` or `gpt_live`. Omit it and
 the agent stays Standard.
+
+GPT-Live 1 has no language set: `languages`, `language_profiles` and
+`follow_caller` are refused on a GPT-Live create or `PATCH
+/v1/agents/{agent_id}/voice-stack` with `400`. A language set the agent kept
+from its Standard days stays stored and is treated as prompt guidance; its
+profiles are published GPT-Live-shaped and Follow the caller publishes
+disabled. Switching back to Standard resumes them.
+
+A browser test's draft overlay (`POST /v1/agents/{agent_id}/browser-sessions`
+with `snapshot: "draft"`) names its engine in `draft.stack.voice_frontend` and
+carries that engine's own fields: for GPT-Live the `voice` and `model`
+(backend), for Standard the `transcriber`, `model` and `voice`. See the
+request schema in the API reference.
 
 ```json
 {
