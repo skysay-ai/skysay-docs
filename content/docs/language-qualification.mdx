@@ -236,6 +236,25 @@ agent's instructions promise is the usual way to reach this: update the
 system prompt and the opening message together with the language set, or
 callers will keep being offered a language the call cannot deliver.
 
+### Follow mode on an agent that runs a workflow
+
+Follow the caller can be published on an agent whose calls run an
+[agent workflow](/docs/agent-workflows). The workflow is a set of rules that
+does not depend on language: when the transcriber reports stable evidence that
+the caller is speaking another published language, the voice and reply
+language switch and the workflow run continues from the step it is on, with
+nothing repeated to the run and nothing skipped.
+
+- If the switch lands while the agent is speaking a step, that step is spoken
+  again in the new language; if it lands while the caller is speaking, the
+  next step is simply spoken in the new language.
+- Only the automatic path switches a workflow call. A caller's spoken request
+  for another language does not switch it, because a workflow call has no
+  free-form model turn to act on the request; author a `language_change`
+  interrupt in the workflow for what should happen then.
+- Workflow steps are spoken as authored. Usage is billed per language segment
+  exactly as on a free-form call.
+
 ### Browse and test the cached catalog
 
 The **Voices** workspace page is a flat, paginated list rather than a separate
