@@ -110,7 +110,21 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("/docs/integrations", guide_text["customer-applications"])
         self.assertIn("complete cached catalog", guide_text["voice-library"])
         self.assertIn("up to 100", guide_text["voice-library"])
-        self.assertIn("accessible provider window", guide_text["voice-library"])
+        # The coverage caveat is pinned to the statement a customer actually
+        # sees. The workspace dropped its standing "a provider's accessible
+        # search window may be incomplete" line (skysay#11, founder
+        # 2026-09-15); `sourceWindowLimited` survives only to select the
+        # end-of-results notice, whose words these are. The page followed in
+        # skysay-docs#13 and this pin did not, so it asserted a phrase the
+        # product had stopped making.
+        # Both phrases are contiguous in the MDX: a pin that spans the hard
+        # wrap fails on where the paragraph happens to break, not on what it
+        # says.
+        self.assertIn("provider catalogue results are incomplete", guide_text["voice-library"])
+        self.assertIn(
+            "not as a claim that no other provider voices exist",
+            guide_text["voice-library"],
+        )
 
     def test_audio_environment_guide_matches_the_customer_contract(self) -> None:
         catalogue = self.schema["paths"]["/v1/audio-environments"]["get"]
