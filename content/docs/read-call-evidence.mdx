@@ -143,10 +143,19 @@ offset. The utterance that triggered it is not recorded with the row; it is
 already an ordinary transcript turn.
 
 The name on a tool row is **looked up when the drawer opens**, from the call's
-own agent configuration. It is never copied into the stored row. A tool that has
-since been deleted, or whose identity cannot be established, shows its kind's
-label — "Webhook tool" — rather than a guess. A tool renamed after the call
-shows its current name.
+own agent configuration. It is never copied into the stored row.
+
+Each configured tool carries a stable internal identifier, and that is what the
+row records. The identifier survives any edit that keeps the tool's name — you
+can change a webhook's URL, its description or a transfer destination and older
+calls keep showing that tool by name. **Renaming or removing a tool retires its
+identifier**, so rows recorded before the change show the tool's kind —
+"Webhook tool" — instead of a name. That is deliberate: showing a name the call
+never used, or a similar tool's name, would be worse than showing none.
+
+The identifier appears as a read-only `ref` on each tool in the agent API. You
+cannot set it; a value sent in a request is ignored in favour of what is already
+stored.
 
 ### Limits, and why a blank list is never "no tools ran"
 
