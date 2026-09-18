@@ -15,7 +15,7 @@
                 "$ref": "#/components/schemas/AgentFollowCaller"
               }
             ],
-            "description": "Answer each caller in whichever selected language they speak. Accepted at creation so a multilingual agent can be created in one request; enabling it requires at least two languages and is refused with 400 otherwise. Creation stores the opt-in only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set, and refuses the publication when none can. Changing it afterwards is a voice-stack save, not an agent update."
+            "description": "Answer each caller in whichever selected language they speak. Accepted at creation so a multilingual agent can be created in one request; enabling it requires at least two languages and is refused with 400 otherwise. Creation stores the opt-in only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set, and refuses the publication when none can. Changing it afterwards is a voice-stack save, not an agent update. An engine without a language axis (see voice_frontend) REFUSES this field with 400 rather than accepting and dropping it."
           },
           "language": {
             "type": "string"
@@ -29,6 +29,7 @@
             "type": "array"
           },
           "languages": {
+            "description": "The languages this agent may answer in. An engine without a language axis (see voice_frontend and the agent-catalog conversation_engines block) REFUSES this field with 400 rather than accepting and dropping it.",
             "items": {
               "maxLength": 35,
               "minLength": 2,
@@ -665,7 +666,7 @@
             "type": "object"
           },
           "voice_frontend": {
-            "description": "cascade (default) or gpt_live. Always present on GET; omitted on older rows means cascade.",
+            "description": "The conversation engine; cascade is the default. Always present on GET; omitted on older rows means cascade. Whether this engine has a language axis is declared in the agent-catalog conversation_engines block (has_language_axis).",
             "enum": [
               "cascade",
               "gpt_live"
@@ -738,7 +739,7 @@
             "type": "integer"
           },
           "language_profiles": {
-            "description": "When supplied this replaces the sparse override set; omit it to preserve overrides.",
+            "description": "When supplied this replaces the sparse override set; omit it to preserve overrides. An engine without a language axis (see voice_frontend and the agent-catalog conversation_engines block) REFUSES this field with 400 rather than accepting and dropping it.",
             "items": {
               "$ref": "#/components/schemas/AgentLanguageProfileOverride"
             },
@@ -746,7 +747,7 @@
             "type": "array"
           },
           "languages": {
-            "description": "When supplied this replaces the selected language set.",
+            "description": "When supplied this replaces the selected language set. An engine without a language axis (see voice_frontend and the agent-catalog conversation_engines block) REFUSES this field with 400 rather than accepting and dropping it.",
             "items": {
               "maxLength": 35,
               "minLength": 2,
@@ -786,7 +787,7 @@
             ]
           },
           "voice_frontend": {
-            "description": "Optional conversation engine. Omitted or cascade is STT/LLM/TTS. gpt_live selects GPT-Live-1. GET still returns transcriber, model, and voice as an OpenAI compatibility projection.",
+            "description": "Optional conversation engine. Omitted or cascade is STT/LLM/TTS. gpt_live selects GPT-Live-1. GET still returns transcriber, model, and voice as an OpenAI compatibility projection. Each engine declares whether it has a language axis; a voice-to-voice engine does not, and this route then refuses languages, language_profiles and follow_caller with a 400 naming the field and the engine. Read has_language_axis from the agent-catalog conversation_engines block rather than assuming it from the id.",
             "enum": [
               "cascade",
               "gpt_live"
@@ -4160,7 +4161,7 @@
     },
     "/v1/agent-catalog": {
       "get": {
-        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). The payload also includes conversation_engines: cascade (default STT/LLM/TTS) and gpt_live (GPT-Live-1 voices and Responses backends). A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by Skysay; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; Skysay does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. This catalog does not authorize a provider credential or disclose provider secrets.",
+        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). The payload also includes conversation_engines: cascade (default STT/LLM/TTS) and gpt_live (GPT-Live-1 voices and Responses backends). Every engine row carries has_language_axis: true for cascade, false for a voice-to-voice engine that has no separate transcriber, LLM or TTS and therefore no language set, no per-language profile overrides and no Follow the caller. Read that flag rather than matching on the engine id: agent create and the voice-stack PATCH refuse languages / language_profiles / follow_caller for an engine whose row says false. A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by Skysay; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; Skysay does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. This catalog does not authorize a provider credential or disclose provider secrets.",
         "parameters": [
           {
             "in": "query",
