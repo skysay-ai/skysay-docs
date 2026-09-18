@@ -4320,6 +4320,9 @@
         "responses": {
           "201": {
             "description": "Agent"
+          },
+          "400": {
+            "description": "An unrecognized mode, a tools value that is neither empty nor a list, a metadata value that is neither empty nor an object, an external_audio or external_text agent missing its webhook_url/audio_stream_url, or a project_id this organization does not own. On create (unlike PATCH) a falsy tools or metadata -- null, false, 0, \"\" -- is read as an empty selection rather than refused"
           }
         },
         "summary": "Create an external or hosted agent"
@@ -6320,6 +6323,9 @@
         "responses": {
           "201": {
             "description": "Imported number, readiness result, and activation state"
+          },
+          "400": {
+            "description": "A project_id this organization does not own, or a missing/unparseable e164"
           }
         },
         "summary": "Import a carrier-owned DID as a voice-only number; activates only on passing live activation evidence, monthly fee stays with the carrier"
@@ -8001,7 +8007,7 @@
     },
     "/v1/dashboard/agent-create": {
       "get": {
-        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header \u2014 not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
+        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header — not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -8262,7 +8268,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate — never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -9960,6 +9966,9 @@
         "responses": {
           "201": {
             "description": "Phone number"
+          },
+          "400": {
+            "description": "An unsupported status, or an agent_id or end_user_id that is not one of this workspace's. An id that does not exist and an id owned by another workspace answer identically, so neither enumerates the other's ids"
           }
         },
         "summary": "Operator/internal attach an owned carrier number or create a local fake number"
