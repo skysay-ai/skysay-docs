@@ -130,6 +130,39 @@ that never delivered media is never continued. `sip_status_code` is null on
 this reason, because the phone leg itself did not fail. Retry policy treats it
 as a technical failure on Skysay's side, not as a busy or unanswered contact.
 
+### When the configuration could not be run
+
+Five reasons share the stage `component_configuration`. They mean the call was
+admitted and then refused before any audio existed, because the agent's
+resolved configuration could not build a conversation. Four of them name the
+missing piece:
+
+| Value | Meaning |
+| --- | --- |
+| `voice_id_missing` | no voice is chosen, so the agent has nothing to speak with |
+| `tts_model_missing` | no speech model is chosen, so replies cannot become audio |
+| `llm_model_missing` | no language model is chosen, so the agent has nothing to think with |
+| `system_prompt_missing` | no instructions are written, so the agent does not know what the call is for |
+
+The fifth, `component_configuration_rejected`, is the general case: the
+configuration was refused for a reason outside that list — an unavailable
+provider or model for the call's language, a voice that is not in the approved
+inventory, or a language the agent is not published to answer in.
+
+What the four name is the *field*, never its contents: `system_prompt_missing`
+tells you instructions are missing and never quotes them. As with every
+pre-media refusal, Skysay hangs up the phone leg, closes the room, records one
+`call.failed` result and releases the wallet reservation, so nothing is charged.
+`sip_status_code` is null: the phone leg itself did not fail.
+
+These are configuration problems, not faults, and retrying the same call
+without changing the agent produces the same result. The agent's page in your
+workspace reports the same missing pieces before you place a call, and a
+browser test against an agent in this state is refused rather than connected.
+Calls that failed this way before this release carry no reason at all; they are
+not backfilled.
+
+
 ## Read evidence and optional extraction
 
 After the relevant ready event, use the generated reference routes for:
