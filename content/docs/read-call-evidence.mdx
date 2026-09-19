@@ -274,3 +274,18 @@ transcript to play; do not interpret missing audio as a recording failure.
 
 Only attempts attributable to your workspace appear in its history. Calls to
 unknown numbers are not assigned to a customer workspace.
+
+## Caption arrival and speech timing
+
+A caller turn can include `metadata.caption_ingested_ms` with
+`metadata.caption_ingestion_clock: "recording_monotonic_zero_v1"`. This is when
+the worker received the caption, measured in milliseconds from the synchronized
+recording's monotonic zero. It is separate from `start_ms` and `end_ms`, which
+describe the turn's audio boundaries when those boundaries were measured.
+
+Caption arrival can lag speech because of recognition and processing. Use the
+ingestion timestamp to compare caption delivery with the runtime's repetition
+measurements; do not use it as the time the caller began speaking or as proof
+that the caller was responding to an agent turn. Older turns and turns without
+this measurement omit these metadata fields. A missing field means unmeasured,
+not zero delay. These fields do not enable automatic call endings.
