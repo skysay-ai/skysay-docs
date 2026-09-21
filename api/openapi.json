@@ -669,7 +669,8 @@
             "description": "The conversation engine; cascade is the default. Always present on GET; omitted on older rows means cascade. Whether this engine has a language axis is declared in the agent-catalog conversation_engines block (has_language_axis).",
             "enum": [
               "cascade",
-              "gpt_live"
+              "gpt_live",
+              "gemini_live"
             ],
             "type": "string"
           },
@@ -790,7 +791,8 @@
             "description": "Optional conversation engine. Omitted or cascade is STT/LLM/TTS. gpt_live selects GPT-Live-1. GET still returns transcriber, model, and voice as an OpenAI compatibility projection. Each engine declares whether it has a language axis; a voice-to-voice engine does not, and this route then refuses languages, language_profiles and follow_caller with a 400 naming the field and the engine. Read has_language_axis from the agent-catalog conversation_engines block rather than assuming it from the id.",
             "enum": [
               "cascade",
-              "gpt_live"
+              "gpt_live",
+              "gemini_live"
             ],
             "type": "string"
           },
@@ -1062,6 +1064,11 @@
             "description": "Destination for `transfer_to_human`, and required when that tool is enabled. Must be full E.164 including the leading `+` and country code (for example `+12025550100`); a blank, partial, or non-dialable number is rejected when the agent is created or updated, rather than failing mid-call. Ignored by `end_call` and `send_sms`.",
             "type": "string"
           },
+          "ref": {
+            "description": "Read-only, server-issued. A stable opaque identifier for this configured tool, used to name the tool on a call's transcript rows without storing the tool's own name with them. Ignored if you send it: the value is taken from what is already stored, so it cannot be chosen. It survives any edit that keeps the tool's `name` and `type`; renaming, retyping or removing a tool retires its identifier, and transcript rows recorded before that show the tool's kind instead of a name.",
+            "readOnly": true,
+            "type": "string"
+          },
           "type": {
             "const": "builtin"
           }
@@ -1088,7 +1095,7 @@
             ]
           },
           "answer_classification": {
-            "description": "What was heard after the call was answered, which is a different question from whether it was answered at all: a carrier bridges audio for a ringback replacement tune or a hold-music loop exactly as it does for a person, so the status says the line answered and this says what was on it. `human` means a person was heard. `non_human_audio` means continuous music or tones held the line and nothing a person did was ever heard; `reason_detail` names which kind. `silent` means the line answered and nothing at all was heard. `unknown` means the detector ran and reached no decision inside its window, which is deliberately NOT the same as the empty string: empty means no verdict was reported at all, on a call placed before this field shipped, on an agent whose collection is switched off, or on a call whose media never started. Detection is deliberately narrow and only claims `non_human_audio` for unbroken non-human audio, so a recorded announcement or an IVR menu with pauses in it reads as `human` or `unknown` rather than being classified here.",
+            "description": "What was heard after the call was answered, which is a different question from whether it was answered at all: a carrier bridges audio for a ringback replacement tune or a hold-music loop exactly as it does for a person, so the status says the line answered and this says what was on it. `human` means a person was heard. `non_human_audio` means nothing a person did was ever heard: continuous music or tones held the line, or a recording repeated the same cycle of things over and over; `reason_detail` names which kind. `silent` means the line answered and nothing at all was heard. `unknown` means the detector ran and reached no decision inside its window, which is deliberately NOT the same as the empty string: empty means no verdict was reported at all, on a call placed before this field shipped, on an agent whose collection is switched off, or on a call whose media never started. Detection is deliberately narrow and only claims `non_human_audio` for unbroken non-human audio, so a recorded announcement or an IVR menu with pauses in it reads as `human` or `unknown` rather than being classified here -- unless it repeats itself, which is the one text-based verdict, `looping_recording`.",
             "enum": [
               "",
               "human",
@@ -1115,7 +1122,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Four are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, and `no_human_after_answer` when the call is answered but only music or tones are ever heard, so nothing on the line was a person. The last names an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- so nobody hung up, no limit fired and the agent did not finish. It reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Four are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, and `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1124,7 +1131,8 @@
               "max_call_duration_reached",
               "no_caller_speech_after_answer",
               "media_session_lost",
-              "no_human_after_answer"
+              "no_human_after_answer",
+              "model_session_lost"
             ],
             "type": "string"
           },
@@ -1176,11 +1184,12 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies `answer_classification` and nothing else. `caller_tune` and `hold_music` appear only with `non_human_audio`, and `no_audio` only with `silent`; every other classification carries the empty string. This is not `ended_reason`: that one says why the call ended, this one says what the platform heard when it started.",
+            "description": "Qualifies `answer_classification` and nothing else. `caller_tune`, `hold_music` and `looping_recording` appear only with `non_human_audio`, and `no_audio` only with `silent`; every other classification carries the empty string. `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. This is not `ended_reason`: that one says why the call ended, this one says what the platform heard when it started.",
             "enum": [
               "",
               "caller_tune",
               "hold_music",
+              "looping_recording",
               "no_audio"
             ],
             "type": "string"
@@ -1835,6 +1844,7 @@
               "",
               "caller_tune",
               "hold_music",
+              "looping_recording",
               "no_audio"
             ],
             "type": "string"
@@ -2913,6 +2923,11 @@
           "name": {
             "type": "string"
           },
+          "ref": {
+            "description": "Read-only, server-issued. A stable opaque identifier for this configured tool, used to name the tool on a call's transcript rows without storing the tool's own name with them. Ignored if you send it: the value is taken from what is already stored, so it cannot be chosen. It survives any edit that keeps the tool's `name` and `type`; renaming, retyping or removing a tool retires its identifier, and transcript rows recorded before that show the tool's kind instead of a name.",
+            "readOnly": true,
+            "type": "string"
+          },
           "tool_id": {
             "type": "string"
           },
@@ -3801,7 +3816,14 @@
               "originate_worker_job_failed",
               "local_origination_not_started",
               "policy_blocked",
-              "canceled_before_origination"
+              "canceled_before_origination",
+              "originate_worker_job_stale",
+              "worker_entry_failed",
+              "component_configuration_rejected",
+              "voice_id_missing",
+              "tts_model_missing",
+              "llm_model_missing",
+              "system_prompt_missing"
             ],
             "type": "string"
           },
@@ -3819,7 +3841,9 @@
               "outbound_worker",
               "outbound_local",
               "outbound_policy",
-              "outbound_queue"
+              "outbound_queue",
+              "worker_entry",
+              "component_configuration"
             ],
             "type": "string"
           },
@@ -4032,6 +4056,11 @@
           },
           "parameters": {
             "type": "object"
+          },
+          "ref": {
+            "description": "Read-only, server-issued. A stable opaque identifier for this configured tool, used to name the tool on a call's transcript rows without storing the tool's own name with them. Ignored if you send it: the value is taken from what is already stored, so it cannot be chosen. It survives any edit that keeps the tool's `name` and `type`; renaming, retyping or removing a tool retires its identifier, and transcript rows recorded before that show the tool's kind instead of a name.",
+            "readOnly": true,
+            "type": "string"
           },
           "type": {
             "const": "webhook"
@@ -8324,7 +8353,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
