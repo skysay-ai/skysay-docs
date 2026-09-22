@@ -24,7 +24,24 @@ wizard's voice step.
   speech, so acknowledgements and turn-taking stay off for that engine.
 
 `GET /v1/agent-catalog` lists both engines under `conversation_engines`.
-Standard remains the default when you omit the field.
+Standard remains the default when you omit the field. Each row declares what
+the engine can do rather than leaving you to infer it from its name; today the
+one declared property is `has_language_axis`.
+
+## Engines and the language axis
+
+A **language axis** is the group of three settings that only make sense for an
+engine that picks a transcriber and a voice per language: the accepted language
+set, the per-language overrides, and **Follow the caller**.
+
+- **Standard** has the axis. `has_language_axis` is `true`.
+- **GPT-Live 1** does not. It has no language parameter, no separate
+  transcriber, and one voice for the whole call, so `has_language_axis` is
+  `false`.
+
+Read the flag from the catalog rather than matching on the engine id. Any
+future voice-to-voice engine will declare `false` and follow exactly the same
+rule, so a client that reads the flag needs no change when one is added.
 
 ## Browser testing
 
@@ -53,12 +70,26 @@ section, rather than an error code.
 The discriminator is `voice_frontend`: `cascade` or `gpt_live`. Omit it and
 the agent stays Standard.
 
-GPT-Live 1 has no language set: `languages`, `language_profiles` and
-`follow_caller` are refused on a GPT-Live create or `PATCH
-/v1/agents/{agent_id}/voice-stack` with `400`. A language set the agent kept
-from its Standard days stays stored and is treated as prompt guidance; its
-profiles are published GPT-Live-shaped and Follow the caller publishes
-disabled. Switching back to Standard resumes them.
+An engine whose catalog row says `has_language_axis: false` refuses
+`languages`, `language_profiles` and `follow_caller`. Both writers refuse them
+-- `POST /v1/agents` and `PATCH /v1/agents/{agent_id}/voice-stack`, over REST
+and over MCP -- with a `400` that names the field and the engine:
+
+```text
+GPT-Live has no language set; omit languages for this conversation engine
+```
+
+The field is refused rather than accepted and ignored, so a client never
+believes it chose a set the engine cannot honour. `PATCH /v1/agents/{agent_id}`
+has never saved these three fields and still answers `400` pointing at the
+voice-stack route.
+
+A language set the agent kept from its Standard days stays stored and is
+inert: its profiles are published engine-shaped, no per-language transcriber or
+voice override is applied, and Follow the caller publishes disabled. Nothing
+clears it on a later save, because it is what a switch back to Standard
+resumes -- send `voice_frontend: "cascade"` with a full Standard stack and the
+three fields are writable again in the same request.
 
 A browser test's draft overlay (`POST /v1/agents/{agent_id}/browser-sessions`
 with `snapshot: "draft"`) names its engine in `draft.stack.voice_frontend` and
