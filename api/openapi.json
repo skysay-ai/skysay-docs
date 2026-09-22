@@ -492,6 +492,28 @@
         },
         "type": "object"
       },
+      "AgentUnrecognisedSpeech": {
+        "additionalProperties": false,
+        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all \u2014 most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
+        "properties": {
+          "enabled": {
+            "description": "`false` switches the line off for this agent, and is the only value stored: the behaviour is on for every agent that says nothing.",
+            "type": "boolean"
+          },
+          "max_per_call": {
+            "description": "How many times one call may hear it. Two when unset.",
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "phrase": {
+            "description": "Your own wording, spoken verbatim in place of the line the agent would otherwise compose in the call's language. Write it in the agent's language: it is not translated.",
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AgentUpdate": {
         "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
         "properties": {
@@ -599,6 +621,9 @@
           },
           "tool_wait": {
             "$ref": "#/components/schemas/AgentToolWait"
+          },
+          "unrecognised_speech": {
+            "$ref": "#/components/schemas/AgentUnrecognisedSpeech"
           }
         },
         "type": "object"
@@ -8353,7 +8378,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -8396,6 +8421,29 @@
                 "0",
                 "1"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Which calls the page is about. `live` -- the default, and what this route has always returned -- is a call a customer or a caller actually made. `simulation_suite` is a Simulations Lab call: a real call row with the customer's own agent in it and a synthetic caller on the other end, created by the lab to run a scenario. The two are separate views of the same page, never mixed: one request answers for one provenance, and every figure in the response -- the page, calls_total, the selected call and the workflow evidence -- is about that provenance alone. A value outside this set is a 400 rather than a silent fall back to `live`.",
+            "in": "query",
+            "name": "source_kind",
+            "required": false,
+            "schema": {
+              "default": "live",
+              "enum": [
+                "live",
+                "simulation_suite"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "A `page_cursor` from a row of a previous page. The response continues strictly older than that ROW, so calls created since do not shift the page under you the way an offset would. Opaque: its encoding is not part of this contract.",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
               "type": "string"
             }
           }
