@@ -204,7 +204,8 @@ unique `Idempotency-Key` for each attempt. Do not put current balances,
 credentials, mutable case history, or a requested voice-stack override in
 `call_context`.
 
-The selected language must belong to that agent's published configuration.
+On an agent whose engine picks its voice and transcription per language, the
+selected language must belong to that agent's published configuration.
 The voice-stack response's `language_profiles.published_version` and
 `language_profiles.published_at` identify its latest publication.
 Skysay resolves and validates it before reserving funds or dispatching the
@@ -212,6 +213,11 @@ call. The estimate and admitted runtime use the same effective components;
 later edits cannot change an already-admitted call's voice stack. Credential
 revocation and policy checks still apply. An existing single-language agent
 does not become multilingual just because an application sends a new locale.
+
+A voice-to-voice engine publishes no per-language profile, because one voice
+speaks every language. It accepts any language Skysay supports, opens the call
+in it, and needs no publishing step first; a language Skysay does not support
+is refused before funds are reserved.
 
 Respect `429` and `Retry-After`, keep the application queue bounded, and let
 your application own suppression, correct-person checks, duplicate prevention,
