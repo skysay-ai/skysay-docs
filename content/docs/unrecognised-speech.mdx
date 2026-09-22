@@ -44,12 +44,16 @@ interrupts. It is skipped entirely when:
 - the agent is already speaking, or the call is ending.
 - the agent is a [GPT-Live 1](/docs/conversation-engines) agent. That engine
   has no separate transcription step, so this situation does not arise.
+- the call is running an [agent workflow](/docs/agent-workflows). There the
+  workflow decides every turn the agent takes, and a line spoken outside it
+  would not belong to any step. A workflow that should answer an
+  unintelligible turn says so in the workflow itself.
 
 ## Defaults and limits
 
 | | |
 | --- | --- |
-| On or off | **On** for every Standard agent. Nothing to enable. |
+| On or off | **On** for every Standard agent that is not running a workflow. Nothing to enable. |
 | How often | At most **twice per call**. |
 | Timing | Only after the caller stops speaking and the transcript wait expires. |
 | Effect on the call | None beyond the line. The agent keeps listening; it never transfers, never hangs up, and never invokes a tool because of this. |
