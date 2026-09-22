@@ -492,6 +492,28 @@
         },
         "type": "object"
       },
+      "AgentUnrecognisedSpeech": {
+        "additionalProperties": false,
+        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all \u2014 most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
+        "properties": {
+          "enabled": {
+            "description": "`false` switches the line off for this agent, and is the only value stored: the behaviour is on for every agent that says nothing.",
+            "type": "boolean"
+          },
+          "max_per_call": {
+            "description": "How many times one call may hear it. Two when unset.",
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "phrase": {
+            "description": "Your own wording, spoken verbatim in place of the line the agent would otherwise compose in the call's language. Write it in the agent's language: it is not translated.",
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AgentUpdate": {
         "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
         "properties": {
@@ -599,6 +621,9 @@
           },
           "tool_wait": {
             "$ref": "#/components/schemas/AgentToolWait"
+          },
+          "unrecognised_speech": {
+            "$ref": "#/components/schemas/AgentUnrecognisedSpeech"
           }
         },
         "type": "object"
@@ -1056,6 +1081,7 @@
               "end_call",
               "send_sms",
               "transfer_to_human",
+              "request_callback",
               "set_call_disposition"
             ],
             "type": "string"
@@ -3241,7 +3267,7 @@
             "type": "string"
           },
           "language": {
-            "description": "Compatibility alias for runtime_config.language. When both are supplied, runtime_config.language takes precedence. A selected multilingual hosted language chooses one allowed published profile before reservation.",
+            "description": "Compatibility alias for runtime_config.language. When both are supplied, runtime_config.language takes precedence. A selected multilingual hosted language chooses one allowed published profile before reservation. An engine whose agent-catalog row says has_language_axis false (a voice-to-voice engine) publishes no profile per locale; it accepts any language the platform catalogue runs and speaks the call in it.",
             "maxLength": 35,
             "minLength": 2,
             "type": "string"
@@ -3282,7 +3308,7 @@
       },
       "OutboundCallRuntimeConfig": {
         "additionalProperties": false,
-        "description": "Bounded non-secret, per-call instructions. Clients cannot supply a frozen profile, credential ID, provider, model, or voice selection. runtime_config.language takes precedence over the top-level compatibility alias. For a multilingual hosted agent, language selects an allowed published profile before reserve and worker dispatch.",
+        "description": "Bounded non-secret, per-call instructions. Clients cannot supply a frozen profile, credential ID, provider, model, or voice selection. runtime_config.language takes precedence over the top-level compatibility alias. For a multilingual hosted agent, language selects an allowed published profile before reserve and worker dispatch. An engine whose agent-catalog row says has_language_axis false (a voice-to-voice engine) publishes no profile per locale; it accepts any language the platform catalogue runs and speaks the call in it.",
         "properties": {
           "first_message": {
             "maxLength": 1000,
