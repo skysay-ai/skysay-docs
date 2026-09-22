@@ -176,6 +176,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `agent_completed` | the agent finished the conversation and ended the call |
 | `media_session_lost` | the media session went away while the call was still live |
 | `no_human_after_answer` | the call was answered but only music or tones were ever heard |
+| `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
@@ -209,6 +210,22 @@ Test calls run from the Simulations Lab can also report it. A synthetic room
 sometimes closes before the synthetic caller's own departure is delivered,
 which is the same observation from the platform's point of view. A Lab result
 is judged on its assertions, not on this field.
+
+### When the conversation engine is lost
+
+`model_session_lost` is the engine-side counterpart of `media_session_lost`.
+The media session was fine and the other party was still on the line, but the
+conversation engine behind the call — the realtime model's connection to its
+provider, or a speech component that ran out of retries — failed and could not
+be brought back. Nobody hung up, no limit was reached and the agent did not
+finish. Skysay ends the call at that moment rather than leave the line open,
+with nobody on it, against your balance.
+
+There is no setting and no override: a call whose engine is gone cannot be
+continued. Before this release such a call stayed open until its maximum length
+or until the fault check below settled it, and carried no reason. As with
+`media_session_lost`, a hangup request that was in flight is answered
+separately, and the call is not reported as `hangup_requested`.
 
 ## When a call ends automatically
 
@@ -303,6 +320,9 @@ A call ended by one of these rules is billed exactly like any other completed
 call. Nothing extra is charged for the ending itself, and because the call
 stops sooner than it otherwise would, these rules can only reduce what a call
 costs.
+
+The billed duration starts when the call is placed and ends when the call
+ends; ringing time before the answer is included.
 
 A call's recorded end is the moment the call ended, not the moment Skysay
 finished tearing it down. Those are normally a second apart. Where they are
