@@ -1,31 +1,275 @@
 ---
 title: Webhooks
-description: Call-lifecycle and carrier SMS delivery callbacks — where your call and SMS events land.
+description: Register a signed webhook endpoint over the API or in the workspace, choose its events, and verify every delivery.
 icon: RssFeed
 ---
 
-Webhooks deliver call-lifecycle and SMS events to your endpoint so your agent can
-react without polling. Configure the destination in the dashboard; the recent
-event stream is visible under **Webhooks** in the app.
+A webhook endpoint receives a signed `POST` from Skysay each time a call or SMS
+in its project changes state, so your system can react without polling. You
+can register one with the REST API, as shown below, or in the workspace under
+**Webhooks**. Both create the same kind of endpoint.
 
-For the signed envelope, retry/deduplication contract, lifecycle endpoints, and
-optional post-call extraction, see [Post-call results](/docs/post-call-results).
+## How an endpoint is scoped
 
-## Call lifecycle
+An endpoint belongs to one **project**. It receives every subscribed event
+for every call and SMS in that project, whichever agent handled it. To
+separate traffic, use one project per system, or filter on `data` in your
+handler.
 
-Call events fire as a call moves through its lifecycle — ringing, answered,
-recording available, transcript ready, ended — each carrying the call id so you
-can fetch full [evidence](/docs/read-call-evidence) with `get_call` /
-`get_call_transcript`.
+Only an `https://` URL on a public address receives deliveries. Skysay does
+not follow redirects.
 
-## SMS delivery (carrier callbacks)
+## Register an endpoint
 
-Inbound SMS and delivery-status callbacks arrive from the upstream carrier and
-are normalized into conversation events. Read the thread with `list_conversations`
-(`sms:read`).
+`POST /v1/agent-endpoints` · scope `agents:write`
 
-<Callout type="info" title="Evidence, not payloads">
-  Treat webhook bodies as signals to fetch authoritative state over MCP/REST
-  rather than the source of truth. The call and recording tools always return the
-  current, scope-checked view.
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agent-endpoints" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "proj_4Nc8TkQ2sW6yBd3F",
+    "name": "Order system",
+    "webhook_url": "https://hooks.example.com/skysay",
+    "audio_stream_url": "https://hooks.example.com/skysay/unused-audio",
+    "events": ["call.answered", "call.completed", "call.failed", "call.canceled", "call.transcript.ready"]
+  }'
+```
+
+`project_id`, `webhook_url` and `audio_stream_url` are required. Get your
+project id from `GET /v1/workspace-context` (scope `account:read`). You do not
+need to send `organization_id`: the key's own workspace is used.
+
+`audio_stream_url` is required because this route also registers
+[bring-your-own-agent](/docs/wire-an-agent#bring-your-own-agent) audio agents.
+For an endpoint that only receives events, pass any URL you control. Skysay
+streams audio to it only if a call is routed to this endpoint's own agent,
+which never happens unless you route a number or a call to that agent.
+
+The response is `201` and is the **only** time the signing secret is shown:
+
+```json
+{
+  "id": "ae_5RwP8yHc2QdLz6Jn",
+  "agent_id": "agent_3TfW9kLp6NqX2vBz",
+  "project_id": "proj_4Nc8TkQ2sW6yBd3F",
+  "name": "Order system",
+  "status": "active",
+  "webhook_url": "https://hooks.example.com/skysay",
+  "events": ["call.answered", "call.canceled", "call.completed", "call.failed", "call.transcript.ready"],
+  "webhook_secret": "whsec_2mR8…",
+  "webhook_secret_set": true,
+  "consecutive_failures": 0,
+  "last_delivery_at": null,
+  "last_delivery_status": "",
+  "last_error": ""
+}
+```
+
+Store `webhook_secret` now. Every later read shows `"[REDACTED]"`. To use a
+secret you generated, send it as `webhook_secret` when you create the
+endpoint: 16 to 200 characters of letters, digits and `._~+/=-`.
+
+Leave out `events`, or send an empty array, to subscribe to the default set:
+`call.created`, `call.answered`, `media.started`, `call.ended`,
+`call.completed`, `call.failed` and `call.canceled`. An unknown event name
+answers `400` and names it.
+
+<Callout title="Every endpoint has a companion agent">
+  Registering an endpoint also creates an `external_audio` agent wrapping it,
+  returned as `agent_id`. It shows up in `GET /v1/agents` with
+  `metadata.legacy_agent_endpoint_alias: true` and is retired when you delete
+  the endpoint. Each hosted agent likewise owns an endpoint, listed in
+  `GET /v1/agent-endpoints` with a `telephony-ai://` URL; it receives no
+  deliveries. Deleting a hosted agent's own endpoint (its `agent_endpoint_id`)
+  retires that agent, so delete only the endpoints you registered.
 </Callout>
+
+## Manage endpoints
+
+| Method | Path | Scope | What it does |
+| --- | --- | --- | --- |
+| `GET` | `/v1/agent-endpoints` | `agents:read` | List endpoints with their status, subscribed events and last delivery result. |
+| `PATCH` | `/v1/agent-endpoints/{agent_endpoint_id}` | `agents:write` | Replace the `events` list. Send the complete list; an empty array is refused. |
+| `POST` | `/v1/agent-endpoints/{agent_endpoint_id}/test-event` | `agents:write` | Send a signed `webhook.test` event now, through the real pipeline. |
+| `POST` | `/v1/agent-endpoints/{agent_endpoint_id}/pause` | `agents:write` | Stop deliveries without deleting the endpoint. |
+| `POST` | `/v1/agent-endpoints/{agent_endpoint_id}/resume` | `agents:write` | Resume a paused or auto-disabled endpoint. |
+| `DELETE` | `/v1/agent-endpoints/{agent_endpoint_id}` | `agents:write` | Delete the endpoint. Undelivered events are dropped. |
+| `GET` | `/v1/webhook-deliveries` | `agents:read` | The delivery feed: each attempt's event, status, retries and last error, plus the event catalogue and retry policy. |
+
+Send a test event before relying on an endpoint:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agent-endpoints/ae_5RwP8yHc2QdLz6Jn/test-event" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+The test event goes to that one endpoint whatever its subscription. Its `data`
+carries a message and the retry policy, and the response reports the delivery
+attempt. A paused, auto-disabled or deleted endpoint answers `409`. Resume it
+first.
+
+## What Skysay sends
+
+Each delivery is an HTTPS `POST` with `Content-Type: application/json`,
+`User-Agent: Skysay-Webhooks/1`, and two signature headers:
+
+| Header | Value |
+| --- | --- |
+| `X-Agent-Telco-Timestamp` | Unix time, in seconds, when the delivery was signed |
+| `X-Agent-Telco-Signature` | `sha256=` then the hex HMAC-SHA256 of `timestamp + "." + raw body`, keyed with your `webhook_secret` |
+
+The body is one event:
+
+```json
+{
+  "id": "call_lifecycle:call.completed:call_8GmT3xRk5VqW2nYp",
+  "type": "call.completed",
+  "created_at": "2026-09-24T09:06:03Z",
+  "organization_id": "org_7Hq2LmX9pRt4VwZ1",
+  "data": {
+    "call_id": "call_8GmT3xRk5VqW2nYp",
+    "direction": "outbound",
+    "status": "completed",
+    "from": "+12025550143",
+    "to": "+12025550188",
+    "occurred_at": "2026-09-24T09:06:03Z",
+    "event": {}
+  }
+}
+```
+
+`id` is stable for each state of each call, so a call produces one
+`call.completed` however many parts of the platform observed it. Store `id` and
+ignore a repeat. Treat the body as a signal and read the authoritative record
+with `GET /v1/calls/{call_id}`; see [Read call evidence](/docs/read-call-evidence)
+and [Post-call results](/docs/post-call-results).
+
+### Retries and auto-disable
+
+A `2xx` response within 10 seconds is success. Anything else is a failure,
+including a redirect or a timeout. Failed deliveries are retried after 1
+minute, 5 minutes, 30 minutes, 2 hours and 8 hours: six attempts in all. When
+5 deliveries in a row have used up all six attempts, the endpoint's `status`
+becomes `auto_disabled` and deliveries stop until you call `resume`.
+
+Deliveries are at least once, and order is not guaranteed. Acknowledge
+quickly and do the work afterwards.
+
+## Verify every delivery
+
+Verify the signature over the **exact raw bytes** you received, before parsing
+the JSON. Re-serialising parsed JSON changes the bytes and the signature will
+not match. Reject a timestamp more than five minutes from your clock.
+
+<Tabs items={["Python", "Node.js"]}>
+<Tab value="Python">
+
+```python
+import hashlib
+import hmac
+import time
+
+TOLERANCE_SECONDS = 300
+
+
+def verify_skysay_webhook(secret: str, raw_body: bytes, timestamp: str, signature: str) -> bool:
+    """Return True only for a fresh delivery signed with this endpoint's secret."""
+    try:
+        sent_at = int(timestamp)
+    except (TypeError, ValueError):
+        return False
+    if abs(time.time() - sent_at) > TOLERANCE_SECONDS:
+        return False
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        timestamp.encode("utf-8") + b"." + raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest("sha256=" + expected, signature or "")
+
+
+# Flask example
+from flask import Flask, abort, request
+
+app = Flask(__name__)
+SECRET = "whsec_..."  # load from your secret store
+
+
+@app.post("/skysay")
+def skysay_webhook():
+    if not verify_skysay_webhook(
+        SECRET,
+        request.get_data(),  # raw bytes, before any JSON parsing
+        request.headers.get("X-Agent-Telco-Timestamp", ""),
+        request.headers.get("X-Agent-Telco-Signature", ""),
+    ):
+        abort(401)
+    event = request.get_json()
+    # dedupe on event["id"], then queue the work
+    return "", 204
+```
+
+</Tab>
+<Tab value="Node.js">
+
+```js
+import crypto from "node:crypto";
+import express from "express";
+
+const TOLERANCE_SECONDS = 300;
+const SECRET = process.env.SKYSAY_WEBHOOK_SECRET; // whsec_...
+
+function verifySkysayWebhook(secret, rawBody, timestamp, signature) {
+  const sentAt = Number.parseInt(timestamp, 10);
+  if (!Number.isFinite(sentAt)) return false;
+  if (Math.abs(Date.now() / 1000 - sentAt) > TOLERANCE_SECONDS) return false;
+  const expected =
+    "sha256=" +
+    crypto.createHmac("sha256", secret).update(`${timestamp}.`).update(rawBody).digest("hex");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(signature || "");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+const app = express();
+
+// express.raw keeps the body as the exact bytes Skysay signed.
+app.post("/skysay", express.raw({ type: "application/json" }), (req, res) => {
+  const ok = verifySkysayWebhook(
+    SECRET,
+    req.body,
+    req.get("X-Agent-Telco-Timestamp"),
+    req.get("X-Agent-Telco-Signature"),
+  );
+  if (!ok) return res.sendStatus(401);
+  const event = JSON.parse(req.body.toString("utf8"));
+  // dedupe on event.id, then queue the work
+  res.sendStatus(204);
+});
+
+app.listen(3000);
+```
+
+</Tab>
+</Tabs>
+
+The same headers and algorithm sign [Integration Actions](/docs/integrations),
+so one verifier serves both.
+
+## Event catalogue
+
+| Event | When it fires |
+| --- | --- |
+| `call.created`, `call.queued`, `call.dialing` | The call exists, is waiting for a worker, is ringing out |
+| `call.answered`, `media.started` | Someone picked up; audio is flowing |
+| `call.ended`, `call.completed` | The call finished normally |
+| `call.failed`, `call.canceled` | The call ended without a conversation, or was withdrawn before dialling |
+| `call.transcript.ready`, `call.recording.ready` | Evidence is ready to fetch |
+| `call.extraction.ready`, `call.extraction.failed` | The optional [post-call extraction](/docs/post-call-results) finished |
+| `sms.received`, `sms.sent`, `sms.delivery_updated` | An SMS arrived, left, or its carrier status changed |
+| `campaign.launched`, `campaign.contact.completed`, `campaign.completed` | [Campaign](/docs/campaigns) progress |
+
+`call.failed` and `call.canceled` are terminal like `call.completed`. Wait for
+any of the three. `GET /v1/webhook-deliveries` returns the current catalogue
+as `event_catalog`.

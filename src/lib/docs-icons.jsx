@@ -44,11 +44,13 @@ import {
   SineWave,
   SoundHigh,
   Terminal,
+  TerminalTag,
   TestTube,
   Timer,
   Translate,
   VoiceXmark,
   Voice,
+  WarningTriangle,
   Wrench,
 } from "iconoir-react";
 
@@ -86,6 +88,7 @@ const ICONS = {
   // --- Get started ---
   OpenBook,
   FastArrowRight,
+  TerminalTag,
   Download,
   Key,
   CreditCard,
@@ -131,6 +134,7 @@ const ICONS = {
   CodeBracketsSquare,
   Terminal,
   RssFeed,
+  WarningTriangle,
 
   // --- Concepts ---
   CloudSync,

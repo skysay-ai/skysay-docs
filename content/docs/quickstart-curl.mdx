@@ -1,0 +1,588 @@
+---
+title: Quickstart with curl
+description: Create, voice, test and call a hosted agent over the REST API, with every request as a copy-pasteable curl.
+icon: TerminalTag
+---
+
+This page takes you from an empty workspace to a hosted agent that has a
+voice, has answered a text test, and can place a call, using nothing but
+`curl` and `jq`. Every request is literal: set two environment variables and
+paste the blocks in order.
+
+If you would rather let an AI agent drive Skysay over MCP, start with the
+[MCP quickstart](/docs/quickstart) instead. Both use the same keys, scopes and
+routes.
+
+## Before you start
+
+You need a Skysay workspace, `curl`, and [`jq`](https://jqlang.org).
+
+### Create an API key in the dashboard
+
+Open **API Keys** in the workspace and create a key. Select these scopes
+(the dialog groups them by namespace):
+
+| Scope | Used for |
+| --- | --- |
+| `account:read` | Step 1, reading your workspace and project |
+| `agents:read` | Step 2, the voice catalogue, and reading the agent back |
+| `agents:write` | Steps 3 to 6, creating, configuring and text-testing the agent |
+| `numbers:read` | Step 7, finding a caller number |
+| `onboarding:read` | Step 7, checking outbound is cleared |
+| `calls:write` | Step 7, placing a call |
+| `calls:read` | Step 8, reading the call |
+| `recordings:read` | Step 8, reading the transcript |
+| `wallet:read` | Step 9, checking the balance |
+
+The `all-read` bundle does not cover the writes, and `all-write` does not
+cover the reads. Pick the leaves above, or `all` for a key you keep to
+yourself. The key (`sky_…`) is shown **once**; copy it now.
+[Authentication & keys](/docs/authentication) covers bundles, clamping and
+revocation.
+
+```bash
+export SKYSAY_API_KEY="sky_your_key_here"
+export SKYSAY_BASE_URL="https://api.skysay.ai"
+```
+
+The key already knows which workspace it belongs to, so no request on this
+page sends `organization_id`, in a query string or in a body. When it is left
+out, the key's own workspace is used; naming a different workspace answers
+`403`. `project_id` is never filled in for you: the writes that need it name
+it explicitly.
+
+<Steps>
+
+<Step>
+
+### 1. Read your workspace and project
+
+`GET /v1/workspace-context` · scope `account:read`
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/workspace-context" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+```json
+{
+  "organization": { "id": "org_7Hq2LmX9pRt4VwZ1", "name": "Acme Dental" },
+  "project_count": 1,
+  "projects": [
+    { "environment": "sandbox", "id": "proj_4Nc8TkQ2sW6yBd3F", "name": "Default project" }
+  ],
+  "projects_page": { "has_more": false, "limit": 50, "next_offset": null, "offset": 0, "returned_count": 1 }
+}
+```
+
+Keep both ids. Creating an agent and placing a call name the project in the
+request body, and the outbound check in step 7 has the workspace id in its
+path:
+
+```bash
+export ORG_ID=$(curl -s "$SKYSAY_BASE_URL/v1/workspace-context" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" | jq -r '.organization.id')
+export PROJECT_ID=$(curl -s "$SKYSAY_BASE_URL/v1/workspace-context" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" | jq -r '.projects[0].id')
+```
+
+</Step>
+
+<Step>
+
+### 2. Choose a voice from the catalogue
+
+`GET /v1/agent-catalog` · scope `agents:read` (or `coverage:read`)
+
+The catalogue lists every selectable speech-to-text (`stt`), model (`llm`) and
+text-to-speech (`tts`) component, with its price and, for TTS, its voices.
+Filter it to English voices you can run on platform-managed billing:
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/agent-catalog?component=tts&language=en&metered_only=true" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  | jq '.entries[] | {provider, model, cost_per_min_micro_usd, voice_count,
+                      voices: [.voices[:3][] | {id, name}]}'
+```
+
+```json
+{
+  "provider": "azure",
+  "model": "neural",
+  "cost_per_min_micro_usd": 17100,
+  "voice_count": 60,
+  "voices": [
+    { "id": "en-US-AdamMultilingualNeural", "name": "Adam" },
+    { "id": "en-US-AIGenerate1Neural", "name": "AIGenerate1" },
+    { "id": "en-US-AIGenerate2Neural", "name": "AIGenerate2" }
+  ]
+}
+```
+
+Prices are in micro-USD per minute: `17100` is $0.0171 a minute for that
+component. An entry with `voices_truncated: true` lists fewer voices than its
+`voice_count`. Leave out `component` to get the `stt` and `llm` rows as
+well, plus the `conversation_engines` block described in
+[Conversation engines](/docs/conversation-engines). The unfiltered response is
+several hundred kilobytes, so filter it with `jq` rather than reading it whole.
+There is no separate voices endpoint.
+
+This guide uses Deepgram Nova-3 to transcribe, Gemini 3.5 Flash Lite to reply,
+and the Azure voice `en-US-AvaNeural` to speak. [Voice library](/docs/voice-library)
+explains how to compare voices by ear.
+
+</Step>
+
+<Step>
+
+### 3. Create a hosted agent
+
+`POST /v1/agents` · scope `agents:write`
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "'"$PROJECT_ID"'",
+    "mode": "hosted",
+    "name": "Acme Dental receptionist",
+    "language": "en",
+    "system_prompt": "You are a friendly receptionist for Acme Dental. Answer questions about opening hours (Mon-Fri 9-17) and offer to book an appointment.",
+    "begin_message": "Hi, thanks for calling Acme Dental. How can I help?"
+  }'
+```
+
+The response is `201` with the new agent:
+
+```json
+{
+  "id": "agent_9sLq3VbN7xKe2TmR",
+  "agent_endpoint_id": "ae_5RwP8yHc2QdLz6Jn",
+  "mode": "hosted",
+  "status": "active",
+  "language": "en",
+  "begin_message": "Hi, thanks for calling Acme Dental. How can I help?",
+  "voice_stack": {},
+  "...": "..."
+}
+```
+
+```bash
+export AGENT_ID="agent_9sLq3VbN7xKe2TmR"   # the id from your response
+```
+
+`voice_stack` is empty: the agent cannot speak yet.
+
+</Step>
+
+<Step>
+
+### 4. Give the agent a voice stack
+
+`PATCH /v1/agents/{agent_id}/voice-stack` · scope `agents:write`
+
+```bash
+curl -s -X PATCH "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/voice-stack" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transcriber": { "provider": "deepgram", "model": "nova-3", "language": "en" },
+    "model":       { "provider": "gemini",   "model": "gemini-3.5-flash-lite" },
+    "voice":       { "provider": "azure",    "model": "neural", "voice_id": "en-US-AvaNeural" }
+  }'
+```
+
+The response is `200` with the saved stack, its estimated cost and latency,
+and any warnings:
+
+```json
+{
+  "agent_id": "agent_9sLq3VbN7xKe2TmR",
+  "voice_frontend": "cascade",
+  "voice_label": "en-US-AvaNeural",
+  "selectable": true,
+  "warnings": [],
+  "cost": {
+    "currency": "USD",
+    "unit": "micro_usd_per_minute",
+    "stt_micro_usd_per_min": 30000,
+    "llm_micro_usd_per_min": 3500,
+    "tts_micro_usd_per_min": 17100,
+    "total_micro_usd_per_min": 50600
+  },
+  "latency": { "stt_ms": 250, "llm_ms": 520, "tts_ms": 568, "total_ms": 1338 },
+  "...": "..."
+}
+```
+
+A `voice` without a `voice_id` is refused with `400` and
+`"choose an exact provider voice for the selected TTS model"`. Turn-taking,
+languages, ambience and delivery settings are saved on this same route; see
+[REST endpoints](/docs/rest-endpoints#voice-settings-belong-to-the-voice-stack-route).
+`GET` on the same path (scope `agents:read`) reads the stack back.
+
+</Step>
+
+<Step>
+
+### 5. Optional: add a conversation workflow
+
+A hosted agent runs from its instructions and opening line alone, so you can
+skip this step. Add a [workflow](/docs/agent-workflows) only when you want the
+call to follow fixed steps. It takes two requests, in this order: publishing
+before a draft exists answers `404` with
+`"This agent has no workflow yet. Create one first."`
+
+Create the draft · `POST /v1/agents/{agent_id}/workflow` · scope `agents:write`
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/workflow" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"template_id": "blank"}'
+```
+
+```json
+{
+  "workflow_id": "wf_6JtY2mQ8cVx4Hb9K",
+  "revision": 0,
+  "source": "blank",
+  "validation": { "ok": true, "errors": [], "warnings": [] },
+  "draft": {
+    "entry_step": "greet",
+    "steps": [
+      { "id": "greet", "type": "say", "prompt": "Hello, thanks for calling. How can I help you today?", "next": "end_call" },
+      { "id": "end_call", "type": "end", "farewell": "Thank you for calling. Goodbye." }
+    ],
+    "...": "..."
+  }
+}
+```
+
+`template_id` is one of `blank`, `payment_reminder`,
+`payment_reminder_variables`, `customer_support` or `receptionist`. You can
+send a `brief` in plain language instead, to have the draft generated.
+The `blank` draft greets the caller and hangs up. Edit it in the workspace's
+workflow editor or with `PATCH /v1/agents/{agent_id}/workflow` before you
+publish it.
+
+Publish the draft · `POST /v1/agents/{agent_id}/workflow/publish` · scope `agents:write`
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/workflow/publish" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"base_revision": 0}'
+```
+
+```json
+{
+  "agent_id": "agent_9sLq3VbN7xKe2TmR",
+  "workflow_id": "wf_6JtY2mQ8cVx4Hb9K",
+  "version": 1,
+  "published_at": "2026-09-24T09:00:00Z",
+  "compiled_hash": "9686b5e0…",
+  "contract": { "...": "..." }
+}
+```
+
+`base_revision` is the draft `revision` you reviewed. If the draft changed
+since then, publish answers `409` and carries the current draft under
+`current`. A draft with validation errors answers `400`. A draft with
+warnings answers `400` listing their codes; send them back in
+`acknowledged_warning_codes` to publish anyway.
+
+Once an agent has a workflow, step 6's text test refuses it; test a workflow
+with its own Chat test instead, described in
+[Agent workflows](/docs/agent-workflows).
+
+</Step>
+
+<Step>
+
+### 6. Test the agent
+
+`POST /v1/agents/{agent_id}/chat-turns` · scope `agents:write`
+
+A text chat runs the agent's real configuration, model and tools, without
+audio, without a call record, and without charging your wallet. The client keeps
+the transcript. Ask for the opening line with an empty transcript and
+`caller_input: null`:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/chat-turns" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"caller_input": null, "transcript": []}'
+```
+
+Then send each caller line together with everything said so far:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/chat-turns" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "caller_input": "Are you open on Saturday?",
+    "transcript": [
+      { "role": "agent", "text": "Hi, thanks for calling Acme Dental. How can I help?" }
+    ]
+  }'
+```
+
+```json
+{
+  "agent_id": "agent_9sLq3VbN7xKe2TmR",
+  "snapshot": "published",
+  "model": "gemini-3.5-flash-lite",
+  "reply": {
+    "role": "agent",
+    "text": "We are actually closed on Saturdays. Our opening hours are Monday through Friday from 9 AM to 5 PM. Would you like to book an appointment for one of those days?",
+    "truncated": false
+  },
+  "ended": false,
+  "ended_reason": null,
+  "events": [],
+  "metering": { "mode": "platform_funded", "components": ["llm"], "model_calls": 1, "input_tokens": 127, "output_tokens": 36 }
+}
+```
+
+**To hear the agent**, open it under **Agents** in the workspace and start a
+browser test. It uses your welcome browser credit or purchased funds, needs no
+phone number, and is capped at 180 seconds. The API behind it,
+`POST /v1/agents/{agent_id}/browser-sessions` (scopes `agents:write` and
+`calls:write`), returns credentials for a WebRTC client rather than audio, so
+curl alone cannot play the call. See [Test an agent](/docs/trial-calls).
+
+</Step>
+
+<Step>
+
+### 7. Place an outbound call
+
+`POST /v1/calls` · scope `calls:write`
+
+A real phone call needs three things: outbound cleared for your workspace,
+a number to call from, and purchased funds, because browser credit does not pay
+for phone calls. Check the first two before you dial.
+
+Check outbound is cleared · `GET /v1/organizations/{organization_id}/capabilities` · scope `onboarding:read`
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/organizations/$ORG_ID/capabilities" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  | jq '.capabilities | {status, countries, all_countries, approved_profiles, customer_visible_message}'
+```
+
+```json
+{
+  "status": "active",
+  "countries": ["GB", "US"],
+  "all_countries": false,
+  "approved_profiles": ["customer_outreach", "business_support"],
+  "customer_visible_message": "Outbound is active within your approved envelope."
+}
+```
+
+Calls are allowed only while `status` is `active`, and only to the listed
+`countries` (or anywhere, when `all_countries` is `true`). To request outbound, see
+[Policy & outbound](/docs/policy-and-outbound#your-workspace-capabilities).
+
+Find a caller number · `GET /v1/numbers` · scope `numbers:read`
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/numbers" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  | jq '.[] | select(.status == "active") | {id, e164, country, regulatory_status}'
+```
+
+```json
+{ "id": "num_2XbK7pQw4ZrT9mNc", "e164": "+12025550143", "country": "US", "regulatory_status": "not_required" }
+```
+
+With no active number, [request one](/docs/regulated-numbers) first.
+
+Place the call:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/calls" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: quickstart-call-1" \
+  -d '{
+    "project_id": "'"$PROJECT_ID"'",
+    "agent_id": "'"$AGENT_ID"'",
+    "from_phone_number_id": "num_2XbK7pQw4ZrT9mNc",
+    "to_phone_number": "+12025550188",
+    "country": "US",
+    "purpose": "appointment",
+    "user_authorization": {
+      "authorized_by": "jane@acme.example",
+      "reason": "Patient asked for a callback about their appointment"
+    }
+  }'
+```
+
+A call the platform accepted answers `201` with the call record:
+
+```json
+{
+  "id": "call_8GmT3xRk5VqW2nYp",
+  "status": "queued",
+  "direction": "outbound",
+  "agent_id": "agent_9sLq3VbN7xKe2TmR",
+  "country": "US",
+  "purpose": "appointment",
+  "policy_decision_id": "pd_4LcN9sHq2WxB7tKd",
+  "...": "..."
+}
+```
+
+```bash
+export CALL_ID="call_8GmT3xRk5VqW2nYp"   # the id from your response
+```
+
+Read `status` before assuming a phone is ringing:
+
+| `status` | Meaning |
+| --- | --- |
+| `queued` | Admitted; the call is being dialled. |
+| `needs_review` | Held for operator review; nothing has been dialled yet. |
+| `policy_blocked` | Refused by policy; nothing was dialled and nothing is charged. |
+| `live_blocked` | Accepted but live calling is switched off for the platform right now; nothing was dialled. |
+
+`user_authorization` records who approved this call and why. Without both
+fields the call is held for review. `purpose` is free text; the documented
+values are listed in the [OpenAPI schema](/docs/openapi). Retrying with the
+same `Idempotency-Key` returns the original call instead of dialling twice.
+Reusing the key for a different request answers `409`. More fields
+(`external_reference`, `call_context`, `runtime_config`) are covered in
+[Customer applications](/docs/customer-applications#start-one-call).
+
+</Step>
+
+<Step>
+
+### 8. Read the call and its transcript
+
+Read one call · `GET /v1/calls/{call_id}` · scope `calls:read`
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/calls/$CALL_ID" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  | jq '{id, status, direction, ended_reason, reason_detail, termination_cause, recording_status, created_at, updated_at}'
+```
+
+```json
+{
+  "id": "call_8GmT3xRk5VqW2nYp",
+  "status": "completed",
+  "direction": "outbound",
+  "ended_reason": "agent_completed",
+  "reason_detail": "",
+  "termination_cause": "connected",
+  "recording_status": "available",
+  "created_at": "2026-09-24T09:05:12Z",
+  "updated_at": "2026-09-24T09:06:03Z"
+}
+```
+
+Browser tests are calls too, with `direction: "web_test"`, so you can read the
+call you started in step 6 the same way.
+
+List recent calls · `GET /v1/calls` · scope `calls:read`
+
+```bash
+curl -s -D - "$SKYSAY_BASE_URL/v1/calls?limit=20" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+The body is a JSON array, newest first. Paging is in the response headers:
+`X-Total-Count`, `X-Has-More` and `X-Next-Cursor`. Pass the cursor back as
+`?before=<X-Next-Cursor>` for the next page. `limit` defaults to 100 and is
+capped at 500.
+
+Read the transcript · `GET /v1/calls/{call_id}/transcript` · scope `recordings:read`
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/calls/$CALL_ID/transcript" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  | jq '{call_id, transcript_status, text, turns: [.turns[] | {sequence, speaker, text}]}'
+```
+
+```json
+{
+  "call_id": "call_8GmT3xRk5VqW2nYp",
+  "transcript_status": "complete",
+  "text": "agent: Hi, thanks for calling Acme Dental. How can I help?\ncaller: Are you open on Saturday?\nagent: We are closed on Saturdays…",
+  "turns": [
+    { "sequence": 1, "speaker": "agent", "text": "Hi, thanks for calling Acme Dental. How can I help?" },
+    { "sequence": 2, "speaker": "caller", "text": "Are you open on Saturday?" }
+  ]
+}
+```
+
+Recordings, waveforms and retention are covered in
+[Read call evidence](/docs/read-call-evidence). To be told when a call ends
+instead of polling, subscribe to [webhooks](/docs/webhooks).
+
+</Step>
+
+<Step>
+
+### 9. Check the wallet
+
+`GET /v1/wallet` · scope `wallet:read`
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/wallet" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  | jq '{currency, available_minor, promotional_available_minor, total_available_minor,
+         reserved_minor, spent_minor, low_balance: .low_balance | {status, needs_topup, next_action}}'
+```
+
+```json
+{
+  "currency": "USD",
+  "available_minor": 2500,
+  "promotional_available_minor": 250,
+  "total_available_minor": 2750,
+  "reserved_minor": 0,
+  "spent_minor": 1200,
+  "low_balance": {
+    "status": "ready",
+    "needs_topup": false,
+    "next_action": "Wallet can cover projected recurring and reserved costs."
+  }
+}
+```
+
+Amounts are in minor units of `currency`, so `2500` is $25.00.
+`available_minor` is purchased funds, the only balance that pays for phone
+calls. `promotional_available_minor` is browser-test credit. See
+[Billing](/docs/billing).
+
+</Step>
+
+</Steps>
+
+## When a request fails
+
+Every error is JSON with an `error` field, and usually a `message`:
+
+```json
+{ "error": "ForbiddenError", "message": "missing required scope: wallet:read" }
+```
+
+A `403` naming a scope means the key needs that scope added. A `404` on a
+by-id route means the id is not in your workspace. [Errors](/docs/errors) lists
+every status and body shape.
+
+## Next steps
+
+<Cards>
+  <Card title="Webhooks" href="/docs/webhooks" description="Receive signed call and SMS events instead of polling." />
+  <Card title="Errors" href="/docs/errors" description="Every error body shape and what each status means." />
+  <Card title="Generated API reference" href="/docs/api-reference" description="Every customer operation and its scope." />
+</Cards>
