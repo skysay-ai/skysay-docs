@@ -22,7 +22,34 @@ services were confirmed deployed.
 - Anything the caller can hear from the agent clears the bound, so it never runs while the agent is audibly replying, while one of its tools is running, before the caller has said anything, or on a call whose replies come from a workflow; set `voice_polish.model_unresponsive.seconds` on `PATCH /v1/agents/{agent_id}/voice-stack` to any value from 10 to 120, or `0` to switch it off.
 - [Post-call results](/docs/post-call-results#when-the-conversation-engine-is-lost) · [Voice behaviour](/docs/voice-behavior#when-the-agent-stops-answering-altogether)
 
+### Voice library: provider and model columns, and faster pages
+
+- The **Voice library** table gains **Provider** and **Model** columns; a voice offered on two text-to-speech models lists both, each with its own price and first-audio time.
+- **All**, **Live** and **Text to speech** filters separate voice-to-voice voices from text-to-speech voices, with a short note on what an agent of each kind can run.
+- The Voice library and the new-agent **Voice** step load several times faster; the voices, totals and filters they return are unchanged.
+- [Voice library](/docs/voice-library) · [Conversation engines](/docs/conversation-engines)
+
 ## 22 September 2026
+
+### Transfer a call to a person, and find callbacks on Calls
+
+- An agent with `transfer_to_human` enabled now dials its saved destination into the live call once; the person who answers hears a short introduction, then the agent stays quiet.
+- The AI model is only told the transfer is connecting and never sees the destination number; if nobody answers, or the caller hangs up while it rings, the agent comes back.
+- When a transfer cannot connect, or the caller asks to be called back, the agent saves one callback on the call with the caller's name, the reason and a number it read back to them.
+- **Calls** has a **Callback requested** filter, and the open call shows the name, number, reason and the number the transfer was offered to. The callback is not sent by text or email yet.
+- [Transfer to a human](/docs/transfer-to-a-human) · [Tool reference](/docs/tool-reference)
+
+### Calls on Gemini Live are no longer refused before they start
+
+- Every call on a Gemini Live agent was refused before it started, with a `400` naming an unsupported TTS billing unit; inbound calls, outbound calls and **Talk to this draft now** were all affected.
+- Those calls are now admitted and billed on the engine's call-duration meter, the same way as GPT-Live 1 calls.
+- [Conversation engines](/docs/conversation-engines) · [Name the language of a Gemini Live call](/docs/multilingual-outbound#resolve-the-language-before-each-call)
+
+### Calls are no longer refused while the voice service warms up
+
+- Preparing a new call's voice session no longer makes the voice service report itself as full, so a call arriving at that moment is no longer refused and answered with silence.
+- The voice service now admits calls by how many it is already running, not by a momentary processor reading; there is nothing to configure.
+- [Read call evidence](/docs/read-call-evidence)
 
 ### The AI agent says it could not understand, instead of going silent
 
