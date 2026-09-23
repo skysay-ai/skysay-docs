@@ -248,6 +248,31 @@ the meaning it carries on a read. Write your client so that either status means
 record exists: a `403` you branch on today may answer `404` in a later release,
 without that being a breaking change.
 
+## What the API expects a request body to be
+
+Every write you make takes a UTF-8 JSON **object**. (Provider callback routes
+that have always accepted form-encoded or plain-text bodies still do; those are
+URLs you give a carrier, not endpoints you call.) Four answers follow, and none
+of them is a `500`:
+
+- A body that is absent, or contains only whitespace, is read as an empty
+  object. Action routes that take no fields can keep sending nothing.
+- A body that is not valid JSON, is not UTF-8, or is valid JSON that is not an
+  object — an array, a number, a bare string — answers `400`.
+- A request that carries a `Content-Encoding` other than `identity` answers
+  `415`. Skysay does not accept a compressed request body; send it
+  uncompressed. Response compression is unaffected, and so is
+  `Accept-Encoding`.
+- A required field that is missing, `null`, or blank answers `400` naming the
+  field, rather than failing further in. `POST /v1/agents` and
+  `POST /v1/numbers` require `organization_id` and `project_id` this way;
+  `POST /v1/agent-endpoints` also requires `webhook_url` and
+  `audio_stream_url`.
+
+If you are retrying a request because it returned `500`, check it against this
+list first: several shapes that used to answer `500` now answer `400` or `415`,
+and those are answers about the request, not about the service.
+
 ## Rotate / revoke
 
 Mint a new key, swap the mcporter `env`, then revoke the old one:
