@@ -547,6 +547,12 @@ it.
   `POST /v1/agents` with `"mode": "external_audio"`. `connect_external_agent`
   is the shortcut for the same pair.
 
+`POST /v1/agents` answers with the agent's signing secret in
+`agent_endpoint.webhook_secret`, once. Save it immediately: every later read
+returns `[REDACTED]`. It signs each event and tool call Skysay sends to your
+webhook; verify `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature` as
+described in [Post-call results](/docs/post-call-results).
+
 Webhook signature verification, idempotency and backpressure handling stay in
 your app. `GET /v1/agents/{agent_id}/handoff` returns the generated setup
 contract for either mode: the endpoints it will call, the events to expect,
