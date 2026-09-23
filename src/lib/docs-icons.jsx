@@ -47,6 +47,7 @@ import {
   TestTube,
   Timer,
   Translate,
+  VoiceXmark,
   Voice,
   Wrench,
 } from "iconoir-react";
@@ -98,6 +99,7 @@ const ICONS = {
   Timer,
   ChatLines,
   Translate,
+  VoiceXmark,
   SineWave,
   MusicDoubleNote,
   MicrophoneSpeaking,
