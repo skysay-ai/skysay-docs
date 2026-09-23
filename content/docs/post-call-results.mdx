@@ -177,6 +177,27 @@ After the relevant ready event, use the generated reference routes for:
 Each read remains scoped to your organization and API key. Store only the
 evidence your policy and retention rules permit.
 
+### When a recording arrives late, or not at all
+
+Skysay stores the recording, the transcript and the call's evidence for calls
+of any length up to the [maximum call length](#when-a-call-ends-automatically).
+It stores them after the call ends, normally within moments of the hangup, and
+sends `call.recording.ready` and `call.transcript.ready` once they are
+available.
+
+Storing can fail for a reason that a later attempt can outlive, such as a
+network fault or a platform update during the hangup. In that case Skysay
+retries on its own, for about five hours. The gaps between attempts grow: 1,
+5, 15, 60 and then 240 minutes. The ready events are sent when a retry
+succeeds, so they can arrive hours after `call.completed`. Each is still
+delivered once. Until then, the call has no recording or transcript to read.
+
+If storing is refused for a reason a retry cannot change, or the retries run
+out, the call's own event log (`GET /v1/calls/{call_id}/events`) records a
+`call.artifacts.failed` row with a `reason` and the `stage` that failed. No
+webhook is sent for it. A retry never changes what the call costs: the call is
+billed from its lifecycle when it ends, not from the stored recording.
+
 ## End a call that is still running
 
 `POST /v1/calls/{call_id}/cancel` withdraws a call that is still queued, before anything dials. Once
