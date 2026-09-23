@@ -148,7 +148,7 @@
             "type": "string"
           },
           "voicemail": {
-            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only mailbox-specific evidence counts as proof: a record beep that follows a spoken greeting, or a mailbox phrase such as \"leave a message\" in the call's language. A fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays `voicemail_message` after the beep, once per contact. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
+            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only mailbox-specific evidence counts as proof: a record beep that follows a spoken greeting, or a mailbox instruction such as \"leave a message\", from a language whose phrase list is verified (en; English is checked on every call). The beep works in every language. Candidate phrase lists (de, es, et, fr, ru) are not yet verified: what they recognise is shown as evidence and never proves a mailbox. In any other language only the beep or an English instruction can. A fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
             "enum": [
               "shadow",
               "hang_up",
@@ -157,11 +157,17 @@
             ],
             "type": "string"
           },
-          "voicemail_message": {
-            "description": "The message left when `voicemail` is `leave_message`, which requires it. Plain text; runs of whitespace are collapsed and control characters are refused. It is played exactly as approved, never improvised by the AI agent, so keep it neutral: who is calling and how to call back, with no account, amount or other personal details, because a voicemail box can be heard by someone other than the person you meant to reach. It is kept when `voicemail` changes to another mode.",
-            "maxLength": 400,
-            "minLength": 1,
-            "type": "string"
+          "voicemail_messages": {
+            "additionalProperties": {
+              "maxLength": 400,
+              "type": "string"
+            },
+            "description": "The messages left when `voicemail` is `leave_message`, one per language, keyed by language code (`{\"en\": \"...\", \"et\": \"...\"}`); a locale such as `de-DE` is stored as `de`. `leave_message` requires at least one. The message played is the one for the language the call is actually in; a call in a language with no message is ended without one, never given a message in another language. Plain text; runs of whitespace are collapsed, a blank text removes that language's message, and control characters are refused. Each message is played exactly as approved, never improvised by the AI agent, so keep it neutral: who is calling and how to call back, with no account, amount or other personal details, because a voicemail box can be heard by someone other than the person you meant to reach. Messages are kept when `voicemail` changes to another mode and for languages the agent no longer offers.",
+            "maxProperties": 32,
+            "propertyNames": {
+              "pattern": "^[A-Za-z]{2,3}([-_][A-Za-z0-9]+)*$"
+            },
+            "type": "object"
           }
         },
         "type": "object"
