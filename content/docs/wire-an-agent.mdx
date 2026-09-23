@@ -460,6 +460,29 @@ phone call, in any language:
 
 None of these needs configuration, and browser tests are unaffected.
 
+#### When the caller seems to start talking before a reply
+
+If the caller appears to start speaking just as a reply is ready, the agent
+waits rather than talk over them. Background noise — a television, traffic,
+people nearby — can sound like the start of speech, so on a hosted phone call
+the agent does not wait on sound alone forever:
+
+- On hosted **English** calls transcribed by Deepgram, with
+  `min_interruption_words` at 1 or more (the English default), the agent waits
+  at most **1.5 seconds** when no words are recognized, then speaks. That is
+  longer than it takes the transcriber to report a caller's first word. If the
+  caller does say something during the wait, the agent keeps waiting for them,
+  up to eight seconds.
+- A reply that starts after such a wait still stops for the caller: one
+  recognized word, held for the interruption threshold, interrupts it as usual.
+  Continued noise with no words does not.
+- Every other language and transcriber keeps the **eight-second** limit until
+  the transcriber's word timing for that stack has been measured. The
+  speech-to-speech engines are unchanged.
+
+This is not a setting. `interruption_sensitivity`, `min_speech_ms` and
+`silence_hold_ms` do not change it.
+
 ## 3. Point a number at it
 
 Number rules decide what happens when someone calls a number and which agents
