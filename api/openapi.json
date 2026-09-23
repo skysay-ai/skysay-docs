@@ -139,7 +139,7 @@
         "description": "What the platform does when a call the carrier reported answered turns out to be non-human audio. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
         "properties": {
           "non_human_audio": {
-            "description": "`shadow` records what was heard on every answered call and changes nothing the caller experiences: the classification and its detail appear on the call, and no call is ever ended by it. `off` collects nothing, so such a call carries no classification at all. `shadow` is what an agent with no stored value gets; sending it explicitly stores it, which is how you keep it if the platform default later moves. This property carries no JSON Schema `default` on purpose, unlike the other tuning properties: a generated client that pre-filled one would send `shadow` on every save and pin a choice the customer never made, which is the one outcome the storage rule above exists to prevent. A further value that acts on the verdict, ending the call with `ended_reason: no_human_after_answer`, is not accepted yet and is refused with 400: the worker that performs it ships separately, and a value you could select that did nothing would be worse than one that is not offered.",
+            "description": "`shadow` records what was heard on every answered call and changes nothing the caller experiences: the classification and its detail appear on the call, and no call is ever ended by it. `end_call` acts on the verdict: the agent stops speaking and the call is ended with `ended_reason: no_human_after_answer`, and the classification and its detail appear on the call as they do under `shadow`. `off` collects nothing, so such a call carries no classification at all. `shadow` is the platform default, so it is what an agent with no stored value gets; sending it explicitly stores it, which is how you keep it if that default later moves. This property carries no JSON Schema `default` on purpose, unlike the other tuning properties: a generated client that pre-filled one would send `shadow` on every save and pin a choice the customer never made, which is the one outcome the storage rule above exists to prevent.",
             "enum": [
               "shadow",
               "end_call",
@@ -385,6 +385,17 @@
         ],
         "type": "object"
       },
+      "AgentModelUnresponsive": {
+        "additionalProperties": false,
+        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `model_session_lost` with `reason_detail` `model_unresponsive`. On by default at the platform's own bound; an absent section is that default and is not stored.",
+        "properties": {
+          "seconds": {
+            "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
       "AgentTool": {
         "description": "A legacy string placeholder, a built-in tool, a signed webhook tool, or an attached Integration Action.",
         "oneOf": [
@@ -618,6 +629,9 @@
           "end_of_call_phrase": {
             "maxLength": 300,
             "type": "string"
+          },
+          "model_unresponsive": {
+            "$ref": "#/components/schemas/AgentModelUnresponsive"
           },
           "tool_wait": {
             "$ref": "#/components/schemas/AgentToolWait"
@@ -1148,7 +1162,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Four are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, and `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Four are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, and `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `model_session_lost` is reached two ways and `reason_detail` says which: either the engine reported its own failure, or it simply stopped answering -- the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound -- which counts only the time the caller was NOT speaking -- and that reports `reason_detail` `model_unresponsive`. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1210,12 +1224,13 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies `answer_classification` and nothing else. `caller_tune`, `hold_music` and `looping_recording` appear only with `non_human_audio`, and `no_audio` only with `silent`; every other classification carries the empty string. `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. This is not `ended_reason`: that one says why the call ended, this one says what the platform heard when it started.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears only with `ended_reason` `model_session_lost`, and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
               "hold_music",
               "looping_recording",
+              "model_unresponsive",
               "no_audio"
             ],
             "type": "string"
@@ -1865,12 +1880,13 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies answer_classification, with the same meanings as on the Call resource.",
+            "description": "Qualifies answer_classification or ended_reason, with the same meanings as on the Call resource.",
             "enum": [
               "",
               "caller_tune",
               "hold_music",
               "looping_recording",
+              "model_unresponsive",
               "no_audio"
             ],
             "type": "string"
@@ -6599,6 +6615,9 @@
         "responses": {
           "201": {
             "description": "Call"
+          },
+          "400": {
+            "description": "Either a plain {error, message} (a malformed request), or, when the request is well formed but the selected agent's published configuration is one the voice worker could not build a call from: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary the Agents dashboard read returns (e.g. system_prompt_missing, voice_id_missing, first_message_missing, tts_not_runnable, language_not_runnable, capability_revision_mismatch). No call, wallet reservation or origination job is created; fix the agent's voice setup and retry."
           },
           "409": {
             "description": "Idempotency key was reused for a different request, or the call can no longer be canceled."

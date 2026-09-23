@@ -216,11 +216,21 @@ completed before this shipped. A call that **failed** reports its reason in
 `technical_failure.failure_reason_code` instead; the two vocabularies are separate and do not
 overlap.
 
-A call also carries `answer_classification` and `reason_detail`, which say what was heard after
-it was answered rather than why it ended. `no_human_after_answer` is the ending that goes with
-the `non_human_audio` classification, and only an agent set to `end_call` ends a call that way.
-See [Answer detection](/docs/answer-detection) for the whole set, for the two situations that
-end a call, and for the per-agent setting.
+A call also carries `answer_classification` and `reason_detail`. `answer_classification` says what
+was heard after the call was answered rather than why it ended. `reason_detail` is the qualifier,
+and it qualifies one of the two, which you can tell from its value:
+
+| `reason_detail` | qualifies | meaning |
+| --- | --- | --- |
+| `caller_tune`, `hold_music` | `answer_classification` `non_human_audio` | continuous music or tones held the line |
+| `looping_recording` | `answer_classification` `non_human_audio` | a recording repeated the same cycle of things over and over |
+| `no_audio` | `answer_classification` `silent` | the line answered and nothing at all was heard |
+| `model_unresponsive` | `ended_reason` `model_session_lost` | the agent stopped answering: see below |
+
+It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` is the
+ending that goes with the `non_human_audio` classification, and only an agent set to `end_call`
+ends a call that way. See [Answer detection](/docs/answer-detection) for the whole set, for the
+two situations that end a call, and for the per-agent setting.
 
 ### When the media session is lost
 
@@ -254,11 +264,49 @@ be brought back. Nobody hung up, no limit was reached and the agent did not
 finish. Skysay ends the call at that moment rather than leave the line open,
 with nobody on it, against your balance.
 
-There is no setting and no override: a call whose engine is gone cannot be
-continued. Before this release such a call stayed open until its maximum length
-or until the fault check below settled it, and carried no reason. As with
+Before this release such a call stayed open until its maximum length or until
+the fault check below settled it, and carried no reason. As with
 `media_session_lost`, a hangup request that was in flight is answered
 separately, and the call is not reported as `hangup_requested`.
+
+#### Two ways a call reaches it, and `reason_detail` says which
+
+The reason above is reported when the engine tells Skysay it has failed. An
+engine can also simply **stop answering** without reporting anything — a
+provider outage in the middle of a call can leave the connection open and
+silent — and a call in that state used to stay up, with the caller talking to
+nobody, until it reached its maximum length. It was billed for all of it.
+
+Skysay now bounds that too. After the other party finishes speaking, the agent
+has a fixed amount of time to produce something: a spoken reply, a tool call,
+or the end of the call. If the whole bound passes with nothing at all, Skysay
+ends the call with `ended_reason` `model_session_lost` and `reason_detail`
+`model_unresponsive`. The reason is shared with the case above because the
+outcome for your call is the same; the detail is what tells them apart.
+
+The bound is **20 seconds** by default, and it counts only time the line was
+free. It starts when the other party stops speaking, and their own speech is
+subtracted from it: someone who keeps talking is never cut off mid-sentence,
+while someone who pauses between attempts to get an answer still reaches the
+bound. It is cleared by anything the agent does that the other party can
+tell is happening -- a reply they can hear, a tool call -- so a normal
+conversation never approaches it, and it never runs while one of the agent's
+tools is still running, before the other party has said anything at all, or
+on a call whose replies come from a workflow. "The agent is speaking" means
+audio actually reaching the line, not an engine that says it is speaking: an
+engine that has stopped sending anything is exactly what this bound is for.
+A call where nobody
+speaks at all is a different situation with its own reason,
+`no_caller_speech_after_answer`.
+
+You can change the bound per agent with `voice_polish.model_unresponsive.seconds`
+on `PATCH /v1/agents/{agent_id}/voice-stack`: any value from 10 to 120 seconds,
+or `0` to switch it off entirely for an agent that waits on something genuinely
+slow. Leaving it unset keeps the 20-second default.
+
+```json
+{ "voice_polish": { "model_unresponsive": { "seconds": 45 } } }
+```
 
 ## When a call ends automatically
 
