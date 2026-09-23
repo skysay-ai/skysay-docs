@@ -49,6 +49,7 @@ import {
   Translate,
   VoiceXmark,
   Voice,
+  VoiceScan,
   Wrench,
 } from "iconoir-react";
 
@@ -104,6 +105,7 @@ const ICONS = {
   MusicDoubleNote,
   MicrophoneSpeaking,
   Voice,
+  VoiceScan,
   GitFork,
   TestTube,
   Headset,

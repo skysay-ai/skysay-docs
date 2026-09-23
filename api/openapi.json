@@ -136,7 +136,7 @@
       },
       "AgentAnswerDetection": {
         "additionalProperties": false,
-        "description": "What the platform does when a call the carrier reported answered turns out to be non-human audio. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
+        "description": "What the platform does when a call the carrier reported answered turns out not to be a person: non-human audio such as a caller tune, or a voicemail box. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
         "properties": {
           "non_human_audio": {
             "description": "`shadow` records what was heard on every answered call and changes nothing the caller experiences: the classification and its detail appear on the call, and no call is ever ended by it. `end_call` acts on the verdict: the agent stops speaking and the call is ended with `ended_reason: no_human_after_answer`, and the classification and its detail appear on the call as they do under `shadow`. `off` collects nothing, so such a call carries no classification at all. `shadow` is the platform default, so it is what an agent with no stored value gets; sending it explicitly stores it, which is how you keep it if that default later moves. This property carries no JSON Schema `default` on purpose, unlike the other tuning properties: a generated client that pre-filled one would send `shadow` on every save and pin a choice the customer never made, which is the one outcome the storage rule above exists to prevent.",
@@ -145,6 +145,22 @@
               "end_call",
               "off"
             ],
+            "type": "string"
+          },
+          "voicemail": {
+            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only mailbox-specific evidence counts as proof: a record beep that follows a spoken greeting, or a mailbox phrase such as \"leave a message\" in the call's language. A fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays `voicemail_message` after the beep, once per contact. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
+            "enum": [
+              "shadow",
+              "hang_up",
+              "leave_message",
+              "off"
+            ],
+            "type": "string"
+          },
+          "voicemail_message": {
+            "description": "The message left when `voicemail` is `leave_message`, which requires it. Plain text; runs of whitespace are collapsed and control characters are refused. It is played exactly as approved, never improvised by the AI agent, so keep it neutral: who is calling and how to call back, with no account, amount or other personal details, because a voicemail box can be heard by someone other than the person you meant to reach. It is kept when `voicemail` changes to another mode.",
+            "maxLength": 400,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -6915,19 +6931,22 @@
     },
     "/v1/calls/{call_id}/hangup": {
       "post": {
-        "description": "Requests teardown of a call that is already live. Returns 202 with `hangup_requested_at`; it never reports the call as ended, because the media session is torn down by the worker holding it and the call reaches `call.ended` through the ordinary terminal path, recording the reason `hangup_requested`. Repeating the request is idempotent and returns the original timestamp. Until a worker acknowledges, the request stays visible with `status` `pending`. If the worker reports that the teardown FAILED, the call is still up, so a further request re-arms it with a fresh timestamp and the previous failure's reason stays visible beside it; after three consecutive failed teardowns further requests are refused so the call is escalated rather than retried. A call still queued for origination is refused: cancel it with POST /v1/calls/{call_id}/cancel instead. The response carries `hangup_requested_at`, `status` (`pending` or `acknowledged`), `hangup_acknowledged_at`, `hangup_acknowledged_outcome`, `hangup_acknowledged_reason`, `hangup_failed_attempts`, `hangup_unacknowledged_seconds` (null once acknowledged), `hangup_attempt` (which attempt this is; a re-arm increments it) and `already_requested`, which is false for a first or re-armed request and true when an existing one was returned unchanged.",
+        "description": "Requests teardown of a call that is already live. This is also what the Hang up button on a live call in the workspace Calls page sends. Returns 202 with `hangup_requested_at`; it never reports the call as ended, because the media session is torn down by the worker holding it and the call reaches `call.ended` through the ordinary terminal path. The call then reports `ended_reason` `hangup_requested`, unless it had already started ending another way, in which case that ending's reason is reported. Repeating the request is idempotent and returns the original timestamp. Until a worker acknowledges, the request stays visible with `status` `pending`. If the worker reports that the teardown FAILED, the call is still up, so a further request re-arms it with a fresh timestamp and the previous failure's reason stays visible beside it; after three consecutive failed teardowns further requests are refused so the call is escalated rather than retried. A call still queued for origination is refused: cancel it with POST /v1/calls/{call_id}/cancel instead. For a workspace caller, a call in another workspace, or a Simulations Lab run, answers exactly as a call id that does not exist. The response carries `hangup_requested_at`, `status` (`pending` or `acknowledged`), `hangup_acknowledged_at`, `hangup_acknowledged_outcome`, `hangup_acknowledged_reason`, `hangup_failed_attempts`, `hangup_unacknowledged_seconds` (null once acknowledged), `hangup_attempt` (which attempt this is; a re-arm increments it) and `already_requested`, which is false for a first or re-armed request and true when an existing one was returned unchanged.",
         "responses": {
           "202": {
             "description": "Hangup requested; not yet acknowledged by the media worker."
           },
           "404": {
-            "description": "No such call."
+            "description": "No such call in this workspace: unknown, another workspace's, or a Simulations Lab run."
           },
           "409": {
-            "description": "Call is not live: already terminal, or still queued (use cancel)."
+            "description": "Call is not live (already terminal, or still queued: use cancel), or its teardown has already failed three times."
           }
         },
-        "summary": "Ask a live call to hang up"
+        "summary": "Ask a live call to hang up",
+        "x-required-scopes": [
+          "calls:write"
+        ]
       }
     },
     "/v1/calls/{call_id}/observability": {
