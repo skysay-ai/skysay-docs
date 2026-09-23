@@ -86,6 +86,35 @@ not select a profile. Your application still owns row overrides and batch
 language choices. See [Multilingual outbound
 calls](/docs/multilingual-outbound) for configuration and admission behavior.
 
+### An agent that could not take the call is refused before anything is spent
+
+If the selected agent's published voice setup is one the voice agent could not
+build a call from—no instructions, no exact voice, no greeting where one is
+required, or a component that cannot run the call's language—`POST /v1/calls`
+answers `400`:
+
+```json
+{
+  "error": "realtime_config_not_runnable",
+  "reason": "system_prompt_missing",
+  "blockers": [{ "code": "system_prompt_missing", "scope": "agent", "detail": "" }]
+}
+```
+
+No call is created, no wallet balance is reserved, and no origination job is
+queued, so retrying after fixing the agent is an ordinary new request. The codes
+are the same ones the workspace shows for that agent, so the remedy is the one
+already named there. Previously such a request was accepted and the call ended
+before it had any audio.
+
+For a multilingual agent the check covers every published language, not only the
+one this call speaks: with [Follow the caller](/docs/multilingual-outbound), the
+voice agent prepares all of them before the call connects, so each blocker's
+`detail` carries the language it belongs to.
+
+A campaign whose agent is in this state finishes each contact as
+`agent_not_runnable` rather than dialling it.
+
 ### Retry, backpressure, and cancel boundaries
 
 - Repeating the same canonical request with the same idempotency key returns the
