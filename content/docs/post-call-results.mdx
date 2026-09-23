@@ -212,6 +212,9 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
 
+The workspace Calls page does not display the ending reason yet; read it
+from the call resource or the `call.completed` webhook.
+
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
 `technical_failure.failure_reason_code` instead; the two vocabularies are separate and do not
@@ -362,7 +365,8 @@ rest of that call. This measures audio, not intent: a voicemail greeting is
 speech, so this rule is not a voicemail detector. What it catches is a call
 that connects to silence.
 
-**Both sides went quiet mid-call.** Once the agent has spoken and nothing more
+**Both sides went quiet mid-call** *(rolling out: observed but not yet
+enforced; see the link below).* Once the agent has spoken and nothing more
 comes from either side for **30 seconds**, the agent asks once whether the
 caller is still there. If nobody answers within **15 seconds** after that
 question, the agent says a short goodbye and the call ends with

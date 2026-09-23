@@ -69,6 +69,13 @@ GPT-Live 1 it also reaches the backend model that decides when to call tools.
 
 ## When both sides go quiet
 
+> **Rolling out.** This rule is currently in observation: on every call,
+> Skysay records when it would have checked in and when it would have ended
+> the call, and it does not yet do either. Calls behave as they did before,
+> and `caller_unresponsive` does not appear yet. It will be switched on once
+> the observations show it never would have ended a call wrongly. This page
+> will say so when it is on.
+
 Sometimes the agent speaks, and then nothing more comes from either side. The
 caller may have put the phone down, walked away, or lost the connection in a
 way the network never reported. Without this rule, such a line stayed open
@@ -129,10 +136,15 @@ These values are the same for every agent and cannot be changed per agent.
 `caller_unresponsive` appears wherever `ended_reason` does:
 
 - on `GET /v1/calls/{call_id}` and in `GET /v1/calls` list results;
-- in the terminal `call.completed` webhook.
+- in the terminal `call.completed` webhook;
+- in the campaign contact export, as the call's ending.
+
+The workspace Calls page does not show a call's ending reason yet, for any
+reason. Until it does, read it from the API or the webhook.
 
 A campaign contact whose call ended this way is treated like any other
 completed call. It is not retried automatically.
 
-Skysay can pause this rule platform-wide without a release. While it is
-paused, calls behave as they did before it existed.
+Retrying a contact whose call ended this way is your decision, not the
+platform's. The precise reason is there for your integration or campaign
+settings to act on.
