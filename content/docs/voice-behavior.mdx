@@ -166,6 +166,43 @@ same typing bed at the level a call uses. The control writes the same
 `voice_polish.tool_wait` object as the API, is saved with the voice settings,
 and applies to new calls after you save.
 
+## When the agent stops answering altogether
+
+Acknowledgements and tool-wait audio cover a wait the agent will come back
+from. A conversation engine can also stop answering and not come back: a
+provider outage in the middle of a call can leave the connection open and
+silent, and on some engines nothing is reported at all. A call in that state
+used to stay up with the caller talking to nobody, and it was billed for all
+of it.
+
+Skysay bounds that. After the caller finishes speaking, the agent has a fixed
+amount of time to produce something — a spoken reply, a tool call, or the end
+of the call. If the whole bound passes with nothing, Skysay ends the call and
+reports `ended_reason` `model_session_lost` with `reason_detail`
+`model_unresponsive` on the [call result](/docs/post-call-results).
+
+The bound is **20 seconds** by default, and a normal conversation never
+approaches it: it is cleared by anything the agent does, and it never runs
+while the agent is speaking, while one of its tools is still running, before
+the caller has said anything, or on a call whose replies come from a workflow.
+A call where nobody speaks at all is a different situation, with its own
+reason, `no_caller_speech_after_answer`.
+
+Change it per agent in the same `voice_polish` object:
+
+```json
+{
+  "voice_polish": {
+    "model_unresponsive": { "seconds": 45 }
+  }
+}
+```
+
+`seconds` accepts any value from 10 to 120, or `0` to switch the bound off for
+an agent that legitimately waits on something slow. Leaving the section out
+keeps the 20-second default. There is no editor control for it; set it through
+`PATCH /v1/agents/{agent_id}/voice-stack`.
+
 ## What it does not do
 
 Acknowledgements reduce perceived waiting, not the reply time itself. They do
@@ -179,3 +216,5 @@ and [audio environments](/docs/audio-environments) for ambience.
 - [Delivery profiles](/docs/delivery-profiles) choose how the voice performs
   every reply; acknowledgements only fill the wait before one starts. Both live
   in the same `voice_polish` object on the voice stack.
+- [Post-call results](/docs/post-call-results) explains `model_session_lost`
+  and its `reason_detail`, including the silent-agent bound above.
