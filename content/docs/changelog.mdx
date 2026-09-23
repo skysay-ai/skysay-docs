@@ -17,7 +17,7 @@ services were confirmed deployed.
 ### A call whose AI agent stops answering is ended instead of staying open
 
 - A conversation engine can stop answering mid-call without reporting anything — a provider outage leaves the connection open and silent — and such a call used to stay up, with the caller talking to nobody, until it reached its maximum length.
-- After the caller finishes speaking, the agent now has **20 seconds** to produce a reply, a tool call or the end of the call; if the whole bound passes with nothing, Skysay ends the call.
+- After the caller finishes speaking, the agent now has **20 seconds** of quiet line to produce a reply, a tool call or the end of the call; the caller's own speech is subtracted, so nobody is cut off mid-sentence.
 - The call reports `ended_reason` `model_session_lost` with a new `reason_detail` `model_unresponsive`, which is what tells it apart from the same reason reached because the engine reported its own failure. The list of ended reasons is unchanged.
 - The bound never runs while the agent is speaking, while one of its tools is running, before the caller has said anything, or on a call whose replies come from a workflow; set `voice_polish.model_unresponsive.seconds` on `PATCH /v1/agents/{agent_id}/voice-stack` to any value from 10 to 120, or `0` to switch it off.
 - [Post-call results](/docs/post-call-results#when-the-conversation-engine-is-lost) · [Voice behaviour](/docs/voice-behavior#when-the-agent-stops-answering-altogether)

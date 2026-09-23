@@ -284,12 +284,15 @@ ends the call with `ended_reason` `model_session_lost` and `reason_detail`
 `model_unresponsive`. The reason is shared with the case above because the
 outcome for your call is the same; the detail is what tells them apart.
 
-The bound is **20 seconds** by default. It is measured from the moment the
-other party stops speaking, and it is cleared by anything the agent does, so a
-normal conversation never approaches it. It never runs while the agent is
-speaking, while one of its tools is still running, before the other party has
-said anything at all, or on a call whose replies come from a workflow. A call
-where nobody speaks at all is a different situation with its own reason,
+The bound is **20 seconds** by default, and it counts only time the line was
+free. It starts when the other party stops speaking, and their own speech is
+subtracted from it: someone who keeps talking is never cut off mid-sentence,
+while someone who pauses between attempts to get an answer still reaches the
+bound. It is cleared by anything the agent does, so a normal conversation
+never approaches it, and it never runs while the agent is speaking, while one
+of its tools is still running, before the other party has said anything at
+all, or on a call whose replies come from a workflow. A call where nobody
+speaks at all is a different situation with its own reason,
 `no_caller_speech_after_answer`.
 
 You can change the bound per agent with `voice_polish.model_unresponsive.seconds`

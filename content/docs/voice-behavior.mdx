@@ -181,10 +181,12 @@ of the call. If the whole bound passes with nothing, Skysay ends the call and
 reports `ended_reason` `model_session_lost` with `reason_detail`
 `model_unresponsive` on the [call result](/docs/post-call-results).
 
-The bound is **20 seconds** by default, and a normal conversation never
-approaches it: it is cleared by anything the agent does, and it never runs
-while the agent is speaking, while one of its tools is still running, before
-the caller has said anything, or on a call whose replies come from a workflow.
+The bound is **20 seconds** by default and counts only time the line was free:
+the caller's own speech is subtracted, so a caller who keeps talking is never
+cut off mid-sentence. A normal conversation never approaches it — it is
+cleared by anything the agent does, and it never runs while the agent is
+speaking, while one of its tools is still running, before the caller has said
+anything, or on a call whose replies come from a workflow.
 A call where nobody speaks at all is a different situation, with its own
 reason, `no_caller_speech_after_answer`.
 
