@@ -1,0 +1,102 @@
+---
+title: When the AI agent cannot understand the caller
+description: What a caller hears when they speak and nothing is transcribed — most often a language the agent is not listening for — and how to change or switch off the line the agent says.
+icon: VoiceXmark
+---
+
+A Standard (speech-to-text, model, text-to-speech) AI agent listens in the
+languages it is configured for. When a caller speaks something the transcriber
+produces no words for, the agent used to say nothing at all: the caller had
+spoken, the agent had heard audio, and no text ever reached the model, so the
+model was never asked to reply. Callers described it as the line going dead.
+
+The agent now answers. After the caller stops speaking and the platform's wait
+for a transcript expires, the agent says one short line in the call's own
+language: that it could not understand what was said, and which languages it
+can help in. Then it keeps listening.
+
+> "I'm sorry, I couldn't understand what you said. I can help you in English
+> and German — how may I assist you today?"
+
+The exact wording is composed on the call by the agent's own model, in the
+agent's own voice and language, so it fits the agent rather than sounding like
+a system message. The languages it names are the ones the agent is configured
+for.
+
+## When it happens, and when it does not
+
+The most common cause is a caller speaking a language the agent is not
+listening for. It is not the only one: a bad line, a dropout, or speech the
+transcriber could not resolve produce the same silence. The agent therefore
+says only what is true in all of those cases — that it did not catch what was
+said, and which languages it can help in. It never claims to know which
+language the caller used, because it has no evidence of that.
+
+The line is spoken only after the caller has stopped talking, so it never
+interrupts. It is skipped entirely when:
+
+- the agent has **follow the caller** enabled. There the transcriber is
+  already listening for every configured language and a
+  [language switch](/docs/multilingual-outbound#optional-follow-the-caller)
+  is the right answer, not a repair line.
+- the caller was in fact understood and their words are simply still on their
+  way to the model.
+- the agent is already speaking, or the call is ending.
+- the agent runs a [speech-to-speech engine](/docs/conversation-engines) --
+  GPT-Live 1 or Gemini Live. Those engines have no separate transcription
+  step, so this situation does not arise.
+- the call is running an [agent workflow](/docs/agent-workflows). There the
+  workflow decides every turn the agent takes, and a line spoken outside it
+  would not belong to any step. A workflow that should answer an
+  unintelligible turn says so in the workflow itself.
+
+## Defaults and limits
+
+| | |
+| --- | --- |
+| On or off | **On** for every Standard agent that is not running a workflow. Nothing to enable. |
+| How often | At most **twice per call**. |
+| Timing | Only after the caller stops speaking and the transcript wait expires. |
+| Effect on the call | None beyond the line. The agent keeps listening; it never transfers, never hangs up, and never invokes a tool because of this. |
+
+## Change the wording, the limit, or switch it off
+
+`PATCH /v1/agents/{agent_id}/voice-stack` accepts an optional
+`voice_polish.unrecognised_speech` section:
+
+```json
+{
+  "voice_polish": {
+    "unrecognised_speech": {
+      "enabled": true,
+      "phrase": "Sorry, I can only help in English. Could you try again in English?",
+      "max_per_call": 1
+    }
+  }
+}
+```
+
+- `enabled` — send `false` to switch the line off for this agent. The agent
+  then stays silent in this situation, as it did before. `true` is the
+  default and is not stored, so an agent that never sends this section keeps
+  an unconfigured voice stack.
+- `phrase` — your own wording, up to 300 characters, spoken verbatim in place
+  of the composed line. Write it in the agent's language: it is not
+  translated, and it is not adjusted to name the agent's languages.
+- `max_per_call` — 1 to 5. Two when unset.
+
+Changes apply to calls started after you publish the agent.
+
+## Reading it back on a call
+
+The line is an ordinary agent turn. It appears in the call transcript and in
+the recording exactly like anything else the agent said, so a call where it
+was spoken is recognisable from
+[the call's own evidence](/docs/read-call-evidence) with no extra field to
+look up.
+
+## Related
+
+- [How Skysay handles provider languages and voices](/docs/language-qualification)
+- [Multilingual agents and follow the caller](/docs/multilingual-outbound)
+- [Acknowledgements and waiting speech](/docs/voice-behavior)

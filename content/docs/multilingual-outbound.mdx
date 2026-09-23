@@ -156,6 +156,15 @@ the appropriate policy; generated wording is not a way to bypass those rules.
 There is no automatic recommended voice and no fallback to a different voice
 when a selected provider voice fails.
 
+Publishing checks every effective per-language configuration against the rules
+the voice worker applies when it builds a call, not only against the component
+catalog. If one of them could not be built, the save is refused with a
+configuration error naming the language and the reason, and nothing is
+published: the previously published profiles keep serving calls. Fix the named
+language's override — or remove that language and publish the remaining set —
+and save again. A per-language override that selects a provider from a
+different runnable contract than the shared stack is the usual cause.
+
 Test each profile before it joins a live outbound cohort: open the agent's
 test panel, choose a language from the **Published** configuration, and start
 the metered browser test. Profile-based tests use the published version; publish edits
@@ -251,10 +260,13 @@ Follow mode requires at least two selected languages, one shared transcriber,
 and listening support for the selected languages together.
 A transcriber that supports English and German in separate monolingual calls
 does not necessarily support recognizing both in one conversation. Skysay
-checks the configured listening mode and complete published profiles before
-admission. If the combination is unsupported, change the configuration yourself
-or keep fixed-language mode; Skysay does not select a replacement voice or
-transcriber for you.
+checks the configured listening mode and every published profile when you
+publish, and again before admission. Follow mode builds all of the published
+profiles at the start of a call, so a language whose configuration cannot be
+built would end every call on the agent and not only calls in that language —
+which is why the publish is refused instead. If the combination is unsupported,
+change the configuration yourself or keep fixed-language mode; Skysay does not
+select a replacement voice or transcriber for you.
 
 Use the existing voice-stack PATCH to publish the behavior with the language
 set. The additional behavior field is:

@@ -12,7 +12,52 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 23 September 2026
+
+### A call whose AI agent stops answering is ended instead of staying open
+
+- A conversation engine can stop answering mid-call without reporting anything — a provider outage leaves the connection open and silent — and such a call used to stay up, with the caller talking to nobody, until it reached its maximum length.
+- After the caller finishes speaking, the agent now has **20 seconds** of quiet line to produce a reply, a tool call or the end of the call; the caller's own speech is subtracted, so nobody is cut off mid-sentence.
+- The call reports `ended_reason` `model_session_lost` with a new `reason_detail` `model_unresponsive`, which is what tells it apart from the same reason reached because the engine reported its own failure. The list of ended reasons is unchanged.
+- Anything the caller can hear from the agent clears the bound, so it never runs while the agent is audibly replying, while one of its tools is running, before the caller has said anything, or on a call whose replies come from a workflow; set `voice_polish.model_unresponsive.seconds` on `PATCH /v1/agents/{agent_id}/voice-stack` to any value from 10 to 120, or `0` to switch it off.
+- [Post-call results](/docs/post-call-results#when-the-conversation-engine-is-lost) · [Voice behaviour](/docs/voice-behavior#when-the-agent-stops-answering-altogether)
+
+### Voice library: provider and model columns, and faster pages
+
+- The **Voice library** table gains **Provider** and **Model** columns; a voice offered on two text-to-speech models lists both, each with its own price and first-audio time.
+- **All**, **Live** and **Text to speech** filters separate voice-to-voice voices from text-to-speech voices, with a short note on what an agent of each kind can run.
+- The Voice library and the new-agent **Voice** step load several times faster; the voices, totals and filters they return are unchanged.
+- [Voice library](/docs/voice-library) · [Conversation engines](/docs/conversation-engines)
+
 ## 22 September 2026
+
+### Transfer a call to a person, and find callbacks on Calls
+
+- An agent with `transfer_to_human` enabled now dials its saved destination into the live call once; the person who answers hears a short introduction, then the agent stays quiet.
+- The AI model is only told the transfer is connecting and never sees the destination number; if nobody answers, or the caller hangs up while it rings, the agent comes back.
+- When a transfer cannot connect, or the caller asks to be called back, the agent saves one callback on the call with the caller's name, the reason and a number it read back to them.
+- **Calls** has a **Callback requested** filter, and the open call shows the name, number, reason and the number the transfer was offered to. The callback is not sent by text or email yet.
+- [Transfer to a human](/docs/transfer-to-a-human) · [Tool reference](/docs/tool-reference)
+
+### Calls on Gemini Live are no longer refused before they start
+
+- Every call on a Gemini Live agent was refused before it started, with a `400` naming an unsupported TTS billing unit; inbound calls, outbound calls and **Talk to this draft now** were all affected.
+- Those calls are now admitted and billed on the engine's call-duration meter, the same way as GPT-Live 1 calls.
+- [Conversation engines](/docs/conversation-engines) · [Name the language of a Gemini Live call](/docs/multilingual-outbound#resolve-the-language-before-each-call)
+
+### Calls are no longer refused while the voice service warms up
+
+- Preparing a new call's voice session no longer makes the voice service report itself as full, so a call arriving at that moment is no longer refused and answered with silence.
+- The voice service now admits calls by how many it is already running, not by a momentary processor reading; there is nothing to configure.
+- [Read call evidence](/docs/read-call-evidence)
+
+### The AI agent says it could not understand, instead of going silent
+
+- A Standard agent whose caller says something the transcriber produces no words for — most often a language the agent is not listening for — now speaks one short line in its own language saying it could not understand and naming the languages it can help in, then keeps listening.
+- It is spoken only after the caller stops talking, so it never interrupts, and at most twice per call; it never ends or transfers the call.
+- On for every Standard agent, and skipped on an agent with **follow the caller** enabled, where a language switch answers instead. GPT-Live 1 and agent workflows are unaffected: the first has no separate transcription step, and the second decides every turn itself.
+- Send `voice_polish.unrecognised_speech.enabled: false` on `PATCH /v1/agents/{agent_id}/voice-stack` to switch it off, or `phrase` and `max_per_call` to change the wording and the limit.
+- [When the AI agent cannot understand the caller](/docs/unrecognised-speech) · [Follow the caller](/docs/multilingual-outbound#optional-follow-the-caller)
 
 ### Name the language of a GPT-Live 1 or Gemini Live call
 
