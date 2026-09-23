@@ -226,7 +226,65 @@ languages, ambience and delivery settings are saved on this same route; see
 
 <Step>
 
-### 5. Optional: add a conversation workflow
+### 5. Test the agent
+
+`POST /v1/agents/{agent_id}/chat-turns` · scope `agents:write`
+
+A text chat runs the agent's real configuration, model and tools, without
+audio, without a call record, and without charging your wallet. The client keeps
+the transcript. Ask for the opening line with an empty transcript and
+`caller_input: null`:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/chat-turns" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"caller_input": null, "transcript": []}'
+```
+
+Then send each caller line together with everything said so far:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/chat-turns" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "caller_input": "Are you open on Saturday?",
+    "transcript": [
+      { "role": "agent", "text": "Hi, thanks for calling Acme Dental. How can I help?" }
+    ]
+  }'
+```
+
+```json
+{
+  "agent_id": "agent_9sLq3VbN7xKe2TmR",
+  "snapshot": "published",
+  "model": "gemini-3.5-flash-lite",
+  "reply": {
+    "role": "agent",
+    "text": "We are actually closed on Saturdays. Our opening hours are Monday through Friday from 9 AM to 5 PM. Would you like to book an appointment for one of those days?",
+    "truncated": false
+  },
+  "ended": false,
+  "ended_reason": null,
+  "events": [],
+  "metering": { "mode": "platform_funded", "components": ["llm"], "model_calls": 1, "input_tokens": 127, "output_tokens": 36 }
+}
+```
+
+**To hear the agent**, open it under **Agents** in the workspace and start a
+browser test. It uses your welcome browser credit or purchased funds, needs no
+phone number, and is capped at 180 seconds. The API behind it,
+`POST /v1/agents/{agent_id}/browser-sessions` (scopes `agents:write` and
+`calls:write`), returns credentials for a WebRTC client rather than audio, so
+curl alone cannot play the call. See [Test an agent](/docs/trial-calls).
+
+</Step>
+
+<Step>
+
+### 6. Optional: add a conversation workflow
 
 A hosted agent runs from its instructions and opening line alone, so you can
 skip this step. Add a [workflow](/docs/agent-workflows) only when you want the
@@ -293,67 +351,10 @@ since then, publish answers `409` and carries the current draft under
 warnings answers `400` listing their codes; send them back in
 `acknowledged_warning_codes` to publish anyway.
 
-Once an agent has a workflow, step 6's text test refuses it; test a workflow
-with its own Chat test instead, described in
+Once an agent has a workflow, the text test in step 5 answers `400` with
+`"This AI agent has a conversation flow; chat with it through the flow's Chat test."`
+Test a workflow with its own Chat test, described in
 [Agent workflows](/docs/agent-workflows).
-
-</Step>
-
-<Step>
-
-### 6. Test the agent
-
-`POST /v1/agents/{agent_id}/chat-turns` · scope `agents:write`
-
-A text chat runs the agent's real configuration, model and tools, without
-audio, without a call record, and without charging your wallet. The client keeps
-the transcript. Ask for the opening line with an empty transcript and
-`caller_input: null`:
-
-```bash
-curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/chat-turns" \
-  -H "Authorization: Bearer $SKYSAY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"caller_input": null, "transcript": []}'
-```
-
-Then send each caller line together with everything said so far:
-
-```bash
-curl -s -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/chat-turns" \
-  -H "Authorization: Bearer $SKYSAY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "caller_input": "Are you open on Saturday?",
-    "transcript": [
-      { "role": "agent", "text": "Hi, thanks for calling Acme Dental. How can I help?" }
-    ]
-  }'
-```
-
-```json
-{
-  "agent_id": "agent_9sLq3VbN7xKe2TmR",
-  "snapshot": "published",
-  "model": "gemini-3.5-flash-lite",
-  "reply": {
-    "role": "agent",
-    "text": "We are actually closed on Saturdays. Our opening hours are Monday through Friday from 9 AM to 5 PM. Would you like to book an appointment for one of those days?",
-    "truncated": false
-  },
-  "ended": false,
-  "ended_reason": null,
-  "events": [],
-  "metering": { "mode": "platform_funded", "components": ["llm"], "model_calls": 1, "input_tokens": 127, "output_tokens": 36 }
-}
-```
-
-**To hear the agent**, open it under **Agents** in the workspace and start a
-browser test. It uses your welcome browser credit or purchased funds, needs no
-phone number, and is capped at 180 seconds. The API behind it,
-`POST /v1/agents/{agent_id}/browser-sessions` (scopes `agents:write` and
-`calls:write`), returns credentials for a WebRTC client rather than audio, so
-curl alone cannot play the call. See [Test an agent](/docs/trial-calls).
 
 </Step>
 
@@ -489,7 +490,7 @@ curl -s "$SKYSAY_BASE_URL/v1/calls/$CALL_ID" \
 ```
 
 Browser tests are calls too, with `direction: "web_test"`, so you can read the
-call you started in step 6 the same way.
+browser test you started from the workspace the same way.
 
 List recent calls · `GET /v1/calls` · scope `calls:read`
 
@@ -514,7 +515,7 @@ curl -s "$SKYSAY_BASE_URL/v1/calls/$CALL_ID/transcript" \
 ```json
 {
   "call_id": "call_8GmT3xRk5VqW2nYp",
-  "transcript_status": "complete",
+  "transcript_status": "available",
   "text": "agent: Hi, thanks for calling Acme Dental. How can I help?\ncaller: Are you open on Saturday?\nagent: We are closed on Saturdays…",
   "turns": [
     { "sequence": 1, "speaker": "agent", "text": "Hi, thanks for calling Acme Dental. How can I help?" },

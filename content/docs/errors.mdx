@@ -48,12 +48,11 @@ You get a fixed message and an id instead:
 | `401` | `UnauthorizedError` | No key, a key that is not a `Bearer` token, or a key that is invalid or revoked. | Check the `Authorization: Bearer sky_…` header, or create a new key. |
 | `402` | `InsufficientBalanceError` | The wallet cannot cover what the request would reserve. | Top up; see [Billing](/docs/billing). |
 | `403` | `ForbiddenError` | The key lacks a scope (`missing required scope: calls:read`), or the request names a workspace other than the key's own. | Add the scope to the key, or remove the foreign `organization_id`. |
-| `403` | `PolicyBlockedError` | Outbound policy refused the action. | See [Policy & outbound](/docs/policy-and-outbound). |
 | `404` | `NotFoundError` | The id does not exist, **or** it belongs to another workspace. The two are deliberately indistinguishable. | Check the id and the key's workspace. |
 | `404` | `not_found` | No such route. | Check the method and path. |
 | `405` | `method_not_allowed` | The path exists but not with this method. | Use a method from `allow`. |
 | `409` | `ConflictError` and others | The request conflicts with current state: an `Idempotency-Key` reused for a different request, a stale revision, a draft that already exists. | Read the current state, then decide. Do not blindly retry. |
-| `413` | `PayloadTooLargeError` | The body or upload is too large. | Send less. |
+| `413` | `PayloadTooLargeError` | The request body, or an uploaded verification document, is over its size limit or quota. | Send less. |
 | `415` | `UnsupportedMediaTypeError` | The request has a `Content-Encoding` other than `identity`. | Send the body uncompressed. |
 | `422` | varies | A simulation-suite request is well formed but cannot run as asked. | Read `message` and the extra fields. |
 | `423` | `SuspensionError` | A workspace control refused the action: a spend or velocity cap, the live-call concurrency limit, a suppression, or a suspension. | Wait for the cap window, or contact support for a suspension. |
@@ -102,7 +101,7 @@ curl -s "$SKYSAY_BASE_URL/v1/agents/agent_doesnotexist" \
 
 ## Retrying safely
 
-Retry only `429` and `5xx`, with exponential backoff. `4xx` answers describe
+Retry only `429` and `5xx`, with exponential backoff. A call that outbound policy refuses is not an error: `POST /v1/calls` answers `201` with `status: "policy_blocked"` or `"needs_review"`, as described in the [curl quickstart](/docs/quickstart-curl#7-place-an-outbound-call). `4xx` answers describe
 the request, and the same request gets the same answer. For
 `POST /v1/calls`, always send an `Idempotency-Key` header: a retry with the
 same key and body returns the original call instead of dialling twice. See
