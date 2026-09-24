@@ -12,6 +12,136 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 24 September 2026
+
+### Every Soniox and Fish Audio voice in the Voice Library can be published
+
+- Soniox `tts-rt-v2` and Fish Audio `s2-pro` voices listed in the **Voice library** now publish on an agent; before, only a few built-in voices of each could, and any other was refused at publish as not runnable.
+- Agents that already use a Soniox or Fish Audio voice keep working and need no change.
+- [Choose a voice for an agent](/docs/voice-library#choose-a-voice-for-an-agent)
+
+### Recordings show the real length of calls longer than 15 minutes
+
+- A call recording's duration now reports its real length; before, every recording longer than 15 minutes showed 900 seconds.
+- Call results and the talk time on the **Calls** page read the same corrected value.
+- [What a recording contains](/docs/read-call-evidence#what-a-recording-contains)
+
+### A short "no" in a workflow call is understood as an answer
+
+- A caller who answered a workflow's balance line with a plain "no" could have the call end on the fallback farewell ("Sorry, I'm having trouble continuing this call"), and a short Sinhala "no" (නෑ.) could be taken as a wrong-party denial, which stops the call.
+- A reply to a **Tell / Say** line is now judged together with that line as the caller heard it, including the approved figures it stated, so a "no" to "Have you already paid it?" takes the workflow's own route for an unpaid balance.
+- Only that one line is added: the workflow's other steps, the caller's earlier replies and case fields the line does not state never reach the decision model, and the figures are included only when that model runs on the same provider as the agent's own model. An explicit denial — "this isn't him", a different name — still ends the call as a wrong party.
+- Published workflows need no change and no republish.
+- [Agent workflows](/docs/agent-workflows#payment-reminder-identity-clarification)
+
+### Recordings and transcripts are kept for long calls
+
+- Recordings, transcripts and call evidence are now stored for calls of any length up to the maximum call length; before, calls longer than about 8.7 minutes kept none.
+- A failed store is retried automatically for about five hours, so the ready events can arrive hours after `call.completed`, each still delivered once.
+- A final failure is recorded as `call.artifacts.failed` in the call's event log; no webhook is sent for it and billing is unaffected.
+- [When a recording arrives late, or not at all](/docs/post-call-results#when-a-recording-arrives-late-or-not-at-all)
+
+### Voicemail detection watches outbound calls
+
+- Each outbound call now records whether a voicemail box answered, and the evidence behind that verdict, alongside the call.
+- Detection only watches for now: the call, its `answer_classification`, `ended_reason`, webhooks and campaign results are unchanged.
+- The four per-agent settings under `answer_detection.voicemail`, including per-language messages for **Leave a message**, can be saved today and act once they are released.
+- [Voicemail detection](/docs/voicemail-detection) · [What happens on a call today](/docs/voicemail-detection#what-happens-on-a-call-today)
+
+### Inbound calls to an agent that could not run are rejected before connecting
+
+- An inbound call to a number whose agent has a published voice setup the voice agent could not run is now rejected before the caller is connected, with nothing reserved.
+- It appears in **Calls** as an inbound attempt rejected before connection; before, the call was answered and then ended before any audio.
+- [Inbound attempts rejected before connection](/docs/read-call-evidence#inbound-attempts-rejected-before-connection)
+
+### GPT-Live and Gemini Live agents on the homepage demo
+
+- The homepage demo now offers every active agent in the Skysay demo workspace whatever its conversation engine; GPT-Live and Gemini Live agents were left out before.
+- A voice-to-voice agent appears once, in its own language, and follows the visitor's language inside the session; the demo's session length and daily limits are unchanged.
+- [On the homepage demo](/docs/conversation-engines#on-the-homepage-demo)
+
+### POST /v1/calls no longer needs a country
+
+- `country` is optional on `POST /v1/calls`; Skysay derives the destination country from `to_phone_number`, and requests that still send it stay valid.
+- [Start one call](/docs/customer-applications#start-one-call)
+
+### Every agent with end_call now follows the same call-ending rules
+
+- Every agent with `end_call` enabled receives one standing instruction after your own prompt: once it has said goodbye, it answers at most once more and then ends the call.
+- When the agent is calling a specific person and whoever answers says they are not that person, it apologises once, shares nothing about the matter and ends the call.
+- Skysay lets the goodbye finish playing before hanging up, and waits at most about 15 seconds for it.
+- The instruction cannot be switched off for an agent with `end_call`; turning `end_call` off is how you opt out. The check-in when both sides go quiet is still in observation and does not yet change calls.
+- [How a call ends](/docs/how-calls-end) · [The standing call-ending instruction](/docs/how-calls-end#the-standing-call-ending-instruction)
+
+## 23 September 2026
+
+### POST /v1/calls refuses an agent that could not take the call
+
+- `POST /v1/calls` now answers `400` with `realtime_config_not_runnable` when the agent's published voice setup could not run the call, naming each blocker's code.
+- No call is created, no wallet balance is reserved and no job is queued; before, such a request was accepted and the call ended before it had any audio.
+- A multilingual agent is checked in every published language, and a campaign finishes such a contact as `agent_not_runnable` instead of dialling it.
+- [An agent that could not take the call is refused](/docs/customer-applications#an-agent-that-could-not-take-the-call-is-refused-before-anything-is-spent)
+
+### A call whose AI agent stops answering is ended instead of staying open
+
+- A conversation engine can stop answering mid-call without reporting anything — a provider outage leaves the connection open and silent — and such a call used to stay up, with the caller talking to nobody, until it reached its maximum length.
+- After the caller finishes speaking, the agent now has **20 seconds** of quiet line to produce a reply, a tool call or the end of the call; the caller's own speech is subtracted, so nobody is cut off mid-sentence.
+- The call reports `ended_reason` `model_session_lost` with a new `reason_detail` `model_unresponsive`, which is what tells it apart from the same reason reached because the engine reported its own failure. The list of ended reasons is unchanged.
+- Anything the caller can hear from the agent clears the bound, so it never runs while the agent is audibly replying, while one of its tools is running, before the caller has said anything, or on a call whose replies come from a workflow; set `voice_polish.model_unresponsive.seconds` on `PATCH /v1/agents/{agent_id}/voice-stack` to any value from 10 to 120, or `0` to switch it off.
+- [Post-call results](/docs/post-call-results#when-the-conversation-engine-is-lost) · [Voice behaviour](/docs/voice-behavior#when-the-agent-stops-answering-altogether)
+
+### Voice library: provider and model columns, and faster pages
+
+- The **Voice library** table gains **Provider** and **Model** columns; a voice offered on two text-to-speech models lists both, each with its own price and first-audio time.
+- **All**, **Live** and **Text to speech** filters separate voice-to-voice voices from text-to-speech voices, with a short note on what an agent of each kind can run.
+- The Voice library and the new-agent **Voice** step load several times faster; the voices, totals and filters they return are unchanged.
+- [Voice library](/docs/voice-library) · [Conversation engines](/docs/conversation-engines)
+
+## 22 September 2026
+
+### Transfer a call to a person, and find callbacks on Calls
+
+- An agent with `transfer_to_human` enabled now dials its saved destination into the live call once; the person who answers hears a short introduction, then the agent stays quiet.
+- The AI model is only told the transfer is connecting and never sees the destination number; if nobody answers, or the caller hangs up while it rings, the agent comes back.
+- When a transfer cannot connect, or the caller asks to be called back, the agent saves one callback on the call with the caller's name, the reason and a number it read back to them.
+- **Calls** has a **Callback requested** filter, and the open call shows the name, number, reason and the number the transfer was offered to. The callback is not sent by text or email yet.
+- [Transfer to a human](/docs/transfer-to-a-human) · [Tool reference](/docs/tool-reference)
+
+### Calls on Gemini Live are no longer refused before they start
+
+- Every call on a Gemini Live agent was refused before it started, with a `400` naming an unsupported TTS billing unit; inbound calls, outbound calls and **Talk to this draft now** were all affected.
+- Those calls are now admitted and billed on the engine's call-duration meter, the same way as GPT-Live 1 calls.
+- [Conversation engines](/docs/conversation-engines) · [Name the language of a Gemini Live call](/docs/multilingual-outbound#resolve-the-language-before-each-call)
+
+### Calls are no longer refused while the voice service warms up
+
+- Preparing a new call's voice session no longer makes the voice service report itself as full, so a call arriving at that moment is no longer refused and answered with silence.
+- The voice service now admits calls by how many it is already running, not by a momentary processor reading; there is nothing to configure.
+- [Read call evidence](/docs/read-call-evidence)
+
+### The AI agent says it could not understand, instead of going silent
+
+- A Standard agent whose caller says something the transcriber produces no words for — most often a language the agent is not listening for — now speaks one short line in its own language saying it could not understand and naming the languages it can help in, then keeps listening.
+- It is spoken only after the caller stops talking, so it never interrupts, and at most twice per call; it never ends or transfers the call.
+- On for every Standard agent, and skipped on an agent with **follow the caller** enabled, where a language switch answers instead. GPT-Live 1 and agent workflows are unaffected: the first has no separate transcription step, and the second decides every turn itself.
+- Send `voice_polish.unrecognised_speech.enabled: false` on `PATCH /v1/agents/{agent_id}/voice-stack` to switch it off, or `phrase` and `max_per_call` to change the wording and the limit.
+- [When the AI agent cannot understand the caller](/docs/unrecognised-speech) · [Follow the caller](/docs/multilingual-outbound#optional-follow-the-caller)
+
+### Name the language of a GPT-Live 1 or Gemini Live call
+
+- An outbound call on a voice-to-voice engine now accepts `runtime_config.language` and opens in that language; before this, only the agent's saved language was allowed and any other language was refused.
+- These engines have one voice for every language, so there is no language profile to publish first: any language Skysay supports is accepted as given.
+- A campaign on such an agent now dials its contacts in their own language instead of ending them `pre_dial_failed` with `language_not_published`.
+- A language Skysay does not support is still refused before the call is placed, and agents whose engine picks voice and transcription per language are unchanged.
+- [Resolve the language before each call](/docs/multilingual-outbound#resolve-the-language-before-each-call) · [Campaign languages](/docs/campaigns) · [GPT-Live 1 languages](/docs/language-qualification)
+
+
+### Outbound call billing runs from call placement
+
+- Billed call duration for an outbound call runs from the moment the call is placed, not from the answer, and includes the ringing time before it.
+- [Billing and browser credit](/docs/billing) · [What you are billed](/docs/post-call-results#what-you-are-billed)
+
+
 ## 17 September 2026
 
 ### A call the media worker fails to start is ended by the platform, not left silent

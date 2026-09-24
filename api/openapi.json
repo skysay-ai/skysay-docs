@@ -136,16 +136,38 @@
       },
       "AgentAnswerDetection": {
         "additionalProperties": false,
-        "description": "What the platform does when a call the carrier reported answered turns out to be non-human audio. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
+        "description": "What the platform does when a call the carrier reported answered turns out not to be a person: non-human audio such as a caller tune, or a voicemail box. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
         "properties": {
           "non_human_audio": {
-            "description": "`shadow` records what was heard on every answered call and changes nothing the caller experiences: the classification and its detail appear on the call, and no call is ever ended by it. `off` collects nothing, so such a call carries no classification at all. `shadow` is what an agent with no stored value gets; sending it explicitly stores it, which is how you keep it if the platform default later moves. This property carries no JSON Schema `default` on purpose, unlike the other tuning properties: a generated client that pre-filled one would send `shadow` on every save and pin a choice the customer never made, which is the one outcome the storage rule above exists to prevent. A further value that acts on the verdict, ending the call with `ended_reason: no_human_after_answer`, is not accepted yet and is refused with 400: the worker that performs it ships separately, and a value you could select that did nothing would be worse than one that is not offered.",
+            "description": "`shadow` records what was heard on every answered call and changes nothing the caller experiences: the classification and its detail appear on the call, and no call is ever ended by it. `end_call` acts on the verdict: the agent stops speaking and the call is ended with `ended_reason: no_human_after_answer`, and the classification and its detail appear on the call as they do under `shadow`. `off` collects nothing, so such a call carries no classification at all. `shadow` is the platform default, so it is what an agent with no stored value gets; sending it explicitly stores it, which is how you keep it if that default later moves. This property carries no JSON Schema `default` on purpose, unlike the other tuning properties: a generated client that pre-filled one would send `shadow` on every save and pin a choice the customer never made, which is the one outcome the storage rule above exists to prevent.",
             "enum": [
               "shadow",
               "end_call",
               "off"
             ],
             "type": "string"
+          },
+          "voicemail": {
+            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only mailbox-specific evidence counts as proof: a record beep that follows a spoken greeting, or a mailbox instruction such as \"leave a message\", from a language whose phrase list is verified (en; English is checked on every call). The beep works in every language. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted, and a beep after it only raises suspicion. Candidate phrase lists (de, es, et, fr, ru) are not yet verified: what they recognise is shown as evidence and never proves a mailbox. In any other language only the beep or an English instruction can. A fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
+            "enum": [
+              "shadow",
+              "hang_up",
+              "leave_message",
+              "off"
+            ],
+            "type": "string"
+          },
+          "voicemail_messages": {
+            "additionalProperties": {
+              "maxLength": 400,
+              "type": "string"
+            },
+            "description": "The messages left when `voicemail` is `leave_message`, one per language, keyed by language code (`{\"en\": \"...\", \"et\": \"...\"}`); a locale such as `de-DE` is stored as `de`. `leave_message` requires at least one. The message played is the one for the language the call is actually in; a call in a language with no message is ended without one, never given a message in another language. Plain text; runs of whitespace are collapsed, a blank text removes that language's message, and control characters are refused. Each message is played exactly as approved, never improvised by the AI agent, so keep it neutral: who is calling and how to call back, with no account, amount or other personal details, because a voicemail box can be heard by someone other than the person you meant to reach. Messages are kept when `voicemail` changes to another mode and for languages the agent no longer offers.",
+            "maxProperties": 32,
+            "propertyNames": {
+              "pattern": "^[A-Za-z]{2,3}([-_][A-Za-z0-9]+)*$"
+            },
+            "type": "object"
           }
         },
         "type": "object"
@@ -385,6 +407,17 @@
         ],
         "type": "object"
       },
+      "AgentModelUnresponsive": {
+        "additionalProperties": false,
+        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `model_session_lost` with `reason_detail` `model_unresponsive`. On by default at the platform's own bound; an absent section is that default and is not stored.",
+        "properties": {
+          "seconds": {
+            "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
       "AgentTool": {
         "description": "A legacy string placeholder, a built-in tool, a signed webhook tool, or an attached Integration Action.",
         "oneOf": [
@@ -488,6 +521,28 @@
             "maximum": 2000,
             "minimum": 100,
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "AgentUnrecognisedSpeech": {
+        "additionalProperties": false,
+        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all \u2014 most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
+        "properties": {
+          "enabled": {
+            "description": "`false` switches the line off for this agent, and is the only value stored: the behaviour is on for every agent that says nothing.",
+            "type": "boolean"
+          },
+          "max_per_call": {
+            "description": "How many times one call may hear it. Two when unset.",
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "phrase": {
+            "description": "Your own wording, spoken verbatim in place of the line the agent would otherwise compose in the call's language. Write it in the agent's language: it is not translated.",
+            "maxLength": 300,
+            "type": "string"
           }
         },
         "type": "object"
@@ -597,8 +652,14 @@
             "maxLength": 300,
             "type": "string"
           },
+          "model_unresponsive": {
+            "$ref": "#/components/schemas/AgentModelUnresponsive"
+          },
           "tool_wait": {
             "$ref": "#/components/schemas/AgentToolWait"
+          },
+          "unrecognised_speech": {
+            "$ref": "#/components/schemas/AgentUnrecognisedSpeech"
           }
         },
         "type": "object"
@@ -1056,6 +1117,7 @@
               "end_call",
               "send_sms",
               "transfer_to_human",
+              "request_callback",
               "set_call_disposition"
             ],
             "type": "string"
@@ -1122,7 +1184,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Four are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, and `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Five are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `model_session_lost` is reached two ways and `reason_detail` says which: either the engine reported its own failure, or it simply stopped answering -- the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound -- which counts only the time the caller was NOT speaking -- and that reports `reason_detail` `model_unresponsive`. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1132,7 +1194,8 @@
               "no_caller_speech_after_answer",
               "media_session_lost",
               "no_human_after_answer",
-              "model_session_lost"
+              "model_session_lost",
+              "caller_unresponsive"
             ],
             "type": "string"
           },
@@ -1184,12 +1247,13 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies `answer_classification` and nothing else. `caller_tune`, `hold_music` and `looping_recording` appear only with `non_human_audio`, and `no_audio` only with `silent`; every other classification carries the empty string. `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. This is not `ended_reason`: that one says why the call ended, this one says what the platform heard when it started.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears only with `ended_reason` `model_session_lost`, and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
               "hold_music",
               "looping_recording",
+              "model_unresponsive",
               "no_audio"
             ],
             "type": "string"
@@ -1839,12 +1903,13 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies answer_classification, with the same meanings as on the Call resource.",
+            "description": "Qualifies answer_classification or ended_reason, with the same meanings as on the Call resource.",
             "enum": [
               "",
               "caller_tune",
               "hold_music",
               "looping_recording",
+              "model_unresponsive",
               "no_audio"
             ],
             "type": "string"
@@ -3209,7 +3274,7 @@
             "type": "object"
           },
           "country": {
-            "description": "Destination country. Authorized per-organization by the active workspace capabilities.",
+            "description": "Optional. The destination country is derived from to_phone_number's calling code; a value sent here is used only when the destination cannot be attributed to a country, and never overrides it. Authorized per-organization by the active workspace capabilities.",
             "type": "string"
           },
           "external_group_reference": {
@@ -3241,7 +3306,7 @@
             "type": "string"
           },
           "language": {
-            "description": "Compatibility alias for runtime_config.language. When both are supplied, runtime_config.language takes precedence. A selected multilingual hosted language chooses one allowed published profile before reservation.",
+            "description": "Compatibility alias for runtime_config.language. When both are supplied, runtime_config.language takes precedence. A selected multilingual hosted language chooses one allowed published profile before reservation. An engine whose agent-catalog row says has_language_axis false (a voice-to-voice engine) publishes no profile per locale; it accepts any language the platform catalogue runs and speaks the call in it.",
             "maxLength": 35,
             "minLength": 2,
             "type": "string"
@@ -3275,14 +3340,13 @@
           "project_id",
           "from_phone_number_id",
           "to_phone_number",
-          "country",
           "purpose"
         ],
         "type": "object"
       },
       "OutboundCallRuntimeConfig": {
         "additionalProperties": false,
-        "description": "Bounded non-secret, per-call instructions. Clients cannot supply a frozen profile, credential ID, provider, model, or voice selection. runtime_config.language takes precedence over the top-level compatibility alias. For a multilingual hosted agent, language selects an allowed published profile before reserve and worker dispatch.",
+        "description": "Bounded non-secret, per-call instructions. Clients cannot supply a frozen profile, credential ID, provider, model, or voice selection. runtime_config.language takes precedence over the top-level compatibility alias. For a multilingual hosted agent, language selects an allowed published profile before reserve and worker dispatch. An engine whose agent-catalog row says has_language_axis false (a voice-to-voice engine) publishes no profile per locale; it accepts any language the platform catalogue runs and speaks the call in it.",
         "properties": {
           "first_message": {
             "maxLength": 1000,
@@ -4163,7 +4227,7 @@
   },
   "info": {
     "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 \u2014 this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
-    "title": "Telephony AI API",
+    "title": "Skysay API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
@@ -4351,7 +4415,7 @@
         },
         "responses": {
           "201": {
-            "description": "Agent"
+            "description": "Agent. agent_endpoint.webhook_secret carries the plaintext secret that signs every event and tool call sent to this agent's webhook (X-Agent-Telco-Signature), revealed once in this response only; every later read returns [REDACTED]. Save it immediately."
           },
           "400": {
             "description": "organization_id or project_id is missing or blank; an unrecognized mode; a tools value that is neither empty nor a list; a metadata value that is neither empty nor an object; an external_audio or external_text agent missing its webhook_url/audio_stream_url; or a project_id this organization does not own. On create (unlike PATCH) a falsy tools or metadata -- null, false, 0, \"\" -- is read as an empty selection rather than refused"
@@ -6574,6 +6638,9 @@
           "201": {
             "description": "Call"
           },
+          "400": {
+            "description": "Either a plain {error, message} (a malformed request), or, when the request is well formed but the selected agent's published configuration is one the voice worker could not build a call from: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary the Agents dashboard read returns (e.g. system_prompt_missing, voice_id_missing, first_message_missing, tts_not_runnable, language_not_runnable, capability_revision_mismatch). No call, wallet reservation or origination job is created; fix the agent's voice setup and retry."
+          },
           "409": {
             "description": "Idempotency key was reused for a different request, or the call can no longer be canceled."
           },
@@ -6870,19 +6937,22 @@
     },
     "/v1/calls/{call_id}/hangup": {
       "post": {
-        "description": "Requests teardown of a call that is already live. Returns 202 with `hangup_requested_at`; it never reports the call as ended, because the media session is torn down by the worker holding it and the call reaches `call.ended` through the ordinary terminal path, recording the reason `hangup_requested`. Repeating the request is idempotent and returns the original timestamp. Until a worker acknowledges, the request stays visible with `status` `pending`. If the worker reports that the teardown FAILED, the call is still up, so a further request re-arms it with a fresh timestamp and the previous failure's reason stays visible beside it; after three consecutive failed teardowns further requests are refused so the call is escalated rather than retried. A call still queued for origination is refused: cancel it with POST /v1/calls/{call_id}/cancel instead. The response carries `hangup_requested_at`, `status` (`pending` or `acknowledged`), `hangup_acknowledged_at`, `hangup_acknowledged_outcome`, `hangup_acknowledged_reason`, `hangup_failed_attempts`, `hangup_unacknowledged_seconds` (null once acknowledged), `hangup_attempt` (which attempt this is; a re-arm increments it) and `already_requested`, which is false for a first or re-armed request and true when an existing one was returned unchanged.",
+        "description": "Requests teardown of a call that is already live. This is also what the Hang up button on a live call in the workspace Calls page sends. Returns 202 with `hangup_requested_at`; it never reports the call as ended, because the media session is torn down by the worker holding it and the call reaches `call.ended` through the ordinary terminal path. The call then reports `ended_reason` `hangup_requested`, unless it had already started ending another way, in which case that ending's reason is reported. Repeating the request is idempotent and returns the original timestamp. Until a worker acknowledges, the request stays visible with `status` `pending`. If the worker reports that the teardown FAILED, the call is still up, so a further request re-arms it with a fresh timestamp and the previous failure's reason stays visible beside it; after three consecutive failed teardowns further requests are refused so the call is escalated rather than retried. A call still queued for origination is refused: cancel it with POST /v1/calls/{call_id}/cancel instead. For a workspace caller, a call in another workspace, or a Simulations Lab run, answers exactly as a call id that does not exist. The response carries `hangup_requested_at`, `status` (`pending` or `acknowledged`), `hangup_acknowledged_at`, `hangup_acknowledged_outcome`, `hangup_acknowledged_reason`, `hangup_failed_attempts`, `hangup_unacknowledged_seconds` (null once acknowledged), `hangup_attempt` (which attempt this is; a re-arm increments it) and `already_requested`, which is false for a first or re-armed request and true when an existing one was returned unchanged.",
         "responses": {
           "202": {
             "description": "Hangup requested; not yet acknowledged by the media worker."
           },
           "404": {
-            "description": "No such call."
+            "description": "No such call in this workspace: unknown, another workspace's, or a Simulations Lab run."
           },
           "409": {
-            "description": "Call is not live: already terminal, or still queued (use cancel)."
+            "description": "Call is not live (already terminal, or still queued: use cancel), or its teardown has already failed three times."
           }
         },
-        "summary": "Ask a live call to hang up"
+        "summary": "Ask a live call to hang up",
+        "x-required-scopes": [
+          "calls:write"
+        ]
       }
     },
     "/v1/calls/{call_id}/observability": {
@@ -8353,7 +8423,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -8396,6 +8466,29 @@
                 "0",
                 "1"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Which calls the page is about. `live` -- the default, and what this route has always returned -- is a call a customer or a caller actually made. `simulation_suite` is a Simulations Lab call: a real call row with the customer's own agent in it and a synthetic caller on the other end, created by the lab to run a scenario. The two are separate views of the same page, never mixed: one request answers for one provenance, and every figure in the response -- the page, calls_total, the selected call and the workflow evidence -- is about that provenance alone. A value outside this set is a 400 rather than a silent fall back to `live`.",
+            "in": "query",
+            "name": "source_kind",
+            "required": false,
+            "schema": {
+              "default": "live",
+              "enum": [
+                "live",
+                "simulation_suite"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "A `page_cursor` from a row of a previous page. The response continues strictly older than that ROW, so calls created since do not shift the page under you the way an offset would. Opaque: its encoding is not part of this contract.",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
               "type": "string"
             }
           }
@@ -10881,7 +10974,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:18765"
+      "url": "https://api.skysay.ai"
     }
   ]
 }

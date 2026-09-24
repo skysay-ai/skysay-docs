@@ -124,9 +124,9 @@ for. Azure AI Speech and Google Chirp 2 both work this way.
 - **Outbound calls name their language.** Selecting a second language is a
   change to how the agent is called, not only to what it hears: starting an
   outbound call on an agent with more than one selected language requires
-  `language` in the request, since that is what chooses the published profile
-  the call runs on. A caller that omits it is refused with 400. Inbound calls
-  are unaffected.
+  `language` in the request, since on these transcribers that is what chooses
+  the published profile the call runs on. A caller that omits it is refused
+  with 400. Inbound calls are unaffected.
 
 Azure compares speech against at most ten candidates at once. An agent
 configured with more selected languages than its transcriber can compare keeps
@@ -146,6 +146,13 @@ caller's language and is not qualified per language through the Standard
 speech-to-text and text-to-speech tables. What Skysay has measured per
 language, and how to test yours, is on
 [Which languages the voice agent follows](/docs/language-following).
+
+Because there is no language setting, there is no per-language profile to
+publish either. An outbound call names its language in
+`runtime_config.language` and the call opens in that language, for any
+language Skysay supports — no publishing step comes first. A language Skysay
+does not support is refused before the call is placed. The same applies to
+Gemini Live.
 
 ## Choosing a language and voice
 

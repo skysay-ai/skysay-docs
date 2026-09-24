@@ -1,0 +1,111 @@
+---
+title: Errors
+description: The JSON body every failed request returns, what each HTTP status means, and which errors are safe to retry.
+icon: WarningTriangle
+---
+
+Every failed REST request answers with a JSON object that has an `error` field.
+Branch on the HTTP status first, then on `error`. The `message` is written for
+a person reading logs. Its wording can change between releases, so do not
+match on it.
+
+## The body shapes
+
+Most errors use one shape: `error` names the kind of failure and `message`
+says what was wrong with this request.
+
+```json
+{ "error": "BadRequestError", "message": "choose an exact provider voice for the selected TTS model" }
+```
+
+A few errors carry a code of their own and extra fields you can act on:
+
+| `error` | Status | Extra fields |
+| --- | --- | --- |
+| `not_found` | `404` | `path`: the route does not exist. Check the method and path. |
+| `method_not_allowed` | `405` | `allow`, plus an `Allow` header listing the methods the path accepts. |
+| `realtime_config_not_runnable` | `400` | `reason` and `blockers` (`[{code, scope, detail}]`): the agent could not run a call; see [Customer applications](/docs/customer-applications#an-agent-that-could-not-take-the-call-is-refused-before-anything-is-spent). |
+| `outbound_call_queue_full` | `429` | `retry_after_seconds`, plus a `Retry-After` header. |
+| `WorkflowRevisionConflictError` | `409` | `current`: the workflow draft that won; reload it before retrying. |
+| `internal_error` | `5xx` | `request_id`. Quote it to support. |
+
+A server error that Skysay did not anticipate never shows its internal cause.
+You get a fixed message and an id instead:
+
+```json
+{
+  "error": "internal_error",
+  "message": "The server could not complete this request. Quote request_id when contacting support.",
+  "request_id": "7f3c9a1e0b2d4c68"
+}
+```
+
+## What each status means
+
+| Status | `error` | What it means | What to do |
+| --- | --- | --- | --- |
+| `400` | `BadRequestError` | The request is malformed or breaks a rule: body is not a JSON object, a required field is missing, a value is out of range. The message names the field. | Fix the request. Retrying it unchanged fails the same way. |
+| `401` | `UnauthorizedError` | No key, a key that is not a `Bearer` token, or a key that is invalid or revoked. | Check the `Authorization: Bearer sky_…` header, or create a new key. |
+| `402` | `InsufficientBalanceError` | The wallet cannot cover what the request would reserve. | Top up; see [Billing](/docs/billing). |
+| `403` | `ForbiddenError` | The key lacks a scope (`missing required scope: calls:read`), or the request names a workspace other than the key's own. | Add the scope to the key, or remove the foreign `organization_id`. |
+| `404` | `NotFoundError` | The id does not exist, **or** it belongs to another workspace. The two are deliberately indistinguishable. | Check the id and the key's workspace. |
+| `404` | `not_found` | No such route. | Check the method and path. |
+| `405` | `method_not_allowed` | The path exists but not with this method. | Use a method from `allow`. |
+| `409` | `ConflictError` and others | The request conflicts with current state: an `Idempotency-Key` reused for a different request, a stale revision, a draft that already exists. | Read the current state, then decide. Do not blindly retry. |
+| `413` | `PayloadTooLargeError` | The request body, or an uploaded verification document, is over its size limit or quota. | Send less. |
+| `415` | `UnsupportedMediaTypeError` | The request has a `Content-Encoding` other than `identity`. | Send the body uncompressed. |
+| `422` | varies | A simulation-suite request is well formed but cannot run as asked. | Read `message` and the extra fields. |
+| `423` | `SuspensionError` | A workspace control refused the action: a spend or velocity cap, the live-call concurrency limit, a suppression, or a suspension. | Wait for the cap window, or contact support for a suspension. |
+| `429` | `outbound_call_queue_full` | The outbound call queue is full. | Retry after `Retry-After` seconds. |
+| `500`–`504` | `internal_error` or a named error | Skysay could not complete the request. | Retry with backoff, using an `Idempotency-Key` on `POST /v1/calls`. If it persists, send the `request_id` to support. |
+
+`403` and `404` on a by-id read follow a fixed rule so a status can never
+reveal which ids exist in another workspace. See
+[A resource outside your workspace is absent, not forbidden](/docs/authentication#a-resource-outside-your-workspace-is-absent-not-forbidden).
+
+## Examples
+
+A missing key:
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/agents"
+```
+
+```json
+{ "error": "UnauthorizedError", "message": "missing Authorization Bearer token" }
+```
+
+A body that is not JSON:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/agents" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{not json'
+```
+
+```json
+{ "error": "BadRequestError", "message": "request body must be valid JSON" }
+```
+
+An id that is not in your workspace:
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/agents/agent_doesnotexist" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+```json
+{ "error": "NotFoundError", "message": "agent not found" }
+```
+
+## Retrying safely
+
+Retry only `429` and `5xx`, with exponential backoff. A call that outbound policy refuses is not an error: `POST /v1/calls` answers `201` with `status: "policy_blocked"` or `"needs_review"`, as described in the [curl quickstart](/docs/quickstart-curl#7-place-an-outbound-call). `4xx` answers describe
+the request, and the same request gets the same answer. For
+`POST /v1/calls`, always send an `Idempotency-Key` header: a retry with the
+same key and body returns the original call instead of dialling twice. See
+[Customer applications](/docs/customer-applications#start-one-call).
+
+MCP clients see the same failures as JSON-RPC tool errors, for example
+`missing MCP scopes: calls:write`; see [Scopes & permissions](/docs/scopes).
