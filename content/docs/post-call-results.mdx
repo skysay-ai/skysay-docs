@@ -132,6 +132,14 @@ that never delivered media is never continued. `sip_status_code` is null on
 this reason, because the phone leg itself did not fail. Retry policy treats it
 as a technical failure on Skysay's side, not as a busy or unanswered contact.
 
+`inbound_capacity_reached` (stage `inbound_admission`) means an incoming call
+arrived while every agent line on the platform's phone host was already in a
+call. Skysay does not answer that call: the caller hears a busy signal straight
+away, instead of ringing with nobody to pick up, and the call is recorded
+failed, once, with nothing charged. `sip_status_code` is null on this reason.
+A number's rule `fallback` is not applied to these calls yet, so the call is
+not forwarded anywhere.
+
 ### When the configuration could not be run
 
 Five reasons share the stage `component_configuration`. They mean the call was
