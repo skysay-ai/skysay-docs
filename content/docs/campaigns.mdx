@@ -150,6 +150,47 @@ dialed). A hosted agent adds a number itself with the
 `cease_contact` interrupt does the same. `GET /v1/do-not-call` lists the
 register; `DELETE /v1/do-not-call/{phone_number}` removes one entry.
 
+### Stop requests are added automatically
+
+After every answered call, Skysay checks whether the person asked not to be
+called again: "stop calling me", "don't call this number again", in any
+language, on any AI agent. When they did, their number is added to the
+register with `source` `post_call_analysis`, and every later call to it is
+refused. This runs whether or not the AI agent has a workflow, the
+`set_call_disposition` tool or a post-call extraction schema.
+
+The check is deliberately narrow. Only a request with no time, place, channel
+or person attached counts. "Call me later", "not now", "don't call me at work",
+"call my other number" and "talk to my brother" add nothing, and neither does
+refusing to pay. The request has to be something the caller said: a line the
+AI agent spoke never counts. The check stores its verdict, not the caller's
+words. You can read it on the call's events as `call.stop_request_checked`.
+
+The check runs a few seconds to a minute after the call ends, so a call to the
+same number placed before then is not yet blocked. `DELETE
+/v1/do-not-call/{phone_number}` takes a number off the register if it was
+added by mistake.
+
+It is on for every workspace. If your own compliance process decides
+opt-outs, turn it off in **Settings → Stop requests** or with the API:
+
+```bash
+curl -X PATCH https://api.skysay.ai/v1/do-not-call/settings \
+  -H "Authorization: Bearer $SKYSAY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"auto_do_not_call_on_stop_request": false}'
+```
+
+Turning it off also stops checks already queued from adding anyone. Numbers
+already on the register stay there. `GET /v1/do-not-call/settings` reads the
+current value.
+
+Whenever Skysay adds a number itself (the stop-request check, the
+`set_call_disposition` tool or a `cease_contact` interrupt), it sends
+[`contact.do_not_call_added`](/docs/webhooks#event-catalogue) with
+`phone_e164`, `source`, `call_id` and `created_at`, so you can mirror the
+register. Numbers you add yourself with `POST /v1/do-not-call` do not send it.
+
 ## Create and launch
 
 ```bash

@@ -199,7 +199,8 @@
                 "campaign.launched",
                 "campaign.contact.completed",
                 "campaign.completed",
-                "sms.delivery_updated"
+                "sms.delivery_updated",
+                "contact.do_not_call_added"
               ],
               "type": "string"
             },
@@ -250,7 +251,8 @@
                 "campaign.launched",
                 "campaign.contact.completed",
                 "campaign.completed",
-                "sms.delivery_updated"
+                "sms.delivery_updated",
+                "contact.do_not_call_added"
               ],
               "type": "string"
             },
@@ -2811,6 +2813,39 @@
         "required": [
           "organization_id",
           "phone_numbers"
+        ],
+        "type": "object"
+      },
+      "DoNotCallSettings": {
+        "properties": {
+          "auto_do_not_call_on_stop_request": {
+            "default": true,
+            "type": "boolean"
+          },
+          "updated_at": {
+            "description": "null until the workspace first changes a setting",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "auto_do_not_call_on_stop_request"
+        ],
+        "type": "object"
+      },
+      "DoNotCallSettingsUpdate": {
+        "properties": {
+          "auto_do_not_call_on_stop_request": {
+            "type": "boolean"
+          },
+          "organization_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "auto_do_not_call_on_stop_request"
         ],
         "type": "object"
       },
@@ -8066,7 +8101,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured, the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -8937,7 +8972,7 @@
         ]
       },
       "post": {
-        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool.",
+        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool, a workflow's cease_contact interrupt adds the caller, and so does the post-call stop-request check (source post_call_analysis; see /v1/do-not-call/settings). Numbers the platform adds are announced with the contact.do_not_call_added webhook; numbers you add here are not.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8954,6 +8989,56 @@
           }
         },
         "summary": "Add numbers to the do-not-call register",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/do-not-call/settings": {
+      "get": {
+        "description": "auto_do_not_call_on_stop_request (default true): after every answered call with caller speech and a phone number, the platform checks whether the person asked not to be called again, with no time, place, channel or person qualifier (\"call me later\" or \"don't call me at work\" do not count). A request it can tie to something the caller said adds the number to this register with source post_call_analysis and sends contact.do_not_call_added.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoNotCallSettings"
+                }
+              }
+            },
+            "description": "Do-not-call settings"
+          }
+        },
+        "summary": "Read the workspace do-not-call settings",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "patch": {
+        "description": "Turn off auto_do_not_call_on_stop_request when your own compliance flow decides opt-outs. Turning it off also stops checks already queued from registering anyone. Numbers already on the register stay there.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DoNotCallSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoNotCallSettings"
+                }
+              }
+            },
+            "description": "Do-not-call settings"
+          }
+        },
+        "summary": "Change the workspace do-not-call settings",
         "x-required-scopes": [
           "calls:write"
         ]
