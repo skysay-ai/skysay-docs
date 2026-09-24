@@ -21,7 +21,9 @@ The REST routes are `POST /v1/agent-endpoints`, `GET /v1/agent-endpoints`,
 `POST /v1/agent-endpoints/{agent_endpoint_id}/pause`, `/resume`, and
 `/test-event`. The endpoint creation schema includes your `webhook_url` and
 `audio_stream_url`; save the returned `webhook_secret` immediately. It is
-revealed once and redacted on later reads. See the [generated API
+revealed once and redacted on later reads. An agent created with
+`POST /v1/agents` gets its own endpoint, and that response reveals its secret
+the same way, once, in `agent_endpoint.webhook_secret`. See the [generated API
 reference](/docs/api-reference) for the exact request schema and scopes.
 
 `events` is set once at creation. Omit it (or send an empty array) to get the
@@ -177,6 +179,27 @@ After the relevant ready event, use the generated reference routes for:
 Each read remains scoped to your organization and API key. Store only the
 evidence your policy and retention rules permit.
 
+### When a recording arrives late, or not at all
+
+Skysay stores the recording, the transcript and the call's evidence for calls
+of any length up to the [maximum call length](#when-a-call-ends-automatically).
+It stores them after the call ends, normally within moments of the hangup, and
+sends `call.recording.ready` and `call.transcript.ready` once they are
+available.
+
+Storing can fail for a reason that a later attempt can outlive, such as a
+network fault or a platform update during the hangup. In that case Skysay
+retries on its own, for about five hours. The gaps between attempts grow: 1,
+5, 15, 60 and then 240 minutes. The ready events are sent when a retry
+succeeds, so they can arrive hours after `call.completed`. Each is still
+delivered once. Until then, the call has no recording or transcript to read.
+
+If storing is refused for a reason a retry cannot change, or the retries run
+out, the call's own event log (`GET /v1/calls/{call_id}/events`) records a
+`call.artifacts.failed` row with a `reason` and the `stage` that failed. No
+webhook is sent for it. A retry never changes what the call costs: the call is
+billed from its lifecycle when it ends, not from the stored recording.
+
 ## End a call that is still running
 
 `POST /v1/calls/{call_id}/cancel` withdraws a call that is still queued, before anything dials. Once
@@ -210,6 +233,10 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `media_session_lost` | the media session went away while the call was still live |
 | `no_human_after_answer` | the call was answered but only music or tones were ever heard |
 | `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
+| `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
+
+The workspace Calls page does not display the ending reason yet; read it
+from the call resource or the `call.completed` webhook.
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
@@ -318,6 +345,10 @@ empty before this release, so from here most completed calls carry a reason
 rather than none. In a scripted workflow `agent_completed` will usually be the
 commonest of all.
 
+How the agent ends a call — the `end_call` tool, where its goodbye comes from on
+each conversation engine, and the standing instruction every agent with
+`end_call` receives — is described in [How a call ends](/docs/how-calls-end).
+
 When the agent ends the call itself, its closing line is now played to the end
 before the call is torn down. Skysay learns that a line has finished playing
 slightly before the other party has actually heard it, and hanging up at that
@@ -356,6 +387,15 @@ Once the other party has been heard once the rule does not apply again for the
 rest of that call. This measures audio, not intent: a voicemail greeting is
 speech, so this rule is not a voicemail detector. What it catches is a call
 that connects to silence.
+
+**Both sides went quiet mid-call** *(rolling out: observed but not yet
+enforced; see the link below).* Once the agent has spoken and nothing more
+comes from either side for **30 seconds**, the agent asks once whether the
+caller is still there. If nobody answers within **15 seconds** after that
+question, the agent says a short goodbye and the call ends with
+`caller_unresponsive`. A caller who answers, even with one word, simply
+continues. The details, including when the clock does not run, are in
+[How a call ends](/docs/how-calls-end#when-both-sides-go-quiet).
 
 ### If the software handling your call faults
 
@@ -445,7 +485,7 @@ is a factual, read-only reconciliation view: it does not retry recipients,
 create calls, classify a business outcome, or contact a carrier.
 
 ```text
-GET /v1/call-results?organization_id=org_123&project_id=proj_123&external_group_reference=import_2026_09_01&limit=50
+GET /v1/call-results?project_id=proj_123&external_group_reference=import_2026_09_01&limit=50
 ```
 
 The key is meaningful only to your application. It must be inside the
