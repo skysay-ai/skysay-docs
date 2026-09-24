@@ -469,13 +469,15 @@ the agent does not wait on sound alone forever:
 
 - On hosted **English** calls transcribed by Deepgram, with
   `min_interruption_words` at 1 or more (the English default), the agent waits
-  at most **1.5 seconds** when no words are recognized, then speaks. That is
-  longer than it takes the transcriber to report a caller's first word. If the
-  caller does say something during the wait, the agent keeps waiting for them,
-  up to eight seconds.
-- A reply that starts after such a wait still stops for the caller: one
-  recognized word, held for the interruption threshold, interrupts it as usual.
-  Continued noise with no words does not.
+  at most **1.5 seconds** when no words are recognized, then speaks. Listening
+  sounds such as "mm-hm", "okay" or "uh" do not count as words. That is longer
+  than it takes the transcriber to report a caller's first word. If the caller
+  does say a word during the wait, the agent keeps waiting for them, up to
+  eight seconds.
+- A reply that starts after such a wait still stops for the caller: the
+  caller's recognized words (`min_interruption_words` of them, one by default),
+  held for the interruption threshold, interrupt it as usual. Continued noise
+  with no words does not.
 - Every other language and transcriber keeps the **eight-second** limit until
   the transcriber's word timing for that stack has been measured. The
   speech-to-speech engines are unchanged.
