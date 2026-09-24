@@ -194,16 +194,26 @@ call runs.
 
 - Until a person is heard, the agent greets and asks who it is speaking with.
   It does not say a name, an amount or a reference.
-- The facts are handed to the model mid-call once answer detection has heard a
-  person AND that person has taken a turn: they listened while the agent spoke
-  and answered after it finished. A recorded announcement or a sung hold track
-  can sound like a person, but it talks straight over the agent, so it never
-  releases anything.
-- On a normal pickup that is the caller's reply to the greeting, a few seconds
-  in. Someone who talks over the greeting gets the facts after they answer the
-  agent's next line. Someone who says "hello" and then waits in silence does
-  not get them at all, and the agent carries on without the name. There is no
-  timer that releases them anyway.
+- The facts are handed to the model mid-call once three things are true.
+  Answer detection has heard a person. That person has answered the agent
+  twice in a row: each time they mostly listened while the agent spoke and
+  replied after it finished. And what they said in those two replies gives no
+  sign of a machine.
+- A reply gives a sign of a machine when it contains voicemail or phone-menu
+  wording (for example "leave a message", "after the tone", "press one" or
+  "is not available", in the call's language or English), when it repeats
+  something already said on the call, or when voicemail detection has
+  classified the call as a mailbox, a menu or a call screener. A recording
+  whose pauses happen to line up with the agent can look like a person by
+  timing alone; this is what tells them apart. Speech that could not be
+  transcribed counts as no reply, so the facts stay held until a reply is.
+- A recorded announcement or a sung hold track that talks straight over the
+  agent never releases anything.
+- On a normal pickup the facts follow the caller's second reply, typically
+  15 to 25 seconds in. Someone who talks over the greeting gets them after
+  answering the agent's next two lines. Someone who says "hello" and then
+  waits in silence does not get them at all, and the agent carries on without
+  the name. There is no timer that releases them anyway.
 - This applies to every conversation engine, and to the model that routes a
   [workflow](/docs/agent-workflows) caller's replies.
 - Inbound calls and browser tests have the facts from the start. The caller
@@ -225,7 +235,7 @@ card of the agent editor or through
 | --- | --- |
 | `shadow` | Records what was heard on every answered call and changes nothing the caller experiences. |
 | `end_call` | Acts on the verdict. The agent goes quiet, and the call is ended with `no_human_after_answer`. |
-| `off` | Collects nothing that is reported. Calls carry no answer classification at all. On an outbound call that carries a `call_context`, Skysay still listens for a person, only to decide when the call's facts may reach the model; that verdict is not stored or sent, and nothing else about the call changes. |
+| `off` | Collects nothing that is reported. Calls carry no answer classification at all. On an outbound call that carries a `call_context`, Skysay still listens for a person, only to decide when the call's facts may reach the model; that verdict is not stored or sent, and nothing else about the call changes. [Voicemail detection](/docs/voicemail-detection) set to `off` is treated the same way. |
 
 `shadow` is what an agent with no stored value gets, and it is the only value
 that can measure how often the verdict would have been wrong without being able
