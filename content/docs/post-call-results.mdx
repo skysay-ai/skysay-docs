@@ -200,6 +200,30 @@ out, the call's own event log (`GET /v1/calls/{call_id}/events`) records a
 webhook is sent for it. A retry never changes what the call costs: the call is
 billed from its lifecycle when it ends, not from the stored recording.
 
+### Transcripts of GPT-Live calls
+
+GPT-Live 1 listens and speaks at the same time, so the agent often starts
+talking before the caller has finished. Its transcript records what each side
+said, not a strict question-and-answer sequence:
+
+- Every line the agent spoke is a turn, including the opening and any line
+  spoken while the caller was still talking. An agent turn is placed where its
+  audio started, so it can begin before the caller turn it overlaps has ended.
+  Its `metadata.text_status` is normally `model_output_transcript`: the text is the
+  engine's own transcript of what it said.
+- A stretch of agent audio that the engine did not transcribe has no turn. It
+  is still in the recording.
+- If the engine transcribed a line but its audio never played, the turn's
+  `metadata.actually_spoken.audio_observed` is `false`.
+- If the call ends while the caller is still speaking, their last words are
+  kept as a turn with `metadata.text_status` set to `finalized_at_close`. The
+  engine had not finished transcribing that utterance, so the text can stop
+  mid-sentence.
+
+A call where only the opening played has a transcript with that one agent
+turn, as a Standard call does. It sends `call.transcript.ready`, and post-call
+extraction runs on it if the agent has an extraction schema.
+
 ## End a call that is still running
 
 `POST /v1/calls/{call_id}/cancel` withdraws a call that is still queued, before anything dials. Once
