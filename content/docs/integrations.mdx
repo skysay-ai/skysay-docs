@@ -157,6 +157,22 @@ and `call_context` are injected by Skysay, not accepted from the model.
 Treat them as inputs to verify against your own records. In particular, do not
 put current balances, changing case history, or credentials in `call_context`.
 
+### Homepage demo sessions
+
+A voice session started from the Skysay homepage demo is not a phone call. An
+agent shown there keeps the tools its owner configured. Webhook and Connection
+tools run as they do on a call, with two differences:
+
+- `call_id` and the external references are empty strings, and
+  `call_context` is empty.
+- Actions run for the workspace that owns the homepage demo agents. Skysay
+  sets that workspace, not the visitor or the model.
+
+Built-in tools that need a phone caller (`send_sms`, `transfer_to_human`,
+`request_callback`, `set_call_disposition`) do not run in a homepage session.
+Nothing is sent or dialled. The agent is told that the conversation is in a
+browser, so it can explain that the action is not available there.
+
 ### Verify the signature, then dispatch the Action
 
 Skysay sends `Content-Type: application/json` plus these headers:
