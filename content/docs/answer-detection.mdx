@@ -184,6 +184,37 @@ A call that ends this way is reported as not connected:
   questions and the fields answer one each;
 - carrier minutes up to the point it ends are real and are billed as usual.
 
+## Personal facts wait for a person
+
+On an outbound call that carries a `call_context`, the AI model is not given
+the call's personal facts until a person has answered the agent. That covers the contact's name, the amount and the reference, and
+anything else from `call_context` that Skysay hands the model. Voicemail, hold
+music, a carrier announcement or silence never get them, however long the
+call runs.
+
+- Until a person is heard, the agent greets and asks who it is speaking with.
+  It does not say a name, an amount or a reference.
+- The facts are handed to the model mid-call once answer detection has heard a
+  person AND that person has taken a turn: they listened while the agent spoke
+  and answered after it finished. A recorded announcement or a sung hold track
+  can sound like a person, but it talks straight over the agent, so it never
+  releases anything.
+- On a normal pickup that is the caller's reply to the greeting, a few seconds
+  in. Someone who talks over the greeting gets the facts after they answer the
+  agent's next line. Someone who says "hello" and then waits in silence does
+  not get them at all, and the agent carries on without the name. There is no
+  timer that releases them anyway.
+- This applies to every conversation engine, and to the model that routes a
+  [workflow](/docs/agent-workflows) caller's replies.
+- Inbound calls and browser tests have the facts from the start. The caller
+  dialed in, or you are testing your own agent, so there is no answer to
+  classify.
+
+What Skysay does not hold back is content you wrote yourself. If your agent's
+prompt, a literal `first_message`, or the response of your own integration or
+webhook tool contains the contact's name, the model has it from the moment
+that text reaches it.
+
 ## Choose what an agent collects
 
 `answer_detection.non_human_audio` is set per agent, in the **Answer detection**
@@ -194,7 +225,7 @@ card of the agent editor or through
 | --- | --- |
 | `shadow` | Records what was heard on every answered call and changes nothing the caller experiences. |
 | `end_call` | Acts on the verdict. The agent goes quiet, and the call is ended with `no_human_after_answer`. |
-| `off` | Collects nothing. Calls carry no answer classification at all. |
+| `off` | Collects nothing that is reported. Calls carry no answer classification at all. On an outbound call that carries a `call_context`, Skysay still listens for a person, only to decide when the call's facts may reach the model; that verdict is not stored or sent, and nothing else about the call changes. |
 
 `shadow` is what an agent with no stored value gets, and it is the only value
 that can measure how often the verdict would have been wrong without being able
