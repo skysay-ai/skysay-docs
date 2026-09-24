@@ -1,6 +1,6 @@
 ---
 title: Authentication & keys
-description: Scoped sky_ keys and gateway skygw_ tokens, Bearer auth, scope clamping and fail-closed semantics, org isolation, what the API expects and answers, and rotate/revoke.
+description: Scoped sky_ keys and gateway skygw_ tokens, Bearer auth, scope clamping and fail-closed semantics, org isolation, and rotate/revoke.
 icon: Key
 ---
 
@@ -288,44 +288,6 @@ of them is a `500`:
 If you are retrying a request because it returned `500`, check it against this
 list first: several shapes that used to answer `500` now answer `400` or `415`,
 and those are answers about the request, not about the service.
-
-## When Skysay itself fails
-
-A `4xx` tells you what was wrong with your request, and its `message` is
-written for you to read:
-
-```json
-{
-  "error": "BadRequestError",
-  "message": "mode must be external_audio, external_text, or hosted"
-}
-```
-
-A `5xx` that Skysay did not classify is different: nothing about it was
-written for you. It answers one fixed shape on every route, with a
-`request_id` that identifies this one failure.
-
-```json
-{
-  "error": "internal_error",
-  "message": "The server could not complete this request. Quote request_id when contacting support.",
-  "request_id": "a1b2c3d4e5f60718"
-}
-```
-
-- `error` is always the literal `internal_error`. Branch on it if you retry
-  server failures; it will not change into something else.
-- `message` is always that same sentence. It carries no detail about the
-  failure, deliberately — the failing request's own text stays on our side,
-  where it cannot hand you a filesystem path, a provider's reply, or an
-  identifier belonging to another workspace.
-- `request_id` is unique to that one request. Quote it to support and we can
-  find the failure; keep it in your own logs beside the request that failed.
-
-Some `5xx` answers are not this shape, because they are designed rather than
-unexpected — `503` from a webhook endpoint asking a provider to redeliver, or
-a `502` naming a verification provider's own status. Those keep their specific
-`error` code and carry no `request_id`.
 
 ## Rotate / revoke
 
