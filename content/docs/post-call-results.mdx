@@ -210,6 +210,10 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `media_session_lost` | the media session went away while the call was still live |
 | `no_human_after_answer` | the call was answered but only music or tones were ever heard |
 | `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
+| `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
+
+The workspace Calls page does not display the ending reason yet; read it
+from the call resource or the `call.completed` webhook.
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
@@ -318,6 +322,10 @@ empty before this release, so from here most completed calls carry a reason
 rather than none. In a scripted workflow `agent_completed` will usually be the
 commonest of all.
 
+How the agent ends a call — the `end_call` tool, where its goodbye comes from on
+each conversation engine, and the standing instruction every agent with
+`end_call` receives — is described in [How a call ends](/docs/how-calls-end).
+
 When the agent ends the call itself, its closing line is now played to the end
 before the call is torn down. Skysay learns that a line has finished playing
 slightly before the other party has actually heard it, and hanging up at that
@@ -356,6 +364,15 @@ Once the other party has been heard once the rule does not apply again for the
 rest of that call. This measures audio, not intent: a voicemail greeting is
 speech, so this rule is not a voicemail detector. What it catches is a call
 that connects to silence.
+
+**Both sides went quiet mid-call** *(rolling out: observed but not yet
+enforced; see the link below).* Once the agent has spoken and nothing more
+comes from either side for **30 seconds**, the agent asks once whether the
+caller is still there. If nobody answers within **15 seconds** after that
+question, the agent says a short goodbye and the call ends with
+`caller_unresponsive`. A caller who answers, even with one word, simply
+continues. The details, including when the clock does not run, are in
+[How a call ends](/docs/how-calls-end#when-both-sides-go-quiet).
 
 ### If the software handling your call faults
 
