@@ -97,11 +97,12 @@ one billable character each. The catalog is the current source for the
 applicable price and reserve estimate. Azure runs on an Skysay-managed
 credential only — there is no bring-your-own-key path for it today.
 
-#### Azure listens for every language an agent is configured for
+#### An agent listens for every language it is configured for
 
-An agent that uses Azure transcription listens for all of its configured
-languages at once, in any combination. There is no setting for this: the
-languages you selected for the agent are the languages it listens for.
+An agent whose transcriber can compare several languages at once listens for
+all of its configured languages, in any combination. There is no setting for
+this: the languages you selected for the agent are the languages it listens
+for. Azure AI Speech and Google Chirp 2 both work this way.
 
 - **The reply language does not change.** In **Choose before the call**, the
   agent still answers in the language that call was published in. This is not
@@ -110,15 +111,22 @@ languages you selected for the agent are the languages it listens for.
 - **One selected language means one locale.** Nothing is added to a
   single-language agent, and no language is treated specially.
 - **Speech in another selected language comes back in that language.**
-  Listening for one locale alone, Azure writes what it heard into that
+  Listening for one locale alone, a recognizer writes what it heard into that
   language's script even when the caller used another, with no error and no
   low-confidence signal, so the agent answers a question nobody asked. A
   Sinhala line taking English-speaking callers is the case this was measured
   on.
-- **It applies to Azure only.** Google Chirp 2, Deepgram Nova-3 and Soniox
-  listen for the one language a call is in, as before.
+- **It depends on the transcriber.** Deepgram Nova-3 and Soniox detect
+  languages a different way, without a per-agent list, so an agent on either
+  of them listens for the one language its call is in, as before.
 - **An agent published to follow the caller** keeps the candidate languages it
   published, and nothing is added to that set.
+- **Outbound calls name their language.** Selecting a second language is a
+  change to how the agent is called, not only to what it hears: starting an
+  outbound call on an agent with more than one selected language requires
+  `language` in the request, since on these transcribers that is what chooses
+  the published profile the call runs on. A caller that omits it is refused
+  with 400. Inbound calls are unaffected.
 
 Azure compares speech against at most ten candidates at once. An agent
 configured with more selected languages than its transcriber can compare keeps
@@ -138,6 +146,13 @@ caller's language and is not qualified per language through the Standard
 speech-to-text and text-to-speech tables. What Skysay has measured per
 language, and how to test yours, is on
 [Which languages the voice agent follows](/docs/language-following).
+
+Because there is no language setting, there is no per-language profile to
+publish either. An outbound call names its language in
+`runtime_config.language` and the call opens in that language, for any
+language Skysay supports — no publishing step comes first. A language Skysay
+does not support is refused before the call is placed. The same applies to
+Gemini Live.
 
 ## Choosing a language and voice
 
@@ -241,9 +256,12 @@ callers will keep being offered a language the call cannot deliver.
 Follow the caller can be published on an agent whose calls run an
 [agent workflow](/docs/agent-workflows). The workflow is a set of rules that
 does not depend on language: when the transcriber reports stable evidence that
-the caller is speaking another published language, or the caller asks for one,
-the voice and reply language switch and the workflow run continues from the
-step it is on, with nothing repeated to the run and nothing skipped.
+the caller is speaking another published language, or, when the workflow
+declares a `language_change` interrupt, the caller asks for one, the voice and
+reply language switch and the workflow run continues from the step it is on,
+with nothing skipped. A language request is itself a turn: the current step is
+entered again, which counts toward its visit limit and the workflow's turn
+limit.
 
 - **Every published language has its own wording.** When you publish a
   workflow, each spoken line (every question, statement and farewell) is
@@ -267,7 +285,9 @@ step it is on, with nothing repeated to the run and nothing skipped.
   published languages, the agent switches, speaks the current step again in
   that language and continues from there, without taking the interrupt's
   authored route. The authored route runs only for a request the call cannot
-  serve, such as an unpublished language, and does not switch.
+  serve, such as an unpublished language, and does not switch. A workflow
+  without a `language_change` interrupt switches only on transcriber evidence;
+  agents that run a workflow have no separate switch-language tool.
 - Usage is billed per language segment exactly as on a free-form call.
 
 ### Browse and test the cached catalog

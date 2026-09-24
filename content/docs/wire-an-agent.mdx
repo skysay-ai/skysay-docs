@@ -25,6 +25,7 @@ have built, one row per AI agent, and each row says where it has got to:
 | **Needs a voice** | Something is unchosen or refused, so nothing would answer yet |
 | **Ready to test** | It can hold a conversation in the browser; nothing is dialled |
 | **Tested** | It has taken at least one call |
+| **Needs attention** | A number is attached and its registration is waiting on you -- the carrier asked for more information, or turned the registration down |
 | **Number activating** | A number is attached and the carrier has not finished |
 | **Live** | A number is attached and activated, and nothing about the agent blocks a call |
 
@@ -33,6 +34,11 @@ that does it, so a row is never a dead end. **Needs a voice** covers more than
 a missing voice -- a suspended agent or an unreachable external endpoint lands
 there too -- so a row whose problem is something else sends you to the agent's
 **Overview**, where every problem is listed beside the control that clears it.
+**Needs attention** is the one state where the wait is yours rather than the
+carrier's: its next step is **Fix the number**, which opens that number on the
+[Numbers](/docs/regulated-numbers) page, where the checklist names what was
+asked for. **Number activating** prescribes no step, because nothing in the
+workspace makes the carrier finish sooner.
 
 **New AI agent** opens three steps: **Start** (a blank agent, a preset, or
 bring your own), **Identity** (name, opening language, first message and
@@ -46,10 +52,24 @@ and **Advanced** (Tuning, Credentials). **Overview** is the landing section: it
 lists what is left to do before the agent can be published, and what still
 blocks publishing, each beside the control that fixes it.
 
-**Talk to it** opens the test panel beside the editor, where you choose
-**Voice** or **Chat** and whether you are testing the **Draft** or the
-**Published** snapshot. Editing does not publish: **Publish changes** shows
-exactly which fields changed and asks before it writes.
+A new agent also gets a short checklist on Overview, **Three steps to the first
+call**. It is an onboarding aid: it disappears once the walk to a first call is
+over — the agent has held a conversation, has a number attached, or has been
+stopped — leaving **At a glance** as the top of the section. Its rows do not
+repeat the editor's controls — each one takes you to the control that owns the
+step.
+
+**Talk to it**, at the top of the agent editor, opens the test panel beside the
+editor, where you choose **Browser** or **Phone** and whether you are testing
+the **Current draft** or the **Published** snapshot. On a wide screen the panel
+is already open beside the editor and carries its own start control, so the
+header button appears when the panel is collapsed or the window is too narrow
+to show it.
+
+Editing does not publish: **Publish changes** shows exactly which fields
+changed and asks before it writes. It is offered only while the draft differs
+from the published snapshot — when the editor says the page matches what is
+published, there is nothing to publish.
 
 ## Stopping and resuming an agent
 
@@ -505,9 +525,8 @@ Skysay runs speech-to-text and text-to-speech around your app, so the app
 only deals in text.
 
 - **What Skysay sends.** A `POST` to your webhook URL for each call
-  lifecycle event and each transcript turn, carrying `X-Skysay-Event-Id`,
-  `X-Skysay-Call-Id`, and `X-Skysay-Signature` when a webhook secret is
-  set.
+  lifecycle event and each transcript turn, signed with
+  `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature`.
 - **What your app returns.** The words to say next, as a text or NDJSON
   response. Skysay speaks them to the caller.
 - **Where the URL goes.** The **Webhook URL** field on the create form, or
@@ -526,6 +545,14 @@ it.
   on the create form, or `webhook_url` plus `audio_stream_url` on
   `POST /v1/agents` with `"mode": "external_audio"`. `connect_external_agent`
   is the shortcut for the same pair.
+
+`POST /v1/agents` answers with the agent's signing secret in
+`agent_endpoint.webhook_secret`, once. Save it immediately: every later read
+returns `[REDACTED]`. It signs each event and tool call Skysay sends to your
+webhook; verify `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature` as
+described in [Post-call results](/docs/post-call-results).
+Agents created before 24 September 2026 cannot retrieve their signing secret;
+recreate the agent or contact support.
 
 Webhook signature verification, idempotency and backpressure handling stay in
 your app. `GET /v1/agents/{agent_id}/handoff` returns the generated setup

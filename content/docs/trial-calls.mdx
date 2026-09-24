@@ -15,6 +15,39 @@ purchased funds at the selected components' metered prices. You do not need a
 phone number for a browser test. This does not qualify the carrier route or
 prove that a real phone call will work.
 
+## Chat with your agent in text
+
+The same test panel has a **Chat** mode. For an AI agent built from
+instructions, an opening line, tools and knowledge — one without a
+[conversation flow](/docs/agent-workflows) — Chat runs the agent as a browser
+test would, minus audio: the same resolved configuration, the same language,
+the same tools and attached knowledge, answered by the agent's configured
+model. Choose the **draft** snapshot to talk to the unsaved edits on screen or
+**published** to talk to what callers reach; switching between them starts a
+new conversation.
+
+The opening line arrives without a model call when one is configured, or is
+generated from the instructions when none is. Every tool the agent calls during
+a turn is shown in the transcript:
+
+- `search_knowledge_base` runs the real retrieval against the attached bases.
+- `end_call` ends the conversation, as it ends a call.
+- SMS, transfers, webhook and integration tools are **held** — the agent is
+  told the action did not happen and the transcript marks the call as held —
+  so a text test never sends a message, dials anyone or reaches a customer
+  system. Use a browser or phone test to exercise those for real.
+
+Text chats are not metered against your funds and create no call record; only
+the model runs, and the API reports the model calls and tokens each turn used.
+A conversation is bounded to 2,000 characters a message, 40 lines and 24,000
+characters in total, and ends when it reaches that length. The same test is
+available to integrations as `POST /v1/agents/{agent_id}/chat-turns` — the
+client keeps the transcript and sends it with each turn; see the
+[API reference](/docs/api-reference).
+
+An AI agent that has a conversation flow keeps its flow-driven Chat, described
+under [Agent workflows](/docs/agent-workflows).
+
 ## Test a real phone call
 
 For a PSTN test, use a normally configured number and carrier route, purchased
@@ -32,6 +65,17 @@ require `synthetic_only: true`. They do not create real audio or prove a working
 phone route. Live routing/completion through the old trial path is rejected.
 Existing trial records remain readable. This change does not remove the
 separately bounded anonymous homepage demo.
+
+## Try the homepage demo
+
+The anonymous homepage demo uses shared demo capacity, separate from your
+workspace's browser tests and ordinary phone calls. If it is busy or temporarily
+paused for maintenance, wait and try again. Adding wallet funds does not open a
+demo slot, and starting a phone call is not a substitute for retrying the demo.
+
+Maintenance can pause new demo sessions while existing sessions finish. Demo
+availability does not establish how many simultaneous phone calls your workspace
+can make.
 
 ## Review the result
 

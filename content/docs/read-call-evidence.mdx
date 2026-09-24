@@ -108,6 +108,87 @@ after applying the same recording-consent, retention, and deletion checks as
 the mixed recording. Deleting a recording removes turn playback as well; it
 does not cause historical audio to be regenerated or retranscribed.
 
+## Tool calls and language switches in the transcript
+
+Between the transcript turns, the Calls workspace shows each tool the agent
+finished and each language switch it made, in the order they happened on the
+call.
+
+A tool row shows the tool's name, whether it succeeded or failed, how long it
+took, and its offset into the call. A language switch shows the language the
+agent moved to and why. Both sit inline with the turns, so you can see that the
+agent looked something up before it answered, or that it changed language after
+the caller did.
+
+### What is recorded, and what is not
+
+The rows are built from a fixed set of typed fields. **Nothing the model or the
+caller wrote is kept with them.** Skysay does not store, and cannot show, a
+tool's arguments, its result, the URL or headers it was called with, its
+response body, or any error message — redacted or otherwise. A tool row holds
+only:
+
+- the tool's **kind** (webhook, connection, `send_sms`, `end_call`, and so on),
+- an opaque internal reference to the configured tool,
+- whether it **succeeded**,
+- a closed **error class** if it failed, which is `cancelled` for a tool that
+  was cancelled and `unknown` for every other failure,
+- its **duration**, which is empty when nothing measured it,
+- its **offset** into the call.
+
+A language switch holds only the language moved from and to — checked against
+the languages frozen with the call, not against the agent's current settings —
+the reason (the agent followed the caller, or the switch was requested), and the
+offset. The utterance that triggered it is not recorded with the row; it is
+already an ordinary transcript turn.
+
+The name on a tool row is **looked up when the drawer opens**, from the agent's
+current tool list. It is never copied into the stored row. Unlike the language
+set, which is frozen with the call, the agent's tools are not — which is why a
+tool the agent has since renamed or removed shows its kind instead of a name.
+
+Each configured tool carries a stable internal identifier, and that is what the
+row records. The identifier survives any edit that keeps the tool's kind and
+name — you can change a webhook's URL, its description or a transfer
+destination and older calls keep showing that tool by name. **Renaming or
+removing a tool retires its identifier**, so rows recorded before the change
+show the tool's kind — "Webhook tool" — instead of a name. That is deliberate:
+showing a name the call never used, or a similar tool's name, would be worse
+than showing none.
+
+The identifier appears as a read-only `ref` on each tool in the agent API. You
+cannot set it; a value sent in a request is ignored in favour of what is already
+stored.
+
+### Limits, and why a blank list is never "no tools ran"
+
+At most 200 rows are recorded per call; past that the list is marked incomplete
+rather than silently trimmed, and the drawer says so.
+
+Absence is always explained. A call handled before this existed, a call whose
+audio arrived through a self-hosted gateway, a call that failed before media
+started, and a call that ran a conversation flow each get a one-line reason
+instead of an empty list. GPT-Live calls record tool rows but not language
+switches, because that engine follows the caller's language on its own rather
+than through a controlled switch, and the drawer says that too. **An empty list
+never means the agent made no tool calls** — only an explicit "none recorded"
+does, and that appears only when the call was actually observed.
+
+Ordering is by offset on the recording clock. A tool row marks when the call
+finished, not which turn caused it, so a row sits between turns rather than
+being attributed to one of them.
+
+Deleting a recording, a retention expiry, or re-importing a corrected recording
+removes these rows along with it.
+
+### What this does not change
+
+The public transcript API and its stream are unchanged: `get_call_transcript`
+returns turns only, exactly as before. The `call.completed`,
+`call.transcript.ready` and `call.recording.ready` webhooks are unchanged, as
+are post-call extraction, turn counts, and campaign and call-group readiness —
+all of which read transcript turns and nothing else.
+
 ## Where a call's telemetry lives
 
 A call's timing and cost evidence — the per-turn latency budget, the cost
@@ -190,6 +271,16 @@ not evidence that the caller hung up or that the destination was busy. Follow
 the explanation on the call or the number's **Activation checks**. An attempt
 rejected before billable media starts has no conversation recording or
 transcript to play; do not interpret missing audio as a recording failure.
+
+The same applies when the number's AI agent has a published voice setup the
+voice agent could not run: no instructions, no exact voice, a component that
+cannot run the call's language, or a voice setup saved before a platform update
+that it no longer accepts. The call is rejected before the caller is connected
+and nothing is reserved, instead of being answered by a line with no agent on
+it. The agent shows the same reason in the workspace, with the fix; for an
+out-of-date setup that is saving the agent's voice setup again. Outbound calls
+to such an agent are refused the same way; see [Customer
+applications](/docs/customer-applications).
 
 Only attempts attributable to your workspace appear in its history. Calls to
 unknown numbers are not assigned to a customer workspace.

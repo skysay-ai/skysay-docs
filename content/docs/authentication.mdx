@@ -28,8 +28,7 @@ secret — never commit it, never put it in `SKILL.md`.
 curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
   -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"organization_id":"org_...",
-       "name":"OpenClaw agent",
+  -d '{"name":"OpenClaw agent",
        "scopes":["account:read","coverage:read","agents:write",
                  "calls:read","recordings:read"]}'
 ```
@@ -49,8 +48,7 @@ automatically, with no need to reissue the key.
 curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
   -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"organization_id":"org_...",
-       "name":"Read-only reporting key",
+  -d '{"name":"Read-only reporting key",
        "scopes":["all-read"]}'
 ```
 
@@ -209,6 +207,23 @@ Every call runs pinned to the key's organization. A tool argument whose
 `organization_id` differs from the key's org is rejected with `MCP organization
 mismatch`. You cannot read or write another tenant.
 
+### `organization_id` is optional with a workspace key
+
+A workspace key belongs to exactly one workspace, so you never need to name
+it. Wherever a REST route accepts `organization_id`, as a query parameter or a
+request-body field, you can leave it out and the key's own workspace is used:
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/calls?limit=20" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+If you do send it, it must be the key's own workspace. Naming any other
+workspace answers `403`, whether or not that workspace exists. `project_id` is
+different: it is never filled in for you, and a route that requires it, such
+as `POST /v1/agents`, answers `400` without it. The
+[Quickstart with curl](/docs/quickstart-curl) sends no `organization_id` at all.
+
 ### A resource outside your workspace is absent, not forbidden
 
 Every REST **`GET`** route that names a resource by id in its path answers
@@ -247,6 +262,32 @@ the meaning it carries on a read. Write your client so that either status means
 "you cannot act on this record", and never treat a `403` as evidence that the
 record exists: a `403` you branch on today may answer `404` in a later release,
 without that being a breaking change.
+
+## What the API expects a request body to be
+
+Every write you make takes a UTF-8 JSON **object**. (Provider callback routes
+that have always accepted form-encoded or plain-text bodies still do; those are
+URLs you give a carrier, not endpoints you call.) Four answers follow, and none
+of them is a `500`:
+
+- A body that is absent, or contains only whitespace, is read as an empty
+  object. Action routes that take no fields can keep sending nothing.
+- A body that is not valid JSON, is not UTF-8, or is valid JSON that is not an
+  object — an array, a number, a bare string — answers `400`.
+- A request that carries a `Content-Encoding` other than `identity` answers
+  `415`. Skysay does not accept a compressed request body; send it
+  uncompressed. Response compression is unaffected, and so is
+  `Accept-Encoding`.
+- A required field that is missing, `null`, or blank answers `400` naming the
+  field, rather than failing further in. `POST /v1/agents` and
+  `POST /v1/numbers` require `project_id` this way;
+  `POST /v1/agent-endpoints` also requires `webhook_url` and
+  `audio_stream_url`. `organization_id` is never required from a workspace
+  key; see [`organization_id` is optional](#organization_id-is-optional-with-a-workspace-key).
+
+If you are retrying a request because it returned `500`, check it against this
+list first: several shapes that used to answer `500` now answer `400` or `415`,
+and those are answers about the request, not about the service.
 
 ## Rotate / revoke
 

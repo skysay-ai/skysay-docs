@@ -1,0 +1,150 @@
+---
+title: How a call ends
+description: How the AI agent ends a call with end_call on each conversation engine, the standing instruction every agent with end_call receives, and the check-in and polite ending when both sides go quiet.
+icon: PhoneXmark
+---
+
+A call ends in one of three ways:
+
+- the other party hangs up;
+- the AI agent ends it with the `end_call` tool;
+- Skysay ends it under one of its safety rules.
+
+This page covers the second, and the one safety rule that watches for a
+conversation that has gone quiet. The complete set of reasons a call can end
+with is in [Post-call results](/docs/post-call-results#why-a-call-ended).
+
+## The agent ends the call with `end_call`
+
+When the conversation is over, the agent calls the built-in `end_call` tool.
+Skysay then plays its goodbye to the end and hangs up. The call reports
+`ended_reason` `agent_completed`.
+
+Where the goodbye comes from depends on the conversation engine:
+
+- **Standard** (speech-to-text, model, text-to-speech): the agent passes its
+  goodbye as the tool's `message`, and Skysay speaks it in the agent's voice.
+  The agent does not say a separate goodbye first.
+- **GPT-Live 1 and Gemini Live**: these engines speak for themselves, so there
+  is no separate voice for Skysay to speak a text line with. The agent says its
+  own short goodbye and then calls `end_call` in the same turn. Skysay lets that
+  goodbye finish playing, then hangs up. The tool's `message` is not spoken on
+  these engines, and it is not recorded as something the caller heard.
+
+Either way, the wait for the goodbye is bounded. If it does not finish within
+about 15 seconds, the call is ended anyway.
+
+## The standing call-ending instruction
+
+Every agent that has `end_call` enabled receives the same instruction from
+Skysay, added after your own prompt on every call:
+
+> To end the call, invoke end_call. *(One sentence on where the goodbye goes,
+> as described above for your engine.)* After your goodbye the conversation is
+> over: if the caller speaks again, answer at most once, briefly, then invoke
+> end_call. If you are calling a specific person and whoever answers says they
+> are not that person, apologise once, share nothing about the matter, and
+> invoke end_call. Never say goodbye and then keep the conversation going.
+
+It is written in English for every language. The agent follows it in whatever
+language the conversation is in, and it never becomes part of what the caller
+hears.
+
+**It cannot be switched off for an agent that has `end_call`.** Turning
+`end_call` off is how you opt out: an agent without the tool receives none of
+this instruction. The instruction stays on for an agent with `end_call`
+because it covers three failures that show up in real calls:
+
+- an agent that said goodbye and then kept the line open for minutes;
+- an agent that kept pursuing someone who had said they were the wrong person;
+- an agent that answered every follow-up question with another goodbye.
+
+The wrong-person rule matters most when you call people about their own
+accounts. Your own prompt still decides everything else about the
+conversation.
+
+The instruction also reaches every language profile a
+[language-following](/docs/language-following) agent can switch to. On
+GPT-Live 1 it also reaches the backend model that decides when to call tools.
+
+## When both sides go quiet
+
+> **Rolling out.** This rule is currently in observation: on every call,
+> Skysay records when it would have checked in and when it would have ended
+> the call, and it does not yet do either. Calls behave as they did before,
+> and `caller_unresponsive` does not appear yet. It will be switched on once
+> the observations show it never would have ended a call wrongly. This page
+> will say so when it is on.
+
+Sometimes the agent speaks, and then nothing more comes from either side. The
+caller may have put the phone down, walked away, or lost the connection in a
+way the network never reported. Without this rule, such a line stayed open
+until the call reached its maximum length.
+
+- **After 30 seconds of mutual silence, the agent checks in once.** It asks one
+  short question, in the language of the conversation, whether the caller is
+  still there. On a Standard agent in English it is *"Are you still there?"*.
+  On GPT-Live 1 and Gemini Live the agent's own model says it.
+- **If the caller answers, the conversation simply continues.** One word is
+  enough, and "yes" counts. A later silence gets a new check-in.
+- **If nobody answers within 15 seconds after the check-in has played, the
+  agent says a short goodbye and the call ends.** It reports `ended_reason`
+  `caller_unresponsive`.
+
+The clock only runs while the agent had the last word. If the caller spoke
+last, the agent owes them a reply, and a different safety rule watches that
+case. See
+[When the conversation engine is lost](/docs/post-call-results#when-the-conversation-engine-is-lost).
+
+The clock also does not run in these cases:
+
+- while one of the agent's tools is running;
+- while a scripted workflow step is on its way;
+- while a language switch is being applied;
+- after a [transfer to a human](/docs/transfer-to-a-human) has connected the
+  caller to your team;
+- while the call is already ending.
+
+Line noise without words pauses the clock for at most 20 seconds, so a noisy
+line cannot hold a call open for ever. Background sound on its own never counts
+as the caller answering.
+
+At most three check-ins are made on one call. After that, a silence still ends
+the call only after the same 45 seconds, just without asking first.
+
+**Agents that run a workflow** do not get the check-in. The caller's answer to
+it ("yes, I'm here") would otherwise reach the workflow's current step as the
+answer to that step's own question. For these agents, a silence of 45 seconds
+ends the call politely with `caller_unresponsive`.
+
+### Why 30 and 15 seconds
+
+The values come from real calls. Across more than 2,000 silences in the middle
+of real conversations on Skysay:
+
+- none lasted 45 seconds;
+- one lasted 30 seconds, and the caller spoke again at 34 seconds. They would
+  have heard one harmless "are you still there?".
+
+Silent tails that ran on for minutes, or for a quarter of an hour, would each
+have ended about 45 seconds into the silence.
+
+These values are the same for every agent and cannot be changed per agent.
+
+## Where you see it
+
+`caller_unresponsive` appears wherever `ended_reason` does:
+
+- on `GET /v1/calls/{call_id}` and in `GET /v1/calls` list results;
+- in the terminal `call.completed` webhook;
+- in the campaign contact export, as the call's ending.
+
+The workspace Calls page does not show a call's ending reason yet, for any
+reason. Until it does, read it from the API or the webhook.
+
+A campaign contact whose call ended this way is treated like any other
+completed call. It is not retried automatically.
+
+Retrying a contact whose call ended this way is your decision, not the
+platform's. The precise reason is there for your integration or campaign
+settings to act on.

@@ -14,8 +14,9 @@ Core agents, supported provider choices, tools, knowledge bases, API, MCP,
 webhooks, and standard call evidence do not require a paid platform plan.
 Usage is still metered. Phone-number rental and setup charges are separate;
 an imported number's carrier may bill you directly. A hosted agent on
-[GPT-Live 1](/docs/conversation-engines) is billed by call duration at $0.05
-per minute, including silence, plus tokens for the backend that handles tools.
+[GPT-Live 1](/docs/conversation-engines) is billed by call duration, from the
+moment the call is placed, at $0.05 per minute, including silence, plus tokens
+for the backend that handles tools.
 
 PAYG's standard workspace allowance is **10 billed phone numbers** and
 **10 simultaneous live calls**, shared across projects and agents. Number
@@ -88,11 +89,17 @@ The workspace wallet balance shows **purchased funds** available for phone
 usage. Billing shows browser credit separately. A wallet showing $0 purchased
 funds can therefore still have browser-testing credit available.
 
-For API and MCP clients, read the account overview using `account:read`:
-`GET /v1/account/overview` or the `account_overview` MCP tool. The wallet
-separates `available_minor` (purchased), `promotional_available_minor` (browser
-credit), and `total_available_minor` (both). Amounts are in the wallet currency's
-minor units. Do not treat the combined total as a PSTN spending balance.
+The agent editor names the credit before a browser test only while there is
+credit left to spend. Once the grant is gone, the note there stops naming a
+payer rather than claiming a balance you no longer have.
+
+For API clients, read the wallet with `GET /v1/wallet` (scope `wallet:read`).
+For MCP clients, the `account_overview` tool (scope `account:read`) returns a
+combined workspace rollup whose `wallet` object carries the same balance
+fields. Either surface separates `available_minor` (purchased),
+`promotional_available_minor` (browser credit), and `total_available_minor`
+(both). Amounts are in the wallet currency's minor units. Do not treat the
+combined total as a PSTN spending balance.
 
 Call charges depend on the selected components and their actual usage, not a
 flat all-inclusive price per minute. Inspect the call's cost evidence for the
