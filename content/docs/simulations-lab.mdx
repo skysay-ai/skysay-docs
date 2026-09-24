@@ -330,6 +330,27 @@ synthetic more important, not less.
 Suite cost is reported only by the suite itself and is never charged to your
 balance. Deterministic attempts genuinely cost nothing.
 
+### Finding a lab call in Calls
+
+Excluded by default is not the same as hidden. An attempt that opens a real
+room books a real call, and that call has the same evidence as any other: a
+transcript, the server-ordered timeline with the tool calls your AI agent
+finished and the language switches it made, and the workflow path it took.
+
+The Calls page has a second view for them. "Real calls" is what it opens on
+and what it has always shown — the count, the totals and everything that asks
+for your attention are about real callers only. Switching to "Simulations Lab"
+asks the workspace the same question about lab calls instead, and the drawer
+that opens on one of those rows is the drawer you already know. The two are
+never mixed into one list: one view answers for one kind of call, and the row
+says which kind it is.
+
+The view is in the address, as `?source=simulation_suite`, so a link to a lab
+call is a link somebody else on your team can open.
+
+This is a workspace view, not a change to the API. `GET /v1/calls` still
+returns only calls a customer or a caller actually made, exactly as before.
+
 ## Voice proof: two different things
 
 "Voice testing" covers two capabilities that are easy to confuse and dangerous
@@ -364,6 +385,23 @@ caller observed the tested agent leave or the server close the room.
 `voice_evidence_kind: realtime` alone is not enough. If the observer leaves
 without either remote terminal event, duration and teardown remain unproven;
 local disconnection is not a substitute measurement.
+
+### Shared capacity and recording availability
+
+Real-time simulation callers use bounded capacity shared across workspaces.
+When that capacity is busy or temporarily paused, new real-time work must wait
+or be retried after the reported refusal. It does not silently switch to an
+offline test. Homepage demos use a separate capacity limit.
+
+A room's measured timing and its recording are separate evidence. A recording
+can become available after the timing result has arrived. Reopen the existing
+result to check its recording; starting another run creates another test and can
+incur new provider costs.
+
+Missing audio cannot establish that the voice sounded correct. Recording
+delivery does not change measured timing facts or repeat the run's usage charge.
+Expired or deleted recordings remain unavailable, including when a delayed copy
+arrives later.
 
 ## When a speech stack cannot serve a scenario
 

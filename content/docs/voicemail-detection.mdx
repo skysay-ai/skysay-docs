@@ -1,0 +1,193 @@
+---
+title: Voicemail detection
+description: How Skysay tells a voicemail box from a person on an outbound call, which evidence can prove a mailbox in which languages, the four per-agent settings, and what each one does today.
+icon: VoiceScan
+---
+
+The phone network does not tell the caller when a call goes to voicemail. A
+voicemail box answers the line exactly as a person does, so the only way to
+know is to listen to the first seconds after the answer. Skysay does that on
+every outbound call, for every AI agent and every conversation engine, and
+records what it concluded.
+
+It runs around the AI agent, not through it: detection is not part of the
+agent's prompt or its workflow, and the agent never decides on its own that it
+reached a voicemail box.
+
+## Unsure means a person
+
+A wrong "voicemail" verdict is worse than a missed one. Hanging up on a person
+is an abandoned call, and in some countries that is regulated. So the rule is
+lopsided on purpose:
+
+- only evidence that is specific to a mailbox counts as proof;
+- everything else only raises suspicion, and suspicion never acts alone;
+- any sign of a person wins, and a call Skysay is not sure about is treated as
+  a person.
+
+## How a mailbox is recognised
+
+### Proof: the only evidence that can make the agent act
+
+There are two kinds of proof, and nothing else counts:
+
+- **A record beep after a spoken greeting, in any language.** A single,
+  clean tone that follows a greeting which was recognised as speech with at
+  least three words in it. It listens to the sound and counts the words, but
+  never needs to understand them. Words are counted by the spaces and
+  punctuation between them, so in Chinese, Japanese, Thai and other scripts
+  written without spaces a short greeting is undercounted, and a beep after
+  it only raises suspicion. A tone that repeats, a keypad tone, a
+  fax tone or a network information tone is not a record beep. Neither is a
+  tone that overlaps the AI agent's own voice, or a tone after music or
+  silence rather than speech.
+- **A mailbox instruction** such as "please leave a message after the tone",
+  only in a language whose phrase list has been verified. Today that is
+  **English**, and English is checked on every call, whatever the call's
+  language. A person talking *about* a message ("did you leave me a
+  message?", "please don't leave a message") is not an instruction.
+
+### Suspicion: signals that never act alone
+
+- the call being answered unusually fast;
+- the shape of the greeting: a long greeting that never pauses for a reply;
+- music or tones with no speech in them, such as a caller tune;
+- a beep after music or silence rather than after speech. A caller tune
+  followed by network beeps sounds much like a mailbox, and often is not one.
+
+Recognising known mailbox recordings by their sound, so-called fingerprints,
+is planned and is not used today.
+
+Phone menus, call screening services and "the number you have dialled is not
+available" announcements are recognised as their own kinds of answer. They are
+never treated as a mailbox by themselves, and a phone menu heard around a
+mailbox phrase stops that phrase from counting.
+
+Our own voice is excluded. When the AI agent's words come back down the line,
+for example from a speakerphone, they are recognised as echo and never count
+as evidence.
+
+### Languages
+
+| Language | Mailbox phrases |
+| --- | --- |
+| English | Verified: an instruction can prove a mailbox. Checked on every call. |
+| Estonian, German, Spanish, French, Russian | Candidates, not yet verified: an instruction is shown in the call's evidence but never proves a mailbox. |
+| Any other language, including Sinhala and Tamil | No phrase list. |
+
+In a language without a verified phrase list, detection still works: a record
+beep after a spoken greeting proves a mailbox in any language, including
+Sinhala and Tamil, and an English mailbox instruction still counts. Each call's evidence says when its
+language has no verified list. A candidate list becomes verified once a native
+speaker or real local mailbox recordings have confirmed it, and this table
+will change when that happens.
+
+## The four settings
+
+`answer_detection.voicemail` is set per agent, in the **When a voicemail
+answers** card of the agent editor or through
+`PATCH /v1/agents/{agent_id}/voice-stack`.
+
+| Value | In the editor | What it does |
+| --- | --- | --- |
+| `shadow` | Watch only | Keeps talking as now and records what it would have done. |
+| `hang_up` | Hang up | Ends the call without a message on proof of a mailbox. |
+| `leave_message` | Leave a message | Plays your approved message after the beep, then ends the call. |
+| `off` | Off | Detects nothing and records nothing. |
+
+<Callout type="warn">
+**Today every agent watches only.** `hang_up` and `leave_message` are accepted
+and saved now, but they start acting only after the detector has passed its
+accuracy check on real calls. Until then an agent set to either of them
+behaves exactly like `shadow`, and each call's evidence shows both the setting
+you chose and the one that ran.
+</Callout>
+
+`shadow` is what an agent with no stored value gets. As with
+[non-human audio](/docs/answer-detection), a value you send is stored even when
+it equals the default, so an agent you explicitly set to `shadow` keeps it if
+the default for new agents changes later.
+
+```bash
+curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"answer_detection": {"non_human_audio": "shadow", "voicemail": "hang_up"}}'
+```
+
+The `answer_detection` object is replaced as a whole on save, so send every key
+you want to keep.
+
+### Messages for Leave a message, one per language
+
+`answer_detection.voicemail_messages` holds the messages left when the setting
+is `leave_message`, one per language, keyed by language code:
+
+```json
+{
+  "answer_detection": {
+    "voicemail": "leave_message",
+    "voicemail_messages": {
+      "en": "Hello, this is Example Lending. Please call us back at the number shown. Thank you.",
+      "et": "Tere, helistab Example Lending. Palun helistage meile tagasi kuvatud numbril. Täname."
+    }
+  }
+}
+```
+
+- The message played is the one for the language the call is actually in. A
+  call in a language with no message is ended without one; it is never given
+  a message in another language.
+- `leave_message` needs a message for at least one language. In the editor
+  there is one box per language the agent speaks.
+- Each message is plain text of at most 400 characters. A locale such as
+  `de-DE` is stored as `de`, and an empty text removes that language's
+  message.
+- Messages are kept when you switch to another setting, and when you remove a
+  language from the agent, so switching back loses nothing.
+
+A message is played exactly as approved, never improvised by the AI agent, and
+it is the same on every conversation engine. Each language's message is
+approved on its own. Keep them neutral: who is calling and how to call back,
+with no account, amount or other personal details, because a voicemail box
+can be heard by someone other than the person you meant to reach. A saved
+message is not played by any call today; see the note above.
+
+## What happens on a call today
+
+With `shadow`, and with the other two settings until they are released:
+
+- the call runs exactly as it would without detection. The agent's opening,
+  its conversation, its workflow and how the call ends are unchanged;
+- nothing about detection appears in the call's `answer_classification`,
+  `ended_reason`, webhooks or campaign results;
+- the verdict and the evidence behind it are recorded with the call.
+
+## Reading the evidence
+
+Watch only exists so that you can see, call by call, what detection would have
+done before it is allowed to do it. Open a call in **Calls**. An outbound call
+that detection ran on shows a **Voicemail detection** block:
+
+- the verdict: Voicemail, Voicemail? (suspicion only), Person, Not sure, Phone
+  menu or queue, Call screener, or Unavailable announcement;
+- the setting you chose and the one that ran, for example "Set to Hang up —
+  watching only until the accuracy check";
+- what the agent would have done and when, marked "not applied". For an agent
+  on `leave_message` this is when the message would have started, measured
+  from the end of the beep;
+- whether a person was heard after that moment. This is the case the accuracy
+  check exists to catch: a call where acting would have cut somebody off;
+- each piece of evidence, marked as proof, suspicion, a sign of a person, or
+  ignored, with when it was heard. A mailbox phrase that did not count says
+  why, for example that its language's phrase list is not verified yet.
+
+Inbound calls, and calls from before this feature, show no block. That means
+nothing was checked, not that no voicemail was found.
+
+## What comes next
+
+When `hang_up` and `leave_message` are released, calls they end will carry
+their own ended reason, and this page will list it. Retries stay with your
+campaign's retry rule, and minutes up to the end of the call are billed as
+usual.

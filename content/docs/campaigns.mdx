@@ -61,7 +61,6 @@ curl -X POST https://api.skysay.ai/v1/contact-lists \
   -H "Authorization: Bearer $SKYSAY_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "organization_id": "org_123",
     "project_id": "proj_123",
     "name": "September renewals",
     "contacts": [
@@ -117,8 +116,10 @@ Append later with `POST /v1/contact-lists/{contact_list_id}/contacts`.
 ### Languages
 
 Each contact's `language` is the language its calls are made in, and the
-campaign's `language` is the default for contacts without one. The AI agent
-must publish that language ([multilingual agents](/docs/multilingual-outbound)):
+campaign's `language` is the default for contacts without one.
+
+On an agent whose engine picks its voice and transcription per language, the
+agent must publish that language ([multilingual agents](/docs/multilingual-outbound)):
 every attempt is admitted against the agent's published profiles and dials
 with that language's voice stack, so one campaign can carry `si`, `ta` and
 `en` contacts on one multilingual agent. A contact whose language the agent
@@ -126,6 +127,12 @@ does not publish is never dialed; it ends `pre_dial_failed` with
 `skip_reason` `language_not_published`, and a contact with no language on a
 multilingual agent with no campaign default ends `language_required`. Both
 appear in the contact page and the export.
+
+A voice-to-voice engine has no language setting to publish: one voice speaks
+every language, so there is no per-language profile for a contact to be
+matched against. A contact language that Skysay supports is accepted as given
+and the call opens in it, with no publishing step first. A language Skysay
+does not support still ends `pre_dial_failed` with `language_not_published`.
 
 Two things a language does not change: a conversation workflow speaks the
 text its author wrote, word for word, in whichever language it was written —
@@ -150,7 +157,6 @@ curl -X POST https://api.skysay.ai/v1/campaigns \
   -H "Authorization: Bearer $SKYSAY_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "organization_id": "org_123",
     "project_id": "proj_123",
     "name": "September renewals",
     "agent_id": "agent_123",

@@ -156,6 +156,15 @@ the appropriate policy; generated wording is not a way to bypass those rules.
 There is no automatic recommended voice and no fallback to a different voice
 when a selected provider voice fails.
 
+Publishing checks every effective per-language configuration against the rules
+the voice worker applies when it builds a call, not only against the component
+catalog. If one of them could not be built, the save is refused with a
+configuration error naming the language and the reason, and nothing is
+published: the previously published profiles keep serving calls. Fix the named
+language's override — or remove that language and publish the remaining set —
+and save again. A per-language override that selects a provider from a
+different runnable contract than the shared stack is the usual cause.
+
 Test each profile before it joins a live outbound cohort: open the agent's
 test panel, choose a language from the **Published** configuration, and start
 the metered browser test. Profile-based tests use the published version; publish edits
@@ -204,7 +213,8 @@ unique `Idempotency-Key` for each attempt. Do not put current balances,
 credentials, mutable case history, or a requested voice-stack override in
 `call_context`.
 
-The selected language must belong to that agent's published configuration.
+On an agent whose engine picks its voice and transcription per language, the
+selected language must belong to that agent's published configuration.
 The voice-stack response's `language_profiles.published_version` and
 `language_profiles.published_at` identify its latest publication.
 Skysay resolves and validates it before reserving funds or dispatching the
@@ -212,6 +222,11 @@ call. The estimate and admitted runtime use the same effective components;
 later edits cannot change an already-admitted call's voice stack. Credential
 revocation and policy checks still apply. An existing single-language agent
 does not become multilingual just because an application sends a new locale.
+
+A voice-to-voice engine publishes no per-language profile, because one voice
+speaks every language. It accepts any language Skysay supports, opens the call
+in it, and needs no publishing step first; a language Skysay does not support
+is refused before funds are reserved.
 
 Respect `429` and `Retry-After`, keep the application queue bounded, and let
 your application own suppression, correct-person checks, duplicate prevention,
@@ -245,10 +260,13 @@ Follow mode requires at least two selected languages, one shared transcriber,
 and listening support for the selected languages together.
 A transcriber that supports English and German in separate monolingual calls
 does not necessarily support recognizing both in one conversation. Skysay
-checks the configured listening mode and complete published profiles before
-admission. If the combination is unsupported, change the configuration yourself
-or keep fixed-language mode; Skysay does not select a replacement voice or
-transcriber for you.
+checks the configured listening mode and every published profile when you
+publish, and again before admission. Follow mode builds all of the published
+profiles at the start of a call, so a language whose configuration cannot be
+built would end every call on the agent and not only calls in that language —
+which is why the publish is refused instead. If the combination is unsupported,
+change the configuration yourself or keep fixed-language mode; Skysay does not
+select a replacement voice or transcriber for you.
 
 Use the existing voice-stack PATCH to publish the behavior with the language
 set. The additional behavior field is:
@@ -367,9 +385,10 @@ offered for a narrower set of languages than it promises.
 The visitor token contains an opaque session, the starting stack, and (where
 needed) a public capability revision. It does not contain the agent prompt,
 other language profiles, credential bindings, or component rates. The demo
-keeps its anonymous tool restriction: it can end the session and use the
-controlled language switch, but cannot call customer endpoints or place an
-outbound call.
+agent keeps the tools its owner configured, as described in
+[Homepage demo tools](/docs/integrations#homepage-demo-sessions), alongside
+ending the session and the controlled language switch. It cannot send a text or
+place an outbound call.
 
 Homepage-demo limits and platform-funded reservation remain separate from a
 workspace wallet. Native usage is segmented server-side against the frozen
