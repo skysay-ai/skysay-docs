@@ -34,6 +34,7 @@ import {
   MusicDoubleNote,
   Network,
   OpenBook,
+  PhoneXmark,
   PlaySolid,
   Puzzle,
   Rocket,
@@ -44,11 +45,14 @@ import {
   SineWave,
   SoundHigh,
   Terminal,
+  TerminalTag,
   TestTube,
   Timer,
   Translate,
   VoiceXmark,
   Voice,
+  VoiceScan,
+  WarningTriangle,
   Wrench,
 } from "iconoir-react";
 
@@ -86,6 +90,7 @@ const ICONS = {
   // --- Get started ---
   OpenBook,
   FastArrowRight,
+  TerminalTag,
   Download,
   Key,
   CreditCard,
@@ -100,10 +105,12 @@ const ICONS = {
   ChatLines,
   Translate,
   VoiceXmark,
+  PhoneXmark,
   SineWave,
   MusicDoubleNote,
   MicrophoneSpeaking,
   Voice,
+  VoiceScan,
   GitFork,
   TestTube,
   Headset,
@@ -131,6 +138,7 @@ const ICONS = {
   CodeBracketsSquare,
   Terminal,
   RssFeed,
+  WarningTriangle,
 
   // --- Concepts ---
   CloudSync,

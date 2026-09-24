@@ -548,9 +548,8 @@ Skysay runs speech-to-text and text-to-speech around your app, so the app
 only deals in text.
 
 - **What Skysay sends.** A `POST` to your webhook URL for each call
-  lifecycle event and each transcript turn, carrying `X-Skysay-Event-Id`,
-  `X-Skysay-Call-Id`, and `X-Skysay-Signature` when a webhook secret is
-  set.
+  lifecycle event and each transcript turn, signed with
+  `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature`.
 - **What your app returns.** The words to say next, as a text or NDJSON
   response. Skysay speaks them to the caller.
 - **Where the URL goes.** The **Webhook URL** field on the create form, or
@@ -569,6 +568,14 @@ it.
   on the create form, or `webhook_url` plus `audio_stream_url` on
   `POST /v1/agents` with `"mode": "external_audio"`. `connect_external_agent`
   is the shortcut for the same pair.
+
+`POST /v1/agents` answers with the agent's signing secret in
+`agent_endpoint.webhook_secret`, once. Save it immediately: every later read
+returns `[REDACTED]`. It signs each event and tool call Skysay sends to your
+webhook; verify `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature` as
+described in [Post-call results](/docs/post-call-results).
+Agents created before 24 September 2026 cannot retrieve their signing secret;
+recreate the agent or contact support.
 
 Webhook signature verification, idempotency and backpressure handling stay in
 your app. `GET /v1/agents/{agent_id}/handoff` returns the generated setup
