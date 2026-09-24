@@ -75,6 +75,13 @@ services were confirmed deployed.
 
 ## 23 September 2026
 
+### Hang up a live call from Calls or the API
+
+- A call that is still dialing, ringing or connected shows a **Hang up** button in its detail on the **Calls** page; any workspace member can use it after confirming.
+- `POST /v1/calls/{call_id}/hangup` with the `calls:write` scope does the same: it answers `202`, the worker ends the media session, and the call ends with `hangup_requested`.
+- Repeating the request returns the original one; after three failed teardowns it is refused, and a call that is still queued is refused with `409`: cancel it instead.
+- [End a live call from Calls](/docs/read-call-evidence#end-a-live-call-from-calls) · [End a live call](/docs/rest-endpoints#end-a-live-call)
+
 ### POST /v1/calls refuses an agent that could not take the call
 
 - `POST /v1/calls` now answers `400` with `realtime_config_not_runnable` when the agent's published voice setup could not run the call, naming each blocker's code.
