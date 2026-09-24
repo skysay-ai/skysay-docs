@@ -441,12 +441,13 @@ phone call, in any language:
   and is answered once the opening line has finished, so nobody who spoke is
   ignored. A caller who keeps speaking for longer than a second has taken the
   floor: the ordinary interruption rules apply from that moment and the
-  opening line stops as any reply would. On a workflow-bound call, speech that
-  arrives before the opening line has started — the callee answering into a
-  line that has not said anything yet — is held exactly like a pickup during
-  the opening and is answered once the opening line has finished; a held
-  "hello" typically costs one clarification turn rather than being lost, since
-  the identity question has not been heard yet. The opening line itself is
+  opening line stops as any reply would. Speech that arrives after the call is
+  answered but before the opening line has started — the callee answering into
+  a line that has not said anything yet — is held exactly like a pickup during
+  the opening and is answered once the opening line has finished; on a
+  workflow-bound call a held "hello" typically costs one clarification turn
+  rather than being lost, since the identity question has not been heard
+  yet. The opening line itself is
   still spoken immediately in every case — nothing waits for that early speech
   before starting it.
   The opening line also cannot be cancelled before its first audio frame reaches
@@ -455,10 +456,11 @@ phone call, in any language:
   own language is played in its place; that substitute exists for English,
   Estonian, Sinhala and Tamil, and a call in another language, or one whose
   substitute also fails to synthesise, still opens in silence.
-  **GPT-Live 1** agents handle barge-in on the model side: the opening line is
-  not held uninterruptible by this protection, and a pickup-shaped "hello?"
-  may still cut it. Speech before the opening line is unaffected by this
-  distinction either way.
+  **GPT-Live 1** and **Gemini Live** agents handle barge-in on the model side:
+  the opening line is not held uninterruptible by this protection, and a
+  pickup-shaped "hello?" may still cut it. Workflow-bound calls cannot use
+  either engine, so the early-speech hold described above applies to Standard
+  agents only.
 - When an interruption does qualify, the agent plays on for a bounded moment
   instead of stopping at the exact instant it is cut, so the sound it is part way
   through finishes rather than being clipped. This is a time budget of up to
