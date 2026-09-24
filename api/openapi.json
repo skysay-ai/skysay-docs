@@ -3251,7 +3251,7 @@
             "type": "object"
           },
           "country": {
-            "description": "Destination country. Authorized per-organization by the active workspace capabilities.",
+            "description": "Optional. The destination country is derived from to_phone_number's calling code; a value sent here is used only when the destination cannot be attributed to a country, and never overrides it. Authorized per-organization by the active workspace capabilities.",
             "type": "string"
           },
           "external_group_reference": {
@@ -3317,7 +3317,6 @@
           "project_id",
           "from_phone_number_id",
           "to_phone_number",
-          "country",
           "purpose"
         ],
         "type": "object"
@@ -4205,7 +4204,7 @@
   },
   "info": {
     "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 \u2014 this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
-    "title": "Telephony AI API",
+    "title": "Skysay API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
@@ -4393,7 +4392,7 @@
         },
         "responses": {
           "201": {
-            "description": "Agent"
+            "description": "Agent. agent_endpoint.webhook_secret carries the plaintext secret that signs every event and tool call sent to this agent's webhook (X-Agent-Telco-Signature), revealed once in this response only; every later read returns [REDACTED]. Save it immediately."
           },
           "400": {
             "description": "organization_id or project_id is missing or blank; an unrecognized mode; a tools value that is neither empty nor a list; a metadata value that is neither empty nor an object; an external_audio or external_text agent missing its webhook_url/audio_stream_url; or a project_id this organization does not own. On create (unlike PATCH) a falsy tools or metadata -- null, false, 0, \"\" -- is read as an empty selection rather than refused"
@@ -6915,19 +6914,22 @@
     },
     "/v1/calls/{call_id}/hangup": {
       "post": {
-        "description": "Requests teardown of a call that is already live. Returns 202 with `hangup_requested_at`; it never reports the call as ended, because the media session is torn down by the worker holding it and the call reaches `call.ended` through the ordinary terminal path, recording the reason `hangup_requested`. Repeating the request is idempotent and returns the original timestamp. Until a worker acknowledges, the request stays visible with `status` `pending`. If the worker reports that the teardown FAILED, the call is still up, so a further request re-arms it with a fresh timestamp and the previous failure's reason stays visible beside it; after three consecutive failed teardowns further requests are refused so the call is escalated rather than retried. A call still queued for origination is refused: cancel it with POST /v1/calls/{call_id}/cancel instead. The response carries `hangup_requested_at`, `status` (`pending` or `acknowledged`), `hangup_acknowledged_at`, `hangup_acknowledged_outcome`, `hangup_acknowledged_reason`, `hangup_failed_attempts`, `hangup_unacknowledged_seconds` (null once acknowledged), `hangup_attempt` (which attempt this is; a re-arm increments it) and `already_requested`, which is false for a first or re-armed request and true when an existing one was returned unchanged.",
+        "description": "Requests teardown of a call that is already live. This is also what the Hang up button on a live call in the workspace Calls page sends. Returns 202 with `hangup_requested_at`; it never reports the call as ended, because the media session is torn down by the worker holding it and the call reaches `call.ended` through the ordinary terminal path. The call then reports `ended_reason` `hangup_requested`, unless it had already started ending another way, in which case that ending's reason is reported. Repeating the request is idempotent and returns the original timestamp. Until a worker acknowledges, the request stays visible with `status` `pending`. If the worker reports that the teardown FAILED, the call is still up, so a further request re-arms it with a fresh timestamp and the previous failure's reason stays visible beside it; after three consecutive failed teardowns further requests are refused so the call is escalated rather than retried. A call still queued for origination is refused: cancel it with POST /v1/calls/{call_id}/cancel instead. For a workspace caller, a call in another workspace, or a Simulations Lab run, answers exactly as a call id that does not exist. The response carries `hangup_requested_at`, `status` (`pending` or `acknowledged`), `hangup_acknowledged_at`, `hangup_acknowledged_outcome`, `hangup_acknowledged_reason`, `hangup_failed_attempts`, `hangup_unacknowledged_seconds` (null once acknowledged), `hangup_attempt` (which attempt this is; a re-arm increments it) and `already_requested`, which is false for a first or re-armed request and true when an existing one was returned unchanged.",
         "responses": {
           "202": {
             "description": "Hangup requested; not yet acknowledged by the media worker."
           },
           "404": {
-            "description": "No such call."
+            "description": "No such call in this workspace: unknown, another workspace's, or a Simulations Lab run."
           },
           "409": {
-            "description": "Call is not live: already terminal, or still queued (use cancel)."
+            "description": "Call is not live (already terminal, or still queued: use cancel), or its teardown has already failed three times."
           }
         },
-        "summary": "Ask a live call to hang up"
+        "summary": "Ask a live call to hang up",
+        "x-required-scopes": [
+          "calls:write"
+        ]
       }
     },
     "/v1/calls/{call_id}/observability": {
@@ -10949,7 +10951,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:18765"
+      "url": "https://api.skysay.ai"
     }
   ]
 }
