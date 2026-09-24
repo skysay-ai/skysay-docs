@@ -251,6 +251,45 @@ agent's instructions promise is the usual way to reach this: update the
 system prompt and the opening message together with the language set, or
 callers will keep being offered a language the call cannot deliver.
 
+### Follow mode on an agent that runs a workflow
+
+Follow the caller can be published on an agent whose calls run an
+[agent workflow](/docs/agent-workflows). The workflow is a set of rules that
+does not depend on language: when the transcriber reports stable evidence that
+the caller is speaking another published language, or, when the workflow
+declares a `language_change` interrupt, the caller asks for one, the voice and
+reply language switch and the workflow run continues from the step it is on,
+with nothing skipped. A language request is itself a turn: the current step is
+entered again, which counts toward its visit limit and the workflow's turn
+limit.
+
+- **Every published language has its own wording.** When you publish a
+  workflow, each spoken line (every question, statement and farewell) is
+  rendered once into each of the agent's other selected languages by the
+  workflow-authoring model and stored with the published version; the language
+  you wrote the workflow in is kept exactly as written. Placeholders such as
+  `{{balance_amount}}` are carried through unchanged and filled with the same
+  approved figures in every language. Nothing is rephrased during a call: a
+  switched caller hears the rendered line, word for word. The rendered
+  languages are listed on the workflow's publish panel.
+- **Adding a language to the agent generates that language's wording
+  automatically.** Publishing a language set that the workflow's current
+  version cannot speak renders the missing lines then and there and creates a
+  new workflow version; if the model cannot render them, that language
+  publish is refused with the reason rather than published silently.
+- If the switch lands while the agent is speaking a step, that step is spoken
+  again in the new language; if it lands while the caller is speaking, the
+  next step is simply spoken in the new language.
+- A caller's spoken request for another published language is handled by the
+  workflow's `language_change` interrupt: when it fires and names one of the
+  published languages, the agent switches, speaks the current step again in
+  that language and continues from there, without taking the interrupt's
+  authored route. The authored route runs only for a request the call cannot
+  serve, such as an unpublished language, and does not switch. A workflow
+  without a `language_change` interrupt switches only on transcriber evidence;
+  agents that run a workflow have no separate switch-language tool.
+- Usage is billed per language segment exactly as on a free-form call.
+
 ### Browse and test the cached catalog
 
 The **Voices** workspace page is a flat, paginated list rather than a separate

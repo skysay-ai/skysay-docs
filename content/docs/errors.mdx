@@ -36,9 +36,17 @@ You get a fixed message and an id instead:
 {
   "error": "internal_error",
   "message": "The server could not complete this request. Quote request_id when contacting support.",
-  "request_id": "7f3c9a1e0b2d4c68"
+  "request_id": "a1b2c3d4e5f60718"
 }
 ```
+
+The `request_id` is unique to that one request. Keep it in your own logs beside
+the request that failed, and quote it to support so the failure can be found.
+
+Some `5xx` answers are designed rather than unexpected, and they are not this
+shape: a `503` `webhook_retry_requested` asking a provider to redeliver, or a
+`502` `kyc_provider_error` naming a verification provider's own status. Those
+keep their own `error` code and carry no `request_id`.
 
 ## What each status means
 

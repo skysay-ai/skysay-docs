@@ -82,6 +82,13 @@ services were confirmed deployed.
 - Other languages and transcribers keep the eight-second limit, and this is not a setting.
 - [When the caller seems to start talking before a reply](/docs/wire-an-agent#when-the-caller-seems-to-start-talking-before-a-reply)
 
+### Hang up a live call from Calls or the API
+
+- A call that is still dialing, ringing or connected shows a **Hang up** button in its detail on the **Calls** page; any workspace member can use it after confirming.
+- `POST /v1/calls/{call_id}/hangup` with the `calls:write` scope does the same: it answers `202`, the worker ends the media session, and the call ends with `hangup_requested`.
+- Repeating the request returns the original one; after three failed teardowns it is refused, and a call that is still queued is refused with `409`: cancel it instead.
+- [End a live call from Calls](/docs/read-call-evidence#end-a-live-call-from-calls) · [End a live call](/docs/rest-endpoints#end-a-live-call)
+
 ### POST /v1/calls refuses an agent that could not take the call
 
 - `POST /v1/calls` now answers `400` with `realtime_config_not_runnable` when the agent's published voice setup could not run the call, naming each blocker's code.
@@ -150,6 +157,14 @@ services were confirmed deployed.
 
 
 ## 17 September 2026
+
+### Follow the caller on workflow agents
+
+- An agent that runs a workflow can now publish **Follow the caller**: on stable transcriber evidence of another published language, or a caller's request through the workflow's `language_change` interrupt, the voice and reply language switch and the run continues from its current step, which is spoken again in the new language.
+- Publishing a workflow renders every spoken line into each of the agent's other selected languages, placeholders and approved figures intact, and stores them with the version; adding a language to the agent later generates that language's lines automatically as a new version.
+- A step the switch interrupted is spoken again in the new language, the run is never advanced by the switch, and usage is billed per language segment as on a free-form call.
+- Every workflow turn's call evidence now shows where the turn's time went: state load, the decision model call, reply composition and transport, as separate measured spans.
+- [Follow mode on an agent that runs a workflow](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow) · [Agent workflows](/docs/agent-workflows) · [Read call evidence](/docs/read-call-evidence)
 
 ### A call the media worker fails to start is ended by the platform, not left silent
 
