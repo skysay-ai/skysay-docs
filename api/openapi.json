@@ -136,7 +136,7 @@
       },
       "AgentAnswerDetection": {
         "additionalProperties": false,
-        "description": "What the platform does when a call the carrier reported answered turns out to be non-human audio. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
+        "description": "What the platform does when a call the carrier reported answered turns out not to be a person: non-human audio such as a caller tune, or a voicemail box. Unlike the other tuning sections, a value you send here is STORED even when it equals the current default, and only an ABSENT `answer_detection` key means \"follow the platform default\". That is deliberate: the platform default for this setting is expected to change once the detector has been measured, and an agent that explicitly chose a value keeps it when that happens. Applied when a call starts; saving never changes an in-progress call.",
         "properties": {
           "non_human_audio": {
             "description": "`shadow` records what was heard on every answered call and changes nothing the caller experiences: the classification and its detail appear on the call, and no call is ever ended by it. `end_call` acts on the verdict: the agent stops speaking and the call is ended with `ended_reason: no_human_after_answer`, and the classification and its detail appear on the call as they do under `shadow`. `off` collects nothing, so such a call carries no classification at all. `shadow` is the platform default, so it is what an agent with no stored value gets; sending it explicitly stores it, which is how you keep it if that default later moves. This property carries no JSON Schema `default` on purpose, unlike the other tuning properties: a generated client that pre-filled one would send `shadow` on every save and pin a choice the customer never made, which is the one outcome the storage rule above exists to prevent.",
@@ -146,6 +146,28 @@
               "off"
             ],
             "type": "string"
+          },
+          "voicemail": {
+            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only mailbox-specific evidence counts as proof: a record beep that follows a spoken greeting, or a mailbox instruction such as \"leave a message\", from a language whose phrase list is verified (en; English is checked on every call). The beep works in every language. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted, and a beep after it only raises suspicion. Candidate phrase lists (de, es, et, fr, ru) are not yet verified: what they recognise is shown as evidence and never proves a mailbox. In any other language only the beep or an English instruction can. A fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
+            "enum": [
+              "shadow",
+              "hang_up",
+              "leave_message",
+              "off"
+            ],
+            "type": "string"
+          },
+          "voicemail_messages": {
+            "additionalProperties": {
+              "maxLength": 400,
+              "type": "string"
+            },
+            "description": "The messages left when `voicemail` is `leave_message`, one per language, keyed by language code (`{\"en\": \"...\", \"et\": \"...\"}`); a locale such as `de-DE` is stored as `de`. `leave_message` requires at least one. The message played is the one for the language the call is actually in; a call in a language with no message is ended without one, never given a message in another language. Plain text; runs of whitespace are collapsed, a blank text removes that language's message, and control characters are refused. Each message is played exactly as approved, never improvised by the AI agent, so keep it neutral: who is calling and how to call back, with no account, amount or other personal details, because a voicemail box can be heard by someone other than the person you meant to reach. Messages are kept when `voicemail` changes to another mode and for languages the agent no longer offers.",
+            "maxProperties": 32,
+            "propertyNames": {
+              "pattern": "^[A-Za-z]{2,3}([-_][A-Za-z0-9]+)*$"
+            },
+            "type": "object"
           }
         },
         "type": "object"
@@ -1162,7 +1184,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Four are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, and `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `model_session_lost` is reached two ways and `reason_detail` says which: either the engine reported its own failure, or it simply stopped answering -- the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound -- which counts only the time the caller was NOT speaking -- and that reports `reason_detail` `model_unresponsive`. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Five are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `model_session_lost` is reached two ways and `reason_detail` says which: either the engine reported its own failure, or it simply stopped answering -- the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound -- which counts only the time the caller was NOT speaking -- and that reports `reason_detail` `model_unresponsive`. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1172,7 +1194,8 @@
               "no_caller_speech_after_answer",
               "media_session_lost",
               "no_human_after_answer",
-              "model_session_lost"
+              "model_session_lost",
+              "caller_unresponsive"
             ],
             "type": "string"
           },
