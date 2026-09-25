@@ -164,6 +164,26 @@ guarantee it, and the measured Sinhala limit in
 [Which languages the voice agent follows](/docs/language-following) still
 applies.
 
+While the opening plays, the engine does not hear the line. A voice-to-voice
+engine answers whatever it hears, so hold music, an automated announcement or
+someone saying "hello?" at the moment the call connects could otherwise get a
+reply before the greeting was ever said. Skysay keeps that audio from the
+engine until the opening has been spoken: until the engine's own transcript of
+what it said covers the opening, and the line has then been quiet for about a
+second. Skysay itself keeps listening the whole time, so answer detection and
+the call recording are not affected.
+
+Two consequences to plan for:
+
+- Anything the person on the line says during the opening is not passed to
+  the engine afterwards. If they speak over the greeting, the engine answers
+  what they say next.
+- If the engine does not finish the opening, it starts listening anyway: 12
+  seconds after the call is answered if it has said nothing, or at most 6 seconds
+  plus a tenth of a second per character of the opening (never more than 30
+  seconds) after it started speaking. A call whose engine said something
+  other than the configured opening is not counted as having delivered it.
+
 Phone and browser Talk workflow runs cannot use GPT-Live. Skysay rejects
 that combination before reserving call funds or dispatching media. Ordinary
 GPT-Live calls and text workflow simulations remain available.
