@@ -12,6 +12,74 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 25 September 2026
+
+### Gemini 3.8 Flash-Lite TTS and 55 more call languages
+
+- Gemini 3.8 Flash-Lite TTS (`gemini-3.8-flash-lite-tts`) is a new streaming voice option with the same 30 Gemini prebuilt voices, in every call language Skysay runs.
+- Agents can now take calls in 69 languages; for the 55 added languages, Gemini 3.8 Flash-Lite TTS is the voice.
+- It is priced from the full Google price from the start, about $0.051 a minute at the reserve estimate, so the price does not change in January.
+- Existing agents keep their saved model and default voices; nothing moves an agent onto Flash-Lite.
+- [Gemini 3.8 Flash-Lite TTS](/docs/language-qualification#gemini-38-flash-lite-tts) · [Call languages](/docs/language-qualification#call-languages)
+
+### An agent that stops answering ends as `agent_unresponsive`
+
+- A call whose agent went quiet while its engine stayed connected now ends with `ended_reason` `agent_unresponsive` and `reason_detail` `model_unresponsive`.
+- `model_session_lost` now means only that the conversation engine reported a failure.
+- A reply the agent held back rather than talk over the caller counts as an answer, so a caller who talks in short bursts is never ended this way.
+- Earlier calls reported this ending as `model_session_lost` with the same `reason_detail`; count that pair as `agent_unresponsive`.
+- [When the agent stops answering](/docs/post-call-results#when-the-agent-stops-answering)
+
+### Incoming calls hear busy when every agent line is in a call
+
+- An incoming call that arrives while every agent line is already in a call now hears a busy signal straight away, instead of ringing with nobody to answer.
+- The call is recorded once as failed with `inbound_capacity_reached`, and nothing is charged.
+- A number's rule `fallback` does not apply to these calls yet, so they are not forwarded.
+- [Failure reasons](/docs/post-call-results#verify-every-delivery)
+
+### GPT-Live and Gemini Live openings are spoken before the engine listens
+
+- While the opening plays, the engine no longer hears the line, so hold music, an announcement or a quick "hello?" cannot draw a reply before the greeting is said.
+- Without an opening message, the engine's own greeting asks for the person by first name only and states no amount, reference or other account detail.
+- Skysay keeps listening throughout, so answer detection and the call recording are unaffected.
+- [Voices, language, and opening](/docs/conversation-engines#voices-language-and-opening)
+
+### Language following follows a person, not a recording
+
+- After the opening, the agent is told to switch language only when a person speaks to it in another language in a full sentence, or asks it to.
+- Music, recordings, announcements and background voices should not change its language; this is best effort, not a lock.
+- [How language following works](/docs/language-following#how-language-following-works)
+
+### GPT-Live transcripts record every line the agent spoke
+
+- Every line a GPT-Live agent spoke is now a transcript turn, including lines spoken while the caller was still talking, placed where its audio started.
+- If a call ends while the caller is speaking, their last words are kept with `metadata.text_status` `finalized_at_close`.
+- [Transcripts of GPT-Live calls](/docs/post-call-results#transcripts-of-gpt-live-calls)
+
+### Multilingual agents start from defaults that speak every language
+
+- An agent whose voice stack is not saved yet is shown defaults chosen for all of its languages, and the first publish stores the shown transcriber and model.
+- English plus Estonian keeps `eleven_flash_v2_5` for English and gets `eleven_v3` as Estonian's own voice; you can still choose `eleven_v3` for both.
+- [Shared settings and optional overrides](/docs/multilingual-outbound#shared-settings-and-optional-overrides)
+
+### A voice stack missing a voice names the language
+
+- Publishing a voice stack with a language that has no voice now answers `400` with a message such as "Choose a voice for German." plus `language`, `reason` and `blockers`.
+- Branch on `reason` or the `blockers` codes rather than the message, which can change between releases.
+- [A voice selection must name an exact voice](/docs/rest-endpoints#a-voice-selection-must-name-an-exact-voice) · [Errors](/docs/errors)
+
+### Clearer filters on the Voices page
+
+- The **Voices** page filters by voice age, uses, and sound and delivery, lists accents by language, and groups providers with their models.
+- Age, uses and sound come only from what each provider states; voices with no stated accent are shown only if you include them.
+- [Search the catalog](/docs/voice-library#search-the-catalog)
+
+### Simulations Lab reports an attempt with no real-time evidence as an error
+
+- A real-time attempt whose room produced no evidence is now an error, never a pass, even when its offline checks passed.
+- Its `error_code` is `caller_delivery_failed` when the synthetic caller joined but could not deliver its lines, and `realtime_evidence_missing` otherwise.
+- [Reading verdicts](/docs/simulations-lab#reading-verdicts)
+
 ## 24 September 2026
 
 ### Every Soniox and Fish Audio voice in the Voice Library can be published
