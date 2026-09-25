@@ -140,6 +140,16 @@ failed, once, with nothing charged. `sip_status_code` is null on this reason.
 A number's rule `fallback` is not applied to these calls yet, so the call is
 not forwarded anywhere.
 
+An outgoing call never gets a busy for this: when every agent line is in a call
+as an outgoing call is about to be dialled, Skysay does not dial it. The call
+goes back to its queue and waits for a free line, and waiting spends none of
+its attempts. It is dialled once a line frees, and every check that applies
+to a call is made again at that dial: your do-not-call register, the
+campaign's state and the contact's calling window. If no line frees for about
+ten minutes, the call ends `outbound_capacity_unavailable` (stage
+`outbound_worker`): it was never dialled, nothing is charged, and
+`sip_status_code` is null.
+
 ### When the configuration could not be run
 
 Five reasons share the stage `component_configuration`. They mean the call was
