@@ -15,7 +15,7 @@ Most errors use one shape: `error` names the kind of failure and `message`
 says what was wrong with this request.
 
 ```json
-{ "error": "BadRequestError", "message": "choose an exact provider voice for the selected TTS model" }
+{ "error": "BadRequestError", "message": "request body must be valid JSON" }
 ```
 
 A few errors carry a code of their own and extra fields you can act on:
@@ -24,6 +24,7 @@ A few errors carry a code of their own and extra fields you can act on:
 | --- | --- | --- |
 | `not_found` | `404` | `path`: the route does not exist. Check the method and path. |
 | `method_not_allowed` | `405` | `allow`, plus an `Allow` header listing the methods the path accepts. |
+| `BadRequestError` from `PATCH /v1/agents/{id}/voice-stack` | `400` | Sometimes `language`, `reason` and `blockers` (`[{code, scope, detail}]`): a language of the voice stack cannot be published. `reason` is the first blocker's code, for example `voice_id_missing` when no voice is chosen for that language; see [A voice selection must name an exact voice](/docs/rest-endpoints#a-voice-selection-must-name-an-exact-voice). |
 | `realtime_config_not_runnable` | `400` | `reason` and `blockers` (`[{code, scope, detail}]`): the agent could not run a call; see [Customer applications](/docs/customer-applications#an-agent-that-could-not-take-the-call-is-refused-before-anything-is-spent). |
 | `outbound_call_queue_full` | `429` | `retry_after_seconds`, plus a `Retry-After` header. |
 | `WorkflowRevisionConflictError` | `409` | `current`: the workflow draft that won; reload it before retrying. |
