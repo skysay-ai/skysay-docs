@@ -409,7 +409,7 @@
       },
       "AgentModelUnresponsive": {
         "additionalProperties": false,
-        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-24 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
+        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
         "properties": {
           "seconds": {
             "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
@@ -1184,7 +1184,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. Calls completed before 2026-09-24 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1248,7 +1248,7 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-24, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
@@ -2707,6 +2707,41 @@
         ],
         "type": "object"
       },
+      "ContactUpdate": {
+        "properties": {
+          "consent_basis": {
+            "enum": [
+              "existing_customer",
+              "explicit_consent"
+            ],
+            "type": "string"
+          },
+          "external_reference": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "language": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "type": "string"
+          },
+          "phone_e164": {
+            "type": "string"
+          },
+          "time_zone": {
+            "description": "IANA zone; an empty value takes the default for the number's country",
+            "type": "string"
+          },
+          "variables": {
+            "description": "Replaces the contact's custom values; the same limits as an import",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "CreateOrganization": {
         "properties": {
           "name": {
@@ -2806,6 +2841,10 @@
           },
           "reason": {
             "maxLength": 160,
+            "type": "string"
+          },
+          "source": {
+            "description": "How the numbers were added, shown on the register: api (the default), csv, mcp, or dashboard for the Contacts page.",
             "type": "string"
           }
         },
@@ -3881,6 +3920,7 @@
               "outbound_sip_participant_rejected",
               "outbound_pre_media_rejected",
               "originate_worker_job_failed",
+              "outbound_capacity_unavailable",
               "local_origination_not_started",
               "policy_blocked",
               "canceled_before_origination",
@@ -8009,6 +8049,169 @@
         ]
       }
     },
+    "/v1/contact-lists/{contact_list_id}/contacts/{contact_id}": {
+      "delete": {
+        "description": "Removes the contact and lowers the list's contact count; other contacts keep their import order. A contact a campaign run has already taken cannot be deleted (409).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{deleted, id}"
+          },
+          "404": {
+            "description": "No such contact in this workspace"
+          },
+          "409": {
+            "description": "A campaign run holds this contact"
+          }
+        },
+        "summary": "Delete one contact",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      },
+      "patch": {
+        "description": "Send any of phone_e164, name, language, time_zone, variables, external_reference and consent_basis; the rest keep their values. The edited contact is validated exactly like an imported row. A contact keeps its place in the list's import order. A contact a campaign run has already taken can still be edited, but its number cannot change (409), and a number another contact in the list already has is refused (409).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The contact as stored"
+          },
+          "404": {
+            "description": "No such contact in this workspace"
+          },
+          "409": {
+            "description": "The number cannot change or is already in the list"
+          }
+        },
+        "summary": "Edit one contact",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/contact-lists/{contact_list_id}/export": {
+      "get": {
+        "description": "Every contact in import order: phone_e164, name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value. A list value is written as JSON. Text a spreadsheet could read as a formula is prefixed with an apostrophe. X-Skysay-Row-Count and X-Skysay-Truncated describe the file. Bound to the credential's own workspace.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/csv"
+          },
+          "404": {
+            "description": "No such list in this workspace"
+          }
+        },
+        "summary": "Download a contact list as CSV",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/contacts": {
+      "get": {
+        "description": "A search that starts with + matches the start of the number; other digits match anywhere in the number; text matches anywhere in the name or external reference, ignoring case. Results come in a stable order (number, list, contact) with has_more. An empty search returns no results.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching contacts, each with its list, and pagination"
+          }
+        },
+        "summary": "Find contacts by number or name across every list (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
     "/v1/conversations": {
       "get": {
         "responses": {
@@ -8741,6 +8944,244 @@
           }
         },
         "summary": "Read the bounded, customer-scoped Capabilities aggregate"
+      }
+    },
+    "/v1/dashboard/contacts": {
+      "get": {
+        "description": "Pure read: a page of contact lists (newest change first), each with its contact count, the custom value names seen in its first rows, the campaigns that use it (at most five, with a total) and when it changed; plus the wallet header. Fixed query budget; never a caller-selected tenant.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact lists page projection"
+          }
+        },
+        "summary": "Bounded Contacts page (Lists tab) aggregate for the signed-in workspace"
+      }
+    },
+    "/v1/dashboard/contacts/lists/{contact_list_id}": {
+      "get": {
+        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its latest campaign outcome and do-not-call state. When a campaign uses the list, a preview of what that campaign's AI agent says to the selected contact, built by the same functions the call runs: the greeting as it is spoken, or a published script's opening and disclosing steps rendered from the contact's values, or the case-unavailable route when a value is missing. Fixed query budget; no provider or model call.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "not_called",
+                "reached",
+                "do_not_call"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contact_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List detail projection"
+          }
+        },
+        "summary": "Bounded Contacts page (list detail) aggregate"
+      }
+    },
+    "/v1/dashboard/contacts/people": {
+      "get": {
+        "description": "Pure read: contacts matching a number or name across every list and, for the chosen phone, that person's lists, do-not-call entry, most recent calls and SMS threads, each bounded with a has_more flag. Fixed query budget.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "phone",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "People search and person projection"
+          }
+        },
+        "summary": "Bounded Contacts page (All contacts tab) aggregate"
+      }
+    },
+    "/v1/dashboard/do-not-call": {
+      "get": {
+        "description": "Pure read: the workspace's do-not-call register, newest first, searched by number, with each entry's source and reason. Fixed query budget.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Do-not-call register projection"
+          }
+        },
+        "summary": "Bounded Contacts page (Do-not-call tab) aggregate"
       }
     },
     "/v1/dashboard/integrations": {

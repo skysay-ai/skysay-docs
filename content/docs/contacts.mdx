@@ -1,0 +1,142 @@
+---
+title: Contacts
+description: The workspace Contacts page — your contact lists, a search for one person across every list, and the do-not-call register — and the API behind it.
+icon: Group
+---
+
+The **Contacts** page holds the people your campaigns call. It sits under
+**Tools & Operations**, next to **Campaigns**, and has three tabs:
+
+- **Lists** — every contact list, and each list's contacts.
+- **All contacts** — find one person by number or name across every list.
+- **Do-not-call** — the workspace's [do-not-call register](#do-not-call).
+
+The routes for editing, exporting and searching contacts are listed under
+[The API](#the-api) below.
+
+## Lists
+
+The **Lists** tab shows every contact list with:
+
+- its number of contacts;
+- the custom value names its contacts carry, read from the list's first rows;
+- which campaigns use it;
+- when it last changed.
+
+**New list** creates an empty list you can add contacts to one at a time or
+by CSV.
+
+**Import CSV** is the same import as the
+[campaign wizard](/docs/launch-a-campaign#build-the-list): a CSV or an Excel
+workbook is read in your browser, you map the columns, and every row is checked
+before the list is created. Every column you do not map becomes a custom
+value.
+
+## A list's contacts
+
+Open a list to see its contacts in import order, 50 per page. Search by name,
+number or reference, and filter with **Show**: **All contacts**, **Not called
+yet**, **Reached** or **On do-not-call**. **Reached** means a campaign call
+reached a person, with a `connected_*`
+[disposition](/docs/campaigns#dispositions).
+
+Each row shows the phone number, name, language, time zone, custom values and
+**Last call**, the latest campaign outcome for that contact.
+
+From the list you can:
+
+- **Append rows** from a CSV. Rows go to the end of the list; numbers already
+  in the list are skipped.
+- **Export** the list as a CSV download.
+- **Add contact** one at a time.
+- **Edit** or **Delete** the selected contact.
+
+A contact that a campaign run has already taken can still be edited, but its
+number cannot change and it cannot be deleted. Deleting a contact keeps the
+other contacts' import order.
+
+### Preview
+
+When a campaign uses the list, the page previews what that campaign's AI agent
+says to the selected contact. The preview is built from the same logic the call
+runs, so what it shows depends on the AI agent:
+
+- **A plain AI agent** speaks its greeting exactly as written. The contact's
+  values reach the call as call variables, but the greeting is not
+  personalised.
+- **An AI agent whose greeting is generated when the call starts** has nothing
+  to preview.
+- **An AI agent with a published script** (a
+  [conversation workflow](/docs/agent-workflows)) shows the script's first line,
+  plus its disclosing steps rendered with the contact's values. If a value the
+  script needs is missing or unusable for that contact, the call takes the
+  script's "case unavailable" route instead of stating it, and the preview says
+  so.
+
+If no campaign uses the list, there is no preview.
+
+## All contacts
+
+**All contacts** finds a person by number or name across every list in the
+workspace:
+
+- a search that starts with `+` matches the start of the number;
+- other digits match anywhere in the number;
+- text matches the name or your reference.
+
+Choose a result to see which lists that number is in, whether it is on the
+do-not-call register, and its most recent calls and SMS conversations, with
+links to **Calls** and **SMS**.
+
+## Do-not-call
+
+The **Do-not-call** tab is the workspace's
+[do-not-call register](/docs/campaigns#do-not-call-register). Numbers on it are
+never called from the workspace: outbound admission refuses them, and queued
+calls to a number are cancelled when it is added. The register applies to
+calls only.
+
+- **Add number** by typing numbers, or import them from a CSV (the first column
+  is read), with an optional reason.
+- **Remove** takes a number off the register, after a confirmation.
+- Search the register by number.
+
+Each entry shows when it was added, its reason, and its source:
+
+| Source | Added by |
+| --- | --- |
+| **API** | `POST /v1/do-not-call` |
+| **CSV import** | A CSV import |
+| **MCP** | An MCP client |
+| **AI agent's call outcome** | An AI agent's **Record the call outcome** tool |
+| **Script's cease contact step** | A script's **Cease contact** step |
+| **Skysay support** | Skysay support |
+| **Contacts page** | You, on this page |
+
+Numbers are added only by you, through the API or a CSV, by an AI agent's
+**Record the call outcome** tool if you gave the AI agent that tool, or by a
+script's **Cease contact** step. Nothing is added automatically from what a
+caller says.
+
+## The API
+
+The [generated API reference](/docs/api-reference) lists each route's request
+and response shape. All of them need the `calls:read` or `calls:write` scope.
+
+- `PATCH /v1/contact-lists/{contact_list_id}/contacts/{contact_id}` edits one
+  contact. It is validated like an import row. It returns `409` if the number
+  would duplicate another contact, or if a campaign run
+  holds the contact and the number would change.
+- `DELETE /v1/contact-lists/{contact_list_id}/contacts/{contact_id}` deletes
+  one contact. It returns `409` if a campaign run holds the contact.
+- `GET /v1/contact-lists/{contact_list_id}/export` returns the list as CSV
+  with the columns `phone_e164`, `name`, `language`, `time_zone`, `country`,
+  `external_reference`, `consent_basis`, then one `variables.<name>` column
+  per custom value. Text that looks like a spreadsheet formula is prefixed
+  with an apostrophe. The row count and whether the export was truncated are
+  in the `X-Skysay-Row-Count` and `X-Skysay-Truncated` headers.
+- `GET /v1/contacts?search=` finds contacts across every list, with the same
+  matching as **All contacts**. It returns a bounded page (`limit` up to 100)
+  in a stable order, with `has_more`. An empty search returns nothing.
+- `POST /v1/do-not-call` accepts an optional `source`: `api` (the default),
+  `csv`, `mcp` or `dashboard`.
