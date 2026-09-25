@@ -176,9 +176,12 @@ used to stay up with the caller talking to nobody, and it was billed for all
 of it.
 
 Skysay bounds that. After the caller finishes speaking, the agent has a fixed
-amount of time to produce something — a spoken reply, a tool call, or the end
-of the call. If the whole bound passes with nothing, Skysay ends the call and
-reports `ended_reason` `model_session_lost` with `reason_detail`
+amount of time to produce something — a reply, a tool call, or the end of the
+call. A reply counts even if the agent held it back rather than talk over the
+caller and it was never played because they kept talking, so a caller who
+talks in short bursts is never ended this way. If the whole bound
+passes with nothing, Skysay ends the call and
+reports `ended_reason` `agent_unresponsive` with `reason_detail`
 `model_unresponsive` on the [call result](/docs/post-call-results).
 
 The bound is **20 seconds** by default and counts only time the line was free:
@@ -218,5 +221,6 @@ and [audio environments](/docs/audio-environments) for ambience.
 - [Delivery profiles](/docs/delivery-profiles) choose how the voice performs
   every reply; acknowledgements only fill the wait before one starts. Both live
   in the same `voice_polish` object on the voice stack.
-- [Post-call results](/docs/post-call-results) explains `model_session_lost`
-  and its `reason_detail`, including the silent-agent bound above.
+- [Post-call results](/docs/post-call-results) explains `agent_unresponsive`,
+  `model_session_lost` and `reason_detail`, including the silent-agent bound
+  above.
