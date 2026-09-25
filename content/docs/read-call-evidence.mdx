@@ -108,6 +108,38 @@ after applying the same recording-consent, retention, and deletion checks as
 the mixed recording. Deleting a recording removes turn playback as well; it
 does not cause historical audio to be regenerated or retranscribed.
 
+## End a live call from Calls
+
+A call that is still live (dialing, ringing, or connected) shows a
+**Hang up** button in its detail on the **Calls** page. Any member of the
+workspace can use it on the workspace's own calls; it is not offered on a
+call that is still queued (cancel that one instead), on a finished call, or on
+a Simulations Lab run.
+
+**Hang up** asks you to confirm first, because the call ends for everyone on
+the line, including the caller. After you confirm:
+
+- The button reads **Ending call…** and the call keeps showing as live. The
+  request has been accepted, but the media session is ended by the worker
+  holding the call, so nothing is reported as ended until it actually is.
+- When the call ends, usually within a few seconds, it shows its final
+  state. Its ended reason, which you read from the call resource or the
+  `call.completed` webhook (the Calls page does not display it yet), is
+  `hangup_requested`, unless the call had already started ending another way
+  (the caller hung up, or the media session was lost), in which case that
+  ending's reason is reported instead.
+- While the button reads **Ending call…** it cannot be pressed, and a repeat
+  request returns the same request rather than a second one. If the call is
+  still live after about a minute and a half, the button is offered again so
+  you can retry: a teardown that failed is attempted afresh, and after three
+  failed attempts the request is refused and the call needs support.
+
+The request is recorded in the workspace audit log with the session that made
+it. The button sends the same request as
+[`POST /v1/calls/{call_id}/hangup`](/docs/rest-endpoints#end-a-live-call), and
+[Post-call results](/docs/post-call-results#why-a-call-ended) lists every
+ended reason.
+
 ## Tool calls and language switches in the transcript
 
 Between the transcript turns, the Calls workspace shows each tool the agent
@@ -271,6 +303,16 @@ not evidence that the caller hung up or that the destination was busy. Follow
 the explanation on the call or the number's **Activation checks**. An attempt
 rejected before billable media starts has no conversation recording or
 transcript to play; do not interpret missing audio as a recording failure.
+
+The same applies when the number's AI agent has a published voice setup the
+voice agent could not run: no instructions, no exact voice, a component that
+cannot run the call's language, or a voice setup saved before a platform update
+that it no longer accepts. The call is rejected before the caller is connected
+and nothing is reserved, instead of being answered by a line with no agent on
+it. The agent shows the same reason in the workspace, with the fix; for an
+out-of-date setup that is saving the agent's voice setup again. Outbound calls
+to such an agent are refused the same way; see [Customer
+applications](/docs/customer-applications).
 
 Only attempts attributable to your workspace appear in its history. Calls to
 unknown numbers are not assigned to a customer workspace.

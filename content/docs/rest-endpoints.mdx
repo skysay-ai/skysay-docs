@@ -7,7 +7,13 @@ icon: Network
 No MCP client? Every capability is also a plain JSON REST endpoint under `/v1`.
 Authenticate with the same scoped `sky_` key as a Bearer token. The
 [OpenAPI spec](/docs/openapi) is the machine-readable source of truth; this is
-the human map.
+the human map. For copy-pasteable requests and responses from a new key to a
+placed call, follow the [Quickstart with curl](/docs/quickstart-curl). Failed
+requests are described in [Errors](/docs/errors).
+
+A workspace key never needs `organization_id`: leave it out of query strings
+and request bodies and the key's own workspace is used. See
+[Authentication & keys](/docs/authentication#organization_id-is-optional-with-a-workspace-key).
 
 <Callout title="Building a customer application?">
   Start with [Customer applications](/docs/customer-applications), then connect
@@ -83,8 +89,21 @@ not cover them.
 
 `PATCH /v1/agents/{id}/voice-stack` returns **400** if you send a TTS provider
 and model without a `voice_id`, whenever that provider has voices to choose
-from. The message asks you to choose an exact provider voice for the selected
-TTS model.
+from. The body names the language and says why:
+
+```json
+{
+  "error": "BadRequestError",
+  "message": "Choose a voice for German.",
+  "language": "de",
+  "reason": "voice_id_missing",
+  "blockers": [{ "code": "voice_id_missing", "scope": "agent", "detail": "" }]
+}
+```
+
+Branch on `reason` or the `blockers` codes, not on the message: the codes are
+the same ones call admission and readiness report, and the message can change
+between releases.
 
 Until this release such a save could return `200` while storing a stack with no
 voice. Nothing reported a problem until the agent was called, and the call then
@@ -126,10 +145,12 @@ preset or substituting another version.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/v1/trial-calls` | Create an offline fixture with `synthetic_only: true`; not a live phone trial. |
-| `POST` | `/v1/calls/outbound` | Place a policy-gated outbound call. |
+| `POST` | `/v1/calls` | Place a policy-gated outbound call. |
 | `GET` | `/v1/calls` | List calls. |
 | `GET` | `/v1/calls/{id}` | Call status + recording state. |
 | `GET` | `/v1/calls/stats` | Call volume, outcome, talk time and spend over one or more date windows. |
+| `POST` | `/v1/calls/{id}/cancel` | Withdraw a call that is still queued, before anything dials. |
+| `POST` | `/v1/calls/{id}/hangup` | Ask a live call to hang up. |
 
 ### What a call-stats window counts
 
@@ -148,6 +169,32 @@ with `since` and `until` plus five integers:
 dialing or still queued is in neither, and a call waiting on operator review is
 in neither. Read the two figures the endpoint gives you; do not derive one from
 `calls` minus the other.
+
+### End a live call
+
+`POST /v1/calls/{call_id}/hangup` needs `calls:write` and takes an empty body.
+It is the request the **Hang up** button on the Calls page sends.
+
+- `202` means the request was **recorded**, not that the call is over. The
+  worker holding the media session tears the call down, and the call then
+  completes through its ordinary path with `ended_reason` `hangup_requested`,
+  unless it had already started ending another way, in which case that reason
+  is reported. Watch the call (or `call.ended`) for the ending; do not treat
+  the `202` as one.
+- Asking again returns the original request (`already_requested: true`, the
+  same `hangup_requested_at`). Until a worker acknowledges, the request reads
+  `status` `pending`. If the worker reports that the teardown failed, the call
+  is still up and a further request starts a fresh attempt; after three failed
+  attempts the endpoint refuses, so the call is escalated rather than retried.
+- `409` when the call is not live: it has already finished, it is still queued
+  for origination (use `POST /v1/calls/{call_id}/cancel`), or its teardown has
+  already failed three times.
+- `404` for a call id that does not exist, belongs to another workspace, or is
+  a Simulations Lab run. The three answer identically, so the endpoint cannot
+  be used to find out whether someone else's call exists.
+
+[Post-call results](/docs/post-call-results#end-a-call-that-is-still-running)
+describes the response fields.
 
 ## Numbers
 

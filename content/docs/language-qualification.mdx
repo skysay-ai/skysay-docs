@@ -64,7 +64,8 @@ Azure AI Speech contributes two catalog options, and they are independent of
 each other:
 
 - **Transcription** — an Azure real-time speech-to-text option, offered for
-  every language Skysay runs, Sinhala and Tamil included. It is offered
+  every language Skysay runs except Belarusian and Dari, Sinhala and Tamil
+  included. It is offered
   alongside the existing options rather than replacing any of them, and it is
   not the default for any language: an agent uses Azure transcription only if
   you select it. What it listens for follows the agent's selected languages;
@@ -137,6 +138,28 @@ Recognition speed with several candidates has not been measured separately
 from single-language recognition. Test your own conversation before relying on
 a response time.
 
+### Gemini 3.8 Flash-Lite TTS
+
+Gemini 3.8 Flash-Lite TTS (`gemini-3.8-flash-lite-tts`) is a streaming voice
+option next to Gemini 2.5 Flash TTS and Gemini 3.1 Flash TTS. It uses the same
+30 Gemini prebuilt voices; each voice carries the gender Google publishes for
+it, and speaks every language with that language's own accent.
+
+- **Languages.** Every call language Skysay runs, Estonian included.
+- **What it is sent.** The sentence alone. Delivery profiles do not apply to
+  this model: it reads everything it receives aloud, so Skysay sends it no
+  style instruction.
+- **Price.** $2 per million text tokens sent and $24 per million audio tokens
+  returned, billed on the token counts Google reports for each reply (about
+  $0.051 a minute at the reserve estimate, 1,500 text and 2,000 audio tokens a
+  minute). Google discounts this model to $0.50 and $6 until 31 December 2026
+  and charges $1 and $12 from 1 January 2027; the Skysay price is based on the
+  full price from the start, so it does not change in January.
+- **Existing AI agents keep their saved model.** Nothing moves an agent onto
+  Flash-Lite, and the Gemini 2.5 and 3.1 options, their languages and their
+  prices are unchanged. The default voice of an existing language does not
+  change.
+
 ### OpenAI GPT-Live 1
 
 GPT-Live 1's fourteen voices come from OpenAI's documented voice table rather
@@ -153,6 +176,82 @@ publish either. An outbound call names its language in
 language Skysay supports — no publishing step comes first. A language Skysay
 does not support is refused before the call is placed. The same applies to
 Gemini Live.
+
+## Call languages
+
+An AI agent can take calls in a language only when Skysay has both a voice
+that speaks it and a transcriber that hears callers in it, and the catalog
+offers only those voices and transcribers for that language. There are 69:
+English, Estonian, Sinhala, Tamil, German, Spanish, Finnish, French, Italian,
+Dutch, Portuguese, Russian, Swedish and Ukrainian, plus the languages below,
+added with Gemini 3.8 Flash-Lite TTS. For each of these, Gemini 3.8 Flash-Lite
+TTS is the voice.
+
+| Language | Code | Transcribers that hear callers |
+| --- | --- | --- |
+| Afrikaans | `af` | Azure AI Speech, Deepgram Nova-3 |
+| Amharic | `am` | Azure AI Speech |
+| Arabic | `ar` | Azure AI Speech, Deepgram Nova-3 |
+| Armenian | `hy` | Azure AI Speech, Deepgram Nova-3 |
+| Assamese | `as` | Azure AI Speech, Deepgram Nova-3 |
+| Azerbaijani | `az` | Azure AI Speech |
+| Bangla | `bn` | Azure AI Speech, Deepgram Nova-3 |
+| Basque | `eu` | Azure AI Speech |
+| Belarusian | `be` | Deepgram Nova-3 |
+| Bhojpuri | `bho` | Azure AI Speech |
+| Bosnian | `bs` | Azure AI Speech, Deepgram Nova-3 |
+| Bulgarian | `bg` | Azure AI Speech, Deepgram Nova-3 |
+| Cantonese Chinese | `yue` | Azure AI Speech, Deepgram Nova-3 |
+| Catalan | `ca` | Azure AI Speech, Deepgram Nova-3 |
+| Chinese | `zh` | Azure AI Speech, Deepgram Nova-3 |
+| Croatian | `hr` | Azure AI Speech, Deepgram Nova-3 |
+| Czech | `cs` | Azure AI Speech, Deepgram Nova-3 |
+| Danish | `da` | Azure AI Speech, Deepgram Nova-3 |
+| Dari | `prs` | Deepgram Nova-3 |
+| Egyptian Arabic | `arz` | Azure AI Speech, Deepgram Nova-3 |
+| Filipino | `fil` | Azure AI Speech, Deepgram Nova-3 |
+| Galician | `gl` | Azure AI Speech |
+| Georgian | `ka` | Azure AI Speech, Deepgram Nova-3 |
+| Greek | `el` | Azure AI Speech, Deepgram Nova-3 |
+| Gujarati | `gu` | Azure AI Speech, Deepgram Nova-3 |
+| Hebrew | `he` | Azure AI Speech, Deepgram Nova-3 |
+| Hindi | `hi` | Azure AI Speech, Deepgram Nova-3 |
+| Hungarian | `hu` | Azure AI Speech, Deepgram Nova-3 |
+| Indonesian | `id` | Azure AI Speech, Deepgram Nova-3 |
+| Japanese | `ja` | Azure AI Speech, Deepgram Nova-3 |
+| Javanese | `jv` | Azure AI Speech |
+| Kannada | `kn` | Azure AI Speech, Deepgram Nova-3 |
+| Kazakh | `kk` | Azure AI Speech, Deepgram Nova-3 |
+| Khmer | `km` | Azure AI Speech |
+| Korean | `ko` | Azure AI Speech, Deepgram Nova-3 |
+| Lao | `lo` | Azure AI Speech |
+| Latvian | `lv` | Azure AI Speech, Deepgram Nova-3 |
+| Macedonian | `mk` | Azure AI Speech, Deepgram Nova-3 |
+| Malay | `ms` | Azure AI Speech, Deepgram Nova-3 |
+| Malayalam | `ml` | Azure AI Speech |
+| Maltese | `mt` | Azure AI Speech |
+| Marathi | `mr` | Azure AI Speech, Deepgram Nova-3 |
+| Mongolian | `mn` | Azure AI Speech, Deepgram Nova-3 |
+| Nepali | `ne` | Azure AI Speech, Deepgram Nova-3 |
+| Norwegian Bokmål | `nb` | Azure AI Speech, Deepgram Nova-3 |
+| Odia | `or` | Azure AI Speech |
+| Pashto | `ps` | Azure AI Speech, Deepgram Nova-3 |
+| Persian | `fa` | Azure AI Speech, Deepgram Nova-3 |
+| Polish | `pl` | Azure AI Speech, Deepgram Nova-3 |
+| Punjabi | `pa` | Azure AI Speech, Deepgram Nova-3 |
+| Romanian | `ro` | Azure AI Speech, Deepgram Nova-3 |
+| Serbian | `sr` | Azure AI Speech, Deepgram Nova-3 |
+| Slovak | `sk` | Azure AI Speech, Deepgram Nova-3 |
+| Telugu | `te` | Azure AI Speech, Deepgram Nova-3 |
+| Uzbek | `uz` | Azure AI Speech |
+
+Chinese is Mandarin, whether written in simplified or traditional characters.
+Arabic is Modern Standard Arabic; Egyptian Arabic is a separate language. The
+Dari transcriber is a Persian (Iran) model. Every language above was measured
+before it was added: Flash-Lite spoke a greeting and a short line 15 times
+each, and a transcriber read every clip back at telephone quality. That is a
+qualification check, not an accuracy guarantee: test your own conversation
+before going live.
 
 ## Choosing a language and voice
 
@@ -250,6 +349,45 @@ continues in the current one. Publishing a narrower language set than an
 agent's instructions promise is the usual way to reach this: update the
 system prompt and the opening message together with the language set, or
 callers will keep being offered a language the call cannot deliver.
+
+### Follow mode on an agent that runs a workflow
+
+Follow the caller can be published on an agent whose calls run an
+[agent workflow](/docs/agent-workflows). The workflow is a set of rules that
+does not depend on language: when the transcriber reports stable evidence that
+the caller is speaking another published language, or, when the workflow
+declares a `language_change` interrupt, the caller asks for one, the voice and
+reply language switch and the workflow run continues from the step it is on,
+with nothing skipped. A language request is itself a turn: the current step is
+entered again, which counts toward its visit limit and the workflow's turn
+limit.
+
+- **Every published language has its own wording.** When you publish a
+  workflow, each spoken line (every question, statement and farewell) is
+  rendered once into each of the agent's other selected languages by the
+  workflow-authoring model and stored with the published version; the language
+  you wrote the workflow in is kept exactly as written. Placeholders such as
+  `{{balance_amount}}` are carried through unchanged and filled with the same
+  approved figures in every language. Nothing is rephrased during a call: a
+  switched caller hears the rendered line, word for word. The rendered
+  languages are listed on the workflow's publish panel.
+- **Adding a language to the agent generates that language's wording
+  automatically.** Publishing a language set that the workflow's current
+  version cannot speak renders the missing lines then and there and creates a
+  new workflow version; if the model cannot render them, that language
+  publish is refused with the reason rather than published silently.
+- If the switch lands while the agent is speaking a step, that step is spoken
+  again in the new language; if it lands while the caller is speaking, the
+  next step is simply spoken in the new language.
+- A caller's spoken request for another published language is handled by the
+  workflow's `language_change` interrupt: when it fires and names one of the
+  published languages, the agent switches, speaks the current step again in
+  that language and continues from there, without taking the interrupt's
+  authored route. The authored route runs only for a request the call cannot
+  serve, such as an unpublished language, and does not switch. A workflow
+  without a `language_change` interrupt switches only on transcriber evidence;
+  agents that run a workflow have no separate switch-language tool.
+- Usage is billed per language segment exactly as on a free-form call.
 
 ### Browse and test the cached catalog
 

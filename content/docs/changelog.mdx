@@ -12,7 +12,89 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 24 September 2026
+
+### Every Soniox and Fish Audio voice in the Voice Library can be published
+
+- Soniox `tts-rt-v2` and Fish Audio `s2-pro` voices listed in the **Voice library** now publish on an agent; before, only a few built-in voices of each could, and any other was refused at publish as not runnable.
+- Agents that already use a Soniox or Fish Audio voice keep working and need no change.
+- [Choose a voice for an agent](/docs/voice-library#choose-a-voice-for-an-agent)
+
+### Recordings show the real length of calls longer than 15 minutes
+
+- A call recording's duration now reports its real length; before, every recording longer than 15 minutes showed 900 seconds.
+- Call results and the talk time on the **Calls** page read the same corrected value.
+- [What a recording contains](/docs/read-call-evidence#what-a-recording-contains)
+
+### A short "no" in a workflow call is understood as an answer
+
+- A caller who answered a workflow's balance line with a plain "no" could have the call end on the fallback farewell ("Sorry, I'm having trouble continuing this call"), and a short Sinhala "no" (නෑ.) could be taken as a wrong-party denial, which stops the call.
+- A reply to a **Tell / Say** line is now judged together with that line as the caller heard it, including the approved figures it stated, so a "no" to "Have you already paid it?" takes the workflow's own route for an unpaid balance.
+- Only that one line is added: the workflow's other steps, the caller's earlier replies and case fields the line does not state never reach the decision model, and the figures are included only when that model runs on the same provider as the agent's own model. An explicit denial — "this isn't him", a different name — still ends the call as a wrong party.
+- Published workflows need no change and no republish.
+- [Agent workflows](/docs/agent-workflows#payment-reminder-identity-clarification)
+
+### Recordings and transcripts are kept for long calls
+
+- Recordings, transcripts and call evidence are now stored for calls of any length up to the maximum call length; before, calls longer than about 8.7 minutes kept none.
+- A failed store is retried automatically for about five hours, so the ready events can arrive hours after `call.completed`, each still delivered once.
+- A final failure is recorded as `call.artifacts.failed` in the call's event log; no webhook is sent for it and billing is unaffected.
+- [When a recording arrives late, or not at all](/docs/post-call-results#when-a-recording-arrives-late-or-not-at-all)
+
+### Voicemail detection watches outbound calls
+
+- Each outbound call now records whether a voicemail box answered, and the evidence behind that verdict, alongside the call.
+- Detection only watches for now: the call, its `answer_classification`, `ended_reason`, webhooks and campaign results are unchanged.
+- The four per-agent settings under `answer_detection.voicemail`, including per-language messages for **Leave a message**, can be saved today and act once they are released.
+- [Voicemail detection](/docs/voicemail-detection) · [What happens on a call today](/docs/voicemail-detection#what-happens-on-a-call-today)
+
+### Inbound calls to an agent that could not run are rejected before connecting
+
+- An inbound call to a number whose agent has a published voice setup the voice agent could not run is now rejected before the caller is connected, with nothing reserved.
+- It appears in **Calls** as an inbound attempt rejected before connection; before, the call was answered and then ended before any audio.
+- [Inbound attempts rejected before connection](/docs/read-call-evidence#inbound-attempts-rejected-before-connection)
+
+### GPT-Live and Gemini Live agents on the homepage demo
+
+- The homepage demo now offers every active agent in the Skysay demo workspace whatever its conversation engine; GPT-Live and Gemini Live agents were left out before.
+- A voice-to-voice agent appears once, in its own language, and follows the visitor's language inside the session; the demo's session length and daily limits are unchanged.
+- [On the homepage demo](/docs/conversation-engines#on-the-homepage-demo)
+
+### POST /v1/calls no longer needs a country
+
+- `country` is optional on `POST /v1/calls`; Skysay derives the destination country from `to_phone_number`, and requests that still send it stay valid.
+- [Start one call](/docs/customer-applications#start-one-call)
+
+### Every agent with end_call now follows the same call-ending rules
+
+- Every agent with `end_call` enabled receives one standing instruction after your own prompt: once it has said goodbye, it answers at most once more and then ends the call.
+- When the agent is calling a specific person and whoever answers says they are not that person, it apologises once, shares nothing about the matter and ends the call.
+- Skysay lets the goodbye finish playing before hanging up, and waits at most about 15 seconds for it.
+- The instruction cannot be switched off for an agent with `end_call`; turning `end_call` off is how you opt out. The check-in when both sides go quiet is still in observation and does not yet change calls.
+- [How a call ends](/docs/how-calls-end) · [The standing call-ending instruction](/docs/how-calls-end#the-standing-call-ending-instruction)
+
 ## 23 September 2026
+
+### Replies held by background noise start within 1.5 seconds on English calls
+
+- On hosted English calls transcribed by Deepgram, a reply held because the caller seemed to start talking now starts after at most 1.5 seconds when no words are recognized, instead of eight.
+- A caller who says a word still gets the full wait, and the caller's words still interrupt the reply as usual; continued noise does not.
+- Other languages and transcribers keep the eight-second limit, and this is not a setting.
+- [When the caller seems to start talking before a reply](/docs/wire-an-agent#when-the-caller-seems-to-start-talking-before-a-reply)
+
+### Hang up a live call from Calls or the API
+
+- A call that is still dialing, ringing or connected shows a **Hang up** button in its detail on the **Calls** page; any workspace member can use it after confirming.
+- `POST /v1/calls/{call_id}/hangup` with the `calls:write` scope does the same: it answers `202`, the worker ends the media session, and the call ends with `hangup_requested`.
+- Repeating the request returns the original one; after three failed teardowns it is refused, and a call that is still queued is refused with `409`: cancel it instead.
+- [End a live call from Calls](/docs/read-call-evidence#end-a-live-call-from-calls) · [End a live call](/docs/rest-endpoints#end-a-live-call)
+
+### POST /v1/calls refuses an agent that could not take the call
+
+- `POST /v1/calls` now answers `400` with `realtime_config_not_runnable` when the agent's published voice setup could not run the call, naming each blocker's code.
+- No call is created, no wallet balance is reserved and no job is queued; before, such a request was accepted and the call ended before it had any audio.
+- A multilingual agent is checked in every published language, and a campaign finishes such a contact as `agent_not_runnable` instead of dialling it.
+- [An agent that could not take the call is refused](/docs/customer-applications#an-agent-that-could-not-take-the-call-is-refused-before-anything-is-spent)
 
 ### A call whose AI agent stops answering is ended instead of staying open
 
@@ -75,6 +157,14 @@ services were confirmed deployed.
 
 
 ## 17 September 2026
+
+### Follow the caller on workflow agents
+
+- An agent that runs a workflow can now publish **Follow the caller**: on stable transcriber evidence of another published language, or a caller's request through the workflow's `language_change` interrupt, the voice and reply language switch and the run continues from its current step, which is spoken again in the new language.
+- Publishing a workflow renders every spoken line into each of the agent's other selected languages, placeholders and approved figures intact, and stores them with the version; adding a language to the agent later generates that language's lines automatically as a new version.
+- A step the switch interrupted is spoken again in the new language, the run is never advanced by the switch, and usage is billed per language segment as on a free-form call.
+- Every workflow turn's call evidence now shows where the turn's time went: state load, the decision model call, reply composition and transport, as separate measured spans.
+- [Follow mode on an agent that runs a workflow](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow) · [Agent workflows](/docs/agent-workflows) · [Read call evidence](/docs/read-call-evidence)
 
 ### A call the media worker fails to start is ended by the platform, not left silent
 

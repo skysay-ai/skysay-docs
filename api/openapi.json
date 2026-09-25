@@ -199,7 +199,8 @@
                 "campaign.launched",
                 "campaign.contact.completed",
                 "campaign.completed",
-                "sms.delivery_updated"
+                "sms.delivery_updated",
+                "contact.do_not_call_added"
               ],
               "type": "string"
             },
@@ -250,7 +251,8 @@
                 "campaign.launched",
                 "campaign.contact.completed",
                 "campaign.completed",
-                "sms.delivery_updated"
+                "sms.delivery_updated",
+                "contact.do_not_call_added"
               ],
               "type": "string"
             },
@@ -409,7 +411,7 @@
       },
       "AgentModelUnresponsive": {
         "additionalProperties": false,
-        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `model_session_lost` with `reason_detail` `model_unresponsive`. On by default at the platform's own bound; an absent section is that default and is not stored.",
+        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-24 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
         "properties": {
           "seconds": {
             "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
@@ -1184,7 +1186,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Five are endings the platform initiates: `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `model_session_lost` is reached two ways and `reason_detail` says which: either the engine reported its own failure, or it simply stopped answering -- the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound -- which counts only the time the caller was NOT speaking -- and that reports `reason_detail` `model_unresponsive`. In both, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. Calls completed before 2026-09-24 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1195,6 +1197,7 @@
               "media_session_lost",
               "no_human_after_answer",
               "model_session_lost",
+              "agent_unresponsive",
               "caller_unresponsive"
             ],
             "type": "string"
@@ -1247,7 +1250,7 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears only with `ended_reason` `model_session_lost`, and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-24, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
@@ -2814,6 +2817,39 @@
         ],
         "type": "object"
       },
+      "DoNotCallSettings": {
+        "properties": {
+          "auto_do_not_call_on_stop_request": {
+            "default": true,
+            "type": "boolean"
+          },
+          "updated_at": {
+            "description": "null until the workspace first changes a setting",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "auto_do_not_call_on_stop_request"
+        ],
+        "type": "object"
+      },
+      "DoNotCallSettingsUpdate": {
+        "properties": {
+          "auto_do_not_call_on_stop_request": {
+            "type": "boolean"
+          },
+          "organization_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "auto_do_not_call_on_stop_request"
+        ],
+        "type": "object"
+      },
       "GatewayDeployment": {
         "properties": {
           "carrier_account_id": {
@@ -3160,6 +3196,7 @@
                 "type": "string"
               },
               "fallback": {
+                "description": "Stored with the rule but not yet applied to calls: a call the number cannot take is not forwarded to the fallback today.",
                 "type": "object"
               },
               "phone_number": {
@@ -3868,6 +3905,7 @@
             "enum": [
               "carrier_rate_missing",
               "inbound_admission_rejected",
+              "inbound_capacity_reached",
               "unknown",
               "outbound_ringing_timeout",
               "outbound_authorization_rejected",
@@ -5596,7 +5634,7 @@
             "description": "Updated safe voice-stack projection"
           },
           "400": {
-            "description": "Invalid component selection, credential reference, language, or tuning"
+            "description": "Invalid component selection, credential reference, language, or tuning: {error: 'BadRequestError', message}. When a language of the stack cannot be published, the body also carries language, reason (the first code) and blockers: [{code, scope, detail}] in the admission vocabulary, e.g. reason 'voice_id_missing' when no voice is chosen for that language."
           },
           "404": {
             "description": "Agent not found"
@@ -8370,7 +8408,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -8937,7 +8975,7 @@
         ]
       },
       "post": {
-        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool.",
+        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool, a workflow's cease_contact interrupt adds the caller, and so does the post-call stop-request check (source post_call_analysis; see /v1/do-not-call/settings). Numbers the platform adds are announced with the contact.do_not_call_added webhook; numbers you add here are not.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8954,6 +8992,56 @@
           }
         },
         "summary": "Add numbers to the do-not-call register",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/do-not-call/settings": {
+      "get": {
+        "description": "auto_do_not_call_on_stop_request (default true): after every answered call with caller speech and a phone number, the platform checks whether the person asked not to be called again, with no time, place, channel or person qualifier (\"call me later\" or \"don't call me at work\" do not count). A request it can tie to something the caller said adds the number to this register with source post_call_analysis and sends contact.do_not_call_added.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoNotCallSettings"
+                }
+              }
+            },
+            "description": "Do-not-call settings"
+          }
+        },
+        "summary": "Read the workspace do-not-call settings",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "patch": {
+        "description": "Turn off auto_do_not_call_on_stop_request when your own compliance flow decides opt-outs. Turning it off also stops checks already queued from registering anyone. Numbers already on the register stay there.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DoNotCallSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoNotCallSettings"
+                }
+              }
+            },
+            "description": "Do-not-call settings"
+          }
+        },
+        "summary": "Change the workspace do-not-call settings",
         "x-required-scopes": [
           "calls:write"
         ]

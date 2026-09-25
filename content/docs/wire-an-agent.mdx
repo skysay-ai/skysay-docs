@@ -433,14 +433,34 @@ phone call, in any language:
   preparing or delivering a reply, and delivers it once that reply ends.
   Background speech picked up by transcription therefore cannot cut the agent
   off mid-sentence.
-- The agent's opening line cannot be cancelled before its first audio frame
-  reaches the caller, so a "hello?" spoken over the greeting — or mis-transcribed
-  background noise — can no longer open a call in silence. Once the greeting is
-  audible the ordinary interruption rules apply to it. If the opening line cannot
-  be synthesised at all, a short line in the call's own language is played in its
-  place; that substitute exists for English, Estonian, Sinhala and Tamil, and a
-  call in another language, or one whose substitute also fails to synthesise,
-  still opens in silence.
+- For agents using the **Standard** conversation engine, the opening line is
+  not interrupted by the phone being picked up. While the opening line plays,
+  caller speech shorter than **one second** of continuous speech — a "hello?",
+  a syllable, a breath — does not cut it, in any language and whatever the
+  agent's interruption threshold. What the caller said is still transcribed
+  and is answered once the opening line has finished, so nobody who spoke is
+  ignored. A caller who keeps speaking for longer than a second has taken the
+  floor: the ordinary interruption rules apply from that moment and the
+  opening line stops as any reply would. Speech that arrives after the call is
+  answered but before the opening line has started — the callee answering into
+  a line that has not said anything yet — is held exactly like a pickup during
+  the opening and is answered once the opening line has finished; on a
+  workflow-bound call a held "hello" typically costs one clarification turn
+  rather than being lost, since the identity question has not been heard
+  yet. The opening line itself is
+  still spoken immediately in every case — nothing waits for that early speech
+  before starting it.
+  The opening line also cannot be cancelled before its first audio frame reaches
+  the caller, so mis-transcribed background noise cannot open a call in silence.
+  If the opening line cannot be synthesised at all, a short line in the call's
+  own language is played in its place; that substitute exists for English,
+  Estonian, Sinhala and Tamil, and a call in another language, or one whose
+  substitute also fails to synthesise, still opens in silence.
+  **GPT-Live 1** and **Gemini Live** agents handle barge-in on the model side:
+  the opening line is not held uninterruptible by this protection, and a
+  pickup-shaped "hello?" may still cut it. Workflow-bound calls cannot use
+  either engine, so the early-speech hold described above applies to Standard
+  agents only.
 - When an interruption does qualify, the agent plays on for a bounded moment
   instead of stopping at the exact instant it is cut, so the sound it is part way
   through finishes rather than being clipped. This is a time budget of up to
@@ -459,6 +479,31 @@ phone call, in any language:
   caller was not already about to hear.
 
 None of these needs configuration, and browser tests are unaffected.
+
+#### When the caller seems to start talking before a reply
+
+If the caller appears to start speaking just as a reply is ready, the agent
+waits rather than talk over them. Background noise — a television, traffic,
+people nearby — can sound like the start of speech, so on a hosted phone call
+the agent does not wait on sound alone forever:
+
+- On hosted **English** calls transcribed by Deepgram, with
+  `min_interruption_words` at 1 or more (the English default), the agent waits
+  at most **1.5 seconds** when no words are recognized, then speaks. Listening
+  sounds such as "mm-hm", "okay" or "uh" do not count as words. That is longer
+  than it takes the transcriber to report a caller's first word. If the caller
+  does say a word during the wait, the agent keeps waiting for them, up to
+  eight seconds.
+- A reply that starts after such a wait still stops for the caller: the
+  caller's recognized words (`min_interruption_words` of them, one by default),
+  held for the interruption threshold, interrupt it as usual. Continued noise
+  with no words does not.
+- Every other language and transcriber keeps the **eight-second** limit until
+  the transcriber's word timing for that stack has been measured. The
+  speech-to-speech engines are unchanged.
+
+This is not a setting. `interruption_sensitivity`, `min_speech_ms` and
+`silence_hold_ms` do not change it.
 
 ## 3. Point a number at it
 
@@ -525,9 +570,8 @@ Skysay runs speech-to-text and text-to-speech around your app, so the app
 only deals in text.
 
 - **What Skysay sends.** A `POST` to your webhook URL for each call
-  lifecycle event and each transcript turn, carrying `X-Skysay-Event-Id`,
-  `X-Skysay-Call-Id`, and `X-Skysay-Signature` when a webhook secret is
-  set.
+  lifecycle event and each transcript turn, signed with
+  `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature`.
 - **What your app returns.** The words to say next, as a text or NDJSON
   response. Skysay speaks them to the caller.
 - **Where the URL goes.** The **Webhook URL** field on the create form, or
@@ -546,6 +590,14 @@ it.
   on the create form, or `webhook_url` plus `audio_stream_url` on
   `POST /v1/agents` with `"mode": "external_audio"`. `connect_external_agent`
   is the shortcut for the same pair.
+
+`POST /v1/agents` answers with the agent's signing secret in
+`agent_endpoint.webhook_secret`, once. Save it immediately: every later read
+returns `[REDACTED]`. It signs each event and tool call Skysay sends to your
+webhook; verify `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature` as
+described in [Post-call results](/docs/post-call-results).
+Agents created before 24 September 2026 cannot retrieve their signing secret;
+recreate the agent or contact support.
 
 Webhook signature verification, idempotency and backpressure handling stay in
 your app. `GET /v1/agents/{agent_id}/handoff` returns the generated setup

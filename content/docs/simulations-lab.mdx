@@ -302,6 +302,14 @@ the run continues — and it is recorded as an error rather than being scored fo
 or against the AI agent. Every attempt is persisted independently, so one bad
 attempt never takes a suite down with it.
 
+The same applies when a run was priced for real-time evidence and an attempt's
+room produced none: the synthetic caller never joined, was refused, or could not
+deliver its lines, the agent never joined, or the room ended without reporting.
+That attempt is an error, never a pass, even when its offline checks passed.
+Its `error_code` is `caller_delivery_failed` when the caller joined and could
+not deliver its lines, and `realtime_evidence_missing` otherwise. An attempt
+whose offline checks already failed keeps that failure.
+
 ## Reruns and regressions
 
 `POST .../simulation-suite-runs/{run_id}/rerun-failed` queues a **child** run over the
@@ -385,6 +393,24 @@ caller observed the tested agent leave or the server close the room.
 `voice_evidence_kind: realtime` alone is not enough. If the observer leaves
 without either remote terminal event, duration and teardown remain unproven;
 local disconnection is not a substitute measurement.
+
+### Shared capacity and recording availability
+
+Real-time simulation callers use bounded capacity shared across workspaces.
+When that capacity is busy or temporarily paused, new real-time work must wait
+or be retried after the reported refusal. It does not silently switch to an
+offline test: an attempt whose real-time room could not run is reported as an
+error (see above), not as a pass on its offline evidence. Homepage demos use a separate capacity limit.
+
+A room's measured timing and its recording are separate evidence. A recording
+can become available after the timing result has arrived. Reopen the existing
+result to check its recording; starting another run creates another test and can
+incur new provider costs.
+
+Missing audio cannot establish that the voice sounded correct. Recording
+delivery does not change measured timing facts or repeat the run's usage charge.
+Expired or deleted recordings remain unavailable, including when a delayed copy
+arrives later.
 
 ## When a speech stack cannot serve a scenario
 
