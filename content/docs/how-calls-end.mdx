@@ -57,7 +57,7 @@ hears.
 **It cannot be switched off for an agent that has `end_call`.** Turning
 `end_call` off is how you opt out: an agent without the tool receives none of
 this instruction. The instruction stays on for an agent with `end_call`
-because it covers three failures that show up in real calls:
+because it is meant to prevent four failures that show up in real calls:
 
 - an agent that said goodbye and then kept the line open for minutes;
 - an agent that kept pursuing someone who had said they were the wrong person;
@@ -65,15 +65,18 @@ because it covers three failures that show up in real calls:
 - an agent that hung up on a caller who was still explaining their problem in
   short sentences, often because it had decided it could not help.
 
-So the agent ends a call only when one of these happens:
+So the agent is instructed to end a call only when one of these happens:
 
 - the caller says goodbye;
 - the caller confirms they need nothing else;
 - the person who answers says they are not the person you are calling.
 
-An agent that cannot help with a request says so and stays on the line. The
-call then ends when the caller says goodbye, confirms they need nothing else,
-or hangs up, or when it reaches its maximum length.
+It is also instructed, when it cannot help with a request, to say so and stay
+on the line. This is an instruction to the model, not a guarantee: the model
+decides when to invoke `end_call`, and it can still end a call earlier than
+these rules allow, including while the caller is still talking. Whatever the
+agent does, the call also ends when the caller hangs up or when it reaches its
+maximum length.
 
 The wrong-person rule matters most when you call people about their own
 accounts. Your own prompt still decides everything else about the
