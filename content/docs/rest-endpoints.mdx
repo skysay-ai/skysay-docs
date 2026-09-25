@@ -89,8 +89,21 @@ not cover them.
 
 `PATCH /v1/agents/{id}/voice-stack` returns **400** if you send a TTS provider
 and model without a `voice_id`, whenever that provider has voices to choose
-from. The message asks you to choose an exact provider voice for the selected
-TTS model.
+from. The body names the language and says why:
+
+```json
+{
+  "error": "BadRequestError",
+  "message": "Choose a voice for German before publishing.",
+  "language": "de",
+  "reason": "voice_id_missing",
+  "blockers": [{ "code": "voice_id_missing", "scope": "agent", "detail": "" }]
+}
+```
+
+Branch on `reason` or the `blockers` codes, not on the message: the codes are
+the same ones call admission and readiness report, and the message can change
+between releases.
 
 Until this release such a save could return `200` while storing a stack with no
 voice. Nothing reported a problem until the agent was called, and the call then
