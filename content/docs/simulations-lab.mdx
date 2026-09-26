@@ -43,6 +43,9 @@ start depend on the deployment's enabled capabilities.
 | **Adaptive chat** | An AI caller that paraphrases, objects, changes its mind and interrupts. Text only. | Available |
 | **Adaptive voice** | Speech synthesis and recognition through a pinned voice stack. Timing needs separate real-time evidence. | Requires the voice runtime to be enabled |
 
+In the workspace the three runners are called **Scripted** (deterministic),
+**AI caller · chat** (adaptive chat) and **AI caller · voice** (adaptive voice).
+
 **Adaptive voice is a speech test, not a phone campaign.** Instead of testing
 only text, the runner synthesizes scenario lines and transcribes the audio
 through the pinned speech stack. This helps expose words the voice mispronounces
@@ -232,6 +235,41 @@ Where a delta cannot be computed it is reported as null rather than zero, and a
 comparison drawn over the most common causes says so rather than implying it saw
 every one.
 
+## Authoring in the workspace
+
+A suite's page in **Simulations Lab** has three tabs: **Scenarios**, **Pass rules &
+budget** and **Run history**.
+
+**Scenarios.** Add or edit a scenario of any type your workspace can run. The
+**AI caller · voice** type appears only where the voice runtime is enabled. Each
+scenario takes a name, how many attempts it makes per run (1 to 25), whether it is
+critical (a failed critical scenario fails the run), and a language. A scripted
+scenario takes the caller's lines in order; an AI caller takes a goal, first words,
+who the caller is, how they behave, when they cut in and when they change direction.
+A voice scenario also sets the background noise at the caller's microphone. Every
+type can declare the tools, steps and routes the AI agent must and must not use, an
+order its steps must happen in, a turn limit and a duration limit, and up to five
+judge questions, each a separate metered evaluator call on every attempt.
+
+Timing rules (when the AI agent starts replying, how fast it stops when interrupted,
+how fast it hangs up) can be set on a voice scenario only. A timing rule kept on a
+scripted or chat scenario is labelled **not provable** and never counts as a pass.
+
+Fields the workspace does not show, such as tool mocks or per-turn routes written
+through the API, are kept exactly as they are when you edit a scenario.
+
+**Pass rules & budget** sets the advisory quality pass rate, a spend limit per run,
+how long recordings and transcripts are kept, whether runs test the draft or the
+published AI agent, and which finished run later runs are compared against.
+
+Every save in the workspace is a suite edit on the revision you opened. If someone
+else saved the suite in the meantime, nothing is overwritten: the page names the
+revision that won, keeps your changes on screen, and offers to reapply them on top
+of it.
+
+**Duplicate suite** creates a copy at revision 1 with the same scenarios and rules.
+Run history and the baseline are not copied.
+
 ## Running a suite
 
 From the workspace, the suite page carries a **Run this suite** panel: the attempts each
@@ -324,6 +362,13 @@ revision. The historical run keeps pointing at the revision it executed.
 Cancelling stops work that has not started. An attempt a worker already claimed
 finishes and keeps its verdict; completed results are never altered or deleted
 by a cancellation.
+
+On a run's page in the workspace, **Cancel run** asks for confirmation in the page
+before it stops the attempts that have not finished; one already running finishes
+and keeps its result. **Rerun failed** queues the child run and opens it. **Save as
+regression** on a failed attempt adds it to the suite as a critical scenario and
+names the new revision. Failed attempts (the AI agent broke a rule) and errored
+attempts (the test itself broke) are counted separately.
 
 ## Suite activity is not production activity
 
@@ -585,6 +630,10 @@ is the closest honest substitute and no stronger claim is made.
 
 The attempt's own verdict is unchanged. Linked evidence sits beside a verdict
 and never replaces one.
+
+In the workspace, **Link a real call** on an attempt lists this AI agent's most
+recent Talk sessions and matched phone tests (up to 20, newest first; only sessions
+that can be linked are listed) with an optional note.
 
 ## Availability
 
