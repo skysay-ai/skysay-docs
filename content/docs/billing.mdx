@@ -108,6 +108,42 @@ bringing a provider key does not make unrelated platform or carrier usage free.
 New calls use their own pricing snapshot. Existing call prices and historical
 wallet entries are not rewritten when the catalog changes.
 
+## Usage history and the ledger
+
+Open **[Billing → Usage and ledger](https://skysay.ai/billing/history)** to
+see what your workspace spent and every movement of its wallet.
+
+**Usage history** charts spend for the last 30 or 90 days, or the last 12 or
+24 months, in your wallet's currency. Spend is grouped into calls, SMS,
+numbers, recording storage and other charges. Days and months are in UTC and
+follow the date each charge was posted to the wallet: a call is charged when
+it settles, so a call that runs past midnight UTC counts on the day it ended.
+Top-ups, refunds and call holds are not spend and do not appear in the chart.
+
+Select a bar, or **View entries** in the table under the chart, to open that
+day's or month's entries. For the selected range, call spend is split into the
+**phone line** (each call's carrier cost) and the **AI agent** (the rest of
+what the call was charged). The two parts always add up to the call spend.
+
+The **ledger** lists every wallet entry, newest first, and can be filtered by
+type and date range. A charge reads negative and a top-up positive. Before a
+call starts, funds are held for it; when it ends, the charge is taken from the
+hold and the unused part is returned, so a call usually shows a hold, a charge
+and a returned hold. A hold sets money aside rather than spending it, so do not
+add a call's three amounts together. Entries that belong to a call or an SMS
+conversation link to it.
+
+**Export CSV** downloads exactly the entries the ledger shows for the same type
+and dates. Amount columns are in the wallet currency's minor units (cents),
+with a decimal `amount` column alongside. To reconcile, sum
+`available_delta_minor` for the change in available funds and
+`spent_delta_minor` for spend. One file holds up to 10,000 entries;
+for a larger selection, choose a shorter date range or a single type.
+
+`GET /v1/wallet/ledger` returns only the most recent entries (at most 500, with
+no cursor), and its totals cover the returned entries only. Use Usage and
+ledger or its export for a complete record.
+
 ## Existing subscription records
 
 Developer, Launch, and Growth monthly/yearly subscriptions are no longer sold.
