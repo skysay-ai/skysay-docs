@@ -23,7 +23,9 @@ rather than assuming every call has a recording.
 
 A `recording` is the call's audio metadata plus:
 
-- **Waveform peaks** — for rendering a scrubbable waveform.
+- **Waveform peaks** — about 200 loudness values across the whole call, for
+  rendering a scrubbable waveform. Recordings saved before 26 September 2026
+  are recomputed to the same detail.
 - **Transcript turns** — speaker-attributed turns of the conversation.
 - **Retention / disclosure state** — how long the audio is kept and whether the
   required call disclosure was made.
@@ -94,6 +96,47 @@ number this event exists to measure.
 This event is readable here but is **not** part of the webhook catalogue, so it
 is never delivered to a webhook endpoint. Poll the events endpoint for it, or
 read it alongside the rest of a call's evidence.
+
+## Play a recording in Calls
+
+The recording player at the top of a call in **Calls** is one waveform you can
+click, drag or tap anywhere to jump to that moment, even before the audio has
+started. With the waveform focused, the arrow keys move 5 seconds, Page Up and
+Page Down move 15 seconds, Home and End jump to the start and the end, and
+Space plays or pauses. A speed button switches between 1×, 1.5× and 2×.
+
+The bars are coloured by who is speaking: the AI agent in one colour and the
+other person in another. The other person is named the same way in the legend,
+in the hover and on every transcript line:
+
+- a number saved in your contacts shows the contact's name, with the number
+  beside it in the legend;
+- another number shows the number itself in the legend and the hover, and the
+  transcript says **Called person** on an outbound call or **Caller** on an
+  inbound one;
+- a browser test call shows **Tester**.
+
+Hovering over the waveform shows the time, the speaker and the first words of
+that turn. The colours come only from turns whose start and end were measured
+on the recording itself. Louder sound that no measured turn covers is grey and
+listed as **Other sound**; hovering it says **Not matched to a speaker**. That
+can be a hang-up click or line noise, and it can also be speech that was
+transcribed without a measured start and end, so grey never means "nobody
+spoke". Quiet stretches show as dots. Older recordings without measured turns
+show the waveform without speaker colours.
+
+The player reads only the start of the file when a call opens, so its length is
+known before you press play. From the press until audio actually plays it shows
+a loading state, and if the recording cannot be loaded it says so and offers
+**Try again**.
+
+The same data is in the `GET /v1/dashboard/calls` response for the selected
+call: `waveform.speaker_segments` lists each attributed span (`turn_id`,
+`speaker`, `start_ms`, `end_ms`) on the recording's clock, and
+`waveform.speaker_segments_truncated` is `true` when the call has more turns
+than the response carries. `counterparty` carries the other person's
+`phone_e164` (empty for a browser test) and `contact_name`, the name that
+number is saved under in your contacts (the newest when several lists hold it).
 
 ## Listen turn by turn in Calls
 
