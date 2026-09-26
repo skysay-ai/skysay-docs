@@ -23,8 +23,15 @@ Two fields drive everything else:
 
 | Field | Meaning |
 | --- | --- |
-| `registration_required` | `true` when the carrier registers an end user against the number, `false` when it does not, `null` when the sources disagree and an Skysay operator has to decide. |
+| `registration_required` | `true` when the carrier registers an end user against the number, `false` when it does not, `null` when the carrier's data does not settle it and a Skysay operator has to decide. |
 | `carrier_proof_requirement` | What the carrier lists for that market: `none`, `required`, or `unknown`. |
+
+A market reads `false` only when every number group the carrier currently
+sells there is marked as needing no registration. One group that needs it makes
+the market `true`, and a group the carrier has not marked either way makes it
+`null`. The carrier publishing requirement text for a country does not, on its
+own, make registration required: US, Canadian and UK local numbers, for
+example, need none.
 
 `carrier_proof_requirement` reports the carrier's published list and nothing
 else. It is **not** a statement that anything has been approved, and it never
@@ -116,6 +123,17 @@ for. Registration changes which waits apply:
 | `awaiting_verification` | Your Skysay verification profile is not approved yet. Nothing carrier-side has started. |
 | `carrier_verification` | Your profile is approved by Skysay, and the number is waiting on documents or on the carrier's own verdict. |
 | `fulfillment_queued` | Everything Skysay needs is done and the number is being ordered. |
+
+When the number is ordered, Skysay checks the exact number you chose with the
+carrier again, however long the request has waited:
+
+- If the number is still available at the price you confirmed, it is ordered.
+- If its price changed, nothing is charged and the request returns to
+  `requested` so you can confirm the new price.
+- If the carrier now requires registration for that number, nothing is charged
+  and the request returns to `awaiting_verification`.
+- If someone else took the number meanwhile, nothing is charged and you are
+  asked to choose another number.
 
 ## Inbound activation and outbound calling are separate
 
