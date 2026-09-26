@@ -27,6 +27,7 @@ A few errors carry a code of their own and extra fields you can act on:
 | `BadRequestError` from `PATCH /v1/agents/{id}/voice-stack` | `400` | Sometimes `language`, `reason` and `blockers` (`[{code, scope, detail}]`): a language of the voice stack cannot be published. `reason` is the first blocker's code, for example `voice_id_missing` when no voice is chosen for that language; see [A voice selection must name an exact voice](/docs/rest-endpoints#a-voice-selection-must-name-an-exact-voice). |
 | `realtime_config_not_runnable` | `400` | `reason` and `blockers` (`[{code, scope, detail}]`): the agent could not run a call; see [Customer applications](/docs/customer-applications#an-agent-that-could-not-take-the-call-is-refused-before-anything-is-spent). |
 | `outbound_call_queue_full` | `429` | `retry_after_seconds`, plus a `Retry-After` header. |
+| `platform_maintenance` | `503` | `retry_after_seconds`, plus a `Retry-After` header. See [Maintenance windows](#maintenance-windows). |
 | `WorkflowRevisionConflictError` | `409` | `current`: the workflow draft that won; reload it before retrying. |
 | `internal_error` | `5xx` | `request_id`. Quote it to support. |
 
@@ -45,7 +46,8 @@ The `request_id` is unique to that one request. Keep it in your own logs beside
 the request that failed, and quote it to support so the failure can be found.
 
 Some `5xx` answers are designed rather than unexpected, and they are not this
-shape: a `503` `webhook_retry_requested` asking a provider to redeliver, or a
+shape: a `503` `webhook_retry_requested` asking a provider to redeliver, a
+`503` `platform_maintenance` during a scheduled maintenance window, or a
 `502` `kyc_provider_error` naming a verification provider's own status. Those
 keep their own `error` code and carry no `request_id`.
 
@@ -66,11 +68,48 @@ keep their own `error` code and carry no `request_id`.
 | `422` | varies | A simulation-suite request is well formed but cannot run as asked. | Read `message` and the extra fields. |
 | `423` | `SuspensionError` | A workspace control refused the action: a spend or velocity cap, the live-call concurrency limit, a suppression, or a suspension. | Wait for the cap window, or contact support for a suspension. |
 | `429` | `outbound_call_queue_full` | The outbound call queue is full. | Retry after `Retry-After` seconds. |
+| `503` | `platform_maintenance` | Skysay is in a scheduled maintenance window and is not accepting new work. | Retry after `Retry-After` seconds, with the same `Idempotency-Key`. See [Maintenance windows](#maintenance-windows). |
 | `500`–`504` | `internal_error` or a named error | Skysay could not complete the request. | Retry with backoff, using an `Idempotency-Key` on `POST /v1/calls`. If it persists, send the `request_id` to support. |
 
 `403` and `404` on a by-id read follow a fixed rule so a status can never
 reveal which ids exist in another workspace. See
 [A resource outside your workspace is absent, not forbidden](/docs/authentication#a-resource-outside-your-workspace-is-absent-not-forbidden).
+
+## Maintenance windows
+
+Skysay occasionally runs a short, scheduled maintenance window. While one is
+open, requests that would start new work answer `503` with
+`"error": "platform_maintenance"`, a `retry_after_seconds` field and a
+`Retry-After` header:
+
+```json
+{
+  "error": "platform_maintenance",
+  "message": "Skysay is in a scheduled maintenance window and is not accepting new calls, messages or changes. Retry after the window closes.",
+  "retry_after_seconds": 300
+}
+```
+
+Refused during a window:
+
+- placing a call (`POST /v1/calls`) or sending an SMS (`POST /v1/messages`);
+- incoming calls to your numbers. Each one is recorded as a failed call with
+  the reason `platform_maintenance`, so it appears in your call history;
+- starting a browser test or Talk session, a Chat turn, or a simulation run;
+- creating an agent, and changing an agent's configuration, voice stack,
+  knowledge bases, post-call extraction or workflow, including publishing;
+- launching or resuming a campaign.
+
+Not affected:
+
+- calls already in progress keep going, including their transfers;
+- queued calls and running campaigns wait. A queued call is not failed and a
+  campaign contact is not used up; they continue once the window closes;
+- wallet top-ups and payments, delivery reports and incoming SMS;
+- reading anything, and pausing or cancelling a campaign.
+
+A refused request changed nothing, so retrying it after the window is safe.
+Keep the same `Idempotency-Key` on `POST /v1/calls`.
 
 ## Examples
 
