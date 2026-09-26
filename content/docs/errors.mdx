@@ -85,7 +85,7 @@ open, requests that would start new work answer `503` with
 ```json
 {
   "error": "platform_maintenance",
-  "message": "Skysay is in a scheduled maintenance window and is not accepting new calls, messages or changes. Retry after the window closes.",
+  "message": "Skysay is undergoing scheduled maintenance. Please retry in a few minutes.",
   "retry_after_seconds": 300
 }
 ```
@@ -93,18 +93,25 @@ open, requests that would start new work answer `503` with
 Refused during a window:
 
 - placing a call (`POST /v1/calls`) or sending an SMS (`POST /v1/messages`);
-- incoming calls to your numbers. Each one is recorded as a failed call with
-  the reason `platform_maintenance`, so it appears in your call history;
+- incoming calls to your numbers. The caller is not answered, as when a
+  number is suspended. Each call is recorded as failed with the reason
+  `platform_maintenance`, so it appears in your call history, and nothing is
+  charged;
 - starting a browser test or Talk session, a Chat turn, or a simulation run;
-- creating an agent, and changing an agent's configuration, voice stack,
-  knowledge bases, post-call extraction or workflow, including publishing;
+- creating an agent (including through `POST /v1/agent-endpoints`), deleting
+  an agent endpoint, and changing an agent's configuration, voice stack,
+  knowledge bases, post-call extraction or workflow, including publishing.
+  Setting an agent to `inactive` still works;
 - launching or resuming a campaign.
 
 Not affected:
 
-- calls already in progress keep going, including their transfers;
+- calls already in progress keep going, including their transfers and an
+  agent's SMS sent during the call;
 - queued calls and running campaigns wait. A queued call is not failed and a
-  campaign contact is not used up; they continue once the window closes;
+  campaign contact is not used up; they continue once the window closes. A
+  window does not extend a campaign's end time: if `ends_at` passes during a
+  window, the campaign ends then, like any campaign whose end time arrives;
 - wallet top-ups and payments, delivery reports and incoming SMS;
 - reading anything, and pausing or cancelling a campaign.
 
