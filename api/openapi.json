@@ -2707,6 +2707,41 @@
         ],
         "type": "object"
       },
+      "ContactUpdate": {
+        "properties": {
+          "consent_basis": {
+            "enum": [
+              "existing_customer",
+              "explicit_consent"
+            ],
+            "type": "string"
+          },
+          "external_reference": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "language": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "type": "string"
+          },
+          "phone_e164": {
+            "type": "string"
+          },
+          "time_zone": {
+            "description": "IANA zone; an empty value takes the default for the number's country",
+            "type": "string"
+          },
+          "variables": {
+            "description": "Replaces the contact's custom values; the same limits as an import",
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "CreateOrganization": {
         "properties": {
           "name": {
@@ -2806,6 +2841,10 @@
           },
           "reason": {
             "maxLength": 160,
+            "type": "string"
+          },
+          "source": {
+            "description": "How the numbers were added, shown on the register: api (the default), csv, mcp, or dashboard for the Contacts page.",
             "type": "string"
           }
         },
@@ -8010,6 +8049,169 @@
         ]
       }
     },
+    "/v1/contact-lists/{contact_list_id}/contacts/{contact_id}": {
+      "delete": {
+        "description": "Removes the contact and lowers the list's contact count; other contacts keep their import order. A contact a campaign run has already taken cannot be deleted (409).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{deleted, id}"
+          },
+          "404": {
+            "description": "No such contact in this workspace"
+          },
+          "409": {
+            "description": "A campaign run holds this contact"
+          }
+        },
+        "summary": "Delete one contact",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      },
+      "patch": {
+        "description": "Send any of phone_e164, name, language, time_zone, variables, external_reference and consent_basis; the rest keep their values. The edited contact is validated exactly like an imported row. A contact keeps its place in the list's import order. A contact a campaign run has already taken can still be edited, but its number cannot change (409), and a number another contact in the list already has is refused (409).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The contact as stored"
+          },
+          "404": {
+            "description": "No such contact in this workspace"
+          },
+          "409": {
+            "description": "The number cannot change or is already in the list"
+          }
+        },
+        "summary": "Edit one contact",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/contact-lists/{contact_list_id}/export": {
+      "get": {
+        "description": "Every contact in import order: phone_e164, name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value. A list value is written as JSON. Text a spreadsheet could read as a formula is prefixed with an apostrophe. X-Skysay-Row-Count and X-Skysay-Truncated describe the file. Bound to the credential's own workspace.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/csv"
+          },
+          "404": {
+            "description": "No such list in this workspace"
+          }
+        },
+        "summary": "Download a contact list as CSV",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/contacts": {
+      "get": {
+        "description": "A search that starts with + matches the start of the number; other digits match anywhere in the number; text matches anywhere in the name or external reference, ignoring case. Results come in a stable order (number, list, contact) with has_more. An empty search returns no results.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching contacts, each with its list, and pagination"
+          }
+        },
+        "summary": "Find contacts by number or name across every list (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
     "/v1/conversations": {
       "get": {
         "responses": {
@@ -8892,6 +9094,244 @@
           }
         },
         "summary": "Read the bounded, customer-scoped Capabilities aggregate"
+      }
+    },
+    "/v1/dashboard/contacts": {
+      "get": {
+        "description": "Pure read: a page of contact lists (newest change first), each with its contact count, the custom value names seen in its first rows, the campaigns that use it (at most five, with a total) and when it changed; plus the wallet header. Fixed query budget; never a caller-selected tenant.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact lists page projection"
+          }
+        },
+        "summary": "Bounded Contacts page (Lists tab) aggregate for the signed-in workspace"
+      }
+    },
+    "/v1/dashboard/contacts/lists/{contact_list_id}": {
+      "get": {
+        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its latest campaign outcome and do-not-call state. When a campaign uses the list, a preview of what that campaign's AI agent says to the selected contact, built by the same functions the call runs: the greeting as it is spoken, or a published script's opening and disclosing steps rendered from the contact's values, or the case-unavailable route when a value is missing. Fixed query budget; no provider or model call.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "not_called",
+                "reached",
+                "do_not_call"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contact_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List detail projection"
+          }
+        },
+        "summary": "Bounded Contacts page (list detail) aggregate"
+      }
+    },
+    "/v1/dashboard/contacts/people": {
+      "get": {
+        "description": "Pure read: contacts matching a number or name across every list and, for the chosen phone, that person's lists, do-not-call entry, most recent calls and SMS threads, each bounded with a has_more flag. Fixed query budget.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "phone",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "People search and person projection"
+          }
+        },
+        "summary": "Bounded Contacts page (All contacts tab) aggregate"
+      }
+    },
+    "/v1/dashboard/do-not-call": {
+      "get": {
+        "description": "Pure read: the workspace's do-not-call register, newest first, searched by number, with each entry's source and reason. Fixed query budget.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Do-not-call register projection"
+          }
+        },
+        "summary": "Bounded Contacts page (Do-not-call tab) aggregate"
       }
     },
     "/v1/dashboard/integrations": {

@@ -22,6 +22,7 @@ import {
   Forward,
   GitFork,
   GraduationCap,
+  Group,
   Headset,
   Key,
   Language,
@@ -125,6 +126,7 @@ const ICONS = {
   DataTransferBoth,
   Cube,
   Megaphone,
+  Group,
   ChatBubbleTranslate,
   BadgeCheck,
 
