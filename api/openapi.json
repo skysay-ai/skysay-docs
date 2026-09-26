@@ -8407,7 +8407,7 @@
     },
     "/v1/dashboard/billing-history": {
       "get": {
-        "description": "Returns one read-only page DTO. `history` is wallet spend per UTC period (granularity `day` with periods up to 90, default 30; or `month` with periods up to 24, default 12; `end` optionally names the last day YYYY-MM-DD or month YYYY-MM), per category (`calls`, `sms`, `numbers`, `recordings`, `other`), in the wallet's currency as integer minor units, with every period present. Spend is money the ledger recorded as spent; top-ups, refunds and call holds/releases are not spend. `ledger` is one page of wallet entries, newest first by (created_at, id), filtered by `type` (`all`, `topup`, `call`, `sms`, `number`, `recording`, `refund`, `hold`, `other`) and an inclusive UTC date range `from`/`to` (YYYY-MM-DD, default the history window); pass `next_cursor` back as `cursor` while `has_more` is true. `matching_count` counts the filtered entries up to `export_row_cap`, and `matching_count_exceeds_export_cap` says the CSV export would be refused. `calls_split` divides the range's call spend into `phone_line_minor` (the carrier component's share of each hosted AI call, rounded down, or the whole of a call billed without hosted AI components) and `ai_agent_minor` (the rest); the two always add up to `calls_minor`. Each entry's `amount_minor` is how the entry reads to a customer: the amount spent, negative, for a charge (which is taken from an earlier hold), otherwise the change to available funds (a hold negative, its release positive, a credit positive); so amounts across a call's hold, charge and release do not sum to the balance change. `available_delta_minor` sums to the change in available funds and `spent_delta_minor` to spend. Entries carry only customer-safe fields: Stripe references in short form, a `call_id` only for a call in the same workspace, and an `sms_conversation_id` for an SMS charge. Tenant-bound to the bearer session; no provider request and no write.",
+        "description": "Returns one read-only page DTO. `history` is wallet spend per UTC period (granularity `day` with periods up to 90, default 30; or `month` with periods up to 24, default 12; `end` optionally names the last day YYYY-MM-DD or month YYYY-MM), per category (`calls`, `sms`, `numbers`, `recordings`, `other`), in the wallet's currency as integer minor units, with every period present. Spend is money the ledger recorded as spent; top-ups, refunds and call holds/releases are not spend. `ledger` is one page of wallet entries, newest first by (created_at, id), filtered by `type` (`all`, `topup`, `call`, `sms`, `number`, `recording`, `refund`, `hold`, `other`) and an inclusive UTC date range `from`/`to` (YYYY-MM-DD, default the history window); pass `next_cursor` back as `cursor` while `has_more` is true. `matching_count` counts the filtered entries up to `export_row_cap`, and `matching_count_exceeds_export_cap` says the CSV export would be refused. `calls_split` divides the range's call spend into `phone_line_minor` (the carrier component's share of each hosted AI call, rounded down, or the whole of a call billed without hosted AI components) and `ai_agent_minor` (the rest); the two always add up to `calls_minor`. Each entry's `amount_minor` is how the entry reads to a customer: the amount spent, negative, for a charge (which is taken from an earlier hold), otherwise the change to available funds (a hold negative, its release positive, a credit positive); so amounts across a call's hold, charge and release do not sum to the balance change. `available_delta_minor` sums to the change in available funds and `spent_delta_minor` to spend. Entries carry only customer-safe fields: Stripe references in short form, a `call_id` only for a call in the same workspace, and an `sms_conversation_id` for an SMS charge. The ledger lists the whole organization's wallet, every project's entries alike, whatever `project_id` is passed (a `project_id` must belong to the session's organization, else 404). Each entry's `project_id` is the project of its call or SMS conversation (null when it has neither, or the conversation belongs to no project). The dashboard Calls and SMS pages read only the session's project, so the workspace links an entry's call or conversation only when the entry's `project_id` is that project. Tenant-bound to the bearer session; no provider request and no write.",
         "parameters": [
           {
             "in": "query",
@@ -8485,6 +8485,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -8493,6 +8501,9 @@
           },
           "400": {
             "description": "A range, filter or cursor is out of bounds or malformed"
+          },
+          "404": {
+            "description": "The named project is not in the session's organization"
           }
         },
         "summary": "Read the Billing history aggregate: usage by day or month and one page of the wallet ledger"
