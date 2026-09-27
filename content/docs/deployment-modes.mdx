@@ -100,6 +100,17 @@ It deliberately does not derive your carrier's SIP signalling ranges: the
 control plane holds none, and a guessed allowlist produces a stack that reports
 healthy and never rings.
 
+### Re-run provisioning whenever you upgrade the worker image
+
+The gateway's provisioning step (`docker compose --profile provision run --rm
+provision`) writes the LiveKit SIP dispatch rule that routes your inbound
+calls to the voice worker by the agent name it registers under. That name is
+part of the worker image: a newer image can register under a new name, and
+inbound calls reach it only once the rule has been written again. So after
+every worker image upgrade, run provisioning again, then confirm the rule by
+listing the dispatch rules on your LiveKit server: the rule's agent name must
+be the one the running worker registered.
+
 ### What a new gateway token carries
 
 A token minted without an explicit `scopes` list carries only the two originator
