@@ -49,7 +49,8 @@ From the list you can:
 
 - **Append rows** from a CSV. Rows go to the end of the list; numbers already
   in the list are skipped.
-- **Export** the list as a CSV download.
+- **Export** the list as a CSV download. **Import CSV** reads an exported
+  file back as the same contacts, custom values and consent basis included.
 - **Add contact** one at a time.
 - **Edit** or **Delete** the selected contact.
 
@@ -87,6 +88,9 @@ What it shows depends on the AI agent:
   personalised preview appears once the AI agent's call variables are set up.
 - **An AI agent whose greeting is generated when the call starts** has no
   greeting to preview.
+- **An AI agent that speaks several languages** needs the contact or the
+  campaign to name one. If neither does, the call would not be placed, and the
+  preview says so.
 
 If no campaign uses the list, there is no preview.
 
@@ -148,7 +152,8 @@ and response shape. All of them need the `calls:read` or `calls:write` scope.
   with the columns `phone_e164`, `name`, `first_name`, `language`, `time_zone`, `country`,
   `external_reference`, `consent_basis`, then one `variables.<name>` column
   per custom value. Text that looks like a spreadsheet formula is prefixed
-  with an apostrophe. The row count and whether the export was truncated are
+  with an apostrophe, which the dashboard's **Import CSV** removes again. The
+  row count and whether the export was truncated are
   in the `X-Skysay-Row-Count` and `X-Skysay-Truncated` headers.
 - `GET /v1/contacts?search=` finds contacts across every list. It returns a bounded page (`limit` up to 100)
   in a stable order, with `has_more`. An empty search returns nothing.
