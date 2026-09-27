@@ -225,9 +225,58 @@ and republished since — by another edit of this config, or of its voice,
 prompt or languages — the write is refused with
 `409 {"error": "revision_conflict", "revision": <current>}` and nothing
 changes. A config the checks refuse is
-`400 {"error": "variables_config_invalid", "issues": [...]}`, each issue naming
-its `code` and, where it applies, the `field`, `where` it was found (for example
-`first_message.en`) and the `marker` at fault.
+`400 {"error": "variables_config_invalid", "message", "issues": [...]}`: every
+problem at once, each issue naming its `code` and, where it applies, the
+`field` it is about and `where` it was found; a misspelled or unbalanced marker
+also names the `marker` text. Nothing is stored or published.
+
+```json
+{"error": "variables_config_invalid", "message": "call variables cannot be published: OPTIONAL_OUTSIDE_SECTION",
+ "issues": [{"code": "OPTIONAL_OUTSIDE_SECTION", "field": "first_name", "where": "first_message.en"}]}
+```
+
+`where` is one of:
+
+| `where` | The problem is in |
+| --- | --- |
+| `variables` | the declared variables |
+| `sms_mode`, `sms_templates`, `caller_lookup` | that part of the config |
+| `sms_templates.<id>` | one template's shape, slots or languages |
+| `sms_templates.<id>.text.<language>` | one template's text in one language |
+| `first_message.<language>` | the greeting in that language |
+| `system_prompt.<language>` | the instructions in that language |
+| `steps.<step_id>` | a line of the agent's active workflow |
+
+#### Issue codes
+
+| Code | What to fix |
+| --- | --- |
+| `INVALID_VARIABLES_CONFIG` | The config is not an object of `variables`, `sms_mode`, `sms_templates` and `caller_lookup`. |
+| `INVALID_VARIABLES` | `variables` must be `{"version": 1, "fields": {...}}`. |
+| `TOO_MANY_FIELDS` | More than 32 variables. |
+| `INVALID_NAME` | A name is not letters, digits and `_` (not starting with a digit, up to 80). |
+| `RESERVED_NAMESPACE` | A name starts with `contact.`, `call.` or `campaign.`: those are the built-ins. |
+| `UNKNOWN_NAMESPACE` | A name contains a dot; your own names have none. |
+| `INVALID_FIELD`, `INVALID_FIELD_TYPE` | A declaration is not an object, or its `type` is not `string`, `number`, `boolean` or `list`. |
+| `UNKNOWN_FIELD_PROPERTY`, `INVALID_FIELD_PROPERTY` | A declaration has a setting that does not exist, or `required`, `protected` or `before_confirmation` is not `true`/`false`. |
+| `INVALID_MAX_LENGTH`, `INVALID_MAX_ITEMS` | `max_length` (strings only, 1–512) or `max_items` (lists only, 1–16) is out of range or on the wrong type. |
+| `INVALID_LIST_ITEM` | A list's `item` is missing or not `{key: "string" \| "number" \| "boolean"}`, or a non-list has one. |
+| `INVALID_FORMAT` | `format` is not one of the supported formats, or is on a non-string. |
+| `PROTECTED_FIELD_WITHOUT_VERIFICATION` | A protected variable on an agent without a workflow: nothing could confirm the caller before it is said. |
+| `PROTECTED_FIELD_ON_LIVE_ENGINE` | A protected variable on a GPT-Live or Gemini Live agent, which cannot hold a value back. |
+| `REQUIRES_WITHOUT_PROTECTED`, `INVALID_REQUIRES` | `requires` on an unprotected variable, or not `confirmation` / `knowledge_match`. |
+| `BEFORE_CONFIRMATION_WITHOUT_LOOKUP` | `before_confirmation` without a `caller_lookup`. |
+| `VARIABLES_BELONG_TO_WORKFLOW` | The agent has a workflow: declare the variables on the workflow instead. |
+| `INVALID_CALLER_LOOKUP`, `CALLER_LOOKUP_LIST_NOT_FOUND` | `caller_lookup` is malformed, or names a contact list this agent's project does not have. |
+| `INVALID_SMS_MODE` | `sms_mode` is not `free_text` or `templates_only`. |
+| `INVALID_SMS_TEMPLATE`, `TOO_MANY_SMS_TEMPLATES` | A template id or shape is invalid, or there are more than 20 templates. |
+| `SMS_TEMPLATE_PRIMARY_LANGUAGE_MISSING` | A template has no text in the agent's primary language. |
+| `TOO_MANY_SMS_SLOTS`, `INVALID_SMS_SLOT` | More than 8 slots, or a slot that is not `{"source": "model", "max_length": 1–120}`. |
+| `UNDECLARED_VARIABLE` | A line names a variable that is not declared (or a list item key outside its list). |
+| `OPTIONAL_OUTSIDE_SECTION` | An optional variable printed outside its own `{{#name}}` section. |
+| `BOOLEAN_PLACEHOLDER`, `LIST_PLACEHOLDER`, `LIST_IN_LIST` | A boolean or a list printed as `{{name}}`, or a list section inside another. |
+| `MARKER_MALFORMED`, `SECTION_UNCLOSED`, `SECTION_UNOPENED`, `SECTION_MISMATCHED`, `NESTING_TOO_DEEP`, `TOO_MANY_NODES` | A marker is misspelled or unbalanced, sections nest more than two deep, or a line has more than 200 markers and text runs. |
+| `PROTECTED_BEFORE_CONFIRMATION` | A line the caller hears before confirmation would say a protected value. |
 
 **`POST …/messages` is project-scoped**, unlike `POST /v1/messages`: the send
 uses the agent's own project and a sending number from it. Send the

@@ -40,28 +40,20 @@ an active hosted agent. There is no campaign switch to request.
 
 ## Per-customer data in the call
 
-- The wizard's **Message preview** fills a pasted line with the first contact's
-  values. It previews in your browser, not on the call.
-- Each attempt carries that contact's variables as the call's context, plus
-  campaign id, run id, attempt number and name.
-- **A free-form agent does not read them aloud on its own**, and nothing fills a
-  `{{field}}` placeholder in a browser test.
-- A conversation workflow states them: a read tool's projection is served from
-  that context, and a step flagged **discloses debt** fills its `{{field}}`
-  placeholders — only after the caller passed your verification step. See
-  [Serving a read
-  tool](/docs/agent-workflows#serving-a-read-tool-from-the-calls-context).
-- The **Payment reminder from contact variables** starter template is exactly
-  that: its one read tool projects the contact's `obligations` list, and its
-  disclosing step reads every loan out through a section
-  (`{{#obligations}} … {{/obligations}}`) in the words the template authored —
-  no customer endpoint. Several rows per phone number in your sheet become one
-  contact with that list when you turn on **Several rows per phone number** in
-  the contacts step. See [Several obligations on one
-  account](/docs/agent-workflows#several-obligations-on-one-account).
-- Otherwise give it a read tool that fetches the fact mid-call: an
-  [Integration](/docs/integrations), whose URL and secret the model never sees,
-  or a webhook tool.
+- Each contact's columns become that call's [call
+  variables](/docs/call-variables): whatever the agent declares is filled from
+  the contact, and `contact.*` and `campaign.*` come for free. A value that does
+  not fit its declaration stops that contact's call before it is placed, with
+  the variable named.
+- The agent's greeting, workflow lines and SMS templates speak them wherever
+  you wrote `{{name}}`; a protected variable (a balance, a date of birth) is
+  said only after the caller is confirmed.
+- The wizard's **What this AI agent says** preview shows the chosen agent's
+  greeting and lines filled in for the first contact of the list, before you
+  launch.
+- For a fact that must be fetched during the call, give the agent a read tool:
+  an [Integration](/docs/integrations), whose URL and secret the model never
+  sees, or a webhook tool.
 
 ## Create and launch
 
