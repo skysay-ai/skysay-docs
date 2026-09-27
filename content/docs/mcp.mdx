@@ -29,24 +29,80 @@ it into the assistant's MCP settings, replacing the placeholder with that key.
 
 ```json
 {
-  "url": "https://skysay.ai/control-plane/mcp",
+  "url": "https://api.skysay.ai/mcp",
   "headers": {
     "Authorization": "Bearer sky_YOUR_KEY"
   }
 }
 ```
 
-That URL is the same hosted MCP server as `https://api.skysay.ai/mcp`,
-reached through the dashboard host; either address works and both are held to
-the same scopes. The assistant can do exactly what the key allows and nothing
-more, and revoking the key disconnects it.
+Use this canonical API URL for every new connection. Revoking the key disconnects
+clients using it; OAuth connections have separate grants.
 
-## tools/list carries scopes
+## Connect Claude
 
-Each tool in `tools/list` advertises its `required_scopes`. `tools/list` returns
-**all** tools regardless of your key, but a `tools/call` for a tool whose scopes
-are not on your key fails closed with `missing MCP scopes: X`. This lets an agent
-see the full surface while still being held to least privilege.
+In Claude's connector settings, add `https://api.skysay.ai/mcp` as a custom
+connector. Choose Connect, sign in to Skysay, and review the workspace, requesting
+app, callback hostname, and permissions before selecting Allow. Claude Code uses
+a callback on your computer; Skysay identifies that loopback callback on the
+consent screen. You do not paste an API key into an OAuth connection.
+
+The initial permissions are read-only. When a tool needs another permission,
+Claude opens a second Skysay consent screen. It shows the combined permissions,
+including any earlier approvals. You can deny that request. Call transcripts,
+recordings and SMS bodies require their respective content-reading permissions.
+The existing `agents:read` permission also covers rich Simulations Lab evidence;
+review that permission if your workspace uses the Lab.
+
+The entire MCP tool catalogue is available, including campaigns, numbers, phone
+servers and voice previews. Permissions authorize the existing API actions:
+`calls:write` includes calls, campaign changes and do-not-call; `agents:write`
+includes agent configuration, previews and simulation runs. Number purchases,
+calls, messages, previews and simulations can incur charges. Workspace balance,
+capabilities, policies, DNC and platform limits still apply.
+
+Open **API keys → Connected apps** in Skysay to see the workspace's connections
+and revoke a grant. Revocation stops that grant's access and refresh tokens;
+it does not undo actions already performed. Removing a user's workspace
+membership also prevents further access.
+
+Try these read-only prompts after connecting:
+
+- “List my agents and their current configuration.”
+- “Show my most recent calls and their completion status.”
+- “List my phone numbers and explain their incoming-call rules.”
+
+If connecting fails, check that you used the canonical API URL, restart the
+connection after an expired consent request, and allow several minutes after a
+server metadata update. A `403 insufficient_scope` requests additional consent;
+a failed tool result describes an application refusal and is not a new login.
+
+## Results, errors and tool metadata
+
+Tool calls return a `text` content block containing JSON and the same data in
+`result.structuredContent`. List results use `{ "items": [...] }` in structured
+content. A refused tool returns `result.isError: true` and
+`structuredContent.error` with `type` and `message`. Unexpected failures use
+`internal_error` and a `request_id` to quote to support. Unknown tools or malformed
+parameters remain JSON-RPC errors (`-32602`).
+
+Every tool has a title and read-only or destructive hints. Required scopes are in
+`_meta["ai.skysay/required_scopes"]`; alternatives are in
+`_meta["ai.skysay/alternative_required_scopes"]`. The catalogue lists all tools,
+even when your credential lacks their scopes. API-key calls fail closed on a
+missing scope; OAuth calls request step-up consent before dispatch.
+
+`organization_id` is optional on all tools and defaults to your credential's
+workspace. A different workspace is refused. Streamable HTTP negotiates
+`2025-11-25`, `2025-06-18` or `2025-03-26`. Notifications receive 202 with no body;
+`ping` is supported; GET and HEAD return 405, with no SSE stream.
+
+### Migration for custom MCP clients
+
+Read `result.structuredContent` instead of `result.content[0].json`, inspect
+`result.isError` and `structuredContent.error.type` instead of `error.type`, and
+read scope metadata from `_meta` instead of `annotations.required_scopes`.
+Standard MCP clients already understand these result types.
 
 ## Prefix scopes
 
@@ -111,8 +167,7 @@ validation stay in the same services as the REST workflow.
 </Callout>
 
 For local stdio MCP, set both `SKYSAY_MCP_SCOPES` and
-`SKYSAY_MCP_ORGANIZATION_ID` before calling any organization-bound agent
-configuration tool. An absent organization fails closed; `tools/list` remains
+`SKYSAY_MCP_ORGANIZATION_ID` before calling any tool. An absent organization fails closed; `tools/list` remains
 schema discovery only.
 
 <Cards>

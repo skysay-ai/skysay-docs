@@ -6,7 +6,14 @@ icon: Wrench
 
 Every tool the agent can call, with the scope it requires. Scopes are
 authoritative on the server (`TOOL_SCOPES` in `src/telephony_ai/mcp.py`) — treat
-the live `tools/list` on your instance as canonical.
+the live `tools/list` on your instance as canonical. Required scopes are published
+under `_meta["ai.skysay/required_scopes"]`, with alternatives under
+`_meta["ai.skysay/alternative_required_scopes"]`. Read tool responses from
+`result.structuredContent` and check `result.isError`; see the
+[MCP client migration guide](/docs/mcp#migration-for-custom-mcp-clients).
+
+OAuth connectors see the same catalogue as API-key clients. Missing write or
+content permissions trigger explicit step-up consent before execution.
 
 ## Account
 
