@@ -40,8 +40,10 @@ yet**, **Reached** or **On do-not-call**. **Reached** means a campaign call
 reached a person, with a `connected_*`
 [disposition](/docs/campaigns#dispositions).
 
-Each row shows the phone number, name, language, time zone, custom values and
-**Last call**, the latest campaign outcome for that contact.
+Each row shows the phone number, name, first name, language, time zone,
+custom values and **Last call**, the latest campaign outcome for that contact.
+The first name is the contact's own field, never taken from the name; you can
+set it when you add or edit a contact, or map a first-name column on import.
 
 From the list you can:
 
@@ -58,20 +60,33 @@ other contacts' import order.
 ### Preview
 
 When a campaign uses the list, the page previews what that campaign's AI agent
-says to the selected contact. The preview is built from the same logic the call
-runs, so what it shows depends on the AI agent:
+says to the selected contact.
 
-- **A plain AI agent** speaks its greeting exactly as written. The contact's
-  values reach the call as call variables, but the greeting is not
-  personalised.
-- **An AI agent whose greeting is generated when the call starts** has nothing
-  to preview.
-- **An AI agent with a published script** (a
-  [conversation workflow](/docs/agent-workflows)) shows the script's first line,
-  plus its disclosing steps rendered with the contact's values. If a value the
-  script needs is missing or unusable for that contact, the call takes the
-  script's "case unavailable" route instead of stating it, and the preview says
-  so.
+Call variables aren't switched on yet. Until they are, greetings and messages
+are spoken exactly as written. The preview shows what calls will say with the
+contact's values once they're on, and says so on the page.
+
+What it shows depends on the AI agent:
+
+- **An AI agent with call variables set up** is rendered with this contact's
+  values, by the same code a call will use: the greeting, the script's first
+  line and every script line that uses a value, and its text message
+  templates. A value the contact doesn't have takes the fallback wording
+  written in the template, for example
+  `Hi {{#contact.first_name}}{{contact.first_name}}{{/contact.first_name}}{{^contact.first_name}}there{{/contact.first_name}}`,
+  and the preview names the values it fell back for. Words the AI agent writes
+  itself in a text message are shown in brackets. If this contact's values
+  would stop the call being placed, for example a required value is missing or
+  has the wrong type, the preview says so and names the value, never its
+  contents.
+- **Any other AI agent** is shown as its calls speak today: the greeting
+  exactly as written, or, for a
+  [published script](/docs/agent-workflows), its first line and its disclosing
+  steps with the contact's values. If a value the script needs is missing, the
+  call takes the script's "case unavailable" route, and the preview says so. A
+  personalised preview appears once the AI agent's call variables are set up.
+- **An AI agent whose greeting is generated when the call starts** has no
+  greeting to preview.
 
 If no campaign uses the list, there is no preview.
 
@@ -82,7 +97,7 @@ workspace:
 
 - a search that starts with `+` matches the start of the number;
 - other digits match anywhere in the number;
-- text matches the name or your reference.
+- text matches the name, the first name or your reference.
 
 Choose a result to see which lists that number is in, whether it is on the
 do-not-call register, and its most recent calls and SMS conversations, with
@@ -124,13 +139,13 @@ The [generated API reference](/docs/api-reference) lists each route's request
 and response shape. All of them need the `calls:read` or `calls:write` scope.
 
 - `PATCH /v1/contact-lists/{contact_list_id}/contacts/{contact_id}` edits one
-  contact. It is validated like an import row. It returns `409` if the number
+  contact, including its `first_name`. It is validated like an import row. It returns `409` if the number
   would duplicate another contact, or if a campaign run
   holds the contact and the number would change.
 - `DELETE /v1/contact-lists/{contact_list_id}/contacts/{contact_id}` deletes
   one contact. It returns `409` if a campaign run holds the contact.
 - `GET /v1/contact-lists/{contact_list_id}/export` returns the list as CSV
-  with the columns `phone_e164`, `name`, `language`, `time_zone`, `country`,
+  with the columns `phone_e164`, `name`, `first_name`, `language`, `time_zone`, `country`,
   `external_reference`, `consent_basis`, then one `variables.<name>` column
   per custom value. Text that looks like a spreadsheet formula is prefixed
   with an apostrophe. The row count and whether the export was truncated are
