@@ -109,6 +109,39 @@ carries a message and the retry policy, and the response reports the delivery
 attempt. A paused, auto-disabled or deleted endpoint answers `409`. Resume it
 first.
 
+## Change an endpoint's events or URL
+
+Edit the endpoint in place rather than deleting it and registering a new one.
+Editing keeps the signing secret, so your signature check keeps working; a new
+endpoint gets a new secret.
+
+In the workspace, open **Webhooks** and choose **Edit** on the endpoint. Tick
+the events it should receive, change the URL if it has moved, and save. The
+dialog shows how many events the endpoint now receives. A deleted endpoint
+cannot be edited.
+
+Over the API, events and URL are separate calls:
+
+```bash
+# Replace the events list. Send the complete list.
+curl -s -X PATCH "$SKYSAY_BASE_URL/v1/agent-endpoints/ae_5RwP8yHc2QdLz6Jn" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"events": ["call.completed", "call.failed"]}'
+
+# Move the endpoint to a new URL, through its companion agent.
+curl -s -X PATCH "$SKYSAY_BASE_URL/v1/agents/agent_3TfW9kLp6NqX2vBz" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"webhook_url": "https://hooks.example.com/skysay/v2"}'
+```
+
+Both need scope `agents:write`. The events call answers `409` for a deleted
+endpoint and `400` for an empty list or an unknown event name. Its response
+carries the endpoint's `agent_id`, which is the agent to send the new
+`webhook_url` to. Changing the URL does not change `audio_stream_url`, and
+the new URL must be `https://` on a public address to receive deliveries.
+
 ## What Skysay sends
 
 Each delivery is an HTTPS `POST` with `Content-Type: application/json`,

@@ -12,7 +12,58 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 27 September 2026
+
+### US, Canadian and UK numbers no longer ask for verification
+
+- Number requests in markets where the carrier registers no end user now go straight to purchase once confirmed and funded. Before, US and Canadian local and toll-free, UK local, mobile, national and toll-free, Brazilian local and mobile, and Dutch and Ukrainian mobile numbers were wrongly sent to verification. The pricing page already showed them as instant.
+- A market counts as needing no registration only when every number group the carrier sells there says so; anything the carrier leaves unmarked goes to Skysay review instead.
+- The number you chose is checked with the carrier again when it is ordered, however long the request waited. A changed price comes back to you to confirm, and nothing is charged until you do.
+- [Read the requirement first](/docs/regulated-numbers#read-the-requirement-first) · [Where a number request waits](/docs/regulated-numbers#where-a-number-request-waits)
+
+## 26 September 2026
+
+### Edit a webhook endpoint's events and URL in place
+
+- In **Webhooks**, choose **Edit** on an endpoint to change which events it receives or move it to a new URL, without deleting it and registering a new one.
+- Editing keeps the endpoint's signing secret, so your signature check keeps working.
+- Over the API, the events and the URL are separate calls: `PATCH /v1/agent-endpoints/{id}` for the events, and `PATCH /v1/agents/{id}` with `webhook_url` for the URL.
+- [Change an endpoint's events or URL](/docs/webhooks#change-an-endpoints-events-or-url)
+
+### A faster Voices page with clearer filter names
+
+- The **Voices** page loads faster, on the first page and when you page through the catalog.
+- The filters now read **Style** (how the voice sounds and speaks) and **Good for** (what the voice is made for), grouped under **Voice character**, and the price column reads **Price / min**.
+- [Search the catalog](/docs/voice-library#search-the-catalog)
+
 ## 25 September 2026
+
+### Outgoing calls wait for a free agent line instead of failing
+
+- When every agent line is in a call as an outgoing call is about to be dialled, Skysay no longer dials it; the call waits in its queue for a free line.
+- Waiting spends none of the call's attempts, and your do-not-call register, the campaign's state and the calling window are checked again when it is dialled.
+- If no line frees for about ten minutes, the call ends `outbound_capacity_unavailable`: it was never dialled and nothing is charged.
+- [Failure reasons](/docs/post-call-results#verify-every-delivery) · [Campaign retries](/docs/campaigns#retries)
+
+### Agents are instructed to end a call only after a goodbye, a "nothing else", or the wrong person
+
+- The standing call-ending instruction now tells agents to end a call only once the caller says goodbye, confirms they need nothing else, or says they are not the person you are calling.
+- Agents are also told to say so and stay on the line when they cannot help, rather than end the call while the caller is still explaining.
+- This is an instruction to the model, not a guarantee: an agent can still end a call earlier, and the call still ends when the caller hangs up or it reaches its maximum length.
+- [The standing call-ending instruction](/docs/how-calls-end#the-standing-call-ending-instruction)
+
+### Gemini 2.5 Flash TTS is retired; English keeps ElevenLabs Flash
+
+- **Google Gemini TTS (Flash, preview)** is no longer offered for new selections, because it sends each reply as one clip and callers wait about three seconds before hearing anything.
+- Agents that already use it keep running, with a warning naming **Google Gemini TTS (Flash 3.1, preview)** as the replacement.
+- Adding a language whose default is Gemini Flash-Lite, such as Polish or Hindi, no longer moves English off ElevenLabs Flash; that language gets Flash-Lite as its own voice.
+- [Retired voice models](/docs/voice-library#retired-voice-models) · [Shared settings and optional overrides](/docs/multilingual-outbound#shared-settings-and-optional-overrides)
+
+### The Voices page opens on All voices
+
+- The Voices page opens on **All voices**, listing text-to-speech voices first and then the conversation engines; the other two views narrow it to one kind.
+- A language with a single stated accent is one Accent entry named for the language, and each filter and row fact carries an icon.
+- [Search the catalog](/docs/voice-library#search-the-catalog)
 
 ### Gemini 3.8 Flash-Lite TTS and 55 more call languages
 
