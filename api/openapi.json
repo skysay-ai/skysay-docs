@@ -2682,6 +2682,11 @@
             "maxLength": 256,
             "type": "string"
           },
+          "first_name": {
+            "description": "The contact's first name, as supplied (never derived from `name`); no `{` or `}`. Empty clears it. A custom value named `first_name` in `variables` is a separate value.",
+            "maxLength": 80,
+            "type": "string"
+          },
           "language": {
             "maxLength": 12,
             "type": "string"
@@ -2718,6 +2723,11 @@
           },
           "external_reference": {
             "maxLength": 256,
+            "type": "string"
+          },
+          "first_name": {
+            "description": "The contact's first name, as supplied (never derived from `name`); no `{` or `}`. Empty clears it.",
+            "maxLength": 80,
             "type": "string"
           },
           "language": {
@@ -8087,7 +8097,7 @@
         ]
       },
       "patch": {
-        "description": "Send any of phone_e164, name, language, time_zone, variables, external_reference and consent_basis; the rest keep their values. The edited contact is validated exactly like an imported row. A contact keeps its place in the list's import order. A contact a campaign run has already taken can still be edited, but its number cannot change (409), and a number another contact in the list already has is refused (409).",
+        "description": "Send any of phone_e164, name, first_name, language, time_zone, variables, external_reference and consent_basis; the rest keep their values. The edited contact is validated exactly like an imported row. A contact keeps its place in the list's import order. A contact a campaign run has already taken can still be edited, but its number cannot change (409), and a number another contact in the list already has is refused (409).",
         "parameters": [
           {
             "in": "path",
@@ -8135,7 +8145,7 @@
     },
     "/v1/contact-lists/{contact_list_id}/export": {
       "get": {
-        "description": "Every contact in import order: phone_e164, name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value. A list value is written as JSON. Text a spreadsheet could read as a formula is prefixed with an apostrophe. X-Skysay-Row-Count and X-Skysay-Truncated describe the file. Bound to the credential's own workspace.",
+        "description": "Every contact in import order: phone_e164, name, first_name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value. A list value is written as JSON. Text a spreadsheet could read as a formula is prefixed with an apostrophe. X-Skysay-Row-Count and X-Skysay-Truncated describe the file. Bound to the credential's own workspace.",
         "parameters": [
           {
             "in": "path",
@@ -8162,7 +8172,7 @@
     },
     "/v1/contacts": {
       "get": {
-        "description": "A search that starts with + matches the start of the number; other digits match anywhere in the number; text matches anywhere in the name or external reference, ignoring case. Results come in a stable order (number, list, contact) with has_more. An empty search returns no results.",
+        "description": "A search that starts with + matches the start of the number; other digits match anywhere in the number; text matches anywhere in the name, first name or external reference, ignoring case. Results come in a stable order (number, list, contact) with has_more. An empty search returns no results.",
         "parameters": [
           {
             "in": "query",
@@ -8779,7 +8789,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -9146,7 +9156,7 @@
     },
     "/v1/dashboard/contacts/lists/{contact_list_id}": {
       "get": {
-        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its latest campaign outcome and do-not-call state. When a campaign uses the list, a preview of what that campaign's AI agent says to the selected contact, built by the same functions the call runs: the greeting as it is spoken, or a published script's opening and disclosing steps rendered from the contact's values, or the case-unavailable route when a value is missing. Fixed query budget; no provider or model call.",
+        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its first name, latest campaign outcome and do-not-call state. When a campaign uses the list, a preview of what that campaign's AI agent says to the selected contact. For an AI agent with call variables set up (mode call_variables), the greeting, the script's opening and personalised lines and the SMS templates are rendered from this contact's values by the call-variables admission and template renderer, with the template's fallback wording where a value is missing (missing_values names them); when this contact's values would refuse the call (a required value missing, a wrong type), outcome is refused with the reason code, the field and the destination, never a value. For any other AI agent (mode as_written) the lines are shown as its calls speak them today. call_variables_active is false until calls speak through call variables. Fixed query budget; no provider or model call.",
         "parameters": [
           {
             "in": "path",
