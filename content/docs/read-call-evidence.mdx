@@ -131,8 +131,16 @@ have their own clip. A turn stays grey rather than borrowing a clip whenever
 its speech cannot be matched to one stretch of the recording, for example the
 second half of a sentence the engine split into two turns. Gemini Live sends
 its transcript only after the person stops talking, which cannot be matched
-safely yet, so the other person's turns on Gemini Live calls stay grey. Calls
-recorded before this change keep the timing they had.
+safely yet, so the other person's turns on Gemini Live calls stay grey.
+
+Calls recorded before this change keep the timing they had, with one
+exception: on some of them, the caller's turns had no measured start and end,
+and Skysay went back to those calls after they ended and located each turn's
+words on the caller's side of the recording. A turn whose words could be placed
+with high confidence now has a measured start and end, so it is coloured and
+sits at the moment it was spoken; a turn that could not be placed stays grey.
+Where a turn's own clip turned out to hold other audio, that turn no longer
+offers turn-by-turn playback.
 
 The player reads only the start of the file when a call opens, so its length is
 known before you press play. From the press until audio actually plays it shows
@@ -196,7 +204,8 @@ ended reason.
 
 Between the transcript turns, the Calls workspace shows each tool the agent
 finished and each language switch it made, in the order they happened on the
-call.
+call. The caller's own turns always stay in the order they were spoken, even on
+a call where only some of them have a measured start.
 
 A tool row shows the tool's name, whether it succeeded or failed, how long it
 took, and its offset into the call. A language switch shows the language the
