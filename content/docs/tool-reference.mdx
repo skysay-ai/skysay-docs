@@ -36,6 +36,8 @@ the live `tools/list` on your instance as canonical.
 | `get_agent_voice_stack` | `agents:read` | Read the selected stack and sparse language profiles. |
 | `set_agent_voice_stack` | `agents:write` | Set transcriber/model/voice, first message, system prompt, language, and optional `voice_frontend` (`cascade` or `gpt_live`). |
 | `preview_voice` | `agents:write` | Explicit bounded, rate-limited provider/BYOK Listen action; may have provider and safe state effects, so it is not read-only. |
+| `get_agent_variables` | `agents:read` | Read an AI agent's [call variables](/docs/call-variables) config with its `revision` and `schema_hash`; the same answer as `GET /v1/agents/{agent_id}/variables`. |
+| `set_agent_variables` | `agents:write` | Replace an AI agent's whole call variables config, checked and republished at once. Send `base_revision` to be refused rather than overwrite a newer write. A refused config returns `error.body.issues`. |
 
 ## Offline trial fixtures
 
@@ -71,6 +73,7 @@ the live `tools/list` on your instance as canonical.
 | --- | --- | --- |
 | `list_conversations` | `sms:read` | List SMS conversations for a workspace. |
 | `send_sms` | `sms:send` | Send a policy-gated SMS message. |
+| `send_agent_template_message` | `sms:send` **and** `agents:read` | Send one of an AI agent's published [SMS templates](/docs/call-variables), filled with your variables and slots, from a number in the agent's own project. |
 
 ## Policy & onboarding
 
