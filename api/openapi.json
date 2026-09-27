@@ -8145,7 +8145,7 @@
     },
     "/v1/contact-lists/{contact_list_id}/export": {
       "get": {
-        "description": "Every contact in import order: phone_e164, name, first_name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value. A list value is written as JSON. Text a spreadsheet could read as a formula is prefixed with an apostrophe. The dashboard's Import CSV reads such a file back as the same contacts. X-Skysay-Row-Count and X-Skysay-Truncated describe the file. Bound to the credential's own workspace.",
+        "description": "Every contact in import order: phone_e164, name, first_name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value to read (a list value as JSON; at most 200 such columns), then a variables column with every custom value as typed JSON. Text a spreadsheet could read as a formula, or that starts with an apostrophe, is prefixed with one apostrophe. The dashboard's Import CSV reads such a file back as the same contacts, custom value types included. X-Skysay-Row-Count and X-Skysay-Truncated describe the file. Bound to the credential's own workspace.",
         "parameters": [
           {
             "in": "path",
@@ -9108,7 +9108,7 @@
     },
     "/v1/dashboard/contacts": {
       "get": {
-        "description": "Pure read: a page of contact lists (newest change first), each with its contact count, the custom value names seen in its first rows, the campaigns that use it (at most five, with a total) and when it changed; plus the wallet header. Fixed query budget; never a caller-selected tenant.",
+        "description": "Pure read: a page of contact lists (newest change first), each with its contact count, the custom value names seen in its first rows (custom_values.sampled_rows says how many), the campaigns that use it (at most five, with a total) and when it changed; plus the wallet header. Fixed query budget; never a caller-selected tenant.",
         "parameters": [
           {
             "in": "query",
@@ -9156,7 +9156,7 @@
     },
     "/v1/dashboard/contacts/lists/{contact_list_id}": {
       "get": {
-        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its first name, latest campaign outcome and do-not-call state. When a campaign uses the list, a preview of what that campaign's AI agent says to the selected contact. For an AI agent with call variables set up (mode call_variables), the greeting, the script's opening and personalised lines and the SMS templates are rendered from this contact's values by the call-variables admission and template renderer, with the template's fallback wording where a value is missing (missing_values names them); when this contact's values would refuse the call (a required value missing, a wrong type), outcome is refused with the reason code, the field and the destination, never a value. For any other AI agent (mode as_written) the lines are shown as its calls speak them today. call_variables_active is false until calls speak through call variables. Fixed query budget; no provider or model call.",
+        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its first name, latest campaign outcome and do-not-call state. When a campaign uses the list (and its AI agent is hosted; an AI agent on the customer's own endpoint previews outcome external), a preview of what that campaign's AI agent says to the selected contact. For an AI agent with call variables set up (mode call_variables), the greeting, the script's opening and personalised lines and the SMS templates are rendered from this contact's values by the call-variables admission and template renderer, with the template's fallback wording where a value is missing (missing_values names them); when this contact's values would refuse the call (a required value missing, a wrong type), outcome is refused with the reason code, the field and the destination, never a value. For any other AI agent (mode as_written) the lines are shown as its calls speak them today. call_variables_active is false until calls speak through call variables. Fixed query budget; no provider or model call.",
         "parameters": [
           {
             "in": "path",
