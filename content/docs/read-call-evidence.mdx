@@ -264,6 +264,28 @@ returns turns only, exactly as before. The `call.completed`,
 are post-call extraction, turn counts, and campaign and call-group readiness —
 all of which read transcript turns and nothing else.
 
+## Call variables on a call
+
+When call variables are switched on, a call opened in Calls shows the values
+it was placed with, as they were fixed when the call started:
+
+- Each variable's name, type, and where it came from (the API request, a
+  campaign contact, the caller lookup, a browser test, or a built-in such as
+  `contact.first_name`).
+- An ordinary variable shows its value, or **No value** when the call had
+  none.
+- A protected variable never shows its value, in the dashboard or in
+  `GET /v1/dashboard/calls`, before or after the caller is confirmed. It shows
+  only its state: **Held until confirmed**, or **Released at turn N** once a
+  confirmation was recorded on the call's workflow.
+- The confirmation itself: how it happened (the caller confirmed, or an
+  answer matched the record), the step, and the turn.
+
+A workflow call's trace also lists each identity check that compared an
+answer (matched, did not match, or no usable answer) and each SMS step's
+delivery status. These never include the answer, the compared value, the
+message text, or the recipient.
+
 ## Where a call's telemetry lives
 
 A call's timing and cost evidence — the per-turn latency budget, the cost
