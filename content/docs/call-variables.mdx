@@ -1,0 +1,246 @@
+---
+title: Call variables
+description: Give each call its own data — a name, a balance, an appointment — and let the agent's greeting, lines, instructions and SMS templates use it.
+icon: DatabaseTag
+---
+
+Call variables are the data one call carries: the person's first name, an
+order number, a balance, an appointment time, a list of items. You **declare**
+the variables an agent uses once, write them into the agent's greeting,
+workflow lines, instructions and SMS templates as `{{name}}`, and each call
+supplies its own values.
+
+- A **literal** line — the greeting, a workflow line, an SMS — is spoken or sent
+  with the values filled in.
+- The agent's **instructions** name variables but never contain their values:
+  `{{balance}}` reads as `balance`, and the values reach the model as data, in
+  one block the model is told never to follow as instructions.
+
+## Declare the variables
+
+An agent's variables, SMS templates and caller lookup live in one config, read
+with `GET /v1/agents/{agent_id}/variables` and replaced with
+`PUT /v1/agents/{agent_id}/variables` (see [the API](#the-api) below).
+
+```json
+{
+  "variables": {
+    "version": 1,
+    "fields": {
+      "first_name": { "type": "string", "max_length": 80 },
+      "order": { "type": "string", "required": true },
+      "balance": { "type": "number" },
+      "is_vip": { "type": "boolean" },
+      "items": {
+        "type": "list",
+        "max_items": 5,
+        "item": { "desc": "string", "amount": "number" }
+      }
+    }
+  }
+}
+```
+
+| Setting | Meaning |
+| --- | --- |
+| `type` | `string`, `number`, `boolean` or `list` |
+| `required` | a call without this value is refused before it is placed |
+| `max_length` | strings: at most this many characters (1–512, default 512) |
+| `max_items` | lists: at most this many items (1–16, default 16) |
+| `item` | lists: each item's own keys, each `string`, `number` or `boolean` |
+
+An agent declares at most 32 variables. Names are letters, digits and `_`, not
+starting with a digit, up to 80 characters.
+
+<Callout type="info" title="Workflow agents declare variables on the workflow">
+  An agent with a [workflow](/docs/agent-workflows) declares its variables on the
+  workflow draft instead, and they are checked when the workflow is published.
+  Its agent config then holds only the SMS templates, the SMS mode and the
+  caller lookup.
+</Callout>
+
+### Built-in variables
+
+Every call also carries these, without declaring them. They never collide with
+your names.
+
+| Built-in | Value |
+| --- | --- |
+| `contact.first_name`, `contact.name` | the contact the call is for (a campaign contact, or the caller matched by [caller lookup](#caller-lookup)) |
+| `contact.language`, `contact.time_zone`, `contact.external_reference` | that contact's own fields |
+| `campaign.id`, `campaign.name`, `campaign.run_id`, `campaign.attempt` | the campaign a call belongs to |
+| `call.direction`, `call.counterparty_number`, `call.agent_number` | the call itself |
+| `call.local_date`, `call.local_time` | the time in the contact's zone when the call was admitted |
+
+## Write them into lines
+
+| Marker | Renders |
+| --- | --- |
+| `{{order}}` | the value |
+| `{{#first_name}}…{{/first_name}}` | its content only when `first_name` has a value (for a boolean, when it is true; for a list, once per item) |
+| `{{^first_name}}…{{/first_name}}` | its content only when `first_name` has **no** value (or is false, or an empty list) |
+
+```text
+Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{order}}.
+{{#items}}{{desc}}: {{amount}}. {{/items}}{{^items}}Nothing is due.{{/items}}
+```
+
+- Spaces or tabs inside the braces are fine: `{{ order }}`.
+- Sections nest two deep: a condition inside a list, for example
+  `{{#items}}{{#paid}}(paid){{/paid}}{{/items}}`. A list inside a list is not
+  allowed.
+- **An optional variable may only be printed inside its own section**, so a
+  missing value can never leave a gap like "Hello , your order is ready":
+  `{{#first_name}} {{first_name}}{{/first_name}}`. A `required` variable can be
+  printed anywhere.
+- Values are used exactly as given and are never read as markers: a value
+  containing `{{…}}` is spoken as those characters.
+- Numbers are written plainly: `45300.0` reads `45300`, `0.5` reads `0.5`. A
+  number needs at most 6 decimals and an absolute value below 10¹⁵.
+- Anything else that starts with `{{` — a misspelled or unclosed marker, a close
+  for the wrong name — is refused when the agent or workflow is saved, never
+  silently dropped.
+
+## Supply the values
+
+- **An API call** sends them in `call_context` on
+  [`POST /v1/calls`](/docs/rest-endpoints): `{"call_context": {"order": "A-17",
+  "first_name": "Mari"}}`. Only declared names are used; any other key is
+  ignored.
+- **A campaign** takes them from the contact list's columns, and fills the
+  `contact.*` and `campaign.*` built-ins itself. See
+  [Campaigns](/docs/campaigns).
+- **A Talk test** in the dashboard, or a browser session over the API, takes
+  them as `test_values`.
+
+A value that does not match its declaration — the wrong type, too long, too
+many list items — refuses the call before it is placed, with the variable named
+and the value never echoed.
+
+### Protected variables
+
+Some values must not be said until the person on the line has shown they are
+the right person: a balance, a date of birth. Mark those `protected`, with the
+check that releases them:
+
+```json
+"balance": { "type": "number", "protected": true, "requires": "confirmation" }
+```
+
+- `confirmation`: released once the workflow's identity step is confirmed.
+- `knowledge_match`: released once the caller correctly states a value you hold,
+  such as a postcode or a date of birth (`format` sets how a date is compared:
+  `date:YYYY-MM-DD`, `date:DD/MM/YYYY` or `date:MM/DD/YYYY`; `identifier` for an
+  account or reference number).
+
+Protected variables need a [workflow](/docs/agent-workflows) agent on the
+cascade engine: the workflow decides when each line may be said, and a line
+before the confirming step that names a protected value is refused when the
+workflow is published.
+
+<Callout type="warn" title="Live engines do not protect values">
+  GPT-Live and Gemini Live agents cannot hold protected variables: a live
+  engine speaks freely and nothing gates what it says. Declare their variables
+  as ordinary ones, and give them only data that may be said to whoever answers.
+</Callout>
+
+### Caller lookup
+
+For inbound calls an agent can look the caller's number up in one of its
+contact lists (`"caller_lookup": {"contact_list_id": "cl_..."}`), which fills
+the `contact.*` built-ins. A number match is not proof of who is calling: on an
+inbound call every other looked-up field is treated as protected, and only
+`contact.first_name` and `contact.name` may be said before confirmation — unless
+you mark a field `"before_confirmation": true`.
+
+## Limits
+
+Every line is rendered with the call's values **before** the call is placed,
+and the call is refused rather than cut short when something does not fit:
+
+| What | Limit |
+| --- | --- |
+| a greeting or workflow line | 1,000 characters once filled in |
+| an SMS | 6 segments |
+| the data block the model reads | 8 KB |
+
+A refusal names its reason: `call_variables_missing` (a required value is
+absent), `call_variables_invalid` (a value does not match its declaration),
+`call_variables_over_budget` (a filled-in line is empty or over its limit),
+`workflow_binding_failed`, `schema_pair_mismatch` or
+`per_call_text_on_workflow` (per-call `first_message` or `instructions` sent to
+a workflow agent, which speaks only its authored lines).
+
+## SMS templates
+
+An agent can hold SMS templates, sent by its `send_sms` tool during a call or
+through the API with no call behind it.
+
+```json
+{
+  "sms_mode": "free_text",
+  "sms_templates": {
+    "shipped": {
+      "text": {
+        "en": "Hi{{#first_name}} {{first_name}}{{/first_name}}, order {{order}} ships {{when}}.",
+        "de": "Hallo{{#first_name}} {{first_name}}{{/first_name}}, Bestellung {{order}} wird {{when}} verschickt."
+      },
+      "slots": { "when": { "source": "model", "max_length": 40 } }
+    }
+  }
+}
+```
+
+- `slots` are filled by the model at send time (at most 8 per template, each up
+  to `max_length` characters, 120 at most). The model fills only slots — never
+  your variables.
+- `sms_mode: "templates_only"` refuses any free-text SMS from the agent: it can
+  send only its templates.
+- An agent holds at most 20 templates; ids are lowercase letters, digits and
+  `_`.
+
+**Which language is sent.** A template's text is chosen in this order:
+
+1. the call's language (for an API send, the `language` you name);
+2. that language's base (`et-EE` → `et`);
+3. the agent's primary language — its first selected language;
+4. as a last resort, the template's texts in language-code order.
+
+So a template never fails to send for want of a translation — but a caller may
+get the primary language instead of their own. **Translate every template into
+every language the agent speaks.**
+
+## The API
+
+| Method | Path | Scope | |
+| --- | --- | --- | --- |
+| `GET` | `/v1/agents/{agent_id}/variables` | `agents:read` | the config, its `revision` and `schema_hash` |
+| `PUT` | `/v1/agents/{agent_id}/variables` | `agents:write` | replace the config |
+| `POST` | `/v1/agents/{agent_id}/messages` | `sms:send` + `agents:read` | send one of the agent's templates |
+
+**`PUT` replaces the whole config** and republishes the agent in the same step,
+so the next call uses it; calls already under way keep what they started with.
+Send back the `revision` you read as `base_revision`: if the agent was changed
+and republished since — by another edit of this config, or of its voice,
+prompt or languages — the write is refused with
+`409 {"error": "revision_conflict", "revision": <current>}` and nothing
+changes. A config the checks refuse is
+`400 {"error": "variables_config_invalid", "issues": [...]}`, each issue naming
+its `code` and, where it applies, the `field`, `where` it was found (for example
+`first_message.en`) and the `marker` at fault.
+
+**`POST …/messages` is project-scoped**, unlike `POST /v1/messages`: the send
+uses the agent's own project and a sending number from it. Send the
+`template_id`, the `variables` the template uses, the model `slots`, an optional
+`language`, and the usual `to`, `purpose` and `recipient_type` of a message.
+An agent in another workspace or project and an unknown template are the same
+`404`. A protected variable cannot be sent this way — there is no call to
+confirm who you are writing to.
+
+```bash
+curl -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/messages" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" -H "Content-Type: application/json" \
+  -d '{"template_id": "shipped", "variables": {"first_name": "Mari", "order": "A-17"},
+       "slots": {"when": "tomorrow"}, "from_number_id": "pn_...",
+       "to": "+12025550111", "purpose": "support", "recipient_type": "business"}'
+```

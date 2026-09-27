@@ -418,6 +418,63 @@
         },
         "type": "object"
       },
+      "AgentTemplateMessage": {
+        "description": "Everything POST /v1/messages takes that names no resource, plus the template and what fills it. body, campaign_id, provider and segment_count are refused. The sending number, under any of its names, must belong to the agent's project.",
+        "properties": {
+          "bulk": {},
+          "categories": {},
+          "country": {},
+          "from_number_id": {},
+          "from_phone_number_id": {},
+          "idempotency_key": {
+            "type": "string"
+          },
+          "language": {
+            "description": "The language to send in. Text is chosen from the call or request language, then its base language (et-EE -> et), then the agent's primary language, then, as a last resort, the template's texts in language-code order.",
+            "type": "string"
+          },
+          "message_class": {},
+          "metadata": {
+            "type": "object"
+          },
+          "number_id": {},
+          "project_id": {
+            "description": "Optional. The agent's own project; any other answers 404 exactly as a foreign agent does.",
+            "type": "string"
+          },
+          "purpose": {
+            "description": "The message's purpose, authorized as on POST /v1/messages.",
+            "type": "string"
+          },
+          "recipient_type": {},
+          "relationship": {},
+          "slots": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Values for the template's model slots, each within its max_length.",
+            "type": "object"
+          },
+          "template_id": {
+            "type": "string"
+          },
+          "to": {
+            "description": "The recipient, E.164. to_phone_number is accepted as its alias.",
+            "type": "string"
+          },
+          "to_phone_number": {},
+          "user_authorization": {},
+          "user_requested": {},
+          "variables": {
+            "description": "Values for the agent's declared variables the template references. A referenced required variable must be present; protected variables are refused (there is no confirmation to lean on).",
+            "type": "object"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "type": "object"
+      },
       "AgentTool": {
         "description": "A legacy string placeholder, a built-in tool, a signed webhook tool, or an attached Integration Action.",
         "oneOf": [
@@ -629,6 +686,54 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "AgentVariables": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/components/schemas/VariablesConfig"
+          },
+          "published_at": {
+            "description": "When the current publication was made; empty before the first.",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The agent's latest published language-profile version; send it back as base_revision. Any publish of the agent moves it. 0 before the agent is first published.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "schema_hash": {
+            "description": "sha256 of the variable schema a call admitted now would carry; empty when the publication declares none a call could be admitted with.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "config",
+          "revision",
+          "schema_hash",
+          "published_at"
+        ],
+        "type": "object"
+      },
+      "AgentVariablesUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "base_revision": {
+            "description": "The revision this edit was based on. When sent and stale, the write is refused with 409 revision_conflict. Omit for last-write-wins.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "config": {
+            "$ref": "#/components/schemas/VariablesConfig"
+          }
+        },
+        "required": [
+          "config"
+        ],
         "type": "object"
       },
       "AgentVoicePolish": {
@@ -2669,6 +2774,23 @@
         ],
         "type": "object"
       },
+      "ContactListUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "ContactRow": {
         "properties": {
           "consent_basis": {
@@ -2680,6 +2802,11 @@
           },
           "external_reference": {
             "maxLength": 256,
+            "type": "string"
+          },
+          "first_name": {
+            "description": "The contact's first name, as supplied (never derived from `name`); no `{` or `}`. Empty clears it. A custom value named `first_name` in `variables` is a separate value.",
+            "maxLength": 80,
             "type": "string"
           },
           "language": {
@@ -2705,6 +2832,48 @@
         "required": [
           "phone_e164"
         ],
+        "type": "object"
+      },
+      "ContactUpdate": {
+        "properties": {
+          "consent_basis": {
+            "description": "Why this contact may be called: existing_customer or explicit_consent. Empty clears it.",
+            "enum": [
+              "existing_customer",
+              "explicit_consent",
+              ""
+            ],
+            "type": "string"
+          },
+          "external_reference": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "first_name": {
+            "description": "The contact's first name, as supplied (never derived from `name`); no `{` or `}`. Empty clears it.",
+            "maxLength": 80,
+            "type": "string"
+          },
+          "language": {
+            "maxLength": 12,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "type": "string"
+          },
+          "phone_e164": {
+            "type": "string"
+          },
+          "time_zone": {
+            "description": "IANA zone; an empty value takes the default for the number's country",
+            "type": "string"
+          },
+          "variables": {
+            "description": "Replaces the contact's custom values; the same limits as an import",
+            "type": "object"
+          }
+        },
         "type": "object"
       },
       "CreateOrganization": {
@@ -2806,6 +2975,10 @@
           },
           "reason": {
             "maxLength": 160,
+            "type": "string"
+          },
+          "source": {
+            "description": "How the numbers were added, shown on the register: api (the default), csv, mcp, or dashboard for the Contacts page.",
             "type": "string"
           }
         },
@@ -3999,6 +4172,202 @@
         ],
         "type": "object"
       },
+      "VariablesConfig": {
+        "additionalProperties": false,
+        "description": "An agent's call variables, SMS templates and caller lookup. Exported from config_schema.py (the API's copy; tests pin the two equal) for the dashboard and the docs. tests/fixtures/call_variables/config_cases.json is the accept/reject contract.",
+        "properties": {
+          "caller_lookup": {
+            "default": null,
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "contact_list_id": {
+                    "maxLength": 120,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contact_list_id"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "sms_mode": {
+            "default": "free_text",
+            "enum": [
+              "free_text",
+              "templates_only"
+            ]
+          },
+          "sms_templates": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/VariablesConfig_sms_template"
+            },
+            "default": {},
+            "maxProperties": 20,
+            "propertyNames": {
+              "pattern": "^[a-z0-9_]{1,40}$"
+            },
+            "type": "object"
+          },
+          "variables": {
+            "$ref": "#/components/schemas/VariablesConfig_variables"
+          }
+        },
+        "title": "VariablesConfig",
+        "type": "object"
+      },
+      "VariablesConfig_field": {
+        "additionalProperties": false,
+        "properties": {
+          "before_confirmation": {
+            "type": "boolean"
+          },
+          "format": {
+            "enum": [
+              "identifier",
+              "date:YYYY-MM-DD",
+              "date:DD/MM/YYYY",
+              "date:MM/DD/YYYY"
+            ]
+          },
+          "item": {
+            "additionalProperties": {
+              "enum": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "$ref": "#/components/schemas/VariablesConfig_name"
+            },
+            "type": "object"
+          },
+          "max_items": {
+            "maximum": 16,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_length": {
+            "maximum": 512,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "protected": {
+            "type": "boolean"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "requires": {
+            "enum": [
+              "confirmation",
+              "knowledge_match"
+            ]
+          },
+          "type": {
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "list"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "VariablesConfig_name": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,79}$",
+        "type": "string"
+      },
+      "VariablesConfig_sms_slot": {
+        "additionalProperties": false,
+        "properties": {
+          "max_length": {
+            "default": 120,
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "source": {
+            "const": "model"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      },
+      "VariablesConfig_sms_template": {
+        "additionalProperties": false,
+        "properties": {
+          "slots": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/VariablesConfig_sms_slot"
+            },
+            "default": {},
+            "maxProperties": 8,
+            "propertyNames": {
+              "$ref": "#/components/schemas/VariablesConfig_name"
+            },
+            "type": "object"
+          },
+          "text": {
+            "additionalProperties": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "description": "Text per language. The agent's primary language is required; any other language falls back to it.",
+            "minProperties": 1,
+            "propertyNames": {
+              "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "VariablesConfig_variables": {
+        "additionalProperties": false,
+        "default": {
+          "fields": {},
+          "version": 1
+        },
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/VariablesConfig_field"
+            },
+            "maxProperties": 32,
+            "propertyNames": {
+              "$ref": "#/components/schemas/VariablesConfig_name"
+            },
+            "type": "object"
+          },
+          "version": {
+            "const": 1
+          }
+        },
+        "required": [
+          "version",
+          "fields"
+        ],
+        "type": "object"
+      },
       "VoiceComponentSelection": {
         "properties": {
           "language": {
@@ -4552,6 +4921,10 @@
                       "draft"
                     ],
                     "type": "string"
+                  },
+                  "test_values": {
+                    "description": "Values for the agent's declared variables, for this test call only. Built-ins (contact.*, call.*, campaign.*) are not sent. Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, and field / where naming the variable or line (never a value).",
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -4734,6 +5107,47 @@
           }
         },
         "summary": "Replace the knowledge bases attached to one hosted agent"
+      }
+    },
+    "/v1/agents/{agent_id}/messages": {
+      "post": {
+        "description": "Project-scoped, unlike the organization-scoped POST /v1/messages: the agent's own project is the send's project. A foreign workspace's agent, another project, an unpublished agent and an unknown template are the same 404. The text is rendered from the published template with the variables and slots given, within 6 SMS segments, and authorized as POST /v1/messages is.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentTemplateMessage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The message, as POST /v1/messages returns it"
+          },
+          "400": {
+            "description": "A body beside a template, an unsupported field, a missing or invalid variable or slot, or a text over 6 segments."
+          },
+          "404": {
+            "description": "SMS template not found"
+          }
+        },
+        "summary": "Send one of an agent's published SMS templates",
+        "x-required-scopes": [
+          "sms:send",
+          "agents:read"
+        ]
       }
     },
     "/v1/agents/{agent_id}/post-call-extraction": {
@@ -5533,6 +5947,130 @@
         ]
       }
     },
+    "/v1/agents/{agent_id}/variables": {
+      "get": {
+        "description": "A pure read of the stored config, with the revision a write must name and the schema_hash a call admitted now would carry. Bound to the authenticated workspace: another workspace's agent and an unknown one are the same 404.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentVariables"
+                }
+              }
+            },
+            "description": "The agent's config"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        },
+        "summary": "Read an agent's call variables, SMS templates and caller lookup",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
+      "put": {
+        "description": "A full replace. The config is checked by the publish lint and republished into the agent's language profiles in the same transaction, so the next call is admitted against it; calls already admitted keep what they were admitted with. For an agent with an active workflow the config carries only sms_mode, sms_templates and caller_lookup: its variables are the workflow's. Protected fields need a workflow agent and a confirmation method; live engines (GPT-Live, Gemini Live) cannot hold them.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentVariablesUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentVariables"
+                }
+              }
+            },
+            "description": "The config as stored and published"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "const": "variables_config_invalid"
+                    },
+                    "issues": {
+                      "items": {
+                        "properties": {
+                          "code": {
+                            "description": "The publish-lint code, e.g. PROTECTED_FIELD_ON_LIVE_ENGINE, UNDECLARED, OPTIONAL_OUTSIDE_SECTION.",
+                            "type": "string"
+                          },
+                          "field": {
+                            "description": "The declared variable the issue is about.",
+                            "type": "string"
+                          },
+                          "marker": {
+                            "description": "The template marker at fault, when there is one.",
+                            "type": "string"
+                          },
+                          "where": {
+                            "description": "The part of the config or the line it was found in, e.g. variables, caller_lookup, first_message.en, sms_templates.<id>.<language>.",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "{error: 'variables_config_invalid', message, issues: [issue]}: the config fails the publish lint."
+          },
+          "404": {
+            "description": "Agent not found"
+          },
+          "409": {
+            "description": "{error: 'revision_conflict', message, revision}: base_revision is stale. Or {error: 'workflow_revalidation_failed', message, issues}: the change would let the agent's active workflow say a protected value before the caller is confirmed."
+          }
+        },
+        "summary": "Replace an agent's call variables, SMS templates and caller lookup",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
     "/v1/agents/{agent_id}/voice-stack": {
       "get": {
         "description": "The target agent authorizes the tenant boundary. Returns selected/resolved STT, model, and TTS catalog metadata plus validation warnings, cost, latency, prompt, and tuning configuration. Platform-managed selections use the catalog's managed component estimate; a BYOK component selected on PATCH through an existing component credential ID has no Skysay component charge. Credential binding IDs, plaintext, ciphertext, nonce, fingerprints, and provider secrets are never returned. This GET is a pure read: it makes no provider call, validation probe, compilation, repair, lazy creation, or write.",
@@ -5692,6 +6230,12 @@
                     "type": "object"
                   },
                   "workflow": {
+                    "properties": {
+                      "variables": {
+                        "$ref": "#/components/schemas/VariablesConfig_variables",
+                        "description": "The workflow's own call variables. Checked when the workflow is published."
+                      }
+                    },
                     "type": "object"
                   }
                 },
@@ -7915,6 +8459,34 @@
       }
     },
     "/v1/contact-lists/{contact_list_id}": {
+      "delete": {
+        "description": "Refused (409, reason contact_list_in_use) while a campaign using the list is launching, scheduled, running or paused; the response names up to five of those campaigns (id, name, status) with total and has_more. Cancel them, or wait until they finish, then delete. Nothing is detached from a campaign. Otherwise the list is deleted: it no longer appears in any list, search, import, export, edit or new campaign, and a draft campaign that named it must pick another list before it can launch. Contacts no campaign run has taken are removed. Contacts a campaign run has taken are kept only as that campaign's records, so its contacts, results export and reviews read as before; they are no longer found as contacts. The response counts both: removed_contacts and kept_for_campaign_history.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id, deleted, removed_contacts, kept_for_campaign_history}"
+          },
+          "404": {
+            "description": "No such list in this workspace"
+          },
+          "409": {
+            "description": "A campaign that can still dial the list uses it: {reason, message, campaigns: [{id, name, status}], total, has_more}"
+          }
+        },
+        "summary": "Delete a contact list",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      },
       "get": {
         "parameters": [
           {
@@ -7934,6 +8506,44 @@
         "summary": "Read one contact list",
         "x-required-scopes": [
           "calls:read"
+        ]
+      },
+      "patch": {
+        "description": "Send name only: required, at most 120 characters, no control characters, trimmed. As when a list is created, two lists may share a name. Nothing else about the list or its contacts changes.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactListUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The renamed list"
+          },
+          "400": {
+            "description": "The name is blank, too long or has control characters, or another field was sent"
+          },
+          "404": {
+            "description": "No such list in this workspace"
+          }
+        },
+        "summary": "Rename a contact list",
+        "x-required-scopes": [
+          "calls:write"
         ]
       }
     },
@@ -8007,6 +8617,169 @@
         "summary": "Append rows to a contact list",
         "x-required-scopes": [
           "calls:write"
+        ]
+      }
+    },
+    "/v1/contact-lists/{contact_list_id}/contacts/{contact_id}": {
+      "delete": {
+        "description": "Removes the contact and lowers the list's contact count; other contacts keep their import order. A contact a campaign run has already taken cannot be deleted (409).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{deleted, id}"
+          },
+          "404": {
+            "description": "No such contact in this workspace"
+          },
+          "409": {
+            "description": "A campaign run holds this contact"
+          }
+        },
+        "summary": "Delete one contact",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      },
+      "patch": {
+        "description": "Send any of phone_e164, name, first_name, language, time_zone, variables, external_reference and consent_basis; the rest keep their values. The edited contact is validated exactly like an imported row. A contact keeps its place in the list's import order. A contact a campaign run has already taken can still be edited, but its number cannot change (409), and a number another contact in the list already has is refused (409).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The contact as stored"
+          },
+          "404": {
+            "description": "No such contact in this workspace"
+          },
+          "409": {
+            "description": "The number cannot change or is already in the list"
+          }
+        },
+        "summary": "Edit one contact",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/contact-lists/{contact_list_id}/export": {
+      "get": {
+        "description": "Every contact in import order: phone_e164, name, first_name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value to read (a list value as JSON; at most 200 such columns), then a variables column with every custom value as typed JSON. Text a spreadsheet could read as a formula, or that starts with an apostrophe, is prefixed with one apostrophe. The dashboard's Import CSV reads such a file back as the same contacts, custom value types included, consent_basis too. The file streams in import order in chunks of 1,000 contacts, so it has no Content-Length (HTTP/1.1 clients get it chunked, and a download that fails partway fails rather than ending early); at most 50,000 contacts (the list limit), and X-Skysay-Truncated says when a list held more. X-Skysay-Row-Count is the number of contacts when the download started; a contact deleted while it downloads is left out, one added is not included. A pure read, bound to the credential's own workspace.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/csv"
+          },
+          "404": {
+            "description": "No such list in this workspace"
+          }
+        },
+        "summary": "Download a contact list as CSV",
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/contacts": {
+      "get": {
+        "description": "A search that starts with + matches the start of the number; other digits match anywhere in the number; text matches anywhere in the name, first name or external reference, ignoring case. Results come in a stable order (number, list, contact) with has_more. An empty search returns no results.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching contacts, each with its list, and pagination"
+          }
+        },
+        "summary": "Find contacts by number or name across every list (bounded page)",
+        "x-required-scopes": [
+          "calls:read"
         ]
       }
     },
@@ -8577,7 +9350,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -8892,6 +9665,244 @@
           }
         },
         "summary": "Read the bounded, customer-scoped Capabilities aggregate"
+      }
+    },
+    "/v1/dashboard/contacts": {
+      "get": {
+        "description": "Pure read: a page of contact lists (newest change first), each with its contact count, the custom value names seen in its first rows (custom_values.sampled_rows says how many), the campaigns that use it (at most five, with a total) and when it changed; plus the wallet header. Fixed query budget; never a caller-selected tenant.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contact lists page projection"
+          }
+        },
+        "summary": "Bounded Contacts page (Lists tab) aggregate for the signed-in workspace"
+      }
+    },
+    "/v1/dashboard/contacts/lists/{contact_list_id}": {
+      "get": {
+        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its first name, latest campaign outcome and do-not-call state. When a campaign uses the list (and its AI agent is hosted; an AI agent on the customer's own endpoint previews outcome external), a preview of what that campaign's AI agent says to the selected contact. For an AI agent with call variables set up (mode call_variables), the greeting, the script's opening and personalised lines and the SMS templates are rendered from this contact's values by the call-variables admission and template renderer, with the template's fallback wording where a value is missing (missing_values names them); when this contact's values would refuse the call (a required value missing, a wrong type), outcome is refused with the reason code, the field and the destination, never a value. For any other AI agent (mode as_written) the lines are shown as its calls speak them today. call_variables_active is false until calls speak through call variables. Fixed query budget; no provider or model call.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "not_called",
+                "reached",
+                "do_not_call"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contact_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List detail projection"
+          }
+        },
+        "summary": "Bounded Contacts page (list detail) aggregate"
+      }
+    },
+    "/v1/dashboard/contacts/people": {
+      "get": {
+        "description": "Pure read: contacts matching a number or name across every list and, for the chosen phone, that person's lists, do-not-call entry, most recent calls and SMS threads, each bounded with a has_more flag. Fixed query budget.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "phone",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "People search and person projection"
+          }
+        },
+        "summary": "Bounded Contacts page (All contacts tab) aggregate"
+      }
+    },
+    "/v1/dashboard/do-not-call": {
+      "get": {
+        "description": "Pure read: the workspace's do-not-call register, newest first, searched by number, with each entry's source and reason. Fixed query budget.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Do-not-call register projection"
+          }
+        },
+        "summary": "Bounded Contacts page (Do-not-call tab) aggregate"
       }
     },
     "/v1/dashboard/integrations": {
