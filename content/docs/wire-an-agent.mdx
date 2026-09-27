@@ -511,6 +511,12 @@ Number rules decide what happens when someone calls a number and which agents
 can use it to place calls. Update them with `update_number_rules`
 (`numbers:write`); read them with `get_number_rules` (`numbers:read`).
 
+Only a number that receives calls can answer them. A number that is outbound
+only, or whose inbound capability nobody has declared, refuses an incoming rule
+with `403`, and an AI agent cannot be attached to it. See
+[Imported numbers](/docs/imported-numbers) for how a number's capabilities are
+decided.
+
 To take a number back off an agent, `POST
 /v1/phone-numbers/{number_id}/detach-agent` (`numbers:write`). It is a pure
 control-plane unbind: the number stays imported and owned by the workspace,

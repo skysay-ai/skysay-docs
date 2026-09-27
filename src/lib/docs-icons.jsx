@@ -34,6 +34,7 @@ import {
   MusicDoubleNote,
   Network,
   OpenBook,
+  PhoneOutcome,
   PhoneXmark,
   PlaySolid,
   Puzzle,
@@ -120,6 +121,7 @@ const ICONS = {
   Forward,
   ShieldCheck,
   SecurityPass,
+  PhoneOutcome,
 
   // --- Customer applications ---
   DataTransferBoth,

@@ -1,0 +1,97 @@
+---
+title: Imported numbers
+description: Bring a number you already own on your SIP trunk, and tell Skysay whether it takes calls, places them, or both.
+icon: PhoneOutcome
+---
+
+You can use a number you already own at your carrier. Skysay connects to your
+SIP trunk, checks the setup, and adds the number to your workspace. Your carrier
+keeps carrying the number and billing its monthly fee. Your wallet pays only for
+usage and AI.
+
+## What a number can do
+
+Every number, bought or imported, has its own `capabilities`:
+
+| Field | Meaning |
+| --- | --- |
+| `voice_inbound` | The number receives calls. |
+| `voice_outbound` | The number places calls. |
+| `sms` | The number sends and receives SMS. |
+| `declared_by` | Who decided each one: `carrier`, `customer`, or `unknown`. |
+
+Each value is `true`, `false`, or `null` when nobody has said.
+
+Skysay decides each capability in this order:
+
+1. **The carrier's statement for that number.** If your carrier tells us a
+   number cannot receive calls, it cannot, and you cannot change it.
+2. **Your declaration**, where the carrier says nothing.
+3. Otherwise the capability is **unknown**.
+
+A number's capabilities are its own. Your trunk being able to take inbound
+calls does not make every number on it inbound-capable.
+
+<Callout title="Unknown is not yes">
+  A number takes incoming calls only when it is declared able to receive them.
+  An outbound-only number and a number nobody has declared are treated the same
+  way: no AI agent can be attached to answer it, its number rules cannot answer
+  calls, and an incoming call to it is refused.
+</Callout>
+
+## Import a number
+
+In the workspace, open **Numbers**, choose **Import a number**, pick your
+carrier and paste its API token. The token is used once to list your numbers
+and is never stored. For each number, say whether it **receives and places
+calls**, is **outbound only**, or is **inbound only**. Skip the choice only
+when your carrier already states it.
+
+Over the API, `POST /v1/byo/sip-trunk/dids` lists the numbers on your carrier
+account (`numbers:write`). Each number carries the `capabilities` your carrier
+states for it; a missing key means the carrier said nothing. Then import one:
+
+```bash
+curl -X POST "$SKYSAY_API_URL/v1/byo/sip-trunk/import" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": "org_x",
+    "project_id": "proj_x",
+    "provider": "didlogic",
+    "e164": "+15550100",
+    "api_token": "<your carrier API token>",
+    "voice_inbound": false,
+    "voice_outbound": true
+  }'
+```
+
+- `provider` is required.
+- Send `voice_inbound` unless your carrier states it. An import that nobody
+  declares is refused, and nothing is imported.
+- `agent_id` attaches an AI agent to answer the number. It is refused on a
+  number that does not receive calls.
+- Skysay activates the number only after it verifies your trunk. For a number
+  that receives calls, that includes checking your carrier sends its calls to
+  Skysay. A number your carrier says cannot receive calls skips that check.
+
+## Change it later
+
+If your carrier does not state a capability, change your declaration on the
+number's page in the workspace, or with the API:
+
+```bash
+curl -X PATCH "$SKYSAY_API_URL/v1/phone-numbers/num_x/capabilities" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"voice_inbound": false}'
+```
+
+- A capability your carrier states is locked: changing it returns `409`.
+- SMS is your carrier's to state, so `sms` is refused with `400`.
+- Declaring a number outbound only switches its incoming rule to `disabled`, so
+  it stops advertising an AI agent that could never answer it.
+
+To stop answering calls on a number that *can* receive them, change its
+[number rules](/docs/wire-an-agent#3-point-a-number-at-it) instead. That is a
+routing choice, not a capability.

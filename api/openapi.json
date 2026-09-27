@@ -6410,9 +6410,10 @@
     },
     "/v1/byo/sip-trunk/dids": {
       "post": {
+        "description": "provider is required and must be one of the importable carriers. Each DID carries capabilities: what the carrier states for that DID (voice_inbound, voice_outbound, sms); an absent key is a capability the carrier says nothing about, which the import must then declare.",
         "responses": {
           "200": {
-            "description": "Bounded DID list with channels, voice-only capability, and already-imported flags"
+            "description": "Bounded DID list with channels, per-DID carrier capabilities, and already-imported flags"
           }
         },
         "summary": "List the connected BYO SIP trunk carrier account's DIDs for the import picker (live read with a transient, never-stored API token)"
@@ -6420,6 +6421,7 @@
     },
     "/v1/byo/sip-trunk/import": {
       "post": {
+        "description": "provider is required. Declare voice_inbound (and optionally voice_outbound) unless the carrier states them for the DID: the carrier's statement wins, otherwise this declaration is the number's capability, and an import whose inbound capability nobody states is refused. agent_id binds an AI agent to answer the number and is refused on a number that does not receive calls. A DID the carrier states cannot receive calls needs no inbound destination to activate.",
         "responses": {
           "201": {
             "description": "Imported number, readiness result, and activation state"
@@ -10562,6 +10564,46 @@
         "summary": "Request higher limits without changing current permissions or buying a plan",
         "x-required-scopes": [
           "onboarding:write"
+        ]
+      }
+    },
+    "/v1/phone-numbers/{number_id}/capabilities": {
+      "patch": {
+        "description": "A number's capabilities are its own, never its trunk's or provider account's. Precedence, per capability: the carrier's statement for that number wins; where the carrier states nothing, this declaration applies; where neither has said anything the capability is unknown. A number routes incoming calls only when it is declared able to receive them, so an unknown inbound capability refuses exactly like an outbound-only one: Number rules, agent attachment and inbound routing all refuse it. Declaring voice_inbound false on a number whose rules answer calls also switches its incoming rule to disabled. A capability the carrier states cannot be changed here (409). SMS is the carrier's to state and is refused (400).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "voice_inbound": {
+                    "description": "Whether the number receives calls.",
+                    "type": "boolean"
+                  },
+                  "voice_outbound": {
+                    "description": "Whether the number places calls.",
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The phone number, with capabilities {voice_inbound, voice_outbound, sms, declared_by}"
+          },
+          "400": {
+            "description": "Neither capability given, a non-boolean value, or sms"
+          },
+          "409": {
+            "description": "The carrier states this capability for the number; it cannot be changed here"
+          }
+        },
+        "summary": "Declare what a phone number can do: receive calls, place calls",
+        "x-required-scopes": [
+          "numbers:write"
         ]
       }
     },
