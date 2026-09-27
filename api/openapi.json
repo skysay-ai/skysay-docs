@@ -2669,6 +2669,23 @@
         ],
         "type": "object"
       },
+      "ContactListUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "ContactRow": {
         "properties": {
           "consent_basis": {
@@ -2715,9 +2732,11 @@
       "ContactUpdate": {
         "properties": {
           "consent_basis": {
+            "description": "Why this contact may be called: existing_customer or explicit_consent. Empty clears it.",
             "enum": [
               "existing_customer",
-              "explicit_consent"
+              "explicit_consent",
+              ""
             ],
             "type": "string"
           },
@@ -7964,6 +7983,34 @@
       }
     },
     "/v1/contact-lists/{contact_list_id}": {
+      "delete": {
+        "description": "Refused (409, reason contact_list_in_use) while a campaign using the list is launching, scheduled, running or paused; the response names up to five of those campaigns (id, name, status) with total and has_more. Cancel them, or wait until they finish, then delete. Nothing is detached from a campaign. Otherwise the list is deleted: it no longer appears in any list, search, import, export, edit or new campaign, and a draft campaign that named it must pick another list before it can launch. Contacts no campaign run has taken are removed. Contacts a campaign run has taken are kept only as that campaign's records, so its contacts, results export and reviews read as before; they are no longer found as contacts. The response counts both: removed_contacts and kept_for_campaign_history.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id, deleted, removed_contacts, kept_for_campaign_history}"
+          },
+          "404": {
+            "description": "No such list in this workspace"
+          },
+          "409": {
+            "description": "A campaign that can still dial the list uses it: {reason, message, campaigns: [{id, name, status}], total, has_more}"
+          }
+        },
+        "summary": "Delete a contact list",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      },
       "get": {
         "parameters": [
           {
@@ -7983,6 +8030,44 @@
         "summary": "Read one contact list",
         "x-required-scopes": [
           "calls:read"
+        ]
+      },
+      "patch": {
+        "description": "Send name only: required, at most 120 characters, no control characters, trimmed. As when a list is created, two lists may share a name. Nothing else about the list or its contacts changes.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_list_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactListUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The renamed list"
+          },
+          "400": {
+            "description": "The name is blank, too long or has control characters, or another field was sent"
+          },
+          "404": {
+            "description": "No such list in this workspace"
+          }
+        },
+        "summary": "Rename a contact list",
+        "x-required-scopes": [
+          "calls:write"
         ]
       }
     },
@@ -8145,7 +8230,7 @@
     },
     "/v1/contact-lists/{contact_list_id}/export": {
       "get": {
-        "description": "Every contact in import order: phone_e164, name, first_name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value to read (a list value as JSON; at most 200 such columns), then a variables column with every custom value as typed JSON. Text a spreadsheet could read as a formula, or that starts with an apostrophe, is prefixed with one apostrophe. The dashboard's Import CSV reads such a file back as the same contacts, custom value types included. X-Skysay-Row-Count and X-Skysay-Truncated describe the file. Bound to the credential's own workspace.",
+        "description": "Every contact in import order: phone_e164, name, first_name, language, time_zone, country, external_reference, consent_basis, then one variables.<name> column per custom value to read (a list value as JSON; at most 200 such columns), then a variables column with every custom value as typed JSON. Text a spreadsheet could read as a formula, or that starts with an apostrophe, is prefixed with one apostrophe. The dashboard's Import CSV reads such a file back as the same contacts, custom value types included, consent_basis too. The file streams in import order in chunks of 1,000 contacts, so it has no Content-Length; at most 50,000 contacts (the list limit), and X-Skysay-Truncated says when a list held more. X-Skysay-Row-Count is the number of contacts when the download started; a contact deleted while it downloads is left out, one added is not included. A pure read, bound to the credential's own workspace.",
         "parameters": [
           {
             "in": "path",
