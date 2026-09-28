@@ -227,6 +227,39 @@ integration relies on any of these, update it:
 10. **Workflow versions published before call variables** no longer run: see
     [Agent workflows](/docs/agent-workflows#versions-from-before-call-variables).
 
+## When your workspace moves to call variables
+
+Skysay moves existing agents to call variables for you, in a short scheduled
+maintenance window. What your callers hear does not change: every workflow's
+lines were checked to produce the same words before and after. Greetings,
+instructions, language versions and per-call text are not rewritten.
+
+**Workflow agents.** Each workflow draft changes in three ways you will see in
+the editor:
+
+- It gains a `variables` block declaring every name its lines and reads use.
+  The facts it reads about the person are declared protected, so they are
+  disclosed only after the caller is confirmed.
+- A line that disclosed a value is rewritten to the template language: a value
+  and the words that introduce it become a section, `{{#amount}}…{{amount}}{{/amount}}`,
+  so a missing value still drops its lead-in. The `discloses_debt` setting is
+  removed; the protected declaration replaces it.
+- The campaign names it used become built-ins: `contact_name` is
+  `contact.name`, `campaign_id` is `campaign.id`, `campaign_run_id` is
+  `campaign.run_id` and `attempt_no` is `campaign.attempt`.
+
+Its published versions change as described in
+[Versions from before call variables](/docs/agent-workflows#versions-from-before-call-variables).
+
+**Agents on GPT-Live or Gemini Live** that received per-call data get a
+Variables config declaring the keys they already received, typed from their
+calls, so the same data keeps reaching the model, now in the call's data block.
+
+**Hosted agents that never published a language set** get their current
+language published as their language set. They then show as published with
+that language, and later edits apply through publishing, like every other
+agent.
+
 ## SMS templates
 
 An agent can hold SMS templates, sent by its `send_sms` tool during a call or

@@ -350,11 +350,23 @@ else as a mismatch.
 
 ### Versions from before call variables
 
-A workflow version published before call variables cannot run: a call bound to
-one is refused (`workflow_binding_failed`), and restoring it is refused with
-`409`. Its history is kept, but it can no longer run a call or be restored.
-Publish the current draft —
-which declares its variables — to take calls again.
+When your workspace moves to call variables, every workflow version published
+before then keeps its number and shows as **Archived before call variables**
+(status `archived_v2`). An archived version cannot run a call
+(`workflow_binding_failed`), cannot be restored, and a simulation run against
+it cannot be run again; run the suite again against the current draft.
+
+The version that was active gets a new copy, numbered after the workflow's
+highest version and moved to call variables. It becomes the active version and
+shows with its origin, for example **v5 (migrated from v3)**; the API's version summary
+carries the old number as `migrated_from_version` (null on every other
+version). Your next publish takes the next number.
+
+Restoring an archived version answers `409`, naming the copy to restore
+instead ("Version 3 was moved to call variables as version 5. Restore that
+version instead."), or saying the version predates call variables and was not
+moved. To take calls on the current workflow, publish the draft, which
+declares its variables.
 
 ## Runtime guarantees
 
