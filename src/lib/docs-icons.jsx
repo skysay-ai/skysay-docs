@@ -15,6 +15,7 @@ import {
   CreditCard,
   Cube,
   DatabaseSearch,
+  DatabaseTag,
   DataTransferBoth,
   DocMagnifyingGlass,
   Download,
@@ -22,6 +23,7 @@ import {
   Forward,
   GitFork,
   GraduationCap,
+  Group,
   Headset,
   Key,
   Language,
@@ -34,6 +36,7 @@ import {
   MusicDoubleNote,
   Network,
   OpenBook,
+  PhoneOutcome,
   PhoneXmark,
   PlaySolid,
   Puzzle,
@@ -101,6 +104,7 @@ const ICONS = {
 
   // --- Guides ---
   Link,
+  PhoneOutcome,
   Timer,
   ChatLines,
   Translate,
@@ -116,6 +120,7 @@ const ICONS = {
   Headset,
   DocMagnifyingGlass,
   DatabaseSearch,
+  DatabaseTag,
   ChatBubble,
   Forward,
   ShieldCheck,
@@ -125,6 +130,7 @@ const ICONS = {
   DataTransferBoth,
   Cube,
   Megaphone,
+  Group,
   ChatBubbleTranslate,
   BadgeCheck,
 
