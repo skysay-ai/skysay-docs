@@ -127,6 +127,50 @@ you › connect my audio agent at wss://my-agent.example/stream
 stack). `connect_external_agent` is the shortcut for an `external_audio` agent
 with webhook and audio-stream URLs.
 
+### Changing an agent later
+
+An edit through `update_agent` (`PATCH /v1/agents/{agent_id}`) takes effect on
+the agent's next call. An edit to its prompt, greeting, language or voice
+stack publishes the agent in the same step. If the agent could not be
+published that way (a greeting its voice cannot speak, for example), the edit
+is refused and nothing changes. Tools, the recording setting and tuning are
+read when each call starts, so they always took effect on the next call.
+Calls already under way keep what they started with, and an edit that
+changes none of these, such as a new name, publishes nothing. An edit made
+while the agent is not `hosted` is published when it becomes `hosted` again.
+
+This fixes a bug. On an agent that had already been published, an edit to
+its prompt, greeting, language or voice stack used to be stored while calls
+kept running the last published version until the next publish from the
+editor.
+
+A hosted agent that has never been published is published by the first save
+that leaves it valid. A save that does not is still kept, and the agent's
+`metadata.publication` says why:
+
+```json
+{"state": "unpublished", "reason": "publication_variables_invalid", "where": "system_prompt.en", "issue": "UNDECLARED_VARIABLE"}
+```
+
+`reason` is one of `publication_stack_incomplete`,
+`publication_greeting_missing`, `publication_variables_invalid`,
+`publication_workflow_invalid`, `publication_language_unavailable` or
+`publication_refused`; `where` names the part of the agent to fix, and
+`issue` carries the call-variables code when there is one. Once published,
+the record reads `{"state": "published"}` with the other fields empty. It
+belongs to the platform: a `metadata` replace keeps it as it was.
+
+Two settings belong to `set_agent_voice_stack`
+(`PATCH /v1/agents/{agent_id}/voice-stack`):
+
+- **Follow the caller** (`metadata.follow_caller`): `update_agent` refuses a
+  change to it and keeps it through a metadata replace.
+- **A new language for an agent that runs a workflow:** `set_agent_voice_stack`
+  translates the workflow into that language first, including every language
+  Follow the caller for all languages adds. `update_agent` refuses a language
+  the workflow does not speak yet, and so does a switch back to `hosted` that
+  would publish one.
+
 ## 2. Choose a voice stack
 
 For hosted or external-text agents, pick a [conversation engine](/docs/conversation-engines)
@@ -433,7 +477,8 @@ phone call, in any language:
   preparing or delivering a reply, and delivers it once that reply ends.
   Background speech picked up by transcription therefore cannot cut the agent
   off mid-sentence.
-- For agents using the **Standard** conversation engine, the opening line is
+- For agents using the **Standard** conversation engine on an inbound call, or
+  on a call bound to an agent workflow, the opening line is
   not interrupted by the phone being picked up. While the opening line plays,
   caller speech shorter than **one second** of continuous speech — a "hello?",
   a syllable, a breath — does not cut it, in any language and whatever the
@@ -452,6 +497,9 @@ phone call, in any language:
   before starting it.
   The opening line also cannot be cancelled before its first audio frame reaches
   the caller, so mis-transcribed background noise cannot open a call in silence.
+  On an **outbound** call with the Standard engine none of this applies: the
+  agent lets the person say hello first, and its opening is an ordinary reply
+  the person can interrupt. See [Who speaks first](/docs/who-speaks-first).
   If the opening line cannot be synthesised at all, a short line in the call's
   own language is played in its place; that substitute exists for English,
   Estonian, Sinhala and Tamil, and a call in another language, or one whose

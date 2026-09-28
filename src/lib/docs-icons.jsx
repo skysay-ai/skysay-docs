@@ -15,6 +15,7 @@ import {
   CreditCard,
   Cube,
   DatabaseSearch,
+  DatabaseTag,
   DataTransferBoth,
   DocMagnifyingGlass,
   Download,
@@ -35,6 +36,7 @@ import {
   MusicDoubleNote,
   Network,
   OpenBook,
+  PhoneOutcome,
   PhoneXmark,
   PlaySolid,
   Puzzle,
@@ -102,6 +104,7 @@ const ICONS = {
 
   // --- Guides ---
   Link,
+  PhoneOutcome,
   Timer,
   ChatLines,
   Translate,
@@ -117,6 +120,7 @@ const ICONS = {
   Headset,
   DocMagnifyingGlass,
   DatabaseSearch,
+  DatabaseTag,
   ChatBubble,
   Forward,
   ShieldCheck,

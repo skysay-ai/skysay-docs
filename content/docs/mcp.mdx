@@ -29,24 +29,45 @@ it into the assistant's MCP settings, replacing the placeholder with that key.
 
 ```json
 {
-  "url": "https://skysay.ai/control-plane/mcp",
+  "url": "https://api.skysay.ai/mcp",
   "headers": {
     "Authorization": "Bearer sky_YOUR_KEY"
   }
 }
 ```
 
-That URL is the same hosted MCP server as `https://api.skysay.ai/mcp`,
-reached through the dashboard host; either address works and both are held to
-the same scopes. The assistant can do exactly what the key allows and nothing
-more, and revoking the key disconnects it.
+Use this canonical API URL for every new connection. The assistant can do
+exactly what the key allows and nothing more, and revoking the key disconnects
+it.
 
-## tools/list carries scopes
+## Results, errors and tool metadata
 
-Each tool in `tools/list` advertises its `required_scopes`. `tools/list` returns
-**all** tools regardless of your key, but a `tools/call` for a tool whose scopes
-are not on your key fails closed with `missing MCP scopes: X`. This lets an agent
-see the full surface while still being held to least privilege.
+Tool calls return a `text` content block containing JSON and the same data in
+`result.structuredContent`. List results use `{ "items": [...] }` in structured
+content. A refused tool returns `result.isError: true` and
+`structuredContent.error` with `type` and `message`. Unexpected failures use
+`internal_error` and a `request_id` to quote to support. An unknown tool, or a
+`params`, `name` or `arguments` that is not the right shape, remains a JSON-RPC
+error (`-32602`); anything that goes wrong once the tool runs is a refused tool
+result.
+
+Every tool has a title and read-only or destructive hints. Required scopes are in
+`_meta["ai.skysay/required_scopes"]`; alternatives are in
+`_meta["ai.skysay/alternative_required_scopes"]`. The catalogue lists all tools,
+even when your credential lacks their scopes. A call whose credential lacks a
+tool's scopes fails closed with a refused tool result naming the missing scopes.
+
+`organization_id` is optional on all tools and defaults to your credential's
+workspace. A different workspace is refused. Streamable HTTP negotiates
+`2025-11-25`, `2025-06-18` or `2025-03-26`. Notifications receive 202 with no body;
+`ping` is supported; GET and HEAD return 405, with no SSE stream.
+
+### Migration for custom MCP clients
+
+Read `result.structuredContent` instead of `result.content[0].json`, inspect
+`result.isError` and `structuredContent.error.type` instead of `error.type`, and
+read scope metadata from `_meta` instead of `annotations.required_scopes`.
+Standard MCP clients already understand these result types.
 
 ## Prefix scopes
 
@@ -61,6 +82,15 @@ A few tools belong to capabilities an operator enables per deployment — the
 regardless, because it is a catalog of what Skysay can do rather than an
 inventory of what your instance has switched on. Calling one where the
 capability is off returns the same not-found the equivalent REST route returns.
+
+## When a tool call is refused
+
+A refused call is a tool result with `isError: true`, so the assistant reads
+it and can correct itself. `structuredContent.error` names the refusal's
+`type` and `message`. When the same request over REST would answer with a
+structured body, that body is under `error.body`: for example, the `issues`
+of a refused configuration, or the current `revision` after a conflict. A
+`missing MCP scopes` or workspace refusal carries no body.
 
 ## Configure an agent from MCP
 
@@ -111,8 +141,7 @@ validation stay in the same services as the REST workflow.
 </Callout>
 
 For local stdio MCP, set both `SKYSAY_MCP_SCOPES` and
-`SKYSAY_MCP_ORGANIZATION_ID` before calling any organization-bound agent
-configuration tool. An absent organization fails closed; `tools/list` remains
+`SKYSAY_MCP_ORGANIZATION_ID` before calling any tool. An absent organization fails closed; `tools/list` remains
 schema discovery only.
 
 <Cards>
@@ -125,3 +154,34 @@ schema discovery only.
   scoped-key material now lives here and in
   [Authentication & keys](/docs/authentication).
 </Callout>
+
+### Content fields
+
+Conversation content needs its content scope wherever it appears, over MCP and
+REST. Tools that combine content with other
+data stay callable at their base scope and omit the content fields:
+
+- `account_overview` (`account:read`) omits each SMS message's `body`,
+  `metadata`, `error` and `idempotency_key` without `sms:read`.
+- `send_sms` (`sms:send`) and `send_agent_template_message` (`sms:send` +
+  `agents:read`) return the message
+  ID and delivery status; `body`, `metadata`, `error` and `idempotency_key` come
+  back only with `sms:read`. This includes a retry that replays an existing
+  `idempotency_key`.
+- `get_simulation_run` (`agents:read`) returns status, verdicts and pagination.
+  Without `recordings:read` it omits each attempt's `transcript`,
+  `recording_ref` and `facts`, assertion `actual` values, rubric `rationale`
+  and linked-evidence `note`, because each can quote the conversation.
+
+### Content-bearing webhook subscriptions
+
+Creating or changing a webhook subscription for `sms.received` requires
+`sms:read`. Subscribing to `call.extraction.ready`
+requires `recordings:read`, because extracted results can quote the conversation.
+Changing any existing webhook destination requires both `sms:read` and
+`recordings:read`: queued deliveries and concurrent subscription changes can
+contain either kind of content. Removing a subscription does not make its queued
+content safe to redirect. Agent names and lifecycle-only subscriptions
+remain editable with `agents:write`.
+Over MCP, a call lacking one of these content scopes receives a refused tool
+result naming the missing scope, before anything is written.

@@ -39,6 +39,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/agents/{agent_id}/handoff` | Get generated agent setup handoff | See the live OpenAPI operation |
 | `GET` | `/v1/agents/{agent_id}/knowledge-bases` | List active knowledge bases attached to one hosted agent | See the live OpenAPI operation |
 | `PATCH` | `/v1/agents/{agent_id}/knowledge-bases` | Replace the knowledge bases attached to one hosted agent | See the live OpenAPI operation |
+| `POST` | `/v1/agents/{agent_id}/messages` | Send one of an agent's published SMS templates | `sms:send`, `agents:read` |
 | `GET` | `/v1/agents/{agent_id}/post-call-extraction` | Read the optional advisory post-call extraction configuration | `agents:read` |
 | `PATCH` | `/v1/agents/{agent_id}/post-call-extraction` | Configure or disable bounded advisory post-call extraction | `agents:write` |
 | `GET` | `/v1/agents/{agent_id}/simulation-suite-runs/{run_id}` | Fetch one run with a bounded page of attempt results | `agents:read` |
@@ -53,6 +54,8 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `PATCH` | `/v1/agents/{agent_id}/simulation-suites/{suite_id}` | Edit a suite under optimistic revision control | `agents:write` |
 | `POST` | `/v1/agents/{agent_id}/simulation-suites/{suite_id}/duplicate` | Copy a suite's authored content into a new suite | `agents:write` |
 | `POST` | `/v1/agents/{agent_id}/simulation-suites/{suite_id}/runs` | Queue a run of this suite | `agents:write` |
+| `GET` | `/v1/agents/{agent_id}/variables` | Read an agent's call variables, SMS templates and caller lookup | `agents:read` |
+| `PUT` | `/v1/agents/{agent_id}/variables` | Replace an agent's call variables, SMS templates and caller lookup | `agents:write` |
 | `GET` | `/v1/agents/{agent_id}/voice-stack` | Read a hosted agent's safe STT, model, and TTS configuration | `agents:read` |
 | `PATCH` | `/v1/agents/{agent_id}/voice-stack` | Validate and update a hosted agent's STT, model, and TTS selections | `agents:write` |
 | `GET` | `/v1/agents/{agent_id}/workflow` | Read an agent's editable workflow draft and bounded published-version summary | `agents:read` |
@@ -108,10 +111,16 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/campaigns/{campaign_id}/export` | Export the latest run's results as CSV | `calls:read` |
 | `POST` | `/v1/campaigns/{campaign_id}/launch` | Authorize and start a draft campaign | `calls:write` |
 | `POST` | `/v1/campaigns/{campaign_id}/pause` | Pause a running campaign | `calls:write` |
+| `GET` | `/v1/campaigns/{campaign_id}/results` | List the latest run's contacts with each contact's last-call business outcome (bounded page) | `calls:read` |
 | `POST` | `/v1/campaigns/{campaign_id}/resume` | Resume a paused campaign | `calls:write` |
+| `GET` | `/v1/campaigns/{campaign_id}/reviews` | The campaign's review inbox: attempts whose workflow landed on a review_candidate outcome (bounded page) | `calls:read` |
+| `GET` | `/v1/campaigns/{campaign_id}/reviews/export` | Export the review inbox (resolved by default) as CSV | `calls:read` |
+| `POST` | `/v1/campaigns/{campaign_id}/reviews/{attempt_id}/resolve` | Resolve one review candidate with a reviewer note | `calls:write` |
 | `GET` | `/v1/contact-lists` | List contact lists in the workspace (bounded page) | `calls:read` |
 | `POST` | `/v1/contact-lists` | Create a contact list, optionally importing rows in the same request | `calls:write` |
+| `DELETE` | `/v1/contact-lists/{contact_list_id}` | Delete a contact list | `calls:write` |
 | `GET` | `/v1/contact-lists/{contact_list_id}` | Read one contact list | `calls:read` |
+| `PATCH` | `/v1/contact-lists/{contact_list_id}` | Rename a contact list | `calls:write` |
 | `GET` | `/v1/contact-lists/{contact_list_id}/contacts` | List contacts in a list (bounded page in import order) | `calls:read` |
 | `POST` | `/v1/contact-lists/{contact_list_id}/contacts` | Append rows to a contact list | `calls:write` |
 | `DELETE` | `/v1/contact-lists/{contact_list_id}/contacts/{contact_id}` | Delete one contact | `calls:write` |
