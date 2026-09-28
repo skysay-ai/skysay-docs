@@ -111,7 +111,10 @@ Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{o
 - **`{{` is reserved.** Every `{{` in a line starts a marker, and there is no
   escape: a line cannot contain two literal opening braces. The same holds for
   the per-call `first_message` and `instructions` you send with
-  `POST /v1/calls`: a `{{…}}` left in them is refused with a `400`.
+  `POST /v1/calls`: they are templates like the agent's own lines, so a marker
+  naming a built-in or a declared variable is filled in, and an unresolved or
+  malformed `{{…}}` is refused with `400 call_variables_invalid`, `where`
+  naming `runtime_config.first_message` or `runtime_config.instructions`.
 
 ## Supply the values
 
@@ -196,14 +199,20 @@ integration relies on any of these, update it:
 3. **Campaign calls' `call_context`** no longer carries `campaign_id`,
    `campaign_run_id`, `attempt_no` or `contact_name`. They are the built-ins
    `campaign.id`, `campaign.run_id`, `campaign.attempt` and `contact.name`.
-4. **Per-call `first_message` and `instructions`** with a `{{…}}` left in them
-   are refused with a `400` on `POST /v1/calls`, and a workflow agent refuses
-   them altogether (`per_call_text_on_workflow`).
+4. **Per-call `first_message` and `instructions`** are templates: an
+   unresolved or malformed `{{…}}` in them is refused with
+   `400 call_variables_invalid` on `POST /v1/calls`, and a workflow agent
+   refuses per-call text altogether (`per_call_text_on_workflow`).
 5. **Every agent's greeting and instructions are checked when it is
    published**, whether or not it declares variables. A line naming an
    undeclared variable keeps an unpublished agent unpublished, with the reason
    (see [Declare the variables](#declare-the-variables)), and refuses the edit
-   of a published one with `400 variables_config_invalid`.
+   of a published one with `400 variables_config_invalid`. A cascade agent
+   with no language set is checked when it is created or saved instead: a
+   greeting or instructions naming anything but its own declared variables or
+   a built-in is refused with `400 variables_config_invalid` (`where` is
+   `system_prompt` or `first_message`) — set the agent's languages and declare
+   the variables to use them.
 6. **Tools are refused on workflow calls** and on calls that carry protected
    values (see [Agent workflows](/docs/agent-workflows#tools-on-a-workflow-call)).
 7. **Built-in variables reach the model on every engine**, GPT-Live and Gemini
