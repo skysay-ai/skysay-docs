@@ -72,11 +72,18 @@ curl -X POST https://api.skysay.ai/v1/contact-lists \
 
 - `time_zone` defaults from the number's country (`+233…` becomes
   `Africa/Accra`); set it per row when you know better.
-- `variables` are at most 28 keys, never secrets. They reach the agent as
-  `call_context` together with the campaign metadata every attempt carries
-  (`campaign_id`, `campaign_run_id`, `attempt_no`, `contact_name`), and the
-  whole context must fit 32 keys / 4 KB: a row that would not is rejected at
-  import, never at dial time. Those four names are reserved.
+- `first_name` is optional: the contact's first name, as you write it. A
+  guided script's identity question can ask for the person by it, **before**
+  they have confirmed who they are
+  ([Asking for the contact by first name](/docs/agent-workflows#asking-for-the-contact-by-first-name)).
+  It reaches the call as `call_context.first_name`. Skysay never works it out
+  from `name`.
+- `variables` are at most 28 keys (27 when the contact has a `first_name`),
+  never secrets. They reach the agent as `call_context` together with the
+  campaign metadata every attempt carries (`campaign_id`, `campaign_run_id`,
+  `attempt_no`, `contact_name`, and `first_name` when set). The whole context
+  must fit 32 keys / 4 KB: a row that would not is rejected at import, never at
+  dial time. Those five names are reserved.
 - A variable is a string or a number, or a **list of flat objects** of them:
   one debtor, several loans. A list holds at most 16 items of at most 16 keys
   each; item keys are letters, digits and underscores (a workflow names them

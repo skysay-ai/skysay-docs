@@ -50,10 +50,51 @@ same draft, stale writes are refused with the current state rather than
 silently overwritten — saving, publishing, and restoring all carry the
 revision you reviewed.
 
+### Asking for the contact by first name
+
+An identity question (an **Ask** step that verifies identity) can ask for the
+person by first name. Write both versions of the line, one for a contact with a
+first name and one for a contact without:
+
+```text
+Hello, this is a courtesy call from the accounts team.
+ {{#first_name}}Am I speaking with {{first_name}}?{{/first_name}}
+ {{^first_name}}Am I speaking with the account holder?{{/first_name}}
+```
+
+- **Where the name comes from.** The name is the contact's own `first_name`
+  field. You supply it in a campaign contact list, or as `call_context.first_name`
+  on a direct call. Skysay never works it out from the contact's full name.
+- **Which version is said.** The `{{#first_name}}` version is said when there
+  is a first name. The `{{^first_name}}` version is said when there is none.
+  Put one space in front of each section, so the surviving version keeps its
+  spacing.
+- **Only in identity questions.** `first_name` is filled in only in an Ask step
+  that verifies identity. Anywhere else it is refused when you save or publish,
+  because it would otherwise disappear from the line.
+- **Every language.** Published translations keep both versions.
+- **The model deciding the answer.** It is sent the question as the caller
+  heard it, with the name, only when it is the same model provider as your AI
+  agent. Otherwise it is sent the version without a name.
+- **Starter templates only.** New workflows created from the Payment reminder
+  templates use this wording. Workflows you already created or published are
+  not changed.
+
+<Callout type="warn">
+The first name is said **before** the person has confirmed who they are, to
+whoever answers the phone. Leave `first_name` empty for contacts whose name
+should not be said to a stranger. The question then asks for the account
+holder instead.
+</Callout>
+
 ### Payment reminder identity clarification
 
-Both **Payment reminder** starter templates ask whether the caller is the
-account holder before reading or speaking account details. When a delivered
+Both **Payment reminder** starter templates ask whether they are speaking with
+the right person before reading or speaking account details. When the contact
+has a first name, the question uses it: "Am I speaking with Nimal?". Without
+one, it asks for "the account holder". See
+[Asking for the contact by first name](#asking-for-the-contact-by-first-name).
+When a delivered
 reply is classified as **Unclear**, the workflow asks at most two clarification
 questions. This route covers hesitation, fragments, and empty replies rather
 than treating them as denial. If identity is still unconfirmed, it records
