@@ -127,6 +127,31 @@ you › connect my audio agent at wss://my-agent.example/stream
 stack). `connect_external_agent` is the shortcut for an `external_audio` agent
 with webhook and audio-stream URLs.
 
+### Changing an agent later
+
+An edit through `update_agent` (`PATCH /v1/agents/{agent_id}`) takes effect on
+the agent's next call. An edit to its prompt, greeting, language or voice
+stack publishes the agent in the same step. If the agent could not be
+published that way (a greeting its voice cannot speak, for example), the edit
+is refused and nothing changes. Tools, the recording setting and tuning are
+read when each call starts, so they always took effect on the next call.
+Calls already under way keep what they started with, and an edit that
+changes none of these, such as a new name, publishes nothing.
+
+This fixes a bug. On an agent that had already been published, an edit to
+its prompt, greeting, language or voice stack used to be stored while calls
+kept running the last published version until the next publish from the
+editor.
+
+Two settings belong to `set_agent_voice_stack`
+(`PATCH /v1/agents/{agent_id}/voice-stack`):
+
+- **Follow the caller** (`metadata.follow_caller`): `update_agent` refuses a
+  change to it and keeps it through a metadata replace.
+- **A new language for an agent that runs a workflow:** `set_agent_voice_stack`
+  translates the workflow into that language first, while `update_agent`
+  refuses a language the workflow does not speak yet.
+
 ## 2. Choose a voice stack
 
 For hosted or external-text agents, pick a [conversation engine](/docs/conversation-engines)
