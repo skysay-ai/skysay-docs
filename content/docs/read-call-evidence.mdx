@@ -256,10 +256,40 @@ being attributed to one of them.
 Deleting a recording, a retention expiry, or re-importing a corrected recording
 removes these rows along with it.
 
+### When the other party spoke but has no transcript
+
+On a GPT-Live or Gemini Live call, the engine's own captions of the other party
+can be missing — most often for Sinhala. When that happens, the agent's replies
+are in the transcript but what the other party said is not.
+
+So that such a call does not read as the agent talking to nobody, the
+transcript shows a **"Spoke — no transcript"** line where the other party's turn
+would be, under the same label as their turns (**Caller**, **Called person** on
+an outbound call, or the contact's name), with its offset into the call. It
+carries no words. Nothing the person said is known, only that they spoke.
+
+The line is written only when all of these hold:
+
+- voice activity was detected on the line before the engine's next reply,
+- the engine then replied on its own, rather than with a check-in or another
+  line Skysay asked it to say, and
+- no caption came back for any of that speech.
+
+Speech the engine could not hear, such as someone talking over the opening
+message, is never marked, and neither is anything said once the call has
+started ending. A call on the standard pipeline never shows the line: its own
+transcriber writes the turn instead.
+
+The line is evidence that the person spoke, not the other way round: **a call
+without it does not mean the other party was silent.** A call whose captions
+were all missing can have a transcript made only of the agent's turns. That
+transcript counts as available, like any transcript that has turns.
+
 ### What this does not change
 
 The public transcript API and its stream are unchanged: `get_call_transcript`
-returns turns only, exactly as before. The `call.completed`,
+returns turns only, exactly as before, so the "no transcript" line above is not
+in it. The `call.completed`,
 `call.transcript.ready` and `call.recording.ready` webhooks are unchanged, as
 are post-call extraction, turn counts, and campaign and call-group readiness —
 all of which read transcript turns and nothing else.
