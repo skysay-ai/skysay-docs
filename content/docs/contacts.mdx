@@ -93,37 +93,34 @@ When a list is deleted:
 ### Preview
 
 When a campaign uses the list, the page previews what that campaign's AI agent
-says to the selected contact.
-
-Call variables aren't switched on yet. Until they are, greetings and messages
-are spoken exactly as written. The preview shows what calls will say with the
-contact's values once they're on, and says so on the page.
+says to the selected contact. The preview is rendered with this contact's
+values by the same code a call uses, so what you see is what the contact hears.
+[Call variables](/docs/call-variables) explains how an AI agent declares and
+uses values.
 
 What it shows depends on the AI agent:
 
-- **An AI agent with call variables set up** is rendered with this contact's
-  values, by the same code a call will use: the greeting, the script's first
-  line and every script line that uses a value, and its text message
-  templates. A value the contact doesn't have takes the fallback wording
-  written in the template, for example
+- **An AI agent hosted on Skysay** is rendered with the contact's values: the
+  greeting, the script's first line and every script line that uses a value,
+  and its text message templates. A value the contact doesn't have takes the
+  fallback wording written in the template, for example
   `Hi {{#contact.first_name}}{{contact.first_name}}{{/contact.first_name}}{{^contact.first_name}}there{{/contact.first_name}}`,
   and the preview names the values it fell back for. Words the AI agent writes
-  itself in a text message are shown in brackets. If this contact's values
-  would stop the call being placed, for example a required value is missing or
-  has the wrong type, the preview says so and names the value, never its
+  itself in a text message are shown in brackets. If a
+  [script](/docs/agent-workflows) reads a value this contact doesn't have, the
+  call takes the script's "case unavailable" route, and the preview says so and
+  shows only the opening. If the contact's values would stop the call being
+  placed, for example a required value is missing, has the wrong type, or makes
+  a line empty or too long, the preview says so and names the value, never its
   contents.
-- **Any other AI agent** is shown as its calls speak today: the greeting
-  exactly as written, or, for a
-  [published script](/docs/agent-workflows), its first line and its disclosing
-  steps with the contact's values. If a value the script needs is missing, the
-  call takes the script's "case unavailable" route, and the preview says so. A
-  personalised preview appears once the AI agent's call variables are set up.
 - **An AI agent whose greeting is generated when the call starts** has no
   greeting to preview.
 - **An AI agent on your own endpoint** decides what it says, so there is
   nothing to preview.
 - **An AI agent that speaks several languages** needs the contact or the
   campaign to name one. If neither does, the call would not be placed, and the
+  preview says so. The same goes for a language the AI agent doesn't speak.
+- **An AI agent that hasn't been published** isn't ready for calls, and the
   preview says so.
 
 If no campaign uses the list, there is no preview.
