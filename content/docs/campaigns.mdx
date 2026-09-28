@@ -75,14 +75,16 @@ curl -X POST https://api.skysay.ai/v1/contact-lists \
 - `first_name` is the contact's own first name: at most 80 characters, no
   `{` or `}`, and an empty value clears it. It is stored and returned with the
   contact, separately from `name` and from any custom variable you also call
-  `first_name`; calls do not use it yet. In the workspace wizard a
-  `first_name` (or `given_name`) column maps to it, and a sheet whose only name
-  column is a first name fills both.
-- `variables` are at most 28 keys, never secrets. They reach the agent as
-  `call_context` together with the campaign metadata every attempt carries
-  (`campaign_id`, `campaign_run_id`, `attempt_no`, `contact_name`), and the
-  whole context must fit 32 keys / 4 KB: a row that would not is rejected at
-  import, never at dial time. Those four names are reserved.
+  `first_name`. On a call the agent reads it as the built-in call variable
+  `contact.first_name`. In the workspace wizard a `first_name` (or
+  `given_name`) column maps to it, and a sheet whose only name column is a
+  first name fills both.
+- `variables` are at most 32 keys and 4 KB, never secrets: a row that would
+  not fit is rejected at import, never at dial time. They are the call's
+  per-contact data. The campaign, its run, the attempt number and the
+  contact's name reach the call as built-in call variables (`campaign.id`,
+  `campaign.run_id`, `campaign.attempt`, `contact.name`), not as keys among
+  yours, so no variable name is reserved.
 - A variable is a string or a number, or a **list of flat objects** of them:
   one debtor, several loans. A list holds at most 16 items of at most 16 keys
   each; item keys are letters, digits and underscores (a workflow names them
