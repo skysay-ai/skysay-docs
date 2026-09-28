@@ -260,9 +260,10 @@ Its published versions change as described in
 
 If a draft's lines cannot be moved with the same words guaranteed, the move
 waits until that draft is fixed, and nothing in your workspace changes in the
-meantime. A draft that cannot be read at all does not hold up the move: it
-gets an empty `variables` block, and once you repair it, it publishes under
-the call-variables rules.
+meantime. A saved draft that does not yet pass validation is moved as far as
+it goes and does not hold up the move. A draft that cannot be read at all does
+not hold it up either: it gets an empty `variables` block, and once you repair
+it, it publishes under the call-variables rules.
 
 **Agents on GPT-Live or Gemini Live** that received per-call data get a
 Variables config declaring the keys they already received, typed from their
@@ -272,13 +273,15 @@ calls, so the same data keeps reaching the model, now in the call's data block.
 language published as their language set -- on GPT-Live and Gemini Live, the
 single language their calls already run, unchanged. They then show as
 published with that language, and later edits apply through publishing, like
-every other agent. This includes inactive agents. If an agent's configuration cannot be
+every other agent. An active agent's language set is published only when its
+calls run exactly as before; if that cannot be done as it stands, the move waits
+until it is fixed, as it does for a draft. Inactive agents take no calls, so
+the move does not wait for them: if an inactive agent's configuration cannot be
 published as it stands -- an incomplete voice stack, for example -- the move
-records the reason on the agent exactly as a refused save would: the dashboard
+records the reason on the agent exactly as a refused save would. The dashboard
 shows it **Not ready for calls** with that reason (such as `tts.en`), and
-`metadata.publication` carries it. The move is not held up by it. Reactivating
-such an agent takes a save that makes its configuration valid, which publishes
-it.
+`metadata.publication` carries it. Reactivating such an agent takes a save
+that makes its configuration valid, which publishes it.
 
 ## SMS templates
 
