@@ -29,24 +29,54 @@ it into the assistant's MCP settings, replacing the placeholder with that key.
 
 ```json
 {
-  "url": "https://skysay.ai/control-plane/mcp",
+  "url": "https://api.skysay.ai/mcp",
   "headers": {
     "Authorization": "Bearer sky_YOUR_KEY"
   }
 }
 ```
 
-That URL is the same hosted MCP server as `https://api.skysay.ai/mcp`,
-reached through the dashboard host; either address works and both are held to
-the same scopes. The assistant can do exactly what the key allows and nothing
-more, and revoking the key disconnects it.
+Use this canonical API URL for every new connection. Revoking the key disconnects
+clients using it; OAuth connections have separate grants.
 
-## tools/list carries scopes
+## Connect Claude
 
-Each tool in `tools/list` advertises its `required_scopes`. `tools/list` returns
-**all** tools regardless of your key, but a `tools/call` for a tool whose scopes
-are not on your key fails closed with `missing MCP scopes: X`. This lets an agent
-see the full surface while still being held to least privilege.
+Claude connects with OAuth instead of an API key: add `https://api.skysay.ai/mcp`
+as a connector, sign in to Skysay and approve read-only access. When a task needs
+more, such as placing calls, sending SMS, changing agents or webhooks, or reading
+conversation content, Skysay answers `403 insufficient_scope` before running the
+tool. Claude then asks you to approve the extra permissions on a second consent
+screen. Revoke a connection under **API keys → Connected apps**. The full tool
+catalogue is available, held to the same scopes as an API key. See
+[Connect Claude](/docs/connect-claude) for the steps, the permissions in plain
+language and what Skysay can see.
+
+## Results, errors and tool metadata
+
+Tool calls return a `text` content block containing JSON and the same data in
+`result.structuredContent`. List results use `{ "items": [...] }` in structured
+content. A refused tool returns `result.isError: true` and
+`structuredContent.error` with `type` and `message`. Unexpected failures use
+`internal_error` and a `request_id` to quote to support. Unknown tools or malformed
+parameters remain JSON-RPC errors (`-32602`).
+
+Every tool has a title and read-only or destructive hints. Required scopes are in
+`_meta["ai.skysay/required_scopes"]`; alternatives are in
+`_meta["ai.skysay/alternative_required_scopes"]`. The catalogue lists all tools,
+even when your credential lacks their scopes. API-key calls fail closed on a
+missing scope; OAuth calls request step-up consent before dispatch.
+
+`organization_id` is optional on all tools and defaults to your credential's
+workspace. A different workspace is refused. Streamable HTTP negotiates
+`2025-11-25`, `2025-06-18` or `2025-03-26`. Notifications receive 202 with no body;
+`ping` is supported; GET and HEAD return 405, with no SSE stream.
+
+### Migration for custom MCP clients
+
+Read `result.structuredContent` instead of `result.content[0].json`, inspect
+`result.isError` and `structuredContent.error.type` instead of `error.type`, and
+read scope metadata from `_meta` instead of `annotations.required_scopes`.
+Standard MCP clients already understand these result types.
 
 ## Prefix scopes
 
@@ -120,8 +150,7 @@ validation stay in the same services as the REST workflow.
 </Callout>
 
 For local stdio MCP, set both `SKYSAY_MCP_SCOPES` and
-`SKYSAY_MCP_ORGANIZATION_ID` before calling any organization-bound agent
-configuration tool. An absent organization fails closed; `tools/list` remains
+`SKYSAY_MCP_ORGANIZATION_ID` before calling any tool. An absent organization fails closed; `tools/list` remains
 schema discovery only.
 
 <Cards>
@@ -134,3 +163,36 @@ schema discovery only.
   scoped-key material now lives here and in
   [Authentication & keys](/docs/authentication).
 </Callout>
+
+### Content fields
+
+Conversation content needs its content scope wherever it appears, for API keys
+and connected apps alike, over MCP and REST. Tools that combine content with other
+data stay callable at their base scope and omit the content fields:
+
+- `account_overview` (`account:read`) omits each SMS message's `body`,
+  `metadata`, `error` and `idempotency_key` without `sms:read`.
+- `send_sms` (`sms:send`) and `send_agent_template_message` (`sms:send` +
+  `agents:read`) return the message
+  ID and delivery status; `body`, `metadata`, `error` and `idempotency_key` come
+  back only with `sms:read`. This includes a retry that replays an existing
+  `idempotency_key`.
+- `get_simulation_run` (`agents:read`) returns status, verdicts and pagination.
+  Without `recordings:read` it omits each attempt's `transcript`,
+  `recording_ref` and `facts`, assertion `actual` values, rubric `rationale`
+  and linked-evidence `note`, because each can quote the conversation.
+
+### Content-bearing webhook subscriptions
+
+For both API keys and connected apps, creating or changing a webhook subscription
+for `sms.received` requires `sms:read`. Subscribing to `call.extraction.ready`
+requires `recordings:read`, because extracted results can quote the conversation.
+Changing any existing webhook destination requires both `sms:read` and
+`recordings:read`: queued deliveries and concurrent subscription changes can
+contain either kind of content. Removing a subscription does not make its queued
+content safe to redirect. Agent names and lifecycle-only subscriptions
+remain editable with `agents:write`.
+A connected app lacking one of these content permissions receives a
+`403 insufficient_scope` naming every permission the call needs, so it can ask
+you for them before anything is written. An API key receives a refused tool
+result naming the missing scope.

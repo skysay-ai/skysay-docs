@@ -1,0 +1,171 @@
+---
+title: Connect Claude
+description: Add Skysay to Claude as a connector — sign in, approve read-only access, grant more when a task needs it, and revoke from Connected apps.
+icon: PlugTypeA
+---
+
+Claude connects to Skysay's hosted MCP server at `https://api.skysay.ai/mcp`.
+You sign in with your Skysay account and approve what Claude may do; you never
+paste an API key. Claude then sees the same tools, with the same permissions and
+limits, as any other MCP client. There are no Claude-only restrictions.
+
+## Add the connector
+
+<Steps>
+<Step>
+
+**Add the server.** In Claude, open **Settings → Connectors**, choose to add a
+custom connector, and enter `https://api.skysay.ai/mcp`. In Claude Code, run:
+
+```bash
+claude mcp add --transport http skysay https://api.skysay.ai/mcp
+```
+
+Then run `/mcp` in Claude Code and choose to authenticate the `skysay` server.
+
+</Step>
+<Step>
+
+**Sign in to Skysay.** Claude opens Skysay in your browser. Sign in with the
+account that belongs to the workspace you want to connect.
+
+</Step>
+<Step>
+
+**Review and allow.** The consent screen names the workspace, the app that is
+asking, the address you will be sent back to, and each permission. The app's
+name is the one it chose itself; the return address is the part Skysay checks.
+Claude Code returns to a program on your own computer, and the screen says so.
+Choose **Allow access**, or **Deny** to stop.
+
+</Step>
+</Steps>
+
+The connection is bound to the workspace shown on the consent screen. It works
+only against the MCP server; it cannot be used to call the REST API directly.
+
+## What Claude can do at first
+
+The first consent is read-only. Claude can see:
+
+- **Workspace overview**: balance, usage and setup progress; your AI agents and
+  their settings, including prompts and greetings; your numbers and number
+  requests, including the verification details you submitted (such as legal
+  name, address, contact details and documents); your calls and SMS
+  conversations, without message text;
+  and the agent ambience catalogue.
+- **AI agents**: your agents, their settings, simulation scenarios and test
+  results, and the voices and models available to them.
+- **Calls**: your calls, their status and your campaigns.
+- **Coverage**: supported countries, available numbers, prices and requirements,
+  and the voices and models AI agents can use.
+- **Numbers**: your phone numbers, their rules and your phone servers.
+- **Capabilities**: what your workspace is approved to do, and its limits.
+- **Call checks**: whether a call or SMS would be allowed, without placing or
+  sending it.
+
+Nothing in the first consent reads conversation content, places a call, sends a
+message or costs money.
+
+## When Claude needs more
+
+When a task needs a permission Claude does not have yet, Skysay does not run the
+tool. It asks Claude to request more access, and Claude opens a second Skysay
+consent screen. That screen lists what is new and what you already allowed. You
+can allow it, or deny it and keep the access you already gave.
+
+The request names every permission the task needs, including ones that depend
+on what the tool is asked to do:
+
+- Creating an AI agent whose webhook receives incoming SMS (`sms.received`)
+  asks for **SMS messages** as well as **Change AI agents**.
+- A webhook that receives call extraction results (`call.extraction.ready`)
+  asks for **Transcripts**, because results can quote the conversation.
+- Changing any AI agent's webhook address asks for both **SMS messages** and
+  **Transcripts**, because deliveries already queued for that address can carry
+  either.
+
+An agent change that does not touch webhook content, such as a new name or
+lifecycle-only events, needs only **Change AI agents**.
+
+## Permissions
+
+These are the names the consent screen shows. The same scopes govern API keys;
+see [Scopes & permissions](/docs/scopes) for the full catalogue.
+
+| Consent screen | Scope | Allows |
+| --- | --- | --- |
+| Workspace overview | `account:read` | Balance, usage and setup progress; agents and their settings, including prompts and greetings; numbers and number requests, including submitted verification details such as legal name, address, contact details and documents; calls and SMS conversations without message text; the agent ambience catalogue. |
+| AI agents | `agents:read` | Agents, settings, simulation scenarios and test results, and the voices and models available to them. |
+| Calls | `calls:read` | Calls, their status and campaigns. |
+| Coverage | `coverage:read` | Countries, available numbers, prices and requirements, and the voices and models agents can use. |
+| Numbers | `numbers:read` | Phone numbers, their rules and phone servers. |
+| Capabilities | `onboarding:read` | What the workspace is approved to do, and its limits. |
+| Call checks | `policy:evaluate` | Whether a call or SMS would be allowed. |
+| Transcripts | `recordings:read` | Call and simulation transcripts and recording details, and the simulation facts, grading notes and test evidence that quote them. With Change AI agents, call results that quote them can be sent to an agent's webhook. |
+| SMS messages | `sms:read` | SMS conversations and message text. With Change AI agents, incoming SMS can be forwarded to an agent's webhook. |
+| Place calls | `calls:write` | Place and end calls, manage contact lists and campaigns, add numbers to the do-not-call list. |
+| Send SMS | `sms:send` | Send SMS messages from your numbers. |
+| Change AI agents | `agents:write` | Create and change agents, preview voices, create simulation suites, start and cancel paid simulation runs. Changing a webhook address also needs SMS messages and Transcripts. |
+| Buy and configure numbers | `numbers:write` | Request phone numbers, change routing, create and test phone servers. |
+| Request capabilities | `onboarding:write` | Change voice and SMS capabilities, including which countries you can reach, and accept the outbound policy. |
+| Create trial fixtures | `trial_calls:write` | Create offline synthetic trial calls without dialing. |
+| Simulation verdicts | `simulation_suites:read` | Simulation pass/fail results, without conversation content. |
+
+The first seven are the initial read-only consent; the rest are asked for only
+when a task needs them.
+
+### Conversation content
+
+Transcripts, recordings and SMS message text need their own permission, whether
+Claude reads them directly or as part of a wider answer. A workspace overview
+without **SMS messages** omits message text. A simulation run without
+**Transcripts** still shows its status, verdicts and pages, but omits
+transcripts, recording references and evidence that can quote the conversation.
+A message Claude sends shows its ID and delivery status; its text comes back
+only with **SMS messages**. These rules are identical for API keys.
+
+### Charges and limits still apply
+
+Placing calls, sending messages, buying numbers, previewing voices and running
+simulations can cost money. Your balance, approved capabilities, outbound
+policy, do-not-call list and platform limits apply to Claude exactly as they
+apply to the API.
+
+## See and revoke connections
+
+Open **API keys → Connected apps** in the Skysay workspace. Each connection
+shows the app's address and self-chosen name, who connected it, when, and when
+it was last used. Choose **Revoke** to disconnect it: it stops working
+immediately, and using it again needs a new sign-in and consent. Removing a
+person's workspace membership also stops the connections they made.
+
+Revoking stops further access. It does not undo actions Claude already took, and
+it does not delete data already returned to Claude.
+
+## Privacy
+
+What Skysay receives and stores when you connect an AI assistant, and what
+revoking does and does not remove, is set out in the
+[Skysay privacy policy](https://skysay.ai/privacy).
+
+## Try it
+
+After connecting, try these read-only prompts:
+
+- "List my agents and their current configuration."
+- "Show my most recent calls and their completion status."
+- "List my phone numbers and explain their incoming-call rules."
+
+## Troubleshooting
+
+- **Connecting fails:** check you used `https://api.skysay.ai/mcp`, and start
+  again from Claude if the consent page says the request expired or was already
+  used.
+- **Claude asks for access again:** the task needs a permission you have not
+  granted yet. Allow it, or deny and ask Claude to do something else.
+- **A tool reports an error:** Skysay refused the action itself, for example a
+  policy block or a missing field. That is not a sign-in problem.
+
+For the protocol details (result shapes, error fields, scope metadata), see the
+[MCP overview](/docs/mcp).
