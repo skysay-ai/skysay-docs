@@ -178,7 +178,7 @@
             "type": "string"
           },
           "events": {
-            "description": "Subscribed event types. Omitted or empty at creation defaults to call.created, call.answered, media.started, call.ended, call.completed, call.failed, call.canceled. Change it later with PATCH /v1/agent-endpoints/{agent_endpoint_id}.",
+            "description": "Subscribed event types. Omitted or empty at creation defaults to call.created, call.answered, media.started, call.ended, call.completed, call.failed, call.canceled. Change it later with PATCH /v1/agent-endpoints/{agent_endpoint_id}. Subscribing to sms.received requires sms:read; call.extraction.ready requires recordings:read. Changing any endpoint destination requires both sms:read and recordings:read, including for queued deliveries and concurrent subscription changes.",
             "items": {
               "enum": [
                 "call.created",
@@ -2825,7 +2825,7 @@
             "type": "string"
           },
           "variables": {
-            "description": "Flat template variables, at most 28 keys; with the campaign metadata the call context stays within 32 keys / 4 KB; never secrets",
+            "description": "Flat template variables: the attempt's whole call context, at most 32 keys and 4 KB, lists of at most 16 items; never secrets",
             "type": "object"
           }
         },
@@ -3444,7 +3444,7 @@
             "type": "string"
           },
           "call_context": {
-            "description": "Small bounded, non-secret facts valid at call start. Never put endpoint credentials, mutable case history, or a requested voice-stack override here. A conversation workflow read tool is served from this object: put its declared projection fields under case_snapshot, or as top-level keys; every declared field must be present and non-empty or the workflow takes its case-unavailable path.",
+            "description": "Small bounded, non-secret facts valid at call start: at most 32 keys and 4 KB, lists of at most 16 items. Never put endpoint credentials, mutable case history, or a requested voice-stack override here. A conversation workflow read tool is served from this object: put its declared projection fields under case_snapshot, or as top-level keys; every declared field must be present and non-empty or the workflow takes its case-unavailable path.",
             "maxProperties": 32,
             "type": "object"
           },
@@ -4520,10 +4520,16 @@
           "compiled_hash": {
             "type": "string"
           },
+          "migrated_from_version": {
+            "description": "The archived version this one was moved from when workflows moved onto call variables; null for a version you published.",
+            "nullable": true,
+            "type": "integer"
+          },
           "published_at": {
             "type": "string"
           },
           "status": {
+            "description": "active, superseded, or archived_v2: a version from before call variables, kept under its number and never restored.",
             "type": "string"
           },
           "version": {
@@ -4607,9 +4613,16 @@
   "paths": {
     "/mcp": {
       "post": {
+        "description": "MCP Streamable HTTP transport with JSON responses (protocol 2025-11-25, 2025-06-18 or 2025-03-26). GET and HEAD answer 405 with Allow: POST; no server-sent event stream is offered.",
         "responses": {
           "200": {
-            "description": "MCP response"
+            "description": "JSON-RPC response"
+          },
+          "202": {
+            "description": "Notification or client response accepted; empty body"
+          },
+          "400": {
+            "description": "Malformed body or unsupported MCP-Protocol-Version header"
           }
         },
         "summary": "Hosted MCP endpoint"
@@ -4923,7 +4936,7 @@
                     "type": "string"
                   },
                   "test_values": {
-                    "description": "Values for the agent's declared variables, for this test call only. Built-ins (contact.*, call.*, campaign.*) are not sent. Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, and field / where naming the variable or line (never a value).",
+                    "description": "Values for the agent's declared variables, for this test call only. Built-ins (contact.*, call.*, campaign.*) are not sent. Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, agent_not_published, and field / where naming the variable or line (never a value).",
                     "type": "object"
                   }
                 },
@@ -5022,6 +5035,11 @@
                       "draft"
                     ],
                     "type": "string"
+                  },
+                  "test_values": {
+                    "additionalProperties": true,
+                    "description": "The values this test's call variables hold, as a call's call_context would carry them, within its bounds. The turn is admitted as a call is: the opening line and the instructions render with them, and a declared value that is required and missing, or does not match its declared type, refuses the turn with 400 and the admission code (call_variables_missing, call_variables_invalid, call_variables_over_budget). Send the same values with every turn.",
+                    "type": "object"
                   },
                   "transcript": {
                     "items": {
@@ -5134,7 +5152,7 @@
         },
         "responses": {
           "201": {
-            "description": "The message, as POST /v1/messages returns it"
+            "description": "The message, as POST /v1/messages returns it. Body, provider metadata, error detail and idempotency key require sms:read, including on idempotent replays."
           },
           "400": {
             "description": "A body beside a template, an unsupported field, a missing or invalid variable or slot, or a text over 6 segments."
@@ -5222,7 +5240,7 @@
     },
     "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}": {
       "get": {
-        "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow.",
+        "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers.",
         "parameters": [
           {
             "in": "path",
@@ -6232,8 +6250,15 @@
                   "workflow": {
                     "properties": {
                       "variables": {
-                        "$ref": "#/components/schemas/VariablesConfig_variables",
-                        "description": "The workflow's own call variables. Checked when the workflow is published."
+                        "description": "The workflow's own call variables, replacing the draft's; null removes them, and a save that leaves the key out keeps them. Checked when the workflow is published.",
+                        "oneOf": [
+                          {
+                            "$ref": "#/components/schemas/VariablesConfig_variables"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "type": "object"
@@ -6567,6 +6592,10 @@
                       "published"
                     ],
                     "type": "string"
+                  },
+                  "test_values": {
+                    "description": "Values for the workflow's declared variables, for this Chat test only, admitted exactly as a Talk test's are: a question that compares an answer with a value compares it with these (none supplied takes its mismatch route). Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, agent_not_published, and field / where naming the variable or line (never a value).",
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -8436,7 +8465,7 @@
         ]
       },
       "post": {
-        "description": "Rows carry phone_e164 plus optional name, language, time_zone (IANA; defaults from the number's country), external_reference, consent_basis and flat template variables (at most 28 keys; with the campaign metadata the call context stays within 32 keys / 4 KB; never secrets). Invalid rows are reported per row; duplicates within the list are skipped. At most 10,000 rows per request.",
+        "description": "Rows carry phone_e164 plus optional name, language, time_zone (IANA; defaults from the number's country), external_reference, consent_basis and flat template variables (the attempt's whole call context: at most 32 keys and 4 KB, lists of at most 16 items; never secrets). Invalid rows are reported per row; duplicates within the list are skipped. At most 10,000 rows per request.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8843,7 +8872,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -8990,7 +9019,7 @@
     },
     "/v1/dashboard/agent-simulation-suite-run": {
       "get": {
-        "description": "The run's pinned identity, its per-scenario rollup, and one stably ordered page of attempts with an explicit has_more. Attempts are keyset-paginated so the query count stays constant as a suite is re-run. Also returns linkable_sessions: this AI agent's most recent Talk sessions and matched phone-test sessions that can be linked to an attempt as human evidence (newest first, at most 20, with linkable_sessions_page.has_more), carrying only the session id, kind, status, turn count and timestamps. Never returns the run's idempotency key, request fingerprint or pinned contract.",
+        "description": "The run's pinned identity, its per-scenario rollup, and one stably ordered page of attempts with an explicit has_more. Attempts are keyset-paginated so the query count stays constant as a suite is re-run. Also returns linkable_sessions: this AI agent's most recent Talk sessions and matched phone-test sessions that can be linked to an attempt as human evidence (newest first, at most 20, with linkable_sessions_page.has_more), carrying only the session id, kind, status, turn count and timestamps. Never returns the run's idempotency key, request fingerprint or pinned contract. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers.",
         "parameters": [
           {
             "in": "query",
@@ -9108,7 +9137,7 @@
     },
     "/v1/dashboard/agent-workflow": {
       "get": {
-        "description": "Returns one selected agent's workflow draft (with a live, in-memory validation summary), the currently published version summary if any, and a bounded version history. Distinguishes an agent with zero workflows (workflow: null) from an existing draft. It is bound to the dashboard session organization and selected project; it never compiles server-side for a side effect, calls a provider, or performs a write.",
+        "description": "Returns one selected agent's workflow draft (with a live, in-memory validation summary), the currently published version summary if any, and a bounded version history. Distinguishes an agent with zero workflows (workflow: null) from an existing draft. It also carries `call_variables`: `{\"active\": false}` until call variables are switched on, and then whether the AI agent looks callers up in a contact list (`caller_lookup`), which the draft's validation uses to walk protected values exactly as the draft update's response does. It is bound to the dashboard session organization and selected project; it never compiles server-side for a side effect, calls a provider, or performs a write.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -9158,7 +9187,7 @@
     },
     "/v1/dashboard/api-keys": {
       "get": {
-        "description": "Returns API-key metadata only; key material and hashes are never returned.",
+        "description": "Returns API-key metadata only; key material and hashes are never returned. `connected_apps` lists the apps connected to the workspace over OAuth (`grants`, newest first, at most 50, with `has_more`); `enabled` is false, with an empty list, while OAuth sign-in is not available.",
         "responses": {
           "200": {
             "description": "API key workspace aggregate"
@@ -9350,7 +9379,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -9583,7 +9612,7 @@
     },
     "/v1/dashboard/campaigns": {
       "get": {
-        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). Fixed query budget; never a caller-selected tenant.",
+        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). With `preview_agent_id` (an AI agent in the session workspace) the page also carries `agent_preview`: what that AI agent will say, rendered by the same preview the Contacts list detail serves (its DTO unchanged) for the first contact of `preview_list_id` by import order in the wizard's `preview_language` (a contact's own language still wins, as on the call), or state no_contact without a list and no_agent for an AI agent outside the workspace. The wizard sends one such request per AI agent selection its agent step shows. `agent_preview` is null when no AI agent is named. Fixed query budget; never a caller-selected tenant.",
         "parameters": [
           {
             "in": "query",
@@ -9606,6 +9635,33 @@
             "name": "contact_status",
             "required": false,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preview_agent_id",
+            "required": false,
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preview_list_id",
+            "required": false,
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preview_language",
+            "required": false,
+            "schema": {
+              "maxLength": 35,
               "type": "string"
             }
           },
@@ -9717,7 +9773,7 @@
     },
     "/v1/dashboard/contacts/lists/{contact_list_id}": {
       "get": {
-        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its first name, latest campaign outcome and do-not-call state. When a campaign uses the list (and its AI agent is hosted; an AI agent on the customer's own endpoint previews outcome external), a preview of what that campaign's AI agent says to the selected contact. For an AI agent with call variables set up (mode call_variables), the greeting, the script's opening and personalised lines and the SMS templates are rendered from this contact's values by the call-variables admission and template renderer, with the template's fallback wording where a value is missing (missing_values names them); when this contact's values would refuse the call (a required value missing, a wrong type), outcome is refused with the reason code, the field and the destination, never a value. For any other AI agent (mode as_written) the lines are shown as its calls speak them today. call_variables_active is false until calls speak through call variables. Fixed query budget; no provider or model call.",
+        "description": "Pure read: one list's contacts in import order, searched and filtered (all, not_called, reached, do_not_call), each with its first name, latest campaign outcome and do-not-call state. When a campaign uses the list (and its AI agent is hosted; an AI agent on the customer's own endpoint previews outcome external), a preview of what that campaign's AI agent says to the selected contact. For an AI agent with call variables set up (mode call_variables), the greeting, the script's opening and personalised lines and the SMS templates are rendered from this contact's values by the call-variables admission and template renderer, with the template's fallback wording where a value is missing (missing_values names them); when this contact's values would refuse the call (a required value missing, a wrong type), outcome is refused with the reason code, the field and the destination, never a value. For any other AI agent (mode as_written) the lines are shown as its calls speak them today. Fixed query budget; no provider or model call.",
         "parameters": [
           {
             "in": "path",
@@ -11097,6 +11153,7 @@
         "summary": "List SMS messages"
       },
       "post": {
+        "description": "Requires sms:send. Message body, provider metadata, error detail and idempotency key are returned only with sms:read, for both fresh sends and idempotent replays.",
         "requestBody": {
           "content": {
             "application/json": {
