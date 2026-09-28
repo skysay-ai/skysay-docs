@@ -209,13 +209,18 @@ not in the agent's variables config:
 replacing the draft's; `null` removes them, and a save that leaves the key out
 keeps them.
 
-An agent that already declares its own variables hands them to its first
-workflow when that workflow is published: in the same step the agent's own
-declaration is cleared and the agent is republished against the workflow's. If
-the agent's greeting or instructions name a variable the workflow does not
-declare, the publish is refused with `400 variables_config_invalid`
-(`UNDECLARED_VARIABLE`) and nothing changes -- declare it on the workflow and
-publish again. They are checked when the workflow is published, with every line:
+An agent whose publication already declares its own variables hands them to
+its workflow when that workflow is published: in the same step the agent's own
+declaration is cleared (its SMS templates, SMS mode and caller lookup stay) and
+the agent is republished against the workflow's. The publish response lists
+the names that moved in `variables_moved_to_workflow` (an empty list when
+nothing did), and the cleared declaration is kept, word for word, in the
+audit event `agent.variables_moved_to_workflow` (`GET /v1/audit-events`), with
+the `workflow_version`, the `moved` names and the `cleared_variables`, so the
+handover can be seen and the declaration recovered. If the agent's greeting or instructions name
+a variable the workflow does not declare, the publish is refused with
+`400 variables_config_invalid` (`UNDECLARED_VARIABLE`) and nothing changes --
+declare it on the workflow and publish again. They are checked when the workflow is published, with every line:
 a line that names an undeclared variable, prints an optional one outside its
 own `{{#name}}` section, or has a misspelled or unbalanced marker is a
 validation error naming the step. In the dashboard they are on the workflow's
