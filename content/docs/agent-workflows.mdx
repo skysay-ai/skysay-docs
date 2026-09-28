@@ -45,17 +45,16 @@ rail. They can preempt any ordinary step, and when a caller's utterance
 matches more than one, the server picks the highest-precedence interrupt from
 a fixed order; the model never decides precedence.
 
-**A reply to a spoken line** is judged against the global interrupts first,
-exactly as on any step. When it names only a hardship, a callback or a request
-for a person, and the line leads straight to a branch, the reply is weighed once
-more against that branch's routes and those requests as one choice: a route you
-wrote for it ("Has a question", "Wants to leave a message") is taken when it
-fits what the caller said better, and otherwise the interrupt applies. Wrong
-party, dispute, cease contact and language change are never weighed against your
-routes, and between interrupts the fixed order still decides, so a caller who
-asks you to stop calling while disputing the debt is handled as a dispute. When
-a read tool or Send SMS step sits between the line and the branch, the branch
-decides after that step, as before.
+**A reply to a spoken line that leads straight to a branch** is decided once,
+against that branch's routes and the global interrupts together. The dispute,
+hardship, callback and human-request interrupts are weighed against your routes
+as one choice: a route you wrote for the reply ("Already paid", "Has a
+question", "Wants to leave a message") is taken when it fits what the caller
+said better, so the branch you laid out answers them, and when none of your
+routes fits, the interrupt applies as before. Wrong party, cease contact and
+language change are always checked on their own and still preempt any route.
+When a read tool or Send SMS step sits between the line and the branch, the
+branch decides after that step, separately, as before.
 
 Every semantic edit is also available from the form/list editor without
 drag-and-drop, and edits autosave to the draft only. If someone else edits the
@@ -77,11 +76,13 @@ wrong-person or wrong-number statement; missing confirmation alone is not
 denial. Explicit wrong-party and cease-contact replies both end the call
 immediately, but they are two different outcomes and the starter templates keep
 them apart. A **wrong party** stops this call and leaves the number exactly
-where it was. A **cease contact** stops this call and adds the number to your
-[do-not-call register](/docs/campaigns#do-not-call-register), which is honoured
-on every outbound path from then on. Each outcome's label says which of the two
-it did, so an exported row or a review-inbox entry states the consequence
-rather than only the category.
+where it was. A **cease contact** stops this call and records that the caller
+asked not to be contacted, for you to review. Nothing adds the number to your
+[do-not-call register](/docs/campaigns#do-not-call-register) automatically --
+a caller can say anything, so you decide whether a number goes on it, and the
+numbers you add are honoured on every outbound path. Each outcome keeps its own
+label, so an exported row or a review-inbox entry says which of the two
+happened.
 
 A reply to a **Tell / Say** line is judged together with that line as the
 caller heard it, including the call's values it stated, so a short "no" to a
@@ -94,16 +95,10 @@ data reaches no provider the call was not already using. For any other
 provider the line goes as you wrote it if it names no variable, and is left
 out if it does.
 
-Because the consequences differ, a workflow may not point both interrupts at
-one outcome step, and nothing other than cease contact may reach the outcome
-cease contact lands on. Validation refuses either draft. The second rule is
-what keeps each label honest: the register entry is written by the cease-contact
-route itself, not by arriving at that step, so a route that reached it another
-way would show "added to the do-not-call register" on a call that registered
-nothing. Both outcomes are still
-**review candidates** rather than automatic mutation commands: the register
-entry is the one thing a cease contact writes on its own. Global interrupt
-precedence is unchanged.
+Because the two mean different things, a workflow may not point both
+interrupts at one outcome step, and validation refuses a draft that does. Both
+outcomes are **review candidates** rather than automatic actions: neither writes
+to your do-not-call register. Global interrupt precedence is unchanged.
 
 Any draft whose wrong-party and cease-contact interrupts point at one existing
 step was updated for you when this shipped -- drafts built from an earlier
@@ -158,9 +153,7 @@ will never synthesize one.
 Validation blocks testing and publishing on structural errors: dangling or
 type-invalid targets, unreachable required steps, cycles with no exit, missing
 interrupt targets, a wrong-party and a cease-contact interrupt sharing one
-outcome step, anything other than cease contact reaching the cease-contact
-outcome, an outcome label from a starter template claiming the opposite of what
-the route landing on it does, tool or language incompatibilities, blank spoken text, missing
+outcome step, tool or language incompatibilities, blank spoken text, missing
 transfer destinations, a line that names a variable the workflow does not
 declare, and a line or SMS that could say a
 [protected variable](#protected-values) before the caller is confirmed
