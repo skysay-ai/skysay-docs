@@ -47,7 +47,7 @@ with `GET /v1/agents/{agent_id}/variables` and replaced with
 | `required` | a call without this value is refused before it is placed |
 | `max_length` | strings: at most this many characters (1–512, default 512) |
 | `max_items` | lists: at most this many items (1–16, default 16) |
-| `item` | lists: each item's own keys, each `string`, `number` or `boolean` |
+| `item` | lists: each item's own keys, each `string`, `number` or `boolean`; an item key cannot be required, so it is printed inside its own section |
 
 An agent declares at most 32 variables. Names are letters, digits and `_`, not
 starting with a digit, up to 80 characters.
@@ -78,7 +78,7 @@ your names.
 | `contact.language`, `contact.time_zone`, `contact.external_reference` | that contact's own fields |
 | `campaign.id`, `campaign.name`, `campaign.run_id`, `campaign.attempt` | the campaign a call belongs to |
 | `call.direction`, `call.counterparty_number`, `call.agent_number` | the call itself |
-| `call.local_date`, `call.local_time` | the time in the contact's zone when the call was admitted |
+| `call.local_date`, `call.local_time` | the time when the call was admitted, in the contact's zone -- or, without one, the campaign's zone, then the default zone of the other party's number, then UTC |
 
 ## Write them into lines
 
@@ -90,7 +90,7 @@ your names.
 
 ```text
 Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{order}}.
-{{#items}}{{desc}}: {{amount}}. {{/items}}{{^items}}Nothing is due.{{/items}}
+{{#items}}{{#desc}}{{desc}}{{/desc}}{{#amount}}: {{amount}}{{/amount}}. {{/items}}{{^items}}Nothing is due.{{/items}}
 ```
 
 - Spaces or tabs inside the braces are fine: `{{ order }}`.
@@ -100,7 +100,9 @@ Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{o
 - **An optional variable may only be printed inside its own section**, so a
   missing value can never leave a gap like "Hello , your order is ready":
   `{{#first_name}} {{first_name}}{{/first_name}}`. A `required` variable can be
-  printed anywhere.
+  printed anywhere. A list item's own keys are always optional, so inside a
+  list each is printed in its own section too:
+  `{{#items}}{{#desc}}{{desc}}{{/desc}}{{/items}}`.
 - Values are used exactly as given and are never read as markers: a value
   containing `{{…}}` is spoken as those characters.
 - Numbers are written plainly: `45300.0` reads `45300`, `0.5` reads `0.5`. A
@@ -111,10 +113,13 @@ Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{o
 - **`{{` is reserved.** Every `{{` in a line starts a marker, and there is no
   escape: a line cannot contain two literal opening braces. The same holds for
   the per-call `first_message` and `instructions` you send with
-  `POST /v1/calls`: they are templates like the agent's own lines, so a marker
-  naming a built-in or a declared variable is filled in, and an unresolved or
-  malformed `{{…}}` is refused with `400 call_variables_invalid`, `where`
-  naming `runtime_config.first_message` or `runtime_config.instructions`.
+  `POST /v1/calls`: they are templates like the agent's own. In
+  `first_message` a marker naming a built-in or a declared variable is filled
+  in; in `instructions`, as in the agent's own instructions, it only names the
+  variable (`{{balance}}` reads as `balance`) and the value reaches the model
+  in the data block. An unresolved or malformed `{{…}}` in either is refused
+  with `call_variables_invalid`, `where` naming
+  `runtime_config.first_message` or `runtime_config.instructions`.
 
 ## Supply the values
 
@@ -129,7 +134,7 @@ Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{o
   API, takes them as `test_values`. The test is admitted as a call is: the
   greeting and instructions render with the test values, and a required value
   that is missing, or one that does not match its declaration, refuses the test
-  with `400` and the admission code (`call_variables_missing`,
+  with `400` and the admission code in `reason` (`call_variables_missing`,
   `call_variables_invalid` or `call_variables_over_budget`). A Chat test sends
   the same values with every turn.
 
@@ -171,7 +176,10 @@ contact lists (`"caller_lookup": {"contact_list_id": "cl_..."}`), which fills
 the `contact.*` built-ins. A number match is not proof of who is calling: on an
 inbound call every other looked-up field is treated as protected, and only
 `contact.first_name` and `contact.name` may be said before confirmation — unless
-you mark a field `"before_confirmation": true`.
+you mark a field `"before_confirmation": true`. On an agent without a workflow
+nothing can confirm the caller, so a looked-up field without
+`before_confirmation` never reaches the call at all; if it is also `required`,
+every call from a matched number is refused as `call_variables_missing`.
 
 ## Limits
 
@@ -184,7 +192,10 @@ and the call is refused rather than cut short when something does not fit:
 | an SMS | 6 segments |
 | the data block the model reads | 8 KB |
 
-A refusal names its reason: `call_variables_missing` (a required value is
+A refused call is answered
+`400 {"error": "BadRequestError", "message", "reason", "field", "where"}`:
+`field` names the variable and `where` the destination when they apply, and
+`reason` is one of `call_variables_missing` (a required value is
 absent), `call_variables_invalid` (a value does not match its declaration),
 `call_variables_over_budget` (a filled-in line is empty or over its limit),
 `workflow_binding_failed`, `schema_pair_mismatch` or
@@ -200,13 +211,17 @@ integration relies on any of these, update it:
    declared variables and built-ins, never a protected value before
    confirmation — instead of the raw `context.call_context`.
 2. **Lists in `call_context`** hold at most 16 items (previously 32), on
-   `POST /v1/calls`, gateway outbound calls and test values.
+   `POST /v1/calls`, gateway outbound calls and test values. A `call_context`
+   outside its bounds -- a string over 512 characters, a list over 16 items,
+   an object over 32 keys, or more than 4,096 bytes in all -- is refused by the
+   request check before the call's variables are read: a plain `400` that
+   names the bound, with no `reason` code and no variable.
 3. **Campaign calls' `call_context`** no longer carries `campaign_id`,
    `campaign_run_id`, `attempt_no` or `contact_name`. They are the built-ins
    `campaign.id`, `campaign.run_id`, `campaign.attempt` and `contact.name`.
 4. **Per-call `first_message` and `instructions`** are templates: an
-   unresolved or malformed `{{…}}` in them is refused with
-   `400 call_variables_invalid` on `POST /v1/calls`, and a workflow agent
+   unresolved or malformed `{{…}}` in them is refused on `POST /v1/calls`
+   (`400`, `reason` `call_variables_invalid`), and a workflow agent
    refuses per-call text altogether (`per_call_text_on_workflow`).
 5. **Every agent's greeting and instructions are checked when it is
    published**, whether or not it declares variables. A line naming an
@@ -245,15 +260,19 @@ instructions, language versions and per-call text are not rewritten.
 the editor:
 
 - It gains a `variables` block declaring every name its lines and reads use.
-  The facts it reads about the person are declared protected, so they are
-  disclosed only after the caller is confirmed.
-- A line that disclosed a value is rewritten to the template language: a value
-  and the words that introduce it become a section, `{{#amount}}…{{amount}}{{/amount}}`,
-  so a missing value still drops its lead-in. The `discloses_debt` setting is
+  The values its disclosing lines speak, and the facts read for those lines,
+  are declared protected, so they are disclosed only after the caller is
+  confirmed; any other value is declared as an ordinary variable.
+- A line that disclosed a value is rewritten to the template language: each
+  value and the spacing before it become a section, `{{#amount}} {{amount}}{{/amount}}`,
+  so a missing value is dropped exactly as it was before. The `discloses_debt` setting is
   removed; the protected declaration replaces it.
-- The campaign names it used become built-ins: `contact_name` is
-  `contact.name`, `campaign_id` is `campaign.id`, `campaign_run_id` is
-  `campaign.run_id` and `attempt_no` is `campaign.attempt`.
+- On an agent that takes campaign calls, the campaign names it used become
+  built-ins: `contact_name` is `contact.name`, `campaign_id` is `campaign.id`,
+  `campaign_run_id` is `campaign.run_id` and `attempt_no` is
+  `campaign.attempt`. On any other agent those names stay your own variables.
+  An agent whose campaign calls and direct calls both send one of those names
+  waits for you to say which one its lines mean.
 
 Its published versions change as described in
 [Versions from before call variables](/docs/agent-workflows#versions-from-before-call-variables).
@@ -261,13 +280,19 @@ Its published versions change as described in
 If a draft's lines cannot be moved with the same words guaranteed, the move
 waits until that draft is fixed, and nothing in your workspace changes in the
 meantime. A saved draft that does not yet pass validation is moved as far as
-it goes and does not hold up the move. A draft that cannot be read at all does
-not hold it up either: it gets an empty `variables` block, and once you repair
-it, it publishes under the call-variables rules.
+it goes and does not hold up the move -- unless it contains `{{` markup the
+template language would now read differently, which holds the move until it is
+fixed, wherever it sits. A draft that cannot be read at all does not hold it up
+either: it gets an empty `variables` block, and once you repair it, it
+publishes under the call-variables rules.
 
-**Agents on GPT-Live or Gemini Live** that received per-call data get a
-Variables config declaring the keys they already received, typed from their
-calls, so the same data keeps reaching the model, now in the call's data block.
+**Agents on GPT-Live or Gemini Live** without a workflow get a Variables
+config declaring the per-call keys the platform used to pass to their model --
+`name`, `contact_name`, `amount`, `amount_owed`, `overdue_amount`, `currency`,
+`due`, `due_date`, `reference`, `reference_id` and `invoice` -- typed from
+their calls, so the same data keeps reaching the model, now in the call's data
+block. Other keys in `call_context` never reached the model and are not
+declared; declare them yourself if you want the model to see them.
 
 **Hosted agents that never published a language set** get their current
 language published as their language set -- on GPT-Live and Gemini Live, the
@@ -315,7 +340,7 @@ through the API with no call behind it.
 
 1. the call's language (for an API send, the `language` you name);
 2. that language's base (`et-EE` → `et`);
-3. the agent's primary language — its first selected language;
+3. the agent's primary language — its opening language;
 4. as a last resort, the template's texts in language-code order.
 
 So a template never fails to send for want of a translation — but a caller may
@@ -332,7 +357,12 @@ every language the agent speaks.**
 
 **`PUT` replaces the whole config** and republishes the agent in the same step,
 so the next call uses it; calls already under way keep what they started with.
-Send back the `revision` you read as `base_revision`: if the agent was changed
+The body is `{"config": {…}, "base_revision": n}` -- `config` is the object
+shown in [Declare the variables](#declare-the-variables), and any other
+top-level key is refused. If the agent cannot be published for any other
+reason -- an incomplete voice stack, or a language its workflow cannot speak --
+the whole `PUT` is refused and nothing is stored. Send back the `revision` you
+read as `base_revision`: if the agent was changed
 and republished since — by another edit of this config, or of its voice,
 prompt or languages — the write is refused with
 `409 {"error": "revision_conflict", "revision": <current>}` and nothing
@@ -357,7 +387,15 @@ also names the `marker` text. Nothing is stored or published.
 | `sms_templates.<id>.text.<language>` | one template's text in one language |
 | `first_message.<language>` | the greeting in that language |
 | `system_prompt.<language>` | the instructions in that language |
-| `steps.<step_id>` | a line of the agent's active workflow |
+| `steps.<step_id>` | a line of the agent's active workflow (see below) |
+
+A config that is valid in itself but would let the agent's active workflow say
+a protected value before the caller is confirmed -- turning on caller lookup
+protects the looked-up fields that are not `before_confirmation` -- is refused
+with `409 {"error": "workflow_revalidation_failed", "message", "issues": [...]}`,
+each issue a `PROTECTED_BEFORE_CONFIRMATION` at `steps.<step_id>`. The same
+`409` with `ACTIVE_WORKFLOW_UNREADABLE` means the active workflow could not be
+read to check it. Nothing is stored.
 
 #### Issue codes
 
@@ -383,6 +421,7 @@ also names the `marker` text. Nothing is stored or published.
 | `INVALID_SMS_MODE` | `sms_mode` is not `free_text` or `templates_only`. |
 | `INVALID_SMS_TEMPLATE`, `TOO_MANY_SMS_TEMPLATES` | A template id or shape is invalid, or there are more than 20 templates. |
 | `SMS_TEMPLATE_PRIMARY_LANGUAGE_MISSING` | A template has no text in the agent's primary language. |
+| `SLOT_COLLISION` | An SMS template slot has the name of a declared variable or a built-in. |
 | `TOO_MANY_SMS_SLOTS`, `INVALID_SMS_SLOT` | More than 8 slots, or a slot that is not `{"source": "model", "max_length": 1–120}`. |
 | `UNDECLARED_VARIABLE` | A line names a variable that is not declared (or a list item key outside its list). |
 | `OPTIONAL_OUTSIDE_SECTION` | An optional variable printed outside its own `{{#name}}` section. |
@@ -396,7 +435,9 @@ uses the agent's own project and a sending number from it. Send the
 `language`, and the usual `to`, `purpose` and `recipient_type` of a message.
 An agent in another workspace or project and an unknown template are the same
 `404`. A protected variable cannot be sent this way — there is no call to
-confirm who you are writing to.
+confirm who you are writing to — and a template whose text names one cannot be
+sent through this route at all, even with no values. A key in `variables` the
+agent does not declare is refused with `400`.
 
 ```bash
 curl -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/messages" \
@@ -409,7 +450,10 @@ curl -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/messages" \
 During a scheduled [maintenance window](/docs/errors) the two writes, `PUT
 /v1/agents/{agent_id}/variables` and `POST /v1/agents/{agent_id}/messages`,
 answer `503` with `"error": "platform_maintenance"` and a `Retry-After`
-header; nothing changes and nothing is sent. Reading the config keeps working.
+header; nothing changes and nothing is sent. A message request is checked first
+(the agent, template, values and sending number), so a malformed one is still
+answered with its own `400` or `404` during the window. Reading the config
+keeps working.
 
 ### From an MCP client
 
