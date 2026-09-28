@@ -8639,7 +8639,7 @@
     },
     "/v1/dashboard/agent-workflow": {
       "get": {
-        "description": "Returns one selected agent's workflow draft (with a live, in-memory validation summary), the currently published version summary if any, and a bounded version history. Distinguishes an agent with zero workflows (workflow: null) from an existing draft. It is bound to the dashboard session organization and selected project; it never compiles server-side for a side effect, calls a provider, or performs a write.",
+        "description": "Returns one selected agent's workflow draft (with a live, in-memory validation summary), the currently published version summary if any, and a bounded version history. Distinguishes an agent with zero workflows (workflow: null) from an existing draft. It also carries `call_variables`: `{\"active\": false}` until call variables are switched on, and then whether the AI agent looks callers up in a contact list (`caller_lookup`), which the draft's validation uses to walk protected values exactly as the draft update's response does. It is bound to the dashboard session organization and selected project; it never compiles server-side for a side effect, calls a provider, or performs a write.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -8689,7 +8689,7 @@
     },
     "/v1/dashboard/api-keys": {
       "get": {
-        "description": "Returns API-key metadata only; key material and hashes are never returned.",
+        "description": "Returns API-key metadata only; key material and hashes are never returned. `connected_apps` lists the apps connected to the workspace over OAuth (`grants`, newest first, at most 50, with `has_more`); `enabled` is false, with an empty list, while OAuth sign-in is not available.",
         "responses": {
           "200": {
             "description": "API key workspace aggregate"

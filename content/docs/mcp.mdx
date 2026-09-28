@@ -41,52 +41,25 @@ clients using it; OAuth connections have separate grants.
 
 ## Connect Claude
 
-In Claude's connector settings, add `https://api.skysay.ai/mcp` as a custom
-connector. Choose Connect, sign in to Skysay, and review the workspace, requesting
-app, callback hostname, and permissions before selecting Allow. Claude Code uses
-a callback on your computer; Skysay identifies that loopback callback on the
-consent screen. You do not paste an API key into an OAuth connection.
-
-The initial permissions are read-only. When a tool needs another permission,
-Claude opens a second Skysay consent screen. It shows the combined permissions,
-including any earlier approvals. You can deny that request. Call transcripts,
-recordings and SMS bodies require their respective content-reading permissions.
-Composite reads stay available at their base permission. `account_overview`
-omits SMS bodies and content-bearing metadata without `sms:read`.
-`get_simulation_run` returns status, verdicts and pagination with `agents:read`;
-transcripts, recording references and conversation evidence additionally require
-`recordings:read`. The same field rules apply to API keys and OAuth connections,
-and to the corresponding REST reads.
-
-The entire MCP tool catalogue is available, including campaigns, numbers, phone
-servers and voice previews. Permissions authorize the existing API actions:
-`calls:write` includes calls, campaign changes and do-not-call; `agents:write`
-includes agent configuration, previews and simulation runs. Number purchases,
-calls, messages, previews and simulations can incur charges. Workspace balance,
-capabilities, policies, DNC and platform limits still apply.
-
-Open **API keys → Connected apps** in Skysay to see the workspace's connections
-and revoke a grant. Revocation stops that grant's access and refresh tokens;
-it does not undo actions already performed. Removing a user's workspace
-membership also prevents further access.
-
-Try these read-only prompts after connecting:
-
-- “List my agents and their current configuration.”
-- “Show my most recent calls and their completion status.”
-- “List my phone numbers and explain their incoming-call rules.”
-
-If connecting fails, check that you used the canonical API URL, restart the
-connection after an expired consent request, and allow several minutes after a
-server metadata update. A `403 insufficient_scope` requests additional consent;
-a failed tool result describes an application refusal and is not a new login.
+Claude connects with OAuth instead of an API key: add `https://api.skysay.ai/mcp`
+as a connector, sign in to Skysay and approve read-only access. When a task needs
+more, such as placing calls, sending SMS, changing agents or webhooks, or reading
+conversation content, Skysay answers `403 insufficient_scope` before running the
+tool. Claude then asks you to approve the extra permissions on a second consent
+screen. Revoke a connection under **API keys → Connected apps**. The full tool
+catalogue is available, held to the same scopes as an API key. See
+[Connect Claude](/docs/connect-claude) for the steps, the permissions in plain
+language and what Skysay can see.
 
 ## Results, errors and tool metadata
 
 Tool calls return a `text` content block containing JSON and the same data in
 `result.structuredContent`. List results use `{ "items": [...] }` in structured
 content. A refused tool returns `result.isError: true` and
-`structuredContent.error` with `type` and `message`. Unexpected failures use
+`structuredContent.error` with `type` and `message`. When the equivalent REST
+route answers with a structured body (the issues a refused configuration names,
+or the revision a stale write lost to), the same body is in `error.body`, so a
+tool call is told exactly what the REST caller would be. Unexpected failures use
 `internal_error` and a `request_id` to quote to support. Unknown tools or malformed
 parameters remain JSON-RPC errors (`-32602`).
 
@@ -104,7 +77,8 @@ workspace. A different workspace is refused. Streamable HTTP negotiates
 ### Migration for custom MCP clients
 
 Read `result.structuredContent` instead of `result.content[0].json`, inspect
-`result.isError` and `structuredContent.error.type` instead of `error.type`, and
+`result.isError` and `structuredContent.error.type` instead of `error.type` (with
+`structuredContent.error.body` for a structured refusal), and
 read scope metadata from `_meta` instead of `annotations.required_scopes`.
 Standard MCP clients already understand these result types.
 
@@ -185,6 +159,24 @@ schema discovery only.
   [Authentication & keys](/docs/authentication).
 </Callout>
 
+### Content fields
+
+Conversation content needs its content scope wherever it appears, for API keys
+and connected apps alike, over MCP and REST. Tools that combine content with other
+data stay callable at their base scope and omit the content fields:
+
+- `account_overview` (`account:read`) omits each SMS message's `body`,
+  `metadata`, `error` and `idempotency_key` without `sms:read`.
+- `send_sms` (`sms:send`) and `send_agent_template_message` (`sms:send` +
+  `agents:read`) return the message
+  ID and delivery status; `body`, `metadata`, `error` and `idempotency_key` come
+  back only with `sms:read`. This includes a retry that replays an existing
+  `idempotency_key`.
+- `get_simulation_run` (`agents:read`) returns status, verdicts and pagination.
+  Without `recordings:read` it omits each attempt's `transcript`,
+  `recording_ref` and `facts`, assertion `actual` values, rubric `rationale`
+  and linked-evidence `note`, because each can quote the conversation.
+
 ### Content-bearing webhook subscriptions
 
 For both API keys and connected apps, creating or changing a webhook subscription
@@ -195,3 +187,7 @@ Changing any existing webhook destination requires both `sms:read` and
 contain either kind of content. Removing a subscription does not make its queued
 content safe to redirect. Agent names and lifecycle-only subscriptions
 remain editable with `agents:write`.
+A connected app lacking one of these content permissions receives a
+`403 insufficient_scope` naming every permission the call needs, so it can ask
+you for them before anything is written. An API key receives a refused tool
+result naming the missing scope.
