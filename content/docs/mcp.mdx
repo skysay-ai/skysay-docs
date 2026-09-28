@@ -56,10 +56,7 @@ language and what Skysay can see.
 Tool calls return a `text` content block containing JSON and the same data in
 `result.structuredContent`. List results use `{ "items": [...] }` in structured
 content. A refused tool returns `result.isError: true` and
-`structuredContent.error` with `type` and `message`. When the equivalent REST
-route answers with a structured body (the issues a refused configuration names,
-or the revision a stale write lost to), the same body is in `error.body`, so a
-tool call is told exactly what the REST caller would be. Unexpected failures use
+`structuredContent.error` with `type` and `message`. Unexpected failures use
 `internal_error` and a `request_id` to quote to support. Unknown tools or malformed
 parameters remain JSON-RPC errors (`-32602`).
 
@@ -77,8 +74,7 @@ workspace. A different workspace is refused. Streamable HTTP negotiates
 ### Migration for custom MCP clients
 
 Read `result.structuredContent` instead of `result.content[0].json`, inspect
-`result.isError` and `structuredContent.error.type` instead of `error.type` (with
-`structuredContent.error.body` for a structured refusal), and
+`result.isError` and `structuredContent.error.type` instead of `error.type`, and
 read scope metadata from `_meta` instead of `annotations.required_scopes`.
 Standard MCP clients already understand these result types.
 
