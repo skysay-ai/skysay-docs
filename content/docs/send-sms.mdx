@@ -16,6 +16,21 @@ agent can follow a thread without ever being able to send.
 
 Connects SMS history to the same customer workspace as calls and numbers.
 
+## Send one of an agent's SMS templates
+
+An agent can hold SMS templates with call variables and model-filled slots.
+Send one with no call behind it:
+
+```text
+POST /v1/agents/{agent_id}/messages   # sms:send + agents:read
+{"template_id": "shipped", "variables": {"order": "A-17"}, "slots": {"when": "tomorrow"},
+ "from_number_id": "pn_...", "to": "+1555...", "purpose": "support", "recipient_type": "business"}
+```
+
+Unlike a free-text message, a template send is scoped to the agent's own
+project. See [Call variables](/docs/call-variables#sms-templates) for how
+templates are written and which language is sent.
+
 ## Send a message
 
 ```text
