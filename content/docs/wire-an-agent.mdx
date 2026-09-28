@@ -130,22 +130,35 @@ with webhook and audio-stream URLs.
 ### Changing an agent later
 
 An edit through `update_agent` (`PATCH /v1/agents/{agent_id}`) takes effect on
-the agent's next call. An edit to anything a call runs with (its prompt,
-greeting, language, voice stack, tools, recording setting or tuning)
-publishes the agent in the same step. If the agent could not be published
-that way (a greeting its voice cannot speak, for example), the edit is
-refused and nothing changes. Calls already under way keep what they started
-with, and an edit that changes none of these, such as a new name, publishes
-nothing. An edit made while the agent is not `hosted` is published when it
-becomes `hosted` again.
+the agent's next call. An edit to its prompt, greeting, language or voice
+stack publishes the agent in the same step. If the agent could not be
+published that way (a greeting its voice cannot speak, for example), the edit
+is refused and nothing changes. Tools, the recording setting and tuning are
+read when each call starts, so they always took effect on the next call.
+Calls already under way keep what they started with, and an edit that
+changes none of these, such as a new name, publishes nothing. An edit made
+while the agent is not `hosted` is published when it becomes `hosted` again.
 
 This fixes a bug. On an agent that had already been published, an edit to
 its prompt, greeting, language or voice stack used to be stored while calls
 kept running the last published version until the next publish from the
 editor.
 
-Disabling an Integration (`POST /v1/integrations/{integration_id}/disable`)
-also takes its actions off the next call of every agent that uses them.
+A hosted agent that has never been published is published by the first save
+that leaves it valid. A save that does not is still kept, and the agent's
+`metadata.publication` says why:
+
+```json
+{"state": "unpublished", "reason": "publication_variables_invalid", "where": "system_prompt.en", "issue": "UNDECLARED_VARIABLE"}
+```
+
+`reason` is one of `publication_stack_incomplete`,
+`publication_greeting_missing`, `publication_variables_invalid`,
+`publication_workflow_invalid`, `publication_language_unavailable` or
+`publication_refused`; `where` names the part of the agent to fix, and
+`issue` carries the call-variables code when there is one. Once published,
+the record reads `{"state": "published"}` with the other fields empty. It
+belongs to the platform: a `metadata` replace keeps it as it was.
 
 Two settings belong to `set_agent_voice_stack`
 (`PATCH /v1/agents/{agent_id}/voice-stack`):
