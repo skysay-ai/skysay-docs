@@ -183,14 +183,20 @@ every call from a matched number is refused as `call_variables_missing`.
 
 ## Limits
 
-Every line is rendered with the call's values **before** the call is placed,
-and the call is refused rather than cut short when something does not fit:
+Every line the call speaks is rendered with the call's values **before** the
+call is placed, and the call is refused rather than cut short when something
+does not fit:
 
 | What | Limit |
 | --- | --- |
 | a greeting or workflow line | 1,000 characters once filled in |
-| an SMS | 6 segments |
 | the data block the model reads | 8 KB |
+
+**An SMS** is checked when it is sent, with the text it really renders: at most
+6 segments. A message over that is refused, never truncated, and the call goes
+on. When the agent sends a template during a call, the tool's result records
+`OUTPUT_BUDGET_EXCEEDED`; a workflow's Send SMS step records **SMS failed**
+with that reason; `POST /v1/agents/{agent_id}/messages` answers `400`.
 
 A refused call is answered
 `400 {"error": "BadRequestError", "message", "reason", "field", "where"}`:

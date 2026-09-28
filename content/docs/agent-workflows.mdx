@@ -337,8 +337,11 @@ endpoint.
 
 A **Send SMS** step sends its authored `text` to the number on the call — the
 caller on an inbound call, the person called on an outbound one — then
-continues to `next`. The text uses the call's variables like any line, within
-6 segments, and is refused rather than sent with a gap. It may name a
+continues to `next`. The text uses the call's variables like any line, and is
+refused rather than sent with a gap. It must fit 6 segments with the values it
+is sent with: that is checked when it is sent, and a message over it is not
+sent -- the step records **SMS failed** (`OUTPUT_BUDGET_EXCEEDED`) and the call
+continues. It may name a
 protected variable only where the caller has been confirmed, which publishing
 checks as for spoken lines. The message is sent after the turn that reached
 the step is stored, once each time the step is reached. Talk and Chat record
