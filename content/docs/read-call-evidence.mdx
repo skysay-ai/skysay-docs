@@ -309,7 +309,10 @@ there:
   `{"type": "caller_spoke_no_transcript", "speaker": "caller", "start_ms": ...}`.
   There is no text, because none exists.
 - The transcript stream places the same entries between the turns, in reading
-  order, under their own `type`, beside the existing `turn` entries.
+  order, under their own `type`, beside the existing `turn` entries. A client
+  that reads stream entries should check `type` before reading turn fields
+  such as `data.text`: a `caller_spoke_no_transcript` entry's `data` holds only
+  `speaker` and `start_ms`.
 - Post-call extraction reads a `[spoke, no transcript]` line for the caller at
   that point, and is told the line carries no content. It can then see that
   the person answered without inventing what they said.
