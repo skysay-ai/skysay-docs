@@ -35,6 +35,7 @@ import {
   MusicDoubleNote,
   Network,
   OpenBook,
+  PhoneOutcome,
   PhoneXmark,
   PlaySolid,
   Puzzle,
@@ -102,6 +103,7 @@ const ICONS = {
 
   // --- Guides ---
   Link,
+  PhoneOutcome,
   Timer,
   ChatLines,
   Translate,
