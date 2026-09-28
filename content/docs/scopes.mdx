@@ -21,12 +21,19 @@ agent needs.
 | `numbers:write` | Request numbers, update rules, create/test phone servers. |
 | `calls:read` | List calls, read call status. |
 | `calls:write` | Place policy-gated outbound calls. |
-| `recordings:read` | Read recording metadata, disclosure, and transcripts. |
-| `sms:read` | Read SMS conversations. |
+| `recordings:read` | Read recording metadata, disclosure, and transcripts, including simulation conversation content. |
+| `sms:read` | Read SMS conversations and message text. |
 | `sms:send` | Send policy-gated SMS. |
 | `policy:evaluate` | Evaluate outbound policy and authorize outbound. |
 | `onboarding:read` | Read the workspace capabilities. |
 | `onboarding:write` | Request workspace capabilities. |
+
+Content scopes are enforced field by field. A tool that mixes content with
+other data, such as `account_overview`, `send_sms` or `get_simulation_run`,
+stays callable at its base scope and omits SMS text or conversation content
+without `sms:read` or `recordings:read`. Subscribing a webhook to
+`sms.received` or `call.extraction.ready` needs the matching content scope, and
+changing a webhook address needs both. See [Content fields](/docs/mcp#content-fields).
 
 ## Prefix scopes
 
