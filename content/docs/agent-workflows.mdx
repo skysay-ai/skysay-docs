@@ -214,11 +214,14 @@ An agent whose publication already declares its own variables hands them to
 its workflow when that workflow is published: in the same step the agent's own
 declaration is cleared (its SMS templates, SMS mode and caller lookup stay) and
 the agent is republished against the workflow's. The publish response lists
-the names that moved in `variables_moved_to_workflow` (an empty list when
-nothing did), and the cleared declaration is kept, word for word, in the
-audit event `agent.variables_moved_to_workflow` (`GET /v1/audit-events`), with
-the `workflow_version`, the `moved` names and the `cleared_variables`, so the
-handover can be seen and the declaration recovered. If the agent's greeting,
+the cleared names the workflow declares in `variables_moved_to_workflow`, and
+the cleared names no line used, which the workflow does not declare, in
+`variables_dropped` (each an empty list when there are none). The cleared
+declaration is kept, word for word, in the audit event
+`agent.variables_moved_to_workflow` (`GET /v1/audit-events`), with the
+`workflow_version`, the `moved` and `dropped` names and the
+`cleared_variables`, so the handover can be seen and the declaration
+recovered. If the agent's greeting,
 its instructions or one of its SMS templates names a variable the workflow does
 not declare, the publish is refused with `400 variables_config_invalid` and
 nothing changes -- declare it on the workflow and publish again. The issue says
