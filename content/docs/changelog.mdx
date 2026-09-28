@@ -12,6 +12,52 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 28 September 2026
+
+### Call variables: give each call its own data
+
+- Declare an agent's variables once, write them into its greeting, workflow lines, instructions and SMS templates as `{{name}}`, and each call fills in its own values.
+- Values come from `call_context` on `POST /v1/calls`, from a campaign's contact-list columns, from an inbound caller lookup, or from `test_values` in Talk and Chat tests.
+- A `protected` value on a workflow agent is said only after the caller shows they are the right person; live engines cannot protect values.
+- An agent's SMS templates are sent during a call or with `POST /v1/agents/{agent_id}/messages`; free text stays allowed unless the agent is templates-only.
+- [Call variables](/docs/call-variables) · [SMS templates](/docs/call-variables#sms-templates) · [What changes for existing integrations](/docs/call-variables#what-changes-for-existing-integrations)
+
+### Scheduled maintenance windows answer `503 platform_maintenance`
+
+- During a short scheduled maintenance window, placing calls, sending SMS, starting tests and changing agents answer `503` with `"error": "platform_maintenance"`, `retry_after_seconds` and a `Retry-After` header.
+- Queued outbound calls wait for the window to close instead of failing, and reading anything keeps working.
+- A refused request changed nothing, so retrying it after the window is safe; MCP tools are refused the same way.
+- [Maintenance windows](/docs/errors#maintenance-windows)
+
+### An edit to an AI agent takes effect on its next call
+
+- An edit to an agent's prompt, greeting, language or voice stack through `PATCH /v1/agents/{agent_id}` now publishes the agent in the same step.
+- Before, such an edit to an already published agent was stored while calls kept running the last published version until the next publish from the editor.
+- An edit that cannot be published, such as a greeting its voice cannot speak, is refused and nothing changes; calls already under way keep what they started with.
+- [Changing an agent later](/docs/wire-an-agent#changing-an-agent-later)
+
+### MCP tool results carry the REST error body, and content needs its scope
+
+- A refused MCP tool call carries the same body the REST route returns, as `structuredContent.error.body`, such as the issues a refused config names.
+- Tool results carry `structuredContent` and `isError`, and every tool lists its required scopes under `_meta`.
+- SMS text needs `sms:read` and simulation conversation content needs `recordings:read` wherever it appears; tools stay callable at their base scope and omit those fields.
+- Subscribing a webhook to `sms.received` or `call.extraction.ready`, or changing a webhook address, needs the matching content scope.
+- [When a tool call is refused](/docs/mcp#when-a-tool-call-is-refused) · [Content fields](/docs/mcp#content-fields) · [Migration for custom MCP clients](/docs/mcp#migration-for-custom-mcp-clients)
+
+### On outbound calls the person says hello first
+
+- On outbound calls on the Standard engine, the agent waits for the person to answer and finish their hello before it speaks.
+- After two seconds of silence the agent speaks its opening; a plain hello gets the opening as written, and anything else is answered first.
+- Inbound calls, GPT-Live 1 and Gemini Live, workflow calls and browser tests keep the agent speaking first, and there is no setting to change.
+- [Who speaks first](/docs/who-speaks-first)
+
+### GPT-Live calls show who spoke when
+
+- On GPT-Live calls, the other person's turns are matched to their speech, so matched turns get speaker colours in the recording player and their own clip.
+- A turn that cannot be matched to one stretch of speech stays grey rather than playing someone else's words.
+- On Gemini Live calls the other person's turns stay grey for now, because that engine transcribes only after the person stops.
+- [Play a recording in Calls](/docs/read-call-evidence#play-a-recording-in-calls)
+
 ## 27 September 2026
 
 ### A recording player you can seek anywhere
