@@ -130,18 +130,22 @@ with webhook and audio-stream URLs.
 ### Changing an agent later
 
 An edit through `update_agent` (`PATCH /v1/agents/{agent_id}`) takes effect on
-the agent's next call. An edit to its prompt, greeting, language or voice
-stack publishes the agent in the same step. If the agent could not be
-published that way (a greeting its voice cannot speak, for example), the edit
-is refused and nothing changes. Tools, the recording setting and tuning are
-read when each call starts, so they always took effect on the next call.
-Calls already under way keep what they started with, and an edit that
-changes none of these, such as a new name, publishes nothing.
+the agent's next call. An edit to anything a call runs with (its prompt,
+greeting, language, voice stack, tools, recording setting or tuning)
+publishes the agent in the same step. If the agent could not be published
+that way (a greeting its voice cannot speak, for example), the edit is
+refused and nothing changes. Calls already under way keep what they started
+with, and an edit that changes none of these, such as a new name, publishes
+nothing. An edit made while the agent is not `hosted` is published when it
+becomes `hosted` again.
 
 This fixes a bug. On an agent that had already been published, an edit to
 its prompt, greeting, language or voice stack used to be stored while calls
 kept running the last published version until the next publish from the
 editor.
+
+Disabling an Integration (`POST /v1/integrations/{integration_id}/disable`)
+also takes its actions off the next call of every agent that uses them.
 
 Two settings belong to `set_agent_voice_stack`
 (`PATCH /v1/agents/{agent_id}/voice-stack`):
@@ -149,8 +153,10 @@ Two settings belong to `set_agent_voice_stack`
 - **Follow the caller** (`metadata.follow_caller`): `update_agent` refuses a
   change to it and keeps it through a metadata replace.
 - **A new language for an agent that runs a workflow:** `set_agent_voice_stack`
-  translates the workflow into that language first, while `update_agent`
-  refuses a language the workflow does not speak yet.
+  translates the workflow into that language first, including every language
+  Follow the caller for all languages adds. `update_agent` refuses a language
+  the workflow does not speak yet, and so does a switch back to `hosted` that
+  would publish one.
 
 ## 2. Choose a voice stack
 
