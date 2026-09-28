@@ -101,7 +101,8 @@ Refused during a window:
 - creating an agent (including through `POST /v1/agent-endpoints`), deleting
   an agent endpoint, and changing an agent's configuration, voice stack,
   knowledge bases, post-call extraction or workflow, including publishing.
-  Setting an agent to `inactive` still works;
+  Setting an agent to `inactive`, with no other change in the same request,
+  still works;
 - launching or resuming a campaign.
 
 Not affected:
@@ -114,6 +115,9 @@ Not affected:
   window, the campaign ends then, like any campaign whose end time arrives;
 - wallet top-ups and payments, delivery reports and incoming SMS;
 - reading anything, and pausing or cancelling a campaign.
+
+The same actions taken through [MCP](/docs/mcp) tools are refused too: the tool
+result is marked as failed and carries this error.
 
 A refused request changed nothing, so retrying it after the window is safe.
 Keep the same `Idempotency-Key` on `POST /v1/calls`.
