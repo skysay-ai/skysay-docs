@@ -295,14 +295,29 @@ without it does not mean the other party was silent.** A call whose captions
 were all missing can have a transcript made only of the agent's turns. That
 transcript counts as available, like any transcript that has turns.
 
-### What this does not change
+### What reaches the API and post-call analysis
 
-The public transcript API and its stream are unchanged: `get_call_transcript`
-returns turns only, exactly as before, so the "no transcript" line above is not
-in it. The `call.completed`,
-`call.transcript.ready` and `call.recording.ready` webhooks are unchanged, as
-are post-call extraction, turn counts, and campaign and call-group readiness —
-all of which read transcript turns and nothing else.
+Tool rows and language switches are shown in the Calls workspace only. The
+public transcript API does not return them.
+
+The "no transcript" moments are different, because they change what a call
+was. They are added to the transcript API without changing anything already
+there:
+
+- `get_call_transcript` keeps `turns` and `text` exactly as before, and adds an
+  `events` list with one entry per moment:
+  `{"type": "caller_spoke_no_transcript", "speaker": "caller", "start_ms": ...}`.
+  There is no text, because none exists.
+- The transcript stream places the same entries between the turns, in reading
+  order, under their own `type`, beside the existing `turn` entries.
+- Post-call extraction reads a `[spoke, no transcript]` line for the caller at
+  that point, and is told the line carries no content. It can then see that
+  the person answered without inventing what they said.
+
+An integration that reads only `turns` sees no change. The `call.completed`,
+`call.transcript.ready` and `call.recording.ready` webhooks carry a pointer to
+the transcript rather than its turns, so they are unchanged. Turn counts, and
+campaign and call-group readiness, count transcript turns only.
 
 ## Where a call's telemetry lives
 
