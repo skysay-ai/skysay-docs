@@ -323,6 +323,13 @@ checks as for spoken lines. The message is sent after the turn that reached
 the step is stored, once each time the step is reached. Talk and Chat record
 the message and send nothing.
 
+The call's **Identity checks and SMS steps** list shows each message's status:
+**SMS sent**, **SMS failed**, or **SMS delivery unknown** when the SMS provider
+may have accepted the message without confirming it. A message whose delivery
+is unknown is never sent again, so the person cannot receive it twice. The
+workflow does not wait for the result: a later line in the same turn should not
+say the message has arrived.
+
 ### Tools on a workflow call
 
 A workflow runs only its own read tools. The agent's other tools — actions,
@@ -345,7 +352,8 @@ else as a mismatch.
 
 A workflow version published before call variables cannot run: a call bound to
 one is refused (`workflow_binding_failed`), and restoring it is refused with
-`409`. Its history is kept, marked as archived. Publish the current draft —
+`409`. Its history is kept, but it can no longer run a call or be restored.
+Publish the current draft —
 which declares its variables — to take calls again.
 
 ## Runtime guarantees

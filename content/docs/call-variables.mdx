@@ -350,6 +350,11 @@ curl -X POST "$SKYSAY_BASE_URL/v1/agents/$AGENT_ID/messages" \
        "to": "+12025550111", "purpose": "support", "recipient_type": "business"}'
 ```
 
+During a scheduled [maintenance window](/docs/errors) the two writes, `PUT
+/v1/agents/{agent_id}/variables` and `POST /v1/agents/{agent_id}/messages`,
+answer `503` with `"error": "platform_maintenance"` and a `Retry-After`
+header; nothing changes and nothing is sent. Reading the config keeps working.
+
 ### From an MCP client
 
 The same three operations are [MCP tools](/docs/tool-reference), with the same
