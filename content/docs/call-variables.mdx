@@ -52,6 +52,14 @@ with `GET /v1/agents/{agent_id}/variables` and replaced with
 An agent declares at most 32 variables. Names are letters, digits and `_`, not
 starting with a digit, up to 80 characters.
 
+**An agent takes effect automatically when its configuration is valid; until
+then its calls are refused with a reason.** You can write the lines first and
+declare their variables after: an agent whose greeting names `{{plan}}` before
+`plan` is declared is saved, but stays unpublished, and its
+`metadata.publication` names the reason (`publication_variables_invalid`,
+`UNDECLARED_VARIABLE`, where it was found). The `PUT` that declares `plan`
+publishes it, and its next call uses it.
+
 <Callout type="info" title="Workflow agents declare variables on the workflow">
   An agent with a [workflow](/docs/agent-workflows) declares its variables on the
   workflow draft instead, and they are checked when the workflow is published.
@@ -98,8 +106,12 @@ Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{o
 - Numbers are written plainly: `45300.0` reads `45300`, `0.5` reads `0.5`. A
   number needs at most 6 decimals and an absolute value below 10¹⁵.
 - Anything else that starts with `{{` — a misspelled or unclosed marker, a close
-  for the wrong name — is refused when the agent or workflow is saved, never
-  silently dropped.
+  for the wrong name — is refused when the agent or workflow is published,
+  never silently dropped.
+- **`{{` is reserved.** Every `{{` in a line starts a marker, and there is no
+  escape: a line cannot contain two literal opening braces. The same holds for
+  the per-call `first_message` and `instructions` you send with
+  `POST /v1/calls`: a `{{…}}` left in them is refused with a `400`.
 
 ## Supply the values
 
@@ -170,6 +182,41 @@ absent), `call_variables_invalid` (a value does not match its declaration),
 `workflow_binding_failed`, `schema_pair_mismatch` or
 `per_call_text_on_workflow` (per-call `first_message` or `instructions` sent to
 a workflow agent, which speaks only its authored lines).
+
+## What changes for existing integrations
+
+Call variables change what some existing requests and payloads carry. If your
+integration relies on any of these, update it:
+
+1. **Tool and connection webhooks** receive `context.variables` — the call's
+   declared variables and built-ins, never a protected value before
+   confirmation — instead of the raw `context.call_context`.
+2. **Lists in `call_context`** hold at most 16 items (previously 32), on
+   `POST /v1/calls`, gateway outbound calls and test values.
+3. **Campaign calls' `call_context`** no longer carries `campaign_id`,
+   `campaign_run_id`, `attempt_no` or `contact_name`. They are the built-ins
+   `campaign.id`, `campaign.run_id`, `campaign.attempt` and `contact.name`.
+4. **Per-call `first_message` and `instructions`** with a `{{…}}` left in them
+   are refused with a `400` on `POST /v1/calls`, and a workflow agent refuses
+   them altogether (`per_call_text_on_workflow`).
+5. **Every agent's greeting and instructions are checked when it is
+   published**, whether or not it declares variables. A line naming an
+   undeclared variable keeps an unpublished agent unpublished, with the reason
+   (see [Declare the variables](#declare-the-variables)), and refuses the edit
+   of a published one with `400 variables_config_invalid`.
+6. **Tools are refused on workflow calls** and on calls that carry protected
+   values (see [Agent workflows](/docs/agent-workflows#tools-on-a-workflow-call)).
+7. **Built-in variables reach the model on every engine**, GPT-Live and Gemini
+   Live included, in the call's data block.
+8. **An agent's edits apply through its publication.** A hosted agent that is
+   not published — because its configuration is not valid yet — refuses real
+   calls with the reason (`agent_not_published`), rather than running whatever
+   its settings say.
+9. **Call reads** (`GET /v1/calls/{call_id}` and the MCP call tools) no longer
+   include the call's variables snapshot, and a call's `call_context` is
+   returned without its protected values.
+10. **Workflow versions published before call variables** no longer run: see
+    [Agent workflows](/docs/agent-workflows#versions-from-before-call-variables).
 
 ## SMS templates
 
