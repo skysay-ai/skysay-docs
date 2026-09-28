@@ -6,13 +6,17 @@ icon: Wrench
 
 Every tool the agent can call, with the scope it requires. Scopes are
 authoritative on the server (`TOOL_SCOPES` in `src/telephony_ai/mcp.py`) — treat
-the live `tools/list` on your instance as canonical.
+the live `tools/list` on your instance as canonical. Required scopes are published
+under `_meta["ai.skysay/required_scopes"]`, with alternatives under
+`_meta["ai.skysay/alternative_required_scopes"]`. Read tool responses from
+`result.structuredContent` and check `result.isError`; see the
+[MCP client migration guide](/docs/mcp#migration-for-custom-mcp-clients).
 
 ## Account
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `account_overview` | `account:read` | Wallet, agents, numbers, calls, SMS conversations, and usage for a workspace. |
+| `account_overview` | `account:read` | Wallet, agents, numbers, calls, SMS conversations, and usage. SMS bodies require `sms:read`. |
 | `list_audio_environments` | `account:read` | Read the immutable versioned ambience catalogue (including Off). It has the same result and scope as `GET /v1/audio-environments`; it never contacts a provider or changes a selection. |
 
 ## Coverage & catalog
@@ -36,6 +40,8 @@ the live `tools/list` on your instance as canonical.
 | `get_agent_voice_stack` | `agents:read` | Read the selected stack and sparse language profiles. |
 | `set_agent_voice_stack` | `agents:write` | Set transcriber/model/voice, first message, system prompt, language, and optional `voice_frontend` (`cascade` or `gpt_live`). |
 | `preview_voice` | `agents:write` | Explicit bounded, rate-limited provider/BYOK Listen action; may have provider and safe state effects, so it is not read-only. |
+| `get_agent_variables` | `agents:read` | Read an AI agent's [call variables](/docs/call-variables) config with its `revision` and `schema_hash`; the same answer as `GET /v1/agents/{agent_id}/variables`. |
+| `set_agent_variables` | `agents:write` | Replace an AI agent's whole call variables config, checked and republished at once. Send `base_revision` to be refused rather than overwrite a newer write. A refused config returns `error.body.issues`. |
 
 ## Offline trial fixtures
 
@@ -71,6 +77,7 @@ the live `tools/list` on your instance as canonical.
 | --- | --- | --- |
 | `list_conversations` | `sms:read` | List SMS conversations for a workspace. |
 | `send_sms` | `sms:send` | Send a policy-gated SMS message. |
+| `send_agent_template_message` | `sms:send` **and** `agents:read` | Send one of an AI agent's published [SMS templates](/docs/call-variables), filled with your variables and slots, from a number in the agent's own project. |
 
 ## Policy & onboarding
 
@@ -94,12 +101,15 @@ costs.
 | `create_simulation_suite` | `agents:write` | Create a suite, optionally with its whole scenario list in one call. |
 | `preview_simulation_run` | `agents:read` | What a run would cost and which runners this deployment admits. Creates nothing. |
 | `start_simulation_run` | `agents:write` | Start a run. Spends your budget; `idempotency_key` is required. |
-| `get_simulation_run` | `agents:read` | One run's attempts with verdicts, facts, transcripts and evidence links. |
+| `get_simulation_run` | `agents:read` | One run's status and verdicts. Conversation content and recording references additionally require `recordings:read`. |
 | `get_simulation_run_results` | `simulation_suites:read` | The redacted pass/fail projection for a build server. |
 | `cancel_simulation_run` | `agents:write` | Cancel a queued or running run. |
 
-Two scopes, deliberately. The rich reads take `agents:read` because they return
-authored scenarios and what your callers said. `get_simulation_run_results`
+The authored configuration and run metadata take `agents:read`.
+`get_simulation_run` omits transcript, recording references and facts without
+`recordings:read`, along with assertion actual values, rubric rationale and
+linked-evidence notes that can repeat conversation content.
+`get_simulation_run_results`
 takes only `simulation_suites:read`, so a CI job can gate a deploy on a run
 without holding a key that reads every AI agent's configuration.
 

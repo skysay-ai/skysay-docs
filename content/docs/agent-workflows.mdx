@@ -26,10 +26,11 @@ Each step is one governed unit:
 | --- | --- |
 | **Ask** | Speaks a question and waits for the caller. |
 | **Tell / Say** | Speaks approved information; may continue silently or end the turn. |
-| **Read tool** | Reads approved data from an attached read-only tool. Runs silently inside a turn. |
+| **Read tool** | Checks, silently inside a turn, that the call carries the data the next lines need, and takes its error route when it does not. |
 | **Branch** | Chooses exactly one named route from the caller's answer. Cannot invent routes. |
 | **Outcome** | Records a structured result or review candidate. |
 | **Transfer** | Hands the live call to a configured destination, with a declared fallback. |
+| **Send SMS** | Sends an authored text message to the number on the call, then continues. |
 | **End** | Speaks the farewell and closes the session. |
 
 Routes carry the labels you write ("Can pay", "Dispute"), and those labels are
@@ -71,16 +72,15 @@ it did, so an exported row or a review-inbox entry states the consequence
 rather than only the category.
 
 A reply to a **Tell / Say** line is judged together with that line as the
-caller heard it, including any approved figures it stated, so a short "no" to a
+caller heard it, including the call's values it stated, so a short "no" to a
 question the line asked — "Have you already paid it?" — is an answer, not a
 denial of identity. Only that one line is added: the workflow's other steps,
-the caller's earlier replies and any case field the line does not state never
-reach the decision model. The figures are included only when the model that
-judges replies runs on the same provider as the agent's own model, so your case
-reaches no provider the call was not already using; otherwise the line goes as
-you wrote it. A line that still contains a `{{placeholder}}` — in Chat and the
-Talk test, which have no case, or when the figures are left out — is not sent at
-all.
+the caller's earlier replies and any variable the line does not state never
+reach the decision model. The values are included only when the model that
+judges replies runs on the same provider as the agent's own model, so your
+data reaches no provider the call was not already using. For any other
+provider the line goes as you wrote it if it names no variable, and is left
+out if it does.
 
 Because the consequences differ, a workflow may not point both interrupts at
 one outcome step, and nothing other than cease contact may reach the outcome
@@ -133,7 +133,10 @@ An API client reads the current state with
 PATCHes or publishes. The `agents:read` response includes the editable
 draft/revision, validation, safe canvas layout, active published-version
 metadata, and a bounded newest-first version summary so the client can compare
-what it intended to change. It is a pure read: no AI or provider call, compile,
+what it intended to change. The draft comes back whole -- its `variables`
+(normalized; if any declaration cannot be read, the whole `variables` block is
+left out, and the draft's `validation` says why), each identity step's `matches` and every Send SMS step
+-- so a client that reads, edits and writes the draft back keeps them. It is a pure read: no AI or provider call, compile,
 repair, lazy creation, or other mutation occurs.
 
 `workflow_state: "not_created"` is the explicit response for an existing agent
@@ -146,8 +149,10 @@ interrupt targets, a wrong-party and a cease-contact interrupt sharing one
 outcome step, anything other than cease contact reaching the cease-contact
 outcome, an outcome label from a starter template claiming the opposite of what
 the route landing on it does, tool or language incompatibilities, blank spoken text, missing
-transfer destinations, and disclosure of account details before the right-party
-verification you declared succeeds. Warnings are separate and must
+transfer destinations, a line that names a variable the workflow does not
+declare, and a line or SMS that could say a
+[protected variable](#protected-values) before the caller is confirmed
+(`PROTECTED_BEFORE_CONFIRMATION`, naming the step). Warnings are separate and must
 be explicitly acknowledged before publishing.
 
 Four test modes run against the exact draft — its voice stack, knowledge,
@@ -157,7 +162,8 @@ tools, and workflow:
   active step and traversed routes highlighted live. Microphone permission is
   requested only after you start.
 - **Chat** — the same draft as text, with no microphone or voice cost. The
-  reply you see is the step text you authored; the decision model in use is
+  reply you see is the step text you authored, filled in with your
+  [test values](#testing-with-values); the decision model in use is
   always reported. (An agent without a flow has a Chat mode too, driven by
   its instructions rather than a flow; see [Test an agent](/docs/trial-calls).)
 - **Simulations** — repeatable synthetic personas with expected outcomes,
@@ -179,114 +185,222 @@ you publish; drafts never affect live traffic. Restoring an old version copies
 it into a new draft — history is never rewritten — and version history shows
 what changed between versions.
 
-## Serving a read tool from the call's context
+## Call variables
 
-A workflow's read tool declares a **projection**: the exact field names it may
-read. On a phone call — an outbound call your application placed, or a call on a
-phone pin — those fields are served from that call's own `call_context`, the
-small non-secret object you supplied when you created the call. Nothing else is
-consulted: no other call, no live backend read, no network request.
-
-Send the projected fields under `case_snapshot`, or as top-level `call_context`
-keys:
+A workflow speaks the data each call carries through
+[call variables](/docs/call-variables): `{{balance_amount}}` in a line is
+replaced with that call's value, with the same markers, sections and limits as
+everywhere else. A workflow agent declares its variables **on the workflow**,
+not in the agent's variables config:
 
 ```json
 {
-  "call_context": {
-    "preferred_language": "si",
-    "case_snapshot": {
-      "balance_amount": "45300.00",
-      "currency": "LKR",
-      "due_date": "2026-08-15",
-      "account_reference": "FC-99182"
+  "variables": {
+    "version": 1,
+    "fields": {
+      "first_name": { "type": "string" },
+      "balance_amount": { "type": "number", "protected": true, "requires": "confirmation" },
+      "date_of_birth": { "type": "string", "format": "date:YYYY-MM-DD", "protected": true, "requires": "confirmation" }
     }
   }
 }
 ```
 
-`case_snapshot` is looked up first, per field; a field absent from it falls back
-to the top-level key of the same name. Values must be strings or numbers — or a
-list of flat objects of them, see [Several obligations on one
-account](#several-obligations-on-one-account) — and `call_context`'s ordinary
-limits apply (at most 32 properties per object, 512 characters per string,
-4096 bytes in total).
+`PATCH /v1/agents/{agent_id}/workflow` takes them as the draft's `variables`,
+replacing the draft's; `null` removes them, and a save that leaves the key out
+keeps them.
 
-**The read is all or nothing.** It succeeds only when every projected field is
-present and non-empty. If one is missing, blank, or the wrong shape, the read
-fails and the workflow takes that step's error route — the case-unavailable
-outcome in the Payment reminder template — instead of disclosing a partial case.
-The run's step evidence records the reason (`case_snapshot_missing` or
-`case_snapshot_invalid`) without ever recording a value.
+An agent whose publication already declares its own variables hands them to
+its workflow when that workflow is published: in the same step the agent's own
+declaration is cleared (its SMS templates, SMS mode and caller lookup stay) and
+the agent is republished against the workflow's. The publish response lists
+the cleared names the workflow declares in `variables_moved_to_workflow`, and
+the cleared names no line used, which the workflow does not declare, in
+`variables_dropped` (each an empty list when there are none). The cleared
+declaration is kept, word for word, in the audit event
+`agent.variables_moved_to_workflow` (`GET /v1/audit-events`), with the
+`workflow_version`, the `moved` and `dropped` names and the
+`cleared_variables`, so the handover can be seen and the declaration
+recovered. If the agent's greeting,
+its instructions or one of its SMS templates names a variable the workflow does
+not declare, the publish is refused with `400 variables_config_invalid` and
+nothing changes -- declare it on the workflow and publish again. The issue says
+where: `UNDECLARED_VARIABLE` at the greeting or instructions, or the template
+check's own code at `sms_templates.<id>.text.<language>`. They are checked when the workflow is published, with every line:
+a line that names an undeclared variable, prints an optional one outside its
+own `{{#name}}` section, or has a misspelled or unbalanced marker is a
+validation error naming the step. In the dashboard they are on the workflow's
+**Variables** tab.
 
-### Saying an approved figure out loud
+Every `{{` in a line starts a marker. There is no way to write two literal
+braces in a line: a `{{` that is not a valid marker is refused when the
+workflow is published.
 
-Spoken text is always the text you authored, word for word. To state a figure
-you have approved, put the projected field name in double braces in the step's
-own prompt:
+### Protected values
 
-```text
-The latest statement shows an outstanding balance of {{balance_amount}} {{currency}},
-due on {{due_date}}. Are you able to take care of it today?
-```
+A variable marked `protected` is held back until the caller has shown they are
+the right person — a balance, an account number, a date of birth. Until then it
+is not spoken, not given to any model, not sent by SMS, and not sent to any
+tool. The workflow is checked when you publish it: a line or SMS the caller
+could reach before being confirmed that names a protected variable is refused
+as `PROTECTED_BEFORE_CONFIRMATION`, naming the step, whichever way the call
+reaches it — from the entry step, an interrupt or the fallback step.
 
-On a phone call the braces are replaced with the values the read approved. This
-happens only on a step you flagged **discloses debt**, which validation already
-keeps unreachable until the caller has passed your verification step — so an
-approved figure can never be spoken to someone who has not been verified. A
-placeholder with no approved value behind it is removed rather than read aloud,
-and a placeholder naming a field outside the projection is removed too.
+A protected variable's `requires` says what releases it (`confirmation` by
+default):
 
-Chat, the Simulations Lab and the browser Talk test are workflow-logic tests, not
-calls: they keep serving a clearly synthetic `test-<field>` fixture and show the
-authored text with its placeholders intact.
+- **`confirmation`** — the caller confirms who they are. An **Ask** step marked
+  `verifies_identity: true` names the routes that mean "yes, that's me" in
+  `verified_routes`; taking one of them confirms the caller. This is a
+  conversational check: it stops a wrong person who says so, not one who lies.
+- **`knowledge_match`** — the caller states something only they know, and
+  **the platform** compares it with a protected value the caller never heard.
 
-### Several obligations on one account
-
-A projected field may be a **list of flat objects** — one account, several
-loans. In `call_context` (or a campaign contact's variables) it looks like
-this:
+For a `knowledge_match`, the identity step declares what to compare:
 
 ```json
 {
-  "obligations": [
-    {"reference_id": "LN-1", "overdue_amount": "45300.00", "currency": "LKR", "due_date": "2026-08-01"},
-    {"reference_id": "LN-2", "overdue_amount": "1200.00", "currency": "LKR", "due_date": "2026-08-28"}
+  "id": "check_birthday", "type": "ask", "prompt": "What is your date of birth?",
+  "verifies_identity": true, "verified_routes": ["matched"],
+  "matches": { "field": "date_of_birth", "kind": "date", "on_mismatch": "not_matched" },
+  "routes": [
+    { "id": "matched", "label": "Gave their date of birth", "target": "explain_balance" },
+    { "id": "not_matched", "label": "Did not match", "target": "identity_unconfirmed" }
   ]
 }
 ```
 
-A list is spoken only through a **section** the author writes in the disclosing
-step's own prompt: the body between `{{#obligations}}` and `{{/obligations}}` is
-repeated once per item, in order, joined by nothing — the separator between
-items is whatever the body ends with, so every word and every punctuation mark a
-caller hears is still yours:
+- The decision model only **extracts** what the caller said; it never sees the
+  stored value and never decides whether it matches.
+- `kind` is how the two are compared: `number` (numerically), `digits` (for a
+  field with `format: identifier`: spaces, hyphens and dots ignored), `casefold`
+  (text, ignoring case) or `date` (for a field with a `date:` format, whatever
+  way the caller said it).
+- A match takes the step's one verified route and releases the fields. A
+  mismatch, or an answer that cannot be read as the kind, takes `on_mismatch`,
+  another of the step's own routes. When the caller gives no answer at all, the
+  step is asked again, up to its visit limit, and then takes `on_mismatch`.
+- A `requires: "confirmation"` field is released by either method; a
+  `requires: "knowledge_match"` field only by a match.
+
+Validation refuses a `matches` that is not on an identity **Ask** step with
+exactly one verified route, that names a variable that is not protected, whose
+`kind` does not fit the variable, or whose `on_mismatch` is not another route
+of the same step (`INVALID_MATCHES`, `MATCHES_WITHOUT_VERIFICATION`,
+`MATCH_VERIFIED_ROUTE_NOT_SINGLE`, `MATCH_FIELD_NOT_PROTECTED`,
+`MATCH_KIND_INCOMPATIBLE`, `MATCH_MISMATCH_ROUTE_INVALID`).
+
+The confirmation is recorded with the turn that confirmed it, and a protected
+value is released only once that turn is stored: a line in the same turn,
+after the confirming step, may say it.
+
+### Read tool steps
+
+A **Read tool** step declares a projection: the variable names the lines after
+it rely on. On a call it checks that each of them has a value on this call —
+nothing is fetched, and the step never reads a value out. If one is missing, the
+read fails and the workflow takes the step's error route (the
+case-unavailable outcome in the Payment reminder templates), so a line is
+never spoken with part of the data missing. The run's step evidence records
+the reason (`case_snapshot_missing`), never a value.
+
+### Several obligations on one account
+
+A variable may be a **list** — one account, several loans — declared with its
+item keys:
+
+```json
+"obligations": {
+  "type": "list", "protected": true, "requires": "confirmation",
+  "item": { "reference_id": "string", "overdue_amount": "string", "currency": "string", "due_date": "string" }
+}
+```
+
+A list is spoken only through a **section**: the body between `{{#obligations}}`
+and `{{/obligations}}` is repeated once per item, in order, with the item's own
+keys in scope. Every word and punctuation mark a caller hears is still yours:
 
 ```text
 Our records show the following on your account. {{#obligations}}For reference
-{{reference_id}}, an overdue amount of {{overdue_amount}} {{currency}}, due on
-{{due_date}}. {{/obligations}}Are you able to take care of this today?
+{{#reference_id}} {{reference_id}}{{/reference_id}}, an overdue amount of
+{{#overdue_amount}} {{overdue_amount}}{{/overdue_amount}}{{#currency}} {{currency}}{{/currency}}.
+{{/obligations}}Are you able to take care of this today?
 ```
 
-Inside the body a placeholder resolves from the item first, then from the
-read's other approved fields (a `{{currency}}` approved at the top level fills
-in for an item without one). A value blank in one item is removed for that item
-alone, with the spacing that led into it. The rules that keep a partial case off
-the line still hold: the list is approved whole or not at all (an item that is
-not an object, a nested list or object, `true`/`false`, a value over 512
-characters, an item with nothing usable, more than 16 items or 16 keys per
-item refuses the read as `case_snapshot_invalid`; an empty list is
-`case_snapshot_missing`); a field a disclosing step iterates must arrive as a
-list, or the read is refused rather than spoken as an empty statement; and the
-approved list is kept for the run's later turns exactly as it was approved. A
-section naming anything but an approved list, a bare `{{obligations}}`
-placeholder naming a list, and any unmatched `{{#…}}` or `{{/…}}` marker are
-removed, never read out.
+A list holds at most 16 items. The **Payment reminder from contact variables**
+starter template is built on this: its one read tool (`read_contact_variables`)
+checks `obligations`, its disclosing step is the section above, and on a
+campaign call the values are the contact's own variables — no customer
+endpoint.
 
-The **Payment reminder from contact variables** starter template is built on
-this: its one read tool (`read_contact_variables`) projects `obligations`, its
-disclosing step is the section above, and on a campaign call the context is the
-contact's own variables — no customer endpoint. Chat and the Talk test show the
-section as authored.
+### Send SMS steps
+
+A **Send SMS** step sends its authored `text` to the number on the call — the
+caller on an inbound call, the person called on an outbound one — then
+continues to `next`. The text uses the call's variables like any line, and is
+refused rather than sent with a gap. It must fit 6 segments with the values it
+is sent with: that is checked when it is sent, and a message over it is not
+sent -- the step records **SMS failed** (`OUTPUT_BUDGET_EXCEEDED`) and the call
+continues. It may name a
+protected variable only where the caller has been confirmed, which publishing
+checks as for spoken lines. The message is sent after the turn that reached
+the step is stored, once each time the step is reached. Talk and Chat record
+the message and send nothing.
+
+The call's **Identity checks and SMS steps** list shows each message's status:
+**SMS sent**, **SMS failed**, or **SMS delivery unknown** when the SMS provider
+may have accepted the message without confirming it. A message whose delivery
+is unknown is never sent again, so the person cannot receive it twice. The
+workflow does not wait for the result: a later line in the same turn should not
+say the message has arrived.
+
+### Tools on a workflow call
+
+A workflow runs only its own read tools. The agent's other tools — actions,
+webhooks, the model's own `send_sms` — are refused on any call bound to a
+workflow, and on any call that carries protected values
+(`"tools are not available on this call"`). An agent that needs a tool during
+the call is a free-form agent, without a workflow.
+
+### Testing with values
+
+**Talk** and **Chat** render every line with the test values you give them
+(`test_values`), exactly as a call admits them, and run identity steps too: a
+comparison checks the caller's answer against the test value, and a missing
+test value counts as a mismatch. Protected values are shown only after the
+confirming step. An SMS step's message is recorded, not sent. In a scripted
+simulation, taking the step's verified route counts as a match, and anything
+else as a mismatch.
+
+### Versions from before call variables
+
+When your workspace moves to call variables, every workflow version published
+before then keeps its number and shows as **Archived before call variables**
+(status `archived_v2`). An archived version cannot run a call
+(`workflow_binding_failed`) and cannot be restored.
+
+Rerunning a simulation run from before the move:
+
+- a run against the version that was active reruns on its migrated copy, which
+  says the same words;
+- a run against an older version is refused with `409` ("This run's workflow
+  version predates call variables and could not be moved to them. Run the suite
+  again.");
+- a run against a draft from before the move is refused with `409` ("This run's
+  draft predates call variables. Run the suite again against the current
+  draft.").
+
+The version that was active gets a new copy, numbered after the workflow's
+highest version and moved to call variables. It becomes the active version and
+shows with its origin, for example **v5 (migrated from v3)**; the API's version summary
+carries the old number as `migrated_from_version` (null on every other
+version). Your next publish takes the next number.
+
+Restoring an archived version answers `409`, naming the copy to restore
+instead ("Version 3 was moved to call variables as version 5. Restore that
+version instead."), or saying the version predates call variables and was not
+moved. To take calls on the current workflow, publish the draft, which
+declares its variables.
 
 ## Runtime guarantees
 
@@ -295,7 +409,10 @@ The compiled contract enforces, server-side, on every turn:
 - only the active step, its allowed routes, and approved context reach the
   model;
 - the model's structured decision is validated before anything executes;
-- only the declared read-only tool for that step may run;
+- only the declared read-only tool for that step may run, and no other tool
+  runs on a workflow call;
+- a protected value leaves the server only after the caller's confirmation is
+  stored, and only in the lines after it;
 - per-step visit counts, a total turn budget, and a per-turn timeout are hard
   limits;
 - unknown routes, malformed decisions, missing capabilities, and exhausted
