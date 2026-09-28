@@ -125,8 +125,13 @@ Hello{{#first_name}} {{first_name}}{{/first_name}}, this is Acme about order {{o
 - **A campaign** takes them from the contact list's columns, and fills the
   `contact.*` and `campaign.*` built-ins itself. See
   [Campaigns](/docs/campaigns).
-- **A Talk test** in the dashboard, or a browser session over the API, takes
-  them as `test_values`.
+- **A Talk or Chat test** in the dashboard, or a browser session over the
+  API, takes them as `test_values`. The test is admitted as a call is: the
+  greeting and instructions render with the test values, and a required value
+  that is missing, or one that does not match its declaration, refuses the test
+  with `400` and the admission code (`call_variables_missing`,
+  `call_variables_invalid` or `call_variables_over_budget`). A Chat test sends
+  the same values with every turn.
 
 A value that does not match its declaration — the wrong type, too long, too
 many list items — refuses the call before it is placed, with the variable named
@@ -220,7 +225,11 @@ integration relies on any of these, update it:
 8. **An agent's edits apply through its publication.** A hosted agent that is
    not published — because its configuration is not valid yet — refuses real
    calls with the reason (`agent_not_published`), rather than running whatever
-   its settings say.
+   its settings say. In the dashboard the agents list shows it as **Not ready
+   for calls**, linked to the part of its setup to fix, and the setup names
+   each reason ("Not ready for calls — …"). A call placed to it is refused
+   with "The AI agent is not ready for calls: its configuration has not been
+   published yet." Fix the named part and save: a valid save publishes it.
 9. **Call reads** (`GET /v1/calls/{call_id}` and the MCP call tools) no longer
    include the call's variables snapshot, and a call's `call_context` is
    returned without its protected values.
