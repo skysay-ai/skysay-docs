@@ -353,8 +353,18 @@ else as a mismatch.
 When your workspace moves to call variables, every workflow version published
 before then keeps its number and shows as **Archived before call variables**
 (status `archived_v2`). An archived version cannot run a call
-(`workflow_binding_failed`), cannot be restored, and a simulation run against
-it cannot be run again; run the suite again against the current draft.
+(`workflow_binding_failed`) and cannot be restored.
+
+Rerunning a simulation run from before the move:
+
+- a run against the version that was active reruns on its migrated copy, which
+  says the same words;
+- a run against an older version is refused with `409` ("This run's workflow
+  version predates call variables and could not be moved to them. Run the suite
+  again.");
+- a run against a draft from before the move is refused with `409` ("This run's
+  draft predates call variables. Run the suite again against the current
+  draft.").
 
 The version that was active gets a new copy, numbered after the workflow's
 highest version and moved to call variables. It becomes the active version and
