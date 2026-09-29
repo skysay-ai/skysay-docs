@@ -301,11 +301,10 @@ Tool rows and language switches are shown in the Calls workspace only. The
 public transcript API does not return them.
 
 The "no transcript" moments are different, because they change what a call
-was. They are added to the transcript API without changing anything already
-there:
+was. They are added to the transcript API beside the turns, never among them:
 
-- `get_call_transcript` keeps `turns` and `text` exactly as before, and adds an
-  `events` list with one entry per moment:
+- `get_call_transcript` keeps `turns` and `text` to captioned speech only, and
+  adds an `events` list with one entry per moment:
   `{"type": "caller_spoke_no_transcript", "speaker": "caller", "start_ms": ...}`.
   There is no text, because none exists.
 - The transcript stream places the same entries between the turns, in reading
@@ -317,7 +316,15 @@ there:
   that point, and is told the line carries no content. It can then see that
   the person answered without inventing what they said.
 
-An integration that reads only `turns` sees no change. The `call.completed`,
+`turns`, `text`, the stream and the extraction input all read in the order the
+Calls workspace shows: by when each turn started, with the caller's own turns
+kept in the order they were spoken, and a moment before a turn that starts at
+the same instant. A caller turn whose start was measured on the recording after
+the call can therefore come before the agent reply it was answered with, so
+`turns` is not always in `sequence` order. Sort by `sequence` if you need the
+order the turns were stored in.
+
+An integration that reads only `turns` sees no new entries. The `call.completed`,
 `call.transcript.ready` and `call.recording.ready` webhooks carry a pointer to
 the transcript rather than its turns, so they are unchanged. Turn counts, and
 campaign and call-group readiness, count transcript turns only.
