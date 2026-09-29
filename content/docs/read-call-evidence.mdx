@@ -297,32 +297,49 @@ lookup, a test) and its state.
 
 A call that ran a [conversation workflow](/docs/agent-workflows) says where the
 workflow ended in `workflow`, on `GET /v1/calls/{call_id}`, MCP `get_call`, and
-the `call.completed` and `call.failed` webhooks. A call that ran no workflow
-carries `"workflow": null`. The `GET /v1/calls` list does not include it.
+the `call.completed` and `call.failed` webhooks. The field is always present,
+and `null` for a call that ran no workflow (a GPT-Live or Gemini Live call runs
+none). The `GET /v1/calls` list and the call's other reads do not include it.
 
 ```json
 "workflow": {
+  "workflow_id": "wf_...",
+  "version": 3,
   "status": "completed",
+  "settled": true,
   "outcome": {"step_id": "cease_contact_stop", "type": "review_candidate", "label": "Asked not to be contacted — review"},
-  "interrupt": "cease_contact"
+  "interrupts": ["cease_contact"]
 }
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `status` | `running`, `completed`, `transferred` or `failed_closed`. A workflow the call ended before it finished is `failed_closed`. |
-| `outcome` | The last outcome step the workflow reached: its `step_id` and `label` as you wrote them, and its `type` (`review_candidate`, `informational` or `terminal_note`). `null` when it reached none. |
-| `interrupt` | The last global interrupt the workflow took — `wrong_party`, `dispute`, `hardship`, `cease_contact`, `callback`, `human_request` or `language_change` — or `null`. |
+| `workflow_id`, `version` | The workflow the call ran and its published version. `version` is `null` when the call ran an unpublished draft. |
+| `status` | `running`, `incomplete` (the call ended before the workflow finished), `completed`, `transferred` or `failed`. |
+| `settled` | `true` once the workflow can no longer change. Read the call again while it is `false`. |
+| `outcome` | The last outcome step the workflow reached: its `step_id` and `label` as you wrote them, and its `type` (for example `review_candidate`, `informational` or `terminal_note`). `null` when it reached none. |
+| `interrupts` | Every global interrupt the workflow took, in the order first taken, each once: `wrong_party`, `dispute`, `hardship`, `cease_contact`, `callback`, `human_request` or `language_change`. Empty when it took none. |
 
-It carries ids and your own labels only, never a value the call was given.
+`status` and `type` are open: a later release can add a value, so handle one
+you don't recognise rather than rejecting it. `label` is for display only.
+The object carries ids and your own labels only, never a value the call was
+given.
 
-**Act on `interrupt`, not on the step id or the label.** Those are your own text
-and change when you edit the workflow; the interrupt names are fixed. For
-example, `interrupt: "cease_contact"` means the caller asked not to be
-contacted. Nothing adds the number to your do-not-call register by itself, so
-if you want to pause the number or send it for review, do it from this field.
-A campaign contact's outcome reports the same values as `workflow_outcome`,
-`workflow_outcome_label` and `workflow_interrupt`.
+**Act on `interrupts`, not on the step id or the label.** Those are your own
+text and change when you edit the workflow; the interrupt names are fixed. The
+caller asked not to be contacted when `interrupts` contains `"cease_contact"`,
+whatever the workflow did afterwards. Nothing adds the number to your
+do-not-call register by itself, so if you want to pause the number or send it
+for review, do it from this field.
+
+The webhook carries the value at the moment the call ended. When its `settled`
+is `false`, for example when the call ended while the workflow was still
+running, read `GET /v1/calls/{call_id}` for the current value: the read is the
+authoritative record.
+
+A campaign contact's outcome reports the same outcome as `workflow_outcome` and
+`workflow_outcome_label`, and the most recent interrupt as
+`workflow_interrupt`.
 
 ## Where a call's telemetry lives
 

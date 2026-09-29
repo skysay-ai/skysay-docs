@@ -1455,17 +1455,6 @@
           "updated_at": {
             "format": "date-time",
             "type": "string"
-          },
-          "workflow": {
-            "description": "Where the call's conversation workflow ended: present on GET /v1/calls/{call_id} and MCP get_call (and in the call.completed and call.failed webhook data), null for a call that ran no workflow. The GET /v1/calls list does not carry it.",
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/CallWorkflow"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -1532,6 +1521,33 @@
           "source_path"
         ],
         "type": "object"
+      },
+      "CallDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Call"
+          },
+          {
+            "properties": {
+              "workflow": {
+                "description": "null when the call ran no workflow (every GPT-Live and Gemini Live call).",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CallWorkflow"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "workflow"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "The call GET /v1/calls/{call_id} returns: the Call resource plus where its workflow ended. The GET /v1/calls list returns Call without it."
       },
       "CallEvent": {
         "description": "One row of a call's internal lifecycle log, oldest first. Not the webhook envelope: this row's own id/type/payload, never the signed delivery body. Includes many types never delivered to any webhook endpoint at all.",
@@ -2170,33 +2186,23 @@
       },
       "CallWorkflow": {
         "additionalProperties": false,
-        "description": "Where a call's conversation workflow ended, read the same way on the call read, MCP get_call, the terminal webhooks and the campaign outcome. Ids and the author's own outcome label only; never a call value. Act on `interrupt`, not on the outcome's step id or label, which are the author's text.",
+        "description": "Where a call's conversation workflow ended, read the same way on the call detail, MCP get_call and the call.completed / call.failed webhooks. Ids, platform and author-declared strings, and the author's outcome label only; never a call value. The vocabularies are open: a later release may add values, so handle unknown ones. On a webhook this is a snapshot at emission; GET /v1/calls/{call_id} is the current read, and `settled` says whether it can still change. To act on a request not to be contacted, check `\"cease_contact\" in interrupts`: it is the one canonical stop signal, and nothing adds the number to the do-not-call register by itself.",
         "properties": {
-          "interrupt": {
-            "description": "The last global interrupt the run took, the same value a campaign contact's workflow_interrupt reports; null when none. `cease_contact` is a request not to be contacted: nothing adds the number to the do-not-call register automatically, so a workspace that wants to pause the number acts on this.",
-            "enum": [
-              "wrong_party",
-              "dispute",
-              "hardship",
-              "cease_contact",
-              "callback",
-              "human_request",
-              "language_change",
-              null
-            ],
-            "type": [
-              "string",
-              "null"
-            ]
+          "interrupts": {
+            "description": "Every distinct global interrupt the run took, in the order first taken; [] when none. Known values: wrong_party, dispute, hardship, cease_contact, callback, human_request, language_change. An interrupt is what the caller said that the workflow acted on; it can differ from the outcome reached (an interrupt may lead to an ask or a transfer, and a run can take one and later end on an ordinary route).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "outcome": {
-            "description": "null when the run reached no outcome step.",
+            "description": "The step reached; null when the run reached no outcome step.",
             "oneOf": [
               {
                 "additionalProperties": false,
                 "properties": {
                   "label": {
-                    "description": "That step's label, as authored.",
+                    "description": "The step's label: display text the author can change. Never match on it.",
                     "type": "string"
                   },
                   "step_id": {
@@ -2204,11 +2210,7 @@
                     "type": "string"
                   },
                   "type": {
-                    "enum": [
-                      "review_candidate",
-                      "informational",
-                      "terminal_note"
-                    ],
+                    "description": "The step's declared outcome type. Known values: review_candidate, informational, terminal_note.",
                     "type": "string"
                   }
                 },
@@ -2224,21 +2226,33 @@
               }
             ]
           },
+          "settled": {
+            "description": "true once the run is closed and nothing can change this object; false while a turn could still commit. An incomplete run on an ended call can be unsettled, can still change, and can stay unsettled: treat it as not final.",
+            "type": "boolean"
+          },
           "status": {
-            "description": "The run's status. A run the call ended before it finished is failed_closed.",
-            "enum": [
-              "running",
-              "completed",
-              "transferred",
-              "failed_closed"
-            ],
+            "description": "Known values: running (the call is in progress), completed, transferred, failed (the workflow itself failed), incomplete (it stopped before completing or transferring, typically because the call ended first).",
+            "type": "string"
+          },
+          "version": {
+            "description": "The published version the run pinned; null when it pinned the draft (a Talk test or an inbound Phone test). A step_id resolves after later edits only against a published version.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "description": "The workflow the run pinned.",
             "type": "string"
           }
         },
         "required": [
+          "workflow_id",
+          "version",
           "status",
+          "settled",
           "outcome",
-          "interrupt"
+          "interrupts"
         ],
         "type": "object"
       },
@@ -7456,11 +7470,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Call"
+                  "$ref": "#/components/schemas/CallDetail"
                 }
               }
             },
-            "description": "Call"
+            "description": "Call, with where its workflow ended"
           },
           "404": {
             "description": "Call not found"
