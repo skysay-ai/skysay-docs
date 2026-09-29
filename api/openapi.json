@@ -1247,7 +1247,7 @@
         "type": "object"
       },
       "Call": {
-        "description": "The call resource GET /v1/calls and GET /v1/calls/{call_id} return. A synthetic simulation or platform-internal room is never returned here; only a call the customer or their agent actually made.",
+        "description": "The call resource GET /v1/calls returns, and GET /v1/calls/{call_id} returns as CallDetail (this plus workflow). A synthetic simulation or platform-internal room is never returned here; only a call the customer or their agent actually made.",
         "properties": {
           "agent_endpoint_id": {
             "type": [
@@ -1521,6 +1521,33 @@
           "source_path"
         ],
         "type": "object"
+      },
+      "CallDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Call"
+          },
+          {
+            "properties": {
+              "workflow": {
+                "description": "null when the call ran no workflow (every GPT-Live and Gemini Live call).",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CallWorkflow"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "workflow"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "The call GET /v1/calls/{call_id} returns: the Call resource plus where its workflow ended. The GET /v1/calls list returns Call without it."
       },
       "CallEvent": {
         "description": "One row of a call's internal lifecycle log, oldest first. Not the webhook envelope: this row's own id/type/payload, never the signed delivery body. Includes many types never delivered to any webhook endpoint at all.",
@@ -2154,6 +2181,78 @@
           "talk_seconds",
           "answered",
           "failed"
+        ],
+        "type": "object"
+      },
+      "CallWorkflow": {
+        "additionalProperties": false,
+        "description": "Where a call's conversation workflow ended, read the same way on the call detail, MCP get_call and the call.completed / call.failed webhooks. Ids, platform and author-declared strings, and the author's outcome label only; never a call value. The vocabularies are open: a later release may add values, so handle unknown ones. On a webhook this is a snapshot at emission; GET /v1/calls/{call_id} is the current read, and `settled` says whether it can still change. To act on a request not to be contacted, check `\"cease_contact\" in interrupts`: it is the one canonical stop signal, and nothing adds the number to the do-not-call register by itself.",
+        "properties": {
+          "interrupts": {
+            "description": "Every distinct global interrupt the run took, in the order first taken; [] when none. Known values: wrong_party, dispute, hardship, cease_contact, callback, human_request, language_change. An interrupt is what the caller said that the workflow acted on; it can differ from the outcome reached (an interrupt may lead to an ask or a transfer, and a run can take one and later end on an ordinary route).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "outcome": {
+            "description": "The step reached; null when the run reached no outcome step.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "The step's label: display text the author can change. Never match on it.",
+                    "type": "string"
+                  },
+                  "step_id": {
+                    "description": "The last outcome step the run reached, as authored.",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "The step's declared outcome type. Known values: review_candidate, informational, terminal_note.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "step_id",
+                  "type",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "settled": {
+            "description": "true once the run is closed and nothing can change this object; false while a turn could still commit. An incomplete run on an ended call can be unsettled, can still change, and can stay unsettled: treat it as not final.",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Known values: running (the call is in progress), completed, transferred, failed (the workflow itself failed), incomplete (it stopped before completing or transferring, typically because the call ended first).",
+            "type": "string"
+          },
+          "version": {
+            "description": "The published version the run pinned; null when it pinned the draft (a Talk test or an inbound Phone test). A step_id resolves after later edits only against a published version.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "description": "The workflow the run pinned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "status",
+          "settled",
+          "outcome",
+          "interrupts"
         ],
         "type": "object"
       },
@@ -7371,11 +7470,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Call"
+                  "$ref": "#/components/schemas/CallDetail"
                 }
               }
             },
-            "description": "Call"
+            "description": "Call, with where its workflow ended"
           },
           "404": {
             "description": "Call not found"
@@ -7803,7 +7902,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "Transcript"
+            "description": "{call_id, transcript_status, turns: [...], text, events: [{type: caller_spoke_no_transcript, speaker: caller, start_ms}]}. `events` lists, with no text, each moment the other party spoke on a voice-to-voice call and the engine answered but gave no caption for that speech; `turns` and `text` hold only transcribed speech and are unchanged by it. `turns` and `text` are in the Calls drawer's reading order, not always `sequence` order: by offset, with a caller turn ordered no earlier than the caller turn before it, so a caller turn re-timed after the call reads ahead of an agent reply whenever that ordering offset is earlier. An empty `events` never means the other party was silent."
           }
         },
         "summary": "Get call transcript turns"
@@ -7813,7 +7912,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "Transcript stream"
+            "description": "{call_id, content_type, transcript_status, events: [{type: turn, data: <turn>} | {type: caller_spoke_no_transcript, data: {speaker: caller, start_ms}}]}, in the Calls drawer's reading order: turns and moments by offset, a caller turn never ahead of an earlier caller turn, and a moment before a turn at the same ordering offset; the turns in the same order as the transcript's `turns`."
           }
         },
         "summary": "Get transcript stream events"
@@ -10158,7 +10257,7 @@
         ]
       },
       "post": {
-        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool.",
+        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Only the workspace adds numbers here: a caller asking not to be contacted is recorded as the call's outcome, never written to the register automatically.",
         "requestBody": {
           "content": {
             "application/json": {

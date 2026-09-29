@@ -13,7 +13,7 @@ rather than assuming every call has a recording.
 
 ```text
 → list_calls(...)                        # calls:read
-→ get_call(call_id="cl_...")             # calls:read — status + recording state
+→ get_call(call_id="cl_...")             # calls:read — status, recording state, where the workflow ended
 → get_call_recording(call_id="cl_...")   # recordings:read — metadata + disclosure
 → GET recording.download_url              # recordings:read — playable audio bytes
 → get_call_transcript(call_id="cl_...")  # recordings:read — transcript turns
@@ -30,7 +30,7 @@ A `recording` is the call's audio metadata plus:
 - **Retention / disclosure state** — how long the audio is kept and whether the
   required call disclosure was made.
 
-`get_call` returns the call status and recording state; `get_call_recording`
+`get_call` returns the call status, recording state and [where its workflow ended](#where-a-calls-workflow-ended); `get_call_recording`
 returns recording metadata, disclosure state, and a relative `download_url`;
 `get_call_transcript` returns the transcript turns. Fetch `download_url` with
 the same bearer credential to play or download the audio. The endpoint accepts
@@ -292,6 +292,64 @@ lookup, a test) and its state.
   not sent** in Talk and Chat).
   Neither shows what the caller said, the value compared, the SMS text or the
   recipient.
+
+## Where a call's workflow ended
+
+A call that ran a [conversation workflow](/docs/agent-workflows) says where the
+workflow ended in `workflow`, on `GET /v1/calls/{call_id}`, MCP `get_call`, and
+the `call.completed` and `call.failed` webhooks. The field is always present,
+and `null` for a call that ran no workflow (a GPT-Live or Gemini Live call runs
+none). The `GET /v1/calls` list and the call's other reads do not include it.
+
+```json
+"workflow": {
+  "workflow_id": "wf_...",
+  "version": 3,
+  "status": "completed",
+  "settled": true,
+  "outcome": {"step_id": "cease_contact_stop", "type": "review_candidate", "label": "Asked not to be contacted — review"},
+  "interrupts": ["cease_contact"]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `workflow_id`, `version` | The workflow the call ran and its published version. `version` is `null` when the call ran an unpublished draft. |
+| `status` | `running`, `incomplete` (the call ended before the workflow finished), `completed`, `transferred` or `failed`. |
+| `settled` | `true` once the workflow can no longer change. Read the call again while it is `false`. |
+| `outcome` | The last outcome step the workflow reached: its `step_id` and `label` as you wrote them, and its `type` (for example `review_candidate`, `informational` or `terminal_note`). It is set even when `status` is `incomplete`: the step was reached before the call ended. `null` when it reached none. |
+| `interrupts` | Every global interrupt the workflow took, in the order first taken, each once: `wrong_party`, `dispute`, `hardship`, `cease_contact`, `callback`, `human_request` or `language_change`. Empty when it took none. |
+
+`status` and `type` are open: a later release can add a value, so handle one
+you don't recognise rather than rejecting it. `label` is for display only.
+Decide whether the workflow finished from `status` and `settled`, never from
+`outcome` being present.
+The object carries ids and your own labels only, never a value the call was
+given.
+
+**Act on `interrupts`, not on the step id or the label.** Those are your own
+text and change when you edit the workflow; the interrupt names are fixed. The
+caller asked not to be contacted when `interrupts` contains `"cease_contact"`,
+whatever the workflow did afterwards. Nothing adds the number to your
+do-not-call register by itself, so if you want to pause the number or send it
+for review, do it from this field.
+
+The webhook carries the value at the moment the call ended. When its `settled`
+is `false`, for example when the call ended while the workflow was still
+running, read `GET /v1/calls/{call_id}` for the current value: the read is the
+authoritative record.
+
+A campaign contact's outcome reports the same outcome as `workflow_outcome` and
+`workflow_outcome_label`, and the most recent interrupt as
+`workflow_interrupt`. For every interrupt the caller raised, read the call's
+`interrupts`.
+
+`outcome.label` is the label the run was pinned with, with one exception: the
+old starter label that claimed the number would be added to the do-not-call
+register reads as the current starter label, because nothing adds it. The
+workflow run record (`GET /v1/agents/{agent_id}/workflow/runs/{run_id}`, also
+shown in Talk) returns `pinned_contract` unchanged: it is the historical
+record, so a label there can differ from `outcome.label`.
 
 ## Where a call's telemetry lives
 

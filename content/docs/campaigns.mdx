@@ -314,9 +314,13 @@ the call's own evidence:
   `informational` or `terminal_note`), `workflow_outcome` (the outcome step
   the [conversation workflow](/docs/agent-workflows) landed on, for example
   `promise_review`) and `workflow_outcome_label` (that step's label);
-- `workflow_interrupt`: the global interrupt that ended the conversation, if
-  one did (`wrong_party`, `cease_contact`, `dispute`, `hardship`, `callback`,
-  `human_request`, `language_change`);
+- `workflow_interrupt`: the most recent global interrupt the workflow took, if
+  it took one (`wrong_party`, `cease_contact`, `dispute`, `hardship`, `callback`,
+  `human_request`, `language_change`). An empty cell with an empty
+  `workflow_status` means the call ran no workflow, not that the caller made
+  no request; with a status, it means the workflow took no interrupt. For
+  every interrupt a call took, read its
+  [`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended);
 - `extraction_status` (empty when no extraction was requested for the call;
   otherwise `pending`, `running`, `ready` or `failed`),
   `extraction_schema_version` (the schema version the row's cells were
