@@ -12,6 +12,38 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 29 September 2026
+
+### Nothing adds a number to your do-not-call register automatically
+
+- A workflow's cease-contact interrupt and an AI agent's **Record the call outcome** tool now record that the caller asked not to be contacted, for you to review; they no longer add the number to your do-not-call register.
+- Only you add numbers, on the Contacts page, by CSV, or through the API or MCP; the numbers you add are still honoured on every outbound path, and entries added automatically before this change keep their source.
+- In a campaign, a workflow's cease contact still finishes that contact when it is the last request the caller made.
+- A reply to a spoken line that leads straight to a branch is now one choice between that branch's routes and the dispute, hardship, callback and human-request interrupts, so a route you wrote for the reply is taken when it fits better.
+- [Do-not-call](/docs/contacts#do-not-call) · [Do-not-call register](/docs/campaigns#do-not-call-register) · [Workflow routing](/docs/agent-workflows#the-canvas)
+
+### A call says where its workflow ended
+
+- `GET /v1/calls/{call_id}`, MCP `get_call`, and the `call.completed` and `call.failed` webhooks carry `workflow`: the last outcome step reached, whether the workflow is `settled`, and every interrupt it took, in `interrupts`.
+- `workflow` is `null` for a call that ran no workflow; the `GET /v1/calls` list does not include it.
+- To act on a caller who asked not to be contacted, check that `interrupts` contains `"cease_contact"` rather than matching a step id or label.
+- A campaign contact's `workflow_interrupt` is now the most recent interrupt the workflow took.
+- [Where a call's workflow ended](/docs/read-call-evidence#where-a-calls-workflow-ended)
+
+### A caller who spoke without a caption is marked in the transcript
+
+- On GPT-Live and Gemini Live calls, when the other party spoke and the engine answered without a caption, the Calls transcript shows a "Spoke — no transcript" line where their turn would be.
+- `get_call_transcript` keeps `turns` and `text` to captioned speech and adds an `events` list with these moments; the transcript stream places them between turns under their own `type`.
+- Post-call extraction reads a `[spoke, no transcript]` line at that point, and `turns`, `text`, the stream and extraction all read in the order the Calls workspace shows.
+- [When the other party spoke but has no transcript](/docs/read-call-evidence#when-the-other-party-spoke-but-has-no-transcript) · [What reaches the API and post-call analysis](/docs/read-call-evidence#what-reaches-the-api-and-post-call-analysis)
+
+### ElevenLabs v4 Turbo is a choosable voice model
+
+- ElevenLabs v4 Turbo (`eleven_v4_turbo`) can be chosen as cascade text-to-speech for English, Spanish, French, German, Italian, Portuguese, Dutch, Russian, Swedish and Estonian.
+- It is the default for none of them, so existing agents keep their saved voice model.
+- It takes stability and similarity only, and costs $0.050 per 1,000 characters.
+- [ElevenLabs v4 Turbo](/docs/language-qualification#elevenlabs-v4-turbo) · [Delivery profiles](/docs/delivery-profiles)
+
 ## 28 September 2026
 
 ### Call variables: give each call its own data
