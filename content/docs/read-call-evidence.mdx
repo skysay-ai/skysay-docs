@@ -13,7 +13,7 @@ rather than assuming every call has a recording.
 
 ```text
 → list_calls(...)                        # calls:read
-→ get_call(call_id="cl_...")             # calls:read — status + recording state
+→ get_call(call_id="cl_...")             # calls:read — status, recording state, where the workflow ended
 → get_call_recording(call_id="cl_...")   # recordings:read — metadata + disclosure
 → GET recording.download_url              # recordings:read — playable audio bytes
 → get_call_transcript(call_id="cl_...")  # recordings:read — transcript turns
@@ -30,7 +30,7 @@ A `recording` is the call's audio metadata plus:
 - **Retention / disclosure state** — how long the audio is kept and whether the
   required call disclosure was made.
 
-`get_call` returns the call status and recording state; `get_call_recording`
+`get_call` returns the call status, recording state and [where its workflow ended](#where-a-calls-workflow-ended); `get_call_recording`
 returns recording metadata, disclosure state, and a relative `download_url`;
 `get_call_transcript` returns the transcript turns. Fetch `download_url` with
 the same bearer credential to play or download the audio. The endpoint accepts
@@ -292,6 +292,37 @@ lookup, a test) and its state.
   not sent** in Talk and Chat).
   Neither shows what the caller said, the value compared, the SMS text or the
   recipient.
+
+## Where a call's workflow ended
+
+A call that ran a [conversation workflow](/docs/agent-workflows) says where the
+workflow ended in `workflow`, on `GET /v1/calls/{call_id}`, MCP `get_call`, and
+the `call.completed` and `call.failed` webhooks. A call that ran no workflow
+carries `"workflow": null`. The `GET /v1/calls` list does not include it.
+
+```json
+"workflow": {
+  "status": "completed",
+  "outcome": {"step_id": "cease_contact_stop", "type": "review_candidate", "label": "Asked not to be contacted — review"},
+  "interrupt": "cease_contact"
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `status` | `running`, `completed`, `transferred` or `failed_closed`. A workflow the call ended before it finished is `failed_closed`. |
+| `outcome` | The last outcome step the workflow reached: its `step_id` and `label` as you wrote them, and its `type` (`review_candidate`, `informational` or `terminal_note`). `null` when it reached none. |
+| `interrupt` | The last global interrupt the workflow took — `wrong_party`, `dispute`, `hardship`, `cease_contact`, `callback`, `human_request` or `language_change` — or `null`. |
+
+It carries ids and your own labels only, never a value the call was given.
+
+**Act on `interrupt`, not on the step id or the label.** Those are your own text
+and change when you edit the workflow; the interrupt names are fixed. For
+example, `interrupt: "cease_contact"` means the caller asked not to be
+contacted. Nothing adds the number to your do-not-call register by itself, so
+if you want to pause the number or send it for review, do it from this field.
+A campaign contact's outcome reports the same values as `workflow_outcome`,
+`workflow_outcome_label` and `workflow_interrupt`.
 
 ## Where a call's telemetry lives
 

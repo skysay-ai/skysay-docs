@@ -1455,6 +1455,17 @@
           "updated_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "workflow": {
+            "description": "Where the call's conversation workflow ended: present on GET /v1/calls/{call_id} and MCP get_call (and in the call.completed and call.failed webhook data), null for a call that ran no workflow. The GET /v1/calls list does not carry it.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CallWorkflow"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -2154,6 +2165,80 @@
           "talk_seconds",
           "answered",
           "failed"
+        ],
+        "type": "object"
+      },
+      "CallWorkflow": {
+        "additionalProperties": false,
+        "description": "Where a call's conversation workflow ended, read the same way on the call read, MCP get_call, the terminal webhooks and the campaign outcome. Ids and the author's own outcome label only; never a call value. Act on `interrupt`, not on the outcome's step id or label, which are the author's text.",
+        "properties": {
+          "interrupt": {
+            "description": "The last global interrupt the run took, the same value a campaign contact's workflow_interrupt reports; null when none. `cease_contact` is a request not to be contacted: nothing adds the number to the do-not-call register automatically, so a workspace that wants to pause the number acts on this.",
+            "enum": [
+              "wrong_party",
+              "dispute",
+              "hardship",
+              "cease_contact",
+              "callback",
+              "human_request",
+              "language_change",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "description": "null when the run reached no outcome step.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "That step's label, as authored.",
+                    "type": "string"
+                  },
+                  "step_id": {
+                    "description": "The last outcome step the run reached, as authored.",
+                    "type": "string"
+                  },
+                  "type": {
+                    "enum": [
+                      "review_candidate",
+                      "informational",
+                      "terminal_note"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "step_id",
+                  "type",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "description": "The run's status. A run the call ended before it finished is failed_closed.",
+            "enum": [
+              "running",
+              "completed",
+              "transferred",
+              "failed_closed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "outcome",
+          "interrupt"
         ],
         "type": "object"
       },
@@ -7803,7 +7888,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "Transcript"
+            "description": "{call_id, transcript_status, turns: [...], text, events: [{type: caller_spoke_no_transcript, speaker: caller, start_ms}]}. `events` lists, with no text, each moment the other party spoke on a voice-to-voice call and the engine answered but gave no caption for that speech; `turns` and `text` hold only transcribed speech and are unchanged by it. An empty `events` never means the other party was silent."
           }
         },
         "summary": "Get call transcript turns"
@@ -7813,7 +7898,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "Transcript stream"
+            "description": "{call_id, content_type, transcript_status, events: [{type: turn, data: <turn>} | {type: caller_spoke_no_transcript, data: {speaker: caller, start_ms}}]}, in reading order: turns in sequence order, each uncaptioned moment before the first turn at or after its offset."
           }
         },
         "summary": "Get transcript stream events"
@@ -10158,7 +10243,7 @@
         ]
       },
       "post": {
-        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool.",
+        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Only the workspace adds numbers here: a caller asking not to be contacted is recorded as the call's outcome, never written to the register automatically.",
         "requestBody": {
           "content": {
             "application/json": {
