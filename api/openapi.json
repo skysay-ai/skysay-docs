@@ -1443,7 +1443,7 @@
             "type": "string"
           },
           "status": {
-            "description": "Call lifecycle status, e.g. requested, queued, dialing, ringing, answered, in_progress, media_started, completed, failed, busy, no_answer, canceled, live_blocked, policy_blocked, needs_review. Not a closed set: track it as an opaque string and rely on the call.* events for exact transitions.",
+            "description": "Call lifecycle status, e.g. requested, queued, dialing, ringing, answered, in_progress, media_started, completed, failed, busy, no_answer, canceled, live_blocked, policy_blocked, needs_review (held for review: never dialled, with a call.failed at once). Not a closed set: track it as an opaque string and rely on the call.* events for exact transitions.",
             "type": "string"
           },
           "to_e164": {
@@ -7503,7 +7503,7 @@
     },
     "/v1/calls/{call_id}/cancel": {
       "post": {
-        "description": "Only a queued call with an unclaimed originate job can be canceled. The corresponding wallet reservation is released. Once a worker has claimed the job, this endpoint fails closed rather than implying the carrier call was stopped.",
+        "description": "A queued call with an unclaimed originate job, or a call held for review (status needs_review), can be canceled. A queued call's wallet reservation is released; a held call never reserved anything. Once a worker has claimed the job, this endpoint fails closed rather than implying the carrier call was stopped.",
         "responses": {
           "200": {
             "description": "Canceled call"
@@ -7512,7 +7512,7 @@
             "description": "Call is already being originated, terminal, or has no queued originate job."
           }
         },
-        "summary": "Cancel a queued outbound call before origination"
+        "summary": "Cancel an outbound call before origination"
       }
     },
     "/v1/calls/{call_id}/events": {

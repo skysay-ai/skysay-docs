@@ -160,7 +160,7 @@ curl -s "$SKYSAY_BASE_URL/v1/agents/agent_doesnotexist" \
 
 ## Retrying safely
 
-Retry only `429` and `5xx`, with exponential backoff. A call that outbound policy refuses is not an error: `POST /v1/calls` answers `201` with `status: "policy_blocked"` or `"needs_review"`, as described in the [curl quickstart](/docs/quickstart-curl#7-place-an-outbound-call). `4xx` answers describe
+Retry only `429` and `5xx`, with exponential backoff. A call that outbound policy refuses is not an error: `POST /v1/calls` answers `201` with `status: "policy_blocked"` or `"needs_review"`, as described in the [curl quickstart](/docs/quickstart-curl#7-place-an-outbound-call). Neither is dialled, and both are followed by a `call.failed` event. `4xx` answers describe
 the request, and the same request gets the same answer. For
 `POST /v1/calls`, always send an `Idempotency-Key` header: a retry with the
 same key and body returns the original call instead of dialling twice. See

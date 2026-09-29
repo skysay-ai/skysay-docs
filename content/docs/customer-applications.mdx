@@ -124,10 +124,11 @@ A campaign whose agent is in this state finishes each contact as
   original call. Reusing a key for a different request returns `409`.
 - A full bounded outbound queue returns `429` with `Retry-After` and
   `retry_after_seconds`. Respect that delay and keep your own queue bounded.
-- `POST /v1/calls/{call_id}/cancel` can cancel only a queued call whose
-  originate job has not been claimed. It releases the corresponding wallet
-  reservation. Once a worker has claimed the job, the API returns `409` rather
-  than pretending a carrier call was stopped.
+- `POST /v1/calls/{call_id}/cancel` can cancel a queued call whose originate
+  job has not been claimed, and it releases the corresponding wallet
+  reservation. It can also cancel a call held for review (`needs_review`),
+  which never reserved anything. Once a worker has claimed the job, the API
+  returns `409` rather than pretending a carrier call was stopped.
 
 Read current progress with `GET /v1/calls`, and fetch recording, transcript,
 waveform, and artifact evidence through the call endpoints in the generated
