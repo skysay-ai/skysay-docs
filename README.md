@@ -149,9 +149,6 @@ python3 scripts/scan_secrets.py
 python3 scripts/generate_openapi_reference.py --check   # against api/openapi.json; refresh it with scripts/refresh_openapi_snapshot.py
 ```
 
-`scripts/release_docs.py` is the retired image-based release (registry image
-`skysay-docs`, receipt-gated promotion). It refuses a source-built docs
-service by design and is kept only for the history of the receipts it wrote.
 The `X-Skysay-Docs-Revision` header is emitted only when the image was built
 with a `DOCS_REVISION` build argument; source builds omit it, and the deployed
 commit is read from the DigitalOcean deployment instead.
