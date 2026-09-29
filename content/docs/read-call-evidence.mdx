@@ -265,13 +265,78 @@ being attributed to one of them.
 Deleting a recording, a retention expiry, or re-importing a corrected recording
 removes these rows along with it.
 
-### What this does not change
+### When the other party spoke but has no transcript
 
-The public transcript API and its stream are unchanged: `get_call_transcript`
-returns turns only, exactly as before. The `call.completed`,
-`call.transcript.ready` and `call.recording.ready` webhooks are unchanged, as
-are post-call extraction, turn counts, and campaign and call-group readiness —
-all of which read transcript turns and nothing else.
+On a GPT-Live or Gemini Live call, the engine's own captions of the other party
+can be missing — most often for Sinhala. When that happens, the agent's replies
+are in the transcript but what the other party said is not.
+
+So that such a call does not read as the agent talking to nobody, the
+transcript shows a **"Spoke — no transcript"** line where the other party's turn
+would be, under the same label as their turns (**Caller**, **Called person** on
+an outbound call, or the contact's name), with its offset into the call. It
+carries no words. Nothing the person said is known, only that they spoke.
+
+The line is written only when all of these hold:
+
+- voice activity was detected on the line before the engine's next reply,
+- no caption came back for that speech, and
+- Skysay did not ask the engine for a line in between, such as a check-in,
+  since the engine's reply could then be answering that request instead.
+
+It is placed where that speech began. If the person said something that was
+captioned and then something that was not, only the uncaptioned part is marked.
+
+Speech the engine never heard, such as someone who spoke only while the opening
+message was playing, is never marked, and neither is anything said once the
+call has started ending. Someone who starts over the end of the opening and
+keeps talking after it is marked where they began. A call on the standard pipeline never shows the line: its own
+transcriber writes the turn instead.
+
+The rule is deliberately cautious. It can miss a moment -- for example when the
+engine did not answer the person and Skysay then asked whether they were still
+there -- rather than invent one. It can occasionally mark the agent's own voice
+coming back on a phone line as the other party, since both reach Skysay as
+sound on the line.
+
+The line is evidence that the person spoke, not the other way round: **a call
+without it does not mean the other party was silent.** A call whose captions
+were all missing can have a transcript made only of the agent's turns. That
+transcript counts as available, like any transcript that has turns.
+
+### What reaches the API and post-call analysis
+
+Tool rows and language switches are shown in the Calls workspace only. The
+public transcript API does not return them.
+
+The "no transcript" moments are different, because they change what a call
+was. They are added to the transcript API beside the turns, never among them:
+
+- `get_call_transcript` keeps `turns` and `text` to captioned speech only, and
+  adds an `events` list with one entry per moment:
+  `{"type": "caller_spoke_no_transcript", "speaker": "caller", "start_ms": ...}`.
+  There is no text, because none exists.
+- The transcript stream places the same entries between the turns, in reading
+  order, under their own `type`, beside the existing `turn` entries. A client
+  that reads stream entries should check `type` before reading turn fields
+  such as `data.text`: a `caller_spoke_no_transcript` entry's `data` holds only
+  `speaker` and `start_ms`.
+- Post-call extraction reads a `[spoke, no transcript]` line for the caller at
+  that point, and is told the line carries no content. It can then see that
+  the person answered without inventing what they said.
+
+`turns`, `text`, the stream and the extraction input all read in the order the
+Calls workspace shows: by when each turn started, with the caller's own turns
+kept in the order they were spoken, and a moment before a turn that starts at
+the same instant. A caller turn whose start was measured on the recording after
+the call can therefore come before the agent reply it was answered with, so
+`turns` is not always in `sequence` order. Sort by `sequence` if you need the
+order the turns were stored in.
+
+An integration that reads only `turns` sees no new entries. The `call.completed`,
+`call.transcript.ready` and `call.recording.ready` webhooks carry a pointer to
+the transcript rather than its turns, so they are unchanged. Turn counts, and
+campaign and call-group readiness, count transcript turns only.
 
 ## Call variables on a call
 
