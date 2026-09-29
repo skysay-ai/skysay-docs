@@ -7902,7 +7902,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "{call_id, transcript_status, turns: [...], text, events: [{type: caller_spoke_no_transcript, speaker: caller, start_ms}]}. `events` lists, with no text, each moment the other party spoke on a voice-to-voice call and the engine answered but gave no caption for that speech; `turns` and `text` hold only transcribed speech and are unchanged by it. An empty `events` never means the other party was silent."
+            "description": "{call_id, transcript_status, turns: [...], text, events: [{type: caller_spoke_no_transcript, speaker: caller, start_ms}]}. `events` lists, with no text, each moment the other party spoke on a voice-to-voice call and the engine answered but gave no caption for that speech; `turns` and `text` hold only transcribed speech and are unchanged by it. `turns` and `text` are in the Calls drawer's reading order, not always `sequence` order: by offset, with a caller turn ordered no earlier than the caller turn before it, so a caller turn re-timed after the call reads ahead of an agent reply whenever that ordering offset is earlier. An empty `events` never means the other party was silent."
           }
         },
         "summary": "Get call transcript turns"
@@ -7912,7 +7912,7 @@
       "get": {
         "responses": {
           "200": {
-            "description": "{call_id, content_type, transcript_status, events: [{type: turn, data: <turn>} | {type: caller_spoke_no_transcript, data: {speaker: caller, start_ms}}]}, in reading order: turns in sequence order, each uncaptioned moment before the first turn at or after its offset."
+            "description": "{call_id, content_type, transcript_status, events: [{type: turn, data: <turn>} | {type: caller_spoke_no_transcript, data: {speaker: caller, start_ms}}]}, in the Calls drawer's reading order: turns and moments by offset, a caller turn never ahead of an earlier caller turn, and a moment before a turn at the same ordering offset; the turns in the same order as the transcript's `turns`."
           }
         },
         "summary": "Get transcript stream events"
