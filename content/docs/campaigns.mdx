@@ -249,9 +249,12 @@ attempt is `do_not_call` even if the line then failed or the agent declared
 another outcome: the contact is closed and not dialed again by this campaign,
 and nothing is added to the register. When it
 is `wrong_party` or `callback`, the attempt is `connected_wrong_party` or
-`connected_callback_requested` unless the agent declared an outcome. The last
-request wins: a caller who asked not to be contacted and then asked to be
-called back is called back. Every interrupt the call took stays on its
+`connected_callback_requested` unless the agent declared an outcome. A
+workflow callback carries no time, so the contact is finished with that
+disposition rather than dialed again; only an agent's declared callback with
+`callback_at` schedules a call. The last request wins: a caller who asked not
+to be contacted and then asked to be called back is recorded as a callback
+request, not `do_not_call`. Every interrupt the call took stays on its
 [`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended)
 if you want a stop request to win. Only interrupts the workflow runner took
 count: a route you named like an interrupt decides nothing, and a run is read
