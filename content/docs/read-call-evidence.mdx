@@ -317,11 +317,13 @@ none). The `GET /v1/calls` list and the call's other reads do not include it.
 | `workflow_id`, `version` | The workflow the call ran and its published version. `version` is `null` when the call ran an unpublished draft. |
 | `status` | `running`, `incomplete` (the call ended before the workflow finished), `completed`, `transferred` or `failed`. |
 | `settled` | `true` once the workflow can no longer change. Read the call again while it is `false`. |
-| `outcome` | The last outcome step the workflow reached: its `step_id` and `label` as you wrote them, and its `type` (for example `review_candidate`, `informational` or `terminal_note`). `null` when it reached none. |
+| `outcome` | The last outcome step the workflow reached: its `step_id` and `label` as you wrote them, and its `type` (for example `review_candidate`, `informational` or `terminal_note`). It is set even when `status` is `incomplete`: the step was reached before the call ended. `null` when it reached none. |
 | `interrupts` | Every global interrupt the workflow took, in the order first taken, each once: `wrong_party`, `dispute`, `hardship`, `cease_contact`, `callback`, `human_request` or `language_change`. Empty when it took none. |
 
 `status` and `type` are open: a later release can add a value, so handle one
 you don't recognise rather than rejecting it. `label` is for display only.
+Decide whether the workflow finished from `status` and `settled`, never from
+`outcome` being present.
 The object carries ids and your own labels only, never a value the call was
 given.
 
@@ -339,7 +341,15 @@ authoritative record.
 
 A campaign contact's outcome reports the same outcome as `workflow_outcome` and
 `workflow_outcome_label`, and the most recent interrupt as
-`workflow_interrupt`.
+`workflow_interrupt`. For every interrupt the caller raised, read the call's
+`interrupts`.
+
+`outcome.label` is the label the run was pinned with, with one exception: the
+old starter label that claimed the number would be added to the do-not-call
+register reads as the current starter label, because nothing adds it. The
+workflow run record (`GET /v1/agents/{agent_id}/workflow/runs/{run_id}`, also
+shown in Talk) returns `pinned_contract` unchanged: it is the historical
+record, so a label there can differ from `outcome.label`.
 
 ## Where a call's telemetry lives
 
