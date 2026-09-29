@@ -243,6 +243,20 @@ A hosted agent declares the connected outcomes with the `set_call_disposition`
 builtin tool (a callback requires `callback_at`). Telephony outcomes come from
 the SIP result and are never model-supplied.
 
+A [conversation workflow](/docs/agent-workflows) also decides a disposition,
+from the last global interrupt it took. When that is `cease_contact`, the
+attempt is `do_not_call` even if the line then failed or the agent declared
+another outcome: the contact is closed and not dialed again by this campaign,
+and nothing is added to the register. When it
+is `wrong_party` or `callback`, the attempt is `connected_wrong_party` or
+`connected_callback_requested` unless the agent declared an outcome. The last
+request wins: a caller who asked not to be contacted and then asked to be
+called back is called back. Every interrupt the call took stays on its
+[`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended)
+if you want a stop request to win. Only interrupts the workflow runner took
+count: a route you named like an interrupt decides nothing, and a run is read
+only from your own workspace.
+
 ## Read progress
 
 - `GET /v1/campaigns/{campaign_id}` returns the campaign, its latest run and
