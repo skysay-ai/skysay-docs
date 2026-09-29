@@ -109,6 +109,12 @@ included. `sip_status_code` is nullable. When Skysay cannot prove a safe
 cause, `availability` and `terminal_status` remain `unknown` rather than being
 inferred from call duration or today’s configuration.
 
+A call refused before anything dialled reports `terminal_status: "failed"` and
+`failure_stage: "outbound_authorization"`, with `failure_reason_code`
+`outbound_authorization_rejected` (refused by your workspace capabilities) or
+`outbound_authorization_held_for_review` (held for review; its call `status`
+stays `needs_review`).
+
 Only final SIP responses from 200 through 699 are retained in this terminal
 failure field. Provisional call-progress responses such as 180 Ringing are not
 terminal evidence and are omitted.
