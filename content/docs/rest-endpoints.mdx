@@ -151,7 +151,7 @@ preset or substituting another version.
 | `GET` | `/v1/calls` | List calls. |
 | `GET` | `/v1/calls/{id}` | Call status + recording state. |
 | `GET` | `/v1/calls/stats` | Call volume, outcome, talk time and spend over one or more date windows. |
-| `POST` | `/v1/calls/{id}/cancel` | Withdraw a call that is still queued, before anything dials. |
+| `POST` | `/v1/calls/{id}/cancel` | Withdraw a call that is still queued, or one held for review, before anything dials. |
 | `POST` | `/v1/calls/{id}/hangup` | Ask a live call to hang up. |
 
 ### What a call-stats window counts
@@ -163,9 +163,9 @@ with `since` and `until` plus five integers:
 | --- | --- |
 | `calls` | Every call created in the window, including ones a policy blocked and ones that were never billable. |
 | `answered` | Calls somebody was on: completed, or answered, in progress, or with media started right now. Never a call the platform merely accepted. |
-| `failed` | Calls that ended with nobody on them: failed, busy, no answer, canceled, or refused by a policy or live-call gate. |
+| `failed` | Calls that ended with nobody on them: failed, busy, no answer, canceled, refused by a policy or live-call gate, or held for review. |
 | `talk_seconds` | Total talk time across the window's recorded calls. |
-| `spend_minor` | The wallet reservation estimate made when each call was admitted, in the wallet's minor units. This is not settled billing. |
+| `spend_minor` | The wallet reservation estimate made when each call was admitted, in the wallet's minor units. This is not settled billing. Calls that never cost anything are left out: refused, held for review, or canceled before dialling. |
 
 `answered` and `failed` do not have to add up to `calls`. A call that is still
 dialing or still queued is in neither, and a call waiting on operator review is

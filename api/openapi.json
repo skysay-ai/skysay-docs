@@ -1443,7 +1443,7 @@
             "type": "string"
           },
           "status": {
-            "description": "Call lifecycle status, e.g. requested, queued, dialing, ringing, answered, in_progress, media_started, completed, failed, busy, no_answer, canceled, live_blocked, policy_blocked, needs_review. Not a closed set: track it as an opaque string and rely on the call.* events for exact transitions.",
+            "description": "Call lifecycle status, e.g. requested, queued, dialing, ringing, answered, in_progress, media_started, completed, failed, busy, no_answer, canceled, live_blocked, policy_blocked, needs_review (held for review: never dialled, with a call.failed at once). Not a closed set: track it as an opaque string and rely on the call.* events for exact transitions.",
             "type": "string"
           },
           "to_e164": {
@@ -2154,7 +2154,7 @@
             "type": "integer"
           },
           "failed": {
-            "description": "Calls in this window that ended with nobody on them: failed, busy, no_answer, canceled, or refused by a policy or live-call gate. answered + failed need not equal calls -- a dialing or queued call is in neither -- so do not derive one from the other.",
+            "description": "Calls in this window that ended with nobody on them: failed, busy, no_answer, canceled, refused by a policy or live-call gate, or held for review (needs_review). answered + failed need not equal calls -- a dialing or queued call is in neither -- so do not derive one from the other.",
             "type": "integer"
           },
           "since": {
@@ -2162,7 +2162,7 @@
             "type": "string"
           },
           "spend_minor": {
-            "description": "Sum of estimated_cost_minor across every call in this window. This is the wallet reservation estimate made at admission time, not settled billing -- excludes only calls that never reserved a wallet balance at all (policy_blocked, needs_review).",
+            "description": "Sum of estimated_cost_minor across every call in this window. This is the wallet reservation estimate made at admission time, not settled billing -- excludes calls that never cost anything: never reserved (policy_blocked, needs_review) or canceled before dialling.",
             "type": "integer"
           },
           "talk_seconds": {
@@ -4146,6 +4146,7 @@
               "unknown",
               "outbound_ringing_timeout",
               "outbound_authorization_rejected",
+              "outbound_authorization_held_for_review",
               "outbound_media_admission_rejected",
               "outbound_trunk_rejected",
               "outbound_room_rejected",
@@ -7503,7 +7504,7 @@
     },
     "/v1/calls/{call_id}/cancel": {
       "post": {
-        "description": "Only a queued call with an unclaimed originate job can be canceled. The corresponding wallet reservation is released. Once a worker has claimed the job, this endpoint fails closed rather than implying the carrier call was stopped.",
+        "description": "A queued call with an unclaimed originate job, or a call held for review (status needs_review), can be canceled. A queued call's wallet reservation is released; a held call never reserved anything. Once a worker has claimed the job, this endpoint fails closed rather than implying the carrier call was stopped.",
         "responses": {
           "200": {
             "description": "Canceled call"
@@ -7512,7 +7513,7 @@
             "description": "Call is already being originated, terminal, or has no queued originate job."
           }
         },
-        "summary": "Cancel a queued outbound call before origination"
+        "summary": "Cancel an outbound call before origination"
       }
     },
     "/v1/calls/{call_id}/events": {

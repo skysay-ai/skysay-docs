@@ -113,6 +113,21 @@ stop / wrong-party / dispute actions). `GET .../capabilities` returns them as
 `calling_rules` and whether they are enforced right now as
 `calling_rules_active`. A self-serve request cannot set or clear them.
 
+### A call held for review
+
+A single call Skysay cannot classify, one with an unknown relationship and no
+`user_authorization` naming who authorized it, is held for review: it is
+answered with `status: "needs_review"` (reason `needs_review.unknown_relationship`)
+and is never dialled. A `call.failed` event with failure stage
+`outbound_authorization` follows at once, so your integration can treat it as
+refused. The request stays with Skysay for review, but nothing will place the
+call later: resend it with a `user_authorization` (who approved it and why), or
+declare a known `relationship`. `user_requested: true` on its own does not count
+as an authorization. A held call reserves nothing from your wallet and does not
+count toward your voice spend cap. It does count toward your call-count limits,
+because it was a submitted call. To clear it, cancel it with
+`POST /v1/calls/{call_id}/cancel`.
+
 ### Authorized application batches
 
 Any active workspace may run its own batches through the single-call API;
