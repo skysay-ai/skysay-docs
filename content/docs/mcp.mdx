@@ -34,7 +34,7 @@ screen: some permissions allow actions that contact people or spend your
 Skysay balance. A connection cannot access a different workspace by passing
 its organization ID.
 
-Manage and revoke connections from **Connected apps** in the Skysay workspace.
+Manage and revoke connections from **Connected apps** on the [API keys](https://skysay.ai/api-keys) page in the Skysay workspace.
 Revocation invalidates the connection's tokens. Existing API keys continue to
 work independently and must be revoked separately.
 
@@ -67,6 +67,31 @@ consent returns a `403` scope challenge. Only the scopes advertised by the
 authorization server can be granted through OAuth; the API-key catalogue is
 broader. Skysay does not currently provide OpenID Connect UserInfo or the
 `openid` and `email` scopes for ChatGPT Enterprise workspace-domain restrictions.
+
+## Read-only connector for Claude
+
+Use `https://api.skysay.ai/mcp/read-only` for a connection that can inspect
+workspace data without generating audio or performing writes. It exposes
+exactly five tools:
+
+- `account_overview`: inspect your workspace overview.
+- `list_agents`: list your agents.
+- `get_agent`: read one agent's configuration.
+- `list_numbers`: list your phone numbers.
+- `list_calls`: inspect call metadata, without recordings or transcripts.
+
+All other tool calls are refused at this endpoint, even with a broad API key.
+OAuth consent accepts only `account:read`, `agents:read`, `calls:read`, and
+`numbers:read`. Its discovery document is
+`https://api.skysay.ai/.well-known/oauth-protected-resource/mcp/read-only`,
+and its OAuth resource is `https://api.skysay.ai/mcp/read-only`. Tokens for
+this resource cannot be used at `/mcp`, and tokens for `/mcp` cannot be used
+at the read-only endpoint. Both connections use the same sign-in, PKCE, consent,
+refresh and revocation flow described above.
+
+Try “Show my Skysay workspace overview,” “List my Skysay agents,” or “Show my
+Skysay phone numbers.” A new workspace may return empty lists; the connector
+will not create sample data or provision numbers to fill them.
 
 ## Connect from the workspace
 
