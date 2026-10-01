@@ -1,11 +1,11 @@
 ---
 title: MCP overview
-description: The hosted MCP endpoint — POST /mcp, tools/list schemas with required_scopes, and prefix scopes.
+description: Connect an assistant with OAuth or an API key, inspect tool schemas, and control workspace permissions.
 icon: Server
 ---
 
-Skysay speaks **MCP** (Model Context Protocol). Any MCP-capable client points
-at one endpoint, passes a scoped key, and the Skysay tools appear in
+Skysay speaks **MCP** (Model Context Protocol). An MCP-capable client points
+at the hosted endpoint, connects with OAuth or a scoped API key, and the Skysay tools appear in
 `tools/list` — ready to call. This is the universal path; the
 [OpenClaw connector](/docs/install-connector) and the
 [REST API](/docs/rest-endpoints) are convenience wrappers around the same tools.
@@ -18,6 +18,80 @@ Authorization: Bearer sky_your_scoped_key
 ```
 
 Standard JSON-RPC: `tools/list` to discover, `tools/call` to invoke.
+
+## Connect with OAuth
+
+For an assistant that supports remote MCP authorization, enter
+`https://api.skysay.ai/mcp` as the server URL and choose OAuth. Sign into
+Skysay, check the client and workspace shown on the consent screen, and approve
+the permissions you want to grant. Adding a custom connection does not require
+Skysay to be listed in that assistant's public directory.
+
+The initial permissions read workspace, agent, call metadata, coverage, number
+and onboarding information, and evaluate policy. Reading conversation content
+or performing supported writes requires additional consent. Check each consent
+screen: some permissions allow actions that contact people or spend your
+Skysay balance. A connection cannot access a different workspace by passing
+its organization ID.
+
+Manage and revoke connections from **Connected apps** on the [API keys](https://skysay.ai/api-keys) page in the Skysay workspace.
+Revocation invalidates the connection's tokens. Existing API keys continue to
+work independently and must be revoked separately.
+
+### OAuth client configuration
+
+| Setting | Value |
+| --- | --- |
+| MCP resource | `https://api.skysay.ai/mcp` |
+| Authorization server | `https://api.skysay.ai` |
+| Resource discovery | `https://api.skysay.ai/.well-known/oauth-protected-resource/mcp` |
+| Authorization server discovery | `https://api.skysay.ai/.well-known/oauth-authorization-server` |
+| Authorization endpoint | `https://api.skysay.ai/oauth/authorize` |
+| Token endpoint | `https://api.skysay.ai/oauth/token` |
+| Dynamic registration endpoint | `https://api.skysay.ai/oauth/register` |
+| Revocation endpoint | `https://api.skysay.ai/oauth/revoke` |
+
+Use the authorization-code flow with PKCE **S256** and public-client token
+authentication (`none`); no client secret is required. Both Client ID Metadata
+Documents (CIMD) and dynamic client registration (DCR) are supported. CIMD
+documents may advertise supported authentication methods as a list containing
+`none`, even when their legacy preference is a different method. Redirect URIs
+must match the client's metadata or registration. Authorization responses
+include the issuer (`iss`).
+
+Access tokens expire after one hour. Refresh tokens rotate, expire after
+30 days without renewal, and have a maximum family lifetime of 90 days.
+Reconnect when the client asks you to sign in again. An unauthenticated MCP
+request returns a `401` discovery challenge; a supported tool that needs more
+consent returns a `403` scope challenge. Only the scopes advertised by the
+authorization server can be granted through OAuth; the API-key catalogue is
+broader. Skysay does not currently provide OpenID Connect UserInfo or the
+`openid` and `email` scopes for ChatGPT Enterprise workspace-domain restrictions.
+
+## Read-only connector for Claude
+
+Use `https://api.skysay.ai/mcp/read-only` for a connection that can inspect
+workspace data without generating audio or performing writes. It exposes
+exactly five tools:
+
+- `account_overview`: inspect your workspace overview.
+- `list_agents`: list your agents.
+- `get_agent`: read one agent's configuration.
+- `list_numbers`: list your phone numbers.
+- `list_calls`: inspect call metadata, without recordings or transcripts.
+
+All other tool calls are refused at this endpoint, even with a broad API key.
+OAuth consent accepts only `account:read`, `agents:read`, `calls:read`, and
+`numbers:read`. Its discovery document is
+`https://api.skysay.ai/.well-known/oauth-protected-resource/mcp/read-only`,
+and its OAuth resource is `https://api.skysay.ai/mcp/read-only`. Tokens for
+this resource cannot be used at `/mcp`, and tokens for `/mcp` cannot be used
+at the read-only endpoint. Both connections use the same sign-in, PKCE, consent,
+refresh and revocation flow described above.
+
+Try “Show my Skysay workspace overview,” “List my Skysay agents,” or “Show my
+Skysay phone numbers.” A new workspace may return empty lists; the connector
+will not create sample data or provision numbers to fill them.
 
 ## Connect from the workspace
 
