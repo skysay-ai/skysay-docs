@@ -15,6 +15,32 @@ purchased funds at the selected components' metered prices. You do not need a
 phone number for a browser test. This does not qualify the carrier route or
 prove that a real phone call will work.
 
+## If the AI agent does not start speaking
+
+If the requested opening fails before the worker observes agent audio, the
+browser test ends and explains that the AI agent did not start speaking. Start
+another test to retry with the same selected configuration. Each retry creates
+a new call and passes the usual balance and admission checks; it does not
+retry automatically.
+
+If a connection ends before its outcome can be confirmed, the panel says so.
+This message does not mean your configuration is wrong or confirm a refund.
+Microphone resources are closed before you retry. Ending the test yourself
+keeps the normal end-of-test behavior.
+
+A confirmed zero-output startup failure can release an unused hold when that
+decision is processed before native usage is accepted. If usage arrived first,
+normal settlement applies. Missing or incomplete evidence keeps the existing
+pending-usage hold; silence alone is not a billing decision. See
+[Billing](/docs/billing).
+
+For integrations, `GET /v1/calls/{call_id}` may expose `browser_outcome` while
+the call is still active: `browser_startup_failed`, `worker_ended`, or an empty
+string when no outcome is known. `worker_ended` confirms teardown, not billing
+success. The transport still completes through its normal lifecycle. A failed
+opening has `ended_reason: browser_startup_failed` after completion. These
+fields do not certify a refund.
+
 ## Chat with your agent in text
 
 The same test panel has a **Chat** mode. For an AI agent built from
