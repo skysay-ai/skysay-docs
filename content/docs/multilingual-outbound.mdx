@@ -1,8 +1,87 @@
 ---
-title: Multilingual outbound calls
-description: Configure several languages on one hosted agent, choose its opening language, and optionally follow the caller within the published language set.
+title: Languages and multilingual calls
+description: Understand opening language, fixed-language calls, controlled language switching, and the different behavior of GPT Live and Gemini Live.
 icon: ChatBubbleTranslate
 ---
+
+## Three different language choices
+
+The website language, the language that opens a call, and the languages an
+agent can use during a conversation are separate choices.
+
+| Choice | What it controls |
+| --- | --- |
+| Website or workspace language | Translates the interface. It does not change an agent's voice configuration. |
+| Opening language | The language of the greeting before following the caller begins. A homepage demo choice selects an offered agent and starting language. |
+| Conversation language policy | Whether the call keeps one language or can change language during the conversation. Its behavior depends on the conversation engine. |
+
+The languages offered on the public homepage come from eligible published
+demo agents. Seeing six choices does not mean every agent is restricted to
+six languages, or that switching works only in English.
+
+## How a call chooses its response language
+
+<img src="/diagrams/call-languages.svg" alt="Call language flow: after the opening, Standard agents either keep one language or switch within their published set; GPT Live and Gemini Live follow the caller inside the model on a best-effort basis. Unclear speech can be misrecognized on either path." />
+
+For **Standard** agents, speech-to-text (STT), the language model, and
+text-to-speech (TTS) are separate components. The editor offers **Single
+language per call** or **Auto multilingual**. Auto can use **All supported
+languages** for the configuration or **Selected languages only**. The
+published language profiles control which switches the runtime accepts.
+
+Adding several languages is not, by itself, a promise that the agent will
+automatically detect a change. Some transcribers supply stable language
+evidence for automatic switching; others support switching only after the
+caller clearly asks. Check the capability shown for the chosen configuration.
+
+| Caller starts in English, then uses German | Expected behavior |
+| --- | --- |
+| Standard, single language per call, English selected | The agent is instructed to continue in English. There is no controlled profile switch. |
+| Standard, Auto multilingual, German published, automatic detection supported | Supported stable recognition evidence can trigger a switch to German. |
+| Standard, Auto multilingual, German published, explicit requests only | Ask clearly, for example “Please speak German.” German speech alone does not enable automatic switching. |
+| Standard, Auto multilingual, German excluded | An understood request is refused; the agent should explain the available languages in its current response language. |
+| GPT Live or Gemini Live | After the opening, the model is instructed to follow a full sentence addressed to it in German, or an explicit request. This is best effort. |
+
+Standard's language boundary controls the selected profile and accepted switch
+requests. It is not a guarantee that a generative model can never produce a
+word in another language. Test the actual audio behavior before relying on it.
+
+### GPT Live and Gemini Live work differently
+
+Native live engines process speech in the model itself. Skysay gives them an
+opening-language instruction, then asks them to follow the person speaking
+to them. They are told not to change language because of background speech,
+music, recordings, or unclear audio. These instructions can still be missed.
+
+These engines do not use Standard's **Follow the caller** profile switcher.
+A disabled Follow setting therefore does not mean a native live agent is
+English-only. There is currently no equivalent controlled one-language lock
+or selected-language allowlist on this path. A prompt restriction is a
+preference, not an enforced boundary. If you need a controlled language set,
+use a qualified Standard configuration and test it.
+
+The engines share this instruction policy, not a measured accuracy result.
+See [GPT-Live language testing](/docs/language-following) for results specific
+to GPT-Live; those results do not establish Gemini Live's reliability.
+
+### Five allowed languages and a caller using a sixth
+
+Understanding a language and being configured to answer in it are different.
+For a Standard agent with Auto enabled:
+
+- If the agent understands “Please speak Dutch,” but Dutch is not published,
+  the switch is rejected. It is instructed to offer the available languages
+  in the **current conversation language**. That could be German or Estonian;
+  it is not always English.
+- If the caller simply speaks Dutch, the recognizer may not understand it.
+  It can return an incomplete transcript or mistake it for an allowed
+  language. The agent cannot reliably explain which language was unsupported
+  when it did not recognize it correctly.
+
+“All supported languages” means the compatible set available to the selected
+configuration at publication. It does not mean every human language.
+
+## Choosing the language before an outbound call
 
 Use a multilingual campaign when your application already knows, or an operator
 has chosen, the recipient's preferred language. Skysay starts every
@@ -34,9 +113,8 @@ yourself is always kept.
 You are not committed to what you pick here. Everything on this page can be
 changed later in the AI agent editor's **Languages** section.
 
-GPT-Live 1 is the exception: it has no language setting at all, so it shows
-only the opening language and answers in whichever language the caller speaks.
-See [Which languages the voice agent follows](/docs/language-following).
+GPT Live and Gemini Live expose an opening language, but do not use these
+Standard language profiles. See [how native live engines work](#gpt-live-and-gemini-live-work-differently).
 
 ### Auto multilingual
 
@@ -423,9 +501,10 @@ An agent with Follow enabled over two or more published profiles is offered as a
 single **Multilingual** choice naming the languages it speaks, rather than as one
 choice per language. A visitor who picks it does not choose a starting language:
 the session opens in the agent's published opening language and then follows the
-caller within the same frozen set, as a phone call does. An agent without Follow
-is still offered once per published language, and picking one starts and stays
-there.
+caller within the same frozen set, as a phone call does. A Standard agent without
+Follow is offered once per published language; picking one selects a single
+language for that call. Native live agents are offered under their opening
+language and can still follow the caller inside the model, as described above.
 
 The Multilingual choice appears only when every published profile is currently
 runnable. If one of them is not, the agent is not offered at all rather than
