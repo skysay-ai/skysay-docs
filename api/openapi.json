@@ -2990,6 +2990,26 @@
         },
         "type": "object"
       },
+      "ConversationSummary": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "last_message": {
+            "description": "The conversation's newest message, as GET /v1/messages returns it; absent when it has none.",
+            "type": "object"
+          },
+          "message_count": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "message_count"
+        ],
+        "type": "object"
+      },
       "CreateOrganization": {
         "properties": {
           "name": {
@@ -3382,6 +3402,39 @@
         "required": [
           "organization_id",
           "project_id"
+        ],
+        "type": "object"
+      },
+      "ListPagination": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "description": "True while older rows remain. A page is the whole list only when this is false.",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "The page size used.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "next_cursor": {
+            "description": "Send as `cursor` to read the next page; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "returned": {
+            "description": "Items on this page.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "returned",
+          "has_more",
+          "next_cursor"
         ],
         "type": "object"
       },
@@ -4814,9 +4867,76 @@
     },
     "/v1/agent-endpoints": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `agent_endpoints` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. `limit` is required on this list: a request without it is a 400, so a client that still reads the old array cannot mistake the refusal for an empty list and register a duplicate endpoint.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200. Required. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Agent endpoints"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agent_endpoints": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "agent_endpoints",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List agent webhook/audio endpoints"
@@ -4913,9 +5033,77 @@
     },
     "/v1/agents": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `agents` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Agents"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agents": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "agents",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List first-class agents"
@@ -6961,9 +7149,68 @@
     },
     "/v1/api-keys": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `api_keys` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "API keys"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "api_keys": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "api_keys",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List scoped API keys"
@@ -7037,12 +7284,154 @@
     },
     "/v1/audit-events": {
       "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `audit_events` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Audit events"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "audit_events": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "audit_events",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List audit events"
+      }
+    },
+    "/v1/billing/invoices": {
+      "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `invoices` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. Top-up ledger entries only.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "count": {
+                      "description": "Invoices on this page.",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "invoices": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "organization_id": {
+                      "type": "string"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "invoices",
+                    "pagination",
+                    "organization_id",
+                    "currency",
+                    "count"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          }
+        },
+        "summary": "List wallet top-ups with their receipt and invoice links"
       }
     },
     "/v1/billing/settings": {
@@ -8946,9 +9335,77 @@
     },
     "/v1/conversations": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `conversations` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. Ordered by creation, newest first. Each conversation carries `message_count` and its newest message as `last_message`, never its history: read that with GET /v1/messages?conversation_id=.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Conversations"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "conversations": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "$ref": "#/components/schemas/ConversationSummary"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "conversations",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List SMS conversations"
@@ -8956,9 +9413,30 @@
     },
     "/v1/conversations/{conversation_id}": {
       "get": {
+        "description": "The conversation as GET /v1/conversations lists it: `message_count` and `last_message`, never its history; read that with GET /v1/messages?conversation_id=.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSummary"
+                }
+              }
+            },
             "description": "Conversation"
+          },
+          "404": {
+            "description": "Conversation not found"
           }
         },
         "summary": "Get one SMS conversation"
@@ -8976,9 +9454,68 @@
     },
     "/v1/customer-onboarding": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `customer_onboarding` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Records"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "customer_onboarding": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "customer_onboarding",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List business onboarding records"
@@ -10336,6 +10873,75 @@
         ]
       }
     },
+    "/v1/end-users": {
+      "get": {
+        "description": "One bounded page, newest first, as an object: the items under `end_users` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "end_users": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "end_users",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          }
+        },
+        "summary": "List end-user verification profiles"
+      }
+    },
     "/v1/end-users/{end_user_profile_id}/registration-status": {
       "get": {
         "responses": {
@@ -10358,9 +10964,77 @@
     },
     "/v1/gateway-deployments": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `gateway_deployments` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Gateways"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "gateway_deployments": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "gateway_deployments",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List media gateways"
@@ -11277,9 +11951,89 @@
     },
     "/v1/messages": {
       "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `messages` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this conversation's messages: its history, newest first. A conversation of another workspace or project is a 404.",
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Messages"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "messages": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "messages",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          },
+          "404": {
+            "description": "`conversation_id` names no conversation of this workspace and project."
           }
         },
         "summary": "List SMS messages"
@@ -11378,9 +12132,86 @@
     },
     "/v1/number-requests": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `number_requests` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 100; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only requests in this status. The filter applies on every page of a walk.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Number requests"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "number_requests": {
+                      "description": "At most `limit` items, at most 100.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "number_requests",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List managed phone-number requests"
@@ -11424,9 +12255,77 @@
     },
     "/v1/numbers": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `numbers` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 100; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Phone numbers"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "numbers": {
+                      "description": "At most `limit` items, at most 100.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "numbers",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List phone numbers"
@@ -11832,9 +12731,77 @@
     },
     "/v1/phone-servers": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `phone_servers` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. A project page includes the organization's servers that belong to no project.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Phone servers"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "phone_servers": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "phone_servers",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List customer phone servers"
@@ -11938,9 +12905,77 @@
     },
     "/v1/trial-calls": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `trial_calls` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 100; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Trial records"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "trial_calls": {
+                      "description": "At most `limit` items, at most 100.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "trial_calls",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List historical and offline trial fixtures"
@@ -11994,6 +13029,84 @@
           }
         },
         "summary": "Get usage summary"
+      }
+    },
+    "/v1/usage-records": {
+      "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `usage_records` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "usage_records": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "usage_records",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          }
+        },
+        "summary": "List usage records"
       }
     },
     "/v1/usage/daily": {
@@ -12077,10 +13190,92 @@
     },
     "/v1/wallet/ledger": {
       "get": {
-        "description": "A recent-entries read, not the full ledger: at most `limit` (default 100, maximum 500) of the newest entries, with no cursor, and totals computed over the returned entries only. To page through every entry, filter by type and date, or export CSV, use GET /v1/dashboard/billing-history and its /export.",
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `entries` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. `totals` cover the entries on this page only. For filters by type and date, or a CSV export, use GET /v1/dashboard/billing-history and its /export.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Wallet ledger"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "count": {
+                      "description": "Entries on this page.",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "entries": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "limit": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "organization_id": {
+                      "type": "string"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "totals": {
+                      "description": "Credit, debit, reserved and available deltas summed over this page's entries, in minor units (each also as *_cents).",
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "pagination",
+                    "organization_id",
+                    "limit",
+                    "count",
+                    "currency",
+                    "totals"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List the most recent org-level wallet ledger entries and linked usage/call refs"
@@ -12108,9 +13303,88 @@
     },
     "/v1/webhook-deliveries": {
       "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `deliveries` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. `event_catalog` and `retry_policy` are returned with every page.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Webhook deliveries"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deliveries": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "event_catalog": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "retry_policy": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "deliveries",
+                    "pagination",
+                    "event_catalog",
+                    "retry_policy"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List real webhook delivery attempts (status, attempts, last error, next retry)"
