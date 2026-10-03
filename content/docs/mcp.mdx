@@ -78,11 +78,17 @@ Use `https://api.skysay.ai/mcp/read-only` for a connection that can inspect
 workspace data without generating audio or performing writes. It exposes
 exactly five tools:
 
-- `account_overview`: inspect your workspace overview.
-- `list_agents`: list your agents.
+- `account_overview`: a short workspace summary — wallet, usage totals, and for
+  each collection its total with the newest few items.
+- `list_agents`: list your agents, one page at a time.
 - `get_agent`: read one agent's configuration.
-- `list_numbers`: list your phone numbers.
-- `list_calls`: inspect call metadata, without recordings or transcripts.
+- `list_numbers`: list your phone numbers, one page at a time.
+- `list_calls`: inspect call metadata one page at a time, without recordings or
+  transcripts.
+
+Each of the four collection tools answers with at most 25,000 characters, so a
+large workspace is read in pages rather than in one oversized answer; see
+[Bounded results and paging](#bounded-results-and-paging).
 
 All other tool calls are refused at this endpoint, even with a broad API key.
 OAuth consent accepts only `account:read`, `agents:read`, `calls:read`, and
@@ -121,8 +127,10 @@ it.
 ## Results, errors and tool metadata
 
 Tool calls return a `text` content block containing JSON and the same data in
-`result.structuredContent`. List results use `{ "items": [...] }` in structured
-content. A refused tool returns `result.isError: true` and
+`result.structuredContent`. A tool that answers with a plain list uses
+`{ "items": [...] }` in structured content; the paged collection tools
+(`list_agents`, `list_calls`, `list_numbers`) answer with a named array and a
+`pagination` object instead. A refused tool returns `result.isError: true` and
 `structuredContent.error` with `type` and `message`. Unexpected failures use
 `internal_error` and a `request_id` to quote to support. An unknown tool, or a
 `params`, `name` or `arguments` that is not the right shape, remains a JSON-RPC
@@ -140,12 +148,87 @@ workspace. A different workspace is refused. Streamable HTTP negotiates
 `2025-11-25`, `2025-06-18` or `2025-03-26`. Notifications receive 202 with no body;
 `ping` is supported; GET and HEAD return 405, with no SSE stream.
 
+### Bounded results and paging
+
+`account_overview`, `list_agents`, `list_calls` and `list_numbers` grow with
+your workspace, so each answers with at most **25,000 characters** of result
+text, however large the workspace is.
+
+The three list tools return one newest-first page:
+
+```json
+{
+  "calls": [ ... ],
+  "pagination": {
+    "limit": 10,
+    "returned": 7,
+    "has_more": true,
+    "next_cursor": "<opaque>",
+    "omitted": []
+  }
+}
+```
+
+- `limit` takes 1 to 50. `list_calls` and `list_numbers` default to 10,
+  `list_agents` to 50. A larger value is lowered to 50 and a smaller one raised
+  to 1; the page reports the limit it used.
+- A page holds at most `limit` items **and** at most 25,000 characters, so it
+  can hold fewer. `returned` says how many it holds. Use `has_more`, never
+  `returned < limit`, to decide whether to continue.
+- Pass `next_cursor` back as `cursor` to read the next page. It is meaningful
+  only while `has_more` is true, and it is opaque: pass it back exactly as
+  given. Leave `cursor` out for the first page.
+- An item too large to fit any page on its own is not returned. It is named in
+  `omitted` as `{ "id", "reason": "exceeds_result_size_budget", "read_with" }`,
+  and the next page continues after it. `read_with` names the tool that reads
+  that one item on this connection (`get_agent` for an agent, `get_call` for a
+  call on the full `/mcp` endpoint), or is `null` when the connection has none.
+- A listing is not a snapshot: an item created while you page through it may
+  not appear, and nothing is repeated or skipped because of it.
+- `list_calls` items are the same call records `GET /v1/calls` returns,
+  **without `runtime_config`** (the agent configuration the call ran with).
+  `get_call` returns the complete record.
+
+`account_overview` is a summary, not a page. It returns `wallet`; `usage` with
+its totals and up to 10 line items; and, for `agents`, `numbers`,
+`number_requests`, `calls` and `conversations`, a section with:
+
+- `total`: how many there are;
+- `preview`: up to 5 of the newest, with identifying fields only (for example
+  an agent's `id`, `name`, `mode` and `status`; a call's `id`, `direction`,
+  `status`, numbers and `created_at`; a conversation's numbers, `status`,
+  `last_message_at` and `message_count`);
+- `returned`, `has_more` (`total` is larger than `returned`) and `omitted`;
+- `list_tool`: the tool on this connection that pages through the complete
+  records, or `null` when there is none (number requests; conversations on the
+  read-only connector). It needs its own scope.
+
+The overview never includes SMS message content. Read messages with
+`list_conversations` (`sms:read`).
+
 ### Migration for custom MCP clients
 
 Read `result.structuredContent` instead of `result.content[0].json`, inspect
 `result.isError` and `structuredContent.error.type` instead of `error.type`, and
 read scope metadata from `_meta` instead of `annotations.required_scopes`.
 Standard MCP clients already understand these result types.
+
+Since the bounded results above:
+
+- `list_calls` and `list_numbers` return `{ calls | numbers, pagination }`
+  instead of a list (`structuredContent.items`). Follow `next_cursor` while
+  `has_more` is true to read everything.
+- `account_overview` returns sections with `total` and `preview` instead of
+  complete lists of agents, numbers, number requests, calls and conversations;
+  its `usage` carries totals and up to 10 line items.
+- `list_calls` items no longer carry `runtime_config`; use `get_call`.
+- `list_agents` pages can now stop before `limit` and can name items in
+  `pagination.omitted`.
+- `limit` must be an integer (`10`, `10.0` or `"10"`). A boolean, a fraction or
+  other text is refused instead of being coerced. A `cursor` must be one this
+  tool returned.
+- `account_overview`, `list_calls` and `list_numbers` are refused for a
+  credential that belongs to no workspace, as `list_agents` already was.
 
 ## Prefix scopes
 
@@ -193,7 +276,8 @@ the normal customer configuration loop without switching to REST:
 
 `list_agents` is deliberately a bounded MCP collection: it returns the same
 safe agent items as REST inside `{ agents, pagination }`, with up to 50 agents
-per page (the default and maximum). Follow `pagination.next_cursor` only while
+per page (the default and maximum), and fewer when the page reaches its
+25,000-character limit. Follow `pagination.next_cursor` only while
 `pagination.has_more` is true. The legacy REST collection remains a separate
 compatibility response.
 
@@ -239,8 +323,9 @@ Conversation content needs its content scope wherever it appears, over MCP and
 REST. Tools that combine content with other
 data stay callable at their base scope and omit the content fields:
 
-- `account_overview` (`account:read`) omits each SMS message's `body`,
-  `metadata`, `error` and `idempotency_key` without `sms:read`.
+- `account_overview` (`account:read`) previews conversations without any
+  message, so it never carries a message's `body`, `metadata`, `error` or
+  `idempotency_key`, whatever the scopes.
 - `send_sms` (`sms:send`) and `send_agent_template_message` (`sms:send` +
   `agents:read`) return the message
   ID and delivery status; `body`, `metadata`, `error` and `idempotency_key` come
