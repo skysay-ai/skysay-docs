@@ -133,8 +133,18 @@ tool's scopes fails closed with a refused tool result naming the missing scopes.
 
 `organization_id` is optional on all tools and defaults to your credential's
 workspace. A different workspace is refused. Streamable HTTP negotiates
-`2025-11-25`, `2025-06-18` or `2025-03-26`. Notifications receive 202 with no body;
-`ping` is supported; GET and HEAD return 405, with no SSE stream.
+`2025-11-25`, `2025-06-18` or `2025-03-26` through `initialize`. Notifications receive
+202 with no body; `ping` is supported; GET and HEAD return 405, with no SSE stream.
+
+The endpoint also speaks MCP `2026-07-28`, which has no handshake. A client using it
+sends `MCP-Protocol-Version: 2026-07-28` and `Mcp-Method` headers on every request
+(plus `Mcp-Name` for `tools/call` and `resources/read`), with the protocol version and
+client capabilities in `params._meta`. `server/discover` lists the supported revision;
+every result carries `resultType`, and list and read results carry `ttlMs` and
+`cacheScope`. A request that revision does not define, such as `ping`, returns 404 with
+`-32601`; a header that disagrees with the body returns 400 with `-32020`, and an
+unsupported version returns 400 with `-32022` and the supported list. Requests without
+that header keep working exactly as above, so current clients need no change.
 
 ### Migration for custom MCP clients
 
