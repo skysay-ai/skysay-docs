@@ -24,7 +24,8 @@ them.
   replies. There is no time limit on a person: a long greeting such as "Good
   afternoon, Harbour Street Pharmacy, Sam speaking, how can I help?" is heard
   to the end. A short pause between sentences does not end their turn; a pause
-  of about 0.6 seconds or more does.
+  of about 0.6 seconds or more starts the response decision. The agent also
+  allows a brief window for the person to resume before releasing a reply.
 - **Nobody speaks.** If the line stays silent for two seconds after the call is
   answered, the agent speaks its opening.
 - **The line plays sound that is not a voice.** Hold music, a tone or other
@@ -47,6 +48,16 @@ them.
 - If your agent's opening is generated rather than a fixed line, it is written
   with what the person said in view.
 
+On GPT-Live 1 and Gemini Live, the model hears the pickup while Skysay waits
+to release its first response. If the person resumes during that wait, Skysay
+discards the pending response to the incomplete pickup. The model still
+decides the words: a timing safeguard does not guarantee that it understands
+every request or repeats a configured opening exactly. Test your agent's
+languages and instructions with representative calls.
+
+The two-second silent-line rule is when the opening is requested. Model and
+audio processing add time before the person hears it.
+
 The opening is an ordinary reply. The person can interrupt it, and the agent
 stops and listens, as it would at any other point in the call.
 
@@ -56,7 +67,7 @@ stops and listens, as it would at any other point in the call.
 | --- | --- |
 | Outbound phone call, **Standard** conversation engine | The person, as described on this page |
 | Inbound phone call | The agent, as soon as the call connects: the caller dialled and expects to be greeted |
-| Outbound call on **GPT-Live 1** or **Gemini Live** | The agent, when the call is answered. These engines cannot yet be held to a single reply after hearing a greeting ([Conversation engines](/docs/conversation-engines)) |
+| Outbound call on **GPT-Live 1** or **Gemini Live** | The person, as described on this page; the live model hears the pickup and writes the reply |
 | Outbound call bound to an [agent workflow](/docs/agent-workflows) | The agent, when the call is answered, with the workflow's first step |
 | Browser test call | The agent |
 
