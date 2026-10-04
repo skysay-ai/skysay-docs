@@ -230,3 +230,20 @@ handles tools. Standard speech-to-text is not charged on that path.
 
 See the [generated API reference](/docs/api-reference) for the exact request
 and response shapes.
+
+## When a live agent proposes to end a call
+
+For a live voice model, Skysay waits for the model's goodbye to finish before
+closing the connection. Caller input stays open during that wait. If local
+speech detection says the caller is already speaking, the model's `end_call`
+request is refused. If the caller starts speaking while that close is pending,
+Skysay withdraws the close and leaves the conversation open. After the goodbye,
+there is up to 750 ms for the caller to take the floor, within the existing
+shutdown time limit.
+
+This safeguard is automatic; there is no new agent-editor switch or API field.
+It detects speech activity rather than meaning: noise can keep a call open,
+and speech the detector misses cannot stop closure. It does not establish
+identity, confirm a promise, count clarification questions, undo a goodbye
+already heard, or end a call when the model forgets to invoke `end_call`.
+Balance limits and other platform-enforced endings still close the call.
