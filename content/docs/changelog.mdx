@@ -12,6 +12,27 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 4 October 2026
+
+### Bounded pages for REST and MCP clients
+
+- Seventeen REST collections now return named item arrays and pagination; existing clients must update their readers before treating a collection as complete.
+- Four MCP read tools return size-budgeted results, and collection tools support cursor paging rather than returning an entire growing workspace.
+- `GET /v1/agent-endpoints` requires an explicit `limit`; follow `next_cursor` while `has_more` is true, and refuse malformed or incomplete pages.
+- [REST list pages and migration](/docs/rest-endpoints#bounded-list-pages) · [MCP paging](/docs/mcp#bounded-results-and-paging)
+
+### A new MCP protocol version alongside existing clients
+
+- The hosted `/mcp` and `/mcp/read-only` endpoints accept MCP `2026-07-28` alongside existing handshake-based clients.
+- A supplied, unapproved `Origin` now receives `403` before authentication; server-side clients without that header keep the existing OAuth discovery response.
+- [MCP protocol and transport](/docs/mcp#results-errors-and-tool-metadata)
+
+### Customer onboarding keeps operator review data private
+
+- Customer onboarding responses no longer expose operators' internal review notes or reviewer identities.
+- Operator review screens retain their review data, while customer list, detail and verification views use a customer-safe projection.
+- [Customer REST operations](/docs/api-reference)
+
 ## 3 October 2026
 
 ### Sign in with the six-digit code emailed to you
