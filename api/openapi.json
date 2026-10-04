@@ -417,7 +417,7 @@
       },
       "AgentModelUnresponsive": {
         "additionalProperties": false,
-        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything — a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
+        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
         "properties": {
           "seconds": {
             "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
@@ -614,7 +614,7 @@
       },
       "AgentUnrecognisedSpeech": {
         "additionalProperties": false,
-        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all — most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
+        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all \u2014 most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
         "properties": {
           "enabled": {
             "description": "`false` switches the line off for this agent, and is the only value stored: the behaviour is on for every agent that says nothing.",
@@ -4202,6 +4202,64 @@
         ],
         "type": "object"
       },
+      "StripeTopup": {
+        "anyOf": [
+          {
+            "required": [
+              "amount_minor"
+            ]
+          },
+          {
+            "required": [
+              "amount_cents"
+            ]
+          }
+        ],
+        "properties": {
+          "amount_cents": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "amount_minor": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "cancel_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "description": "Must match wallet settlement currency when provided.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Request-aware checkout uses the persisted claim even when a caller supplies a key.",
+            "type": "string"
+          },
+          "number_request_id": {
+            "description": "Optional exact request context; never confirms, purchases or reserves a number.",
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "receipt_email": {
+            "format": "email",
+            "type": "string"
+          },
+          "success_url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id"
+        ],
+        "type": "object"
+      },
       "TechnicalCallFailureEvidence": {
         "additionalProperties": false,
         "allOf": [
@@ -4319,25 +4377,6 @@
           "failure_reason_code",
           "failure_stage",
           "sip_status_code"
-        ],
-        "type": "object"
-      },
-      "Topup": {
-        "properties": {
-          "amount_cents": {
-            "type": "integer"
-          },
-          "idempotency_key": {
-            "type": "string"
-          },
-          "organization_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "organization_id",
-          "amount_cents",
-          "idempotency_key"
         ],
         "type": "object"
       },
@@ -4809,7 +4848,7 @@
     }
   },
   "info": {
-    "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 — this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
+    "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 \u2014 this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
     "title": "Skysay API",
     "version": "0.1.0"
   },
@@ -7509,11 +7548,12 @@
     },
     "/v1/billing/stripe/topup-sessions": {
       "post": {
+        "description": "Optional number_request_id must belong to the authenticated workspace/project and still be payment_required (requires numbers:read in addition to wallet:write). Return selection is rebuilt from this validated request and the configured website origin. Only a signed Stripe webhook credits funds. A still-payable or uncertain checkout with a different return context is refused; no second checkout is created.",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Topup"
+                "$ref": "#/components/schemas/StripeTopup"
               }
             }
           },
@@ -7522,6 +7562,12 @@
         "responses": {
           "201": {
             "description": "Stripe checkout session or disabled status"
+          },
+          "404": {
+            "description": "Request not found in workspace project"
+          },
+          "409": {
+            "description": "Stale request or conflicting open checkout (reason topup_context_conflict, known checkout_url when available)"
           }
         },
         "summary": "Create a Stripe checkout topup session when enabled"
@@ -9629,7 +9675,7 @@
     },
     "/v1/dashboard/agent-create": {
       "get": {
-        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header — not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
+        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header \u2014 not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -9890,7 +9936,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate — never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -9913,6 +9959,16 @@
     "/v1/dashboard/billing": {
       "get": {
         "description": "Returns one read-only Billing DTO for SSR and freshness polling, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Wallet available_minor is purchased funds; promotional_available_minor is browser-only credit and total_available_minor is their combined amount. The aggregate is tenant-bound to the bearer session, uses no Stripe or carrier request, and bounds recent wallet activity and receipts.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project; an invalid context fails instead of selecting another request. Requires numbers:read in addition to account:read, usage:read and wallet:read when present.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Billing workspace aggregate"
@@ -10728,7 +10784,17 @@
     },
     "/v1/dashboard/numbers": {
       "get": {
-        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Each number includes calling_readiness: bounded inbound routing/pricing blockers and destination-dependent outbound configuration. Outbound registration_status distinguishes pending, failed, registered, not_required and legacy; pending or failed caller-ID registration blocks outbound only and is retried independently of carrier-ready inbound activation. DIDWW capacity pricing can report capacity_hybrid_unsupported, capacity_separate_metering_unsupported, or capacity_plan_unavailable; these refuse only the affected number. Inbound readiness remains indeterminate when mandatory call-time admission checks were not evaluated; a purchased number is not proof that calls can connect. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, billing history, calls, SMS, and verification documents. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Each number includes calling_readiness: bounded inbound routing/pricing blockers and destination-dependent outbound configuration. Outbound registration_status distinguishes pending, failed, registered, not_required and legacy; pending or failed caller-ID registration blocks outbound only and is retried independently of carrier-ready inbound activation. DIDWW capacity pricing can report capacity_hybrid_unsupported, capacity_separate_metering_unsupported, or capacity_plan_unavailable; these refuse only the affected number. Inbound readiness remains indeterminate when mandatory call-time admission checks were not evaluated; a purchased number is not proof that calls can connect. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, unrelated billing history, calls, SMS, and verification documents. An exact request return may include the most recent confirmed positive Stripe top-up summary for conversion capture. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project. An unavailable selection returns no selected request so the bounded Numbers list remains usable; never selects another request.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Numbers workspace aggregate"
@@ -10840,6 +10906,16 @@
     "/v1/dashboard/verification": {
       "get": {
         "description": "Returns the selected verification profile, current number-type delta, and a batched summary of available number types. It is tenant-bound, read-only, and never syncs carrier data during a page load.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project; an invalid context fails instead of selecting another request.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Verification workspace aggregate"
