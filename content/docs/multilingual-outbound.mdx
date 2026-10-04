@@ -34,17 +34,18 @@ automatically detect a change. Some transcribers supply stable language
 evidence for automatic switching; others support switching only after the
 caller clearly asks. Check the capability shown for the chosen configuration.
 
-The call surface also matters: **Standard browser calls currently support
-explicit-request switching, but do not connect provider language evidence to
-automatic switching.** This applies to authenticated browser tests and the
-public homepage demo worker. Use a qualified phone call to test automatic
-detection. Native live engines follow language separately inside the model.
+The call surface also matters: **Standard anonymous homepage demos currently
+support explicit-request switching, but do not connect provider language
+evidence to automatic switching.** Authenticated workspace browser tests use
+the production conversation runtime, including supported provider language
+evidence, as phone calls do. Test each surface you intend to use. Native live
+engines follow language separately inside the model.
 
 | Caller starts in English, then uses German | Expected behavior |
 | --- | --- |
 | Standard, single language per call, English selected | The agent is instructed to continue in English. There is no controlled profile switch. |
-| Standard phone call, Auto multilingual, German published, automatic detection supported | Supported stable recognition evidence can trigger a switch to German. |
-| Standard browser call, Auto multilingual, German published | A clear request can trigger switching; provider-evidence automatic detection is not wired on this path. |
+| Standard phone call or authenticated workspace browser test, Auto multilingual, German published, automatic detection supported | Supported stable recognition evidence can trigger a switch to German. |
+| Standard anonymous homepage demo, Auto multilingual, German published | A clear request can trigger switching; provider-evidence automatic detection is not wired on this path. |
 | Standard, Auto multilingual, German published, explicit requests only | Ask clearly, for example “Please speak German.” German speech alone does not enable automatic switching. |
 | Standard, Auto multilingual, German excluded | An understood request is refused; the agent should explain the available languages in its current response language. |
 | GPT Live or Gemini Live | After the opening, the model is instructed to follow a full sentence addressed to it in German, or an explicit request. This is best effort. |
@@ -459,9 +460,9 @@ This release supports Follow mode for authenticated browser tests and inbound
 and outbound phone calls, including calls whose replies come from an agent
 workflow; see [Follow mode on an agent that runs a workflow](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow). An authenticated
 browser test starts in its selected published language and can follow only
-within that test's frozen published language set, through explicit requests.
-The browser worker does not yet connect provider language evidence to the
-automatic switcher. This guide is not live
+within that test's frozen published language set. It uses the production
+conversation runtime, including supported provider language evidence. The
+anonymous homepage demo is a separate path. This guide is not live
 provider or PSTN media proof; test your actual conversation before relying on
 it.
 
@@ -509,8 +510,9 @@ never selects a replacement provider or voice.
 An agent with Follow enabled over two or more published profiles is offered as a
 single **Multilingual** choice naming the languages it speaks, rather than as one
 choice per language. A visitor who picks it does not choose a starting language:
-the session opens in the agent's published opening language and then follows the
-caller within the same frozen set, as a phone call does. A Standard agent without
+the session opens in the agent's published opening language. On a Standard
+homepage demo, an explicit request can switch within the frozen set, but
+provider-evidence automatic detection is not connected. A Standard agent without
 Follow is offered once per published language; picking one selects a single
 language for that call. Native live agents are offered under their opening
 language and can still follow the caller inside the model, as described above.
