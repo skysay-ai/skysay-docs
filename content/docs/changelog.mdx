@@ -12,6 +12,50 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 4 October 2026
+
+### Bounded pages for REST and MCP clients
+
+- Seventeen REST collections now return named item arrays and pagination; existing clients must update their readers before treating a collection as complete.
+- Four MCP read tools return size-budgeted results, and collection tools support cursor paging rather than returning an entire growing workspace.
+- `GET /v1/agent-endpoints` requires an explicit `limit`; follow `next_cursor` while `has_more` is true, and refuse malformed or incomplete pages.
+- [REST list pages and migration](/docs/rest-endpoints#bounded-list-pages) · [MCP paging](/docs/mcp#bounded-results-and-paging)
+
+### A new MCP protocol version alongside existing clients
+
+- The hosted `/mcp` and `/mcp/read-only` endpoints accept MCP `2026-07-28` alongside existing handshake-based clients.
+- A supplied, unapproved `Origin` now receives `403` before authentication; server-side clients without that header keep the existing OAuth discovery response.
+- [MCP protocol and transport](/docs/mcp#results-errors-and-tool-metadata)
+
+### Customer onboarding keeps operator review data private
+
+- Customer onboarding responses no longer expose operators' internal review notes or reviewer identities.
+- Operator review screens retain their review data, while customer list, detail and verification views use a customer-safe projection.
+- [Customer REST operations](/docs/api-reference)
+
+## 3 October 2026
+
+### Sign in with the six-digit code emailed to you
+
+- Skysay sign-in now runs on a new account system; enter your email at **Skysay sign-in** and use the six-digit code we send you.
+- Browser sessions from before this update ended, so everyone signs in again once; your existing account and workspaces carry over.
+- [Sign into your workspace](/docs/authentication#sign-into-your-workspace)
+
+## 2 October 2026
+
+### Running hosted calls renew their credit reservation
+
+- Component-metered hosted calls try to reserve another five minutes before their funded time runs out, using the call's original prices and exchange rate.
+- Configured automatic recharge can help only when the additional reservation is confirmed before the deadline; the existing maximum call duration still applies.
+- A connected call that runs out of funded time remains `completed` with `ended_reason: "funding_exhausted"`; final charges still use actual component usage.
+- [Funding a running call](/docs/billing#funding-a-call-while-it-is-running) · [Call ending reasons](/docs/post-call-results#why-a-call-ended)
+
+### Browser tests report startup failures instead of staying live
+
+- Agent browser tests now show a startup failure when the voice worker cannot begin the session, instead of remaining connected without an answer.
+- These attempts end with `browser_startup_failed`, release their unused reservation, and leave the test controls ready for another attempt.
+- [Test an agent](/docs/wire-an-agent) · [Read call evidence](/docs/read-call-evidence)
+
 ## 1 October 2026
 
 ### Compare saved voice settings in the Agents list

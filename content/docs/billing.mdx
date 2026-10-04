@@ -146,6 +146,37 @@ for a larger selection, choose a shorter date range or a single type.
 no cursor), and its totals cover the returned entries only. Use Usage and
 ledger or its export for a complete record.
 
+## Funding a call while it is running
+
+Component-metered hosted calls reserve credit before they start. As the funded
+time runs low, Skysay tries to reserve another five minutes using the call's
+original prices and exchange rate, with an estimation margin. This applies to
+inbound and outbound hosted calls across conversation engines and use cases.
+Browser tests retain their existing shorter time limit.
+
+If available credit cannot cover an extension, configured automatic recharge
+may run. The call continues only when the additional reservation is confirmed
+before its current funded deadline. A payment still processing, an unavailable
+billing service, or a late top-up does not grant extra call time. The ordinary
+maximum-call duration still applies even when sufficient credit is available.
+
+When funding ends a connected call, the call remains `completed` with
+`ended_reason: "funding_exhausted"`. Its `reason_detail` distinguishes:
+
+- `insufficient_balance`: the last renewal confirmed too little eligible credit.
+- `renewal_unavailable`: further funded time could not be confirmed.
+
+The Calls detail explains this ending. Integrations should treat it separately
+from the caller's business outcome, such as a promise, booking or callback.
+An earlier caller hangup, AI agent ending or operator hangup keeps its own reason.
+
+The reservation is an estimate, not a guaranteed maximum charge. Final charges
+use actual component usage; variable model/tool use, delayed usage reports or
+a delayed carrier disconnect can exceed reserved credit. Unused reserved funds
+are released after settlement, and unpaid usage can still appear as **payment
+due**. Funding new call time does not itself collect historical unpaid charges.
+Browser-only promotional credit remains restricted to eligible browser calls.
+
 ## Existing subscription records
 
 Developer, Launch, and Growth monthly/yearly subscriptions are no longer sold.
