@@ -4166,6 +4166,64 @@
         ],
         "type": "object"
       },
+      "StripeTopup": {
+        "anyOf": [
+          {
+            "required": [
+              "amount_minor"
+            ]
+          },
+          {
+            "required": [
+              "amount_cents"
+            ]
+          }
+        ],
+        "properties": {
+          "amount_cents": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "amount_minor": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "cancel_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "description": "Must match wallet settlement currency when provided.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Request-aware checkout uses the persisted claim even when a caller supplies a key.",
+            "type": "string"
+          },
+          "number_request_id": {
+            "description": "Optional exact request context; never confirms, purchases or reserves a number.",
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "receipt_email": {
+            "format": "email",
+            "type": "string"
+          },
+          "success_url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id"
+        ],
+        "type": "object"
+      },
       "TechnicalCallFailureEvidence": {
         "additionalProperties": false,
         "allOf": [
@@ -4283,25 +4341,6 @@
           "failure_reason_code",
           "failure_stage",
           "sip_status_code"
-        ],
-        "type": "object"
-      },
-      "Topup": {
-        "properties": {
-          "amount_cents": {
-            "type": "integer"
-          },
-          "idempotency_key": {
-            "type": "string"
-          },
-          "organization_id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "organization_id",
-          "amount_cents",
-          "idempotency_key"
         ],
         "type": "object"
       },
@@ -7473,11 +7512,12 @@
     },
     "/v1/billing/stripe/topup-sessions": {
       "post": {
+        "description": "Optional number_request_id must belong to the authenticated workspace/project and still be payment_required (requires numbers:read in addition to wallet:write). Return selection is rebuilt from this validated request and the configured website origin. Only a signed Stripe webhook credits funds. A still-payable or uncertain checkout with a different return context is refused; no second checkout is created.",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Topup"
+                "$ref": "#/components/schemas/StripeTopup"
               }
             }
           },
@@ -7486,6 +7526,12 @@
         "responses": {
           "201": {
             "description": "Stripe checkout session or disabled status"
+          },
+          "404": {
+            "description": "Request not found in workspace project"
+          },
+          "409": {
+            "description": "Stale request or conflicting open checkout (reason topup_context_conflict, known checkout_url when available)"
           }
         },
         "summary": "Create a Stripe checkout topup session when enabled"
@@ -9877,6 +9923,16 @@
     "/v1/dashboard/billing": {
       "get": {
         "description": "Returns one read-only Billing DTO for SSR and freshness polling, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Wallet available_minor is purchased funds; promotional_available_minor is browser-only credit and total_available_minor is their combined amount. The aggregate is tenant-bound to the bearer session, uses no Stripe or carrier request, and bounds recent wallet activity and receipts.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project; an invalid context fails instead of selecting another request. Requires numbers:read in addition to account:read, usage:read and wallet:read when present.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Billing workspace aggregate"
@@ -10692,7 +10748,17 @@
     },
     "/v1/dashboard/numbers": {
       "get": {
-        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Each number includes calling_readiness: bounded inbound routing/pricing blockers and destination-dependent outbound configuration. Outbound registration_status distinguishes pending, failed, registered, not_required and legacy; pending or failed caller-ID registration blocks outbound only and is retried independently of carrier-ready inbound activation. DIDWW capacity pricing can report capacity_hybrid_unsupported, capacity_separate_metering_unsupported, or capacity_plan_unavailable; these refuse only the affected number. Inbound readiness remains indeterminate when mandatory call-time admission checks were not evaluated; a purchased number is not proof that calls can connect. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, billing history, calls, SMS, and verification documents. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Each number includes calling_readiness: bounded inbound routing/pricing blockers and destination-dependent outbound configuration. Outbound registration_status distinguishes pending, failed, registered, not_required and legacy; pending or failed caller-ID registration blocks outbound only and is retried independently of carrier-ready inbound activation. DIDWW capacity pricing can report capacity_hybrid_unsupported, capacity_separate_metering_unsupported, or capacity_plan_unavailable; these refuse only the affected number. Inbound readiness remains indeterminate when mandatory call-time admission checks were not evaluated; a purchased number is not proof that calls can connect. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, unrelated billing history, calls, SMS, and verification documents. An exact request return may include the most recent confirmed positive Stripe top-up summary for conversion capture. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project. An unavailable selection returns no selected request so the bounded Numbers list remains usable; never selects another request.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Numbers workspace aggregate"
@@ -10804,6 +10870,16 @@
     "/v1/dashboard/verification": {
       "get": {
         "description": "Returns the selected verification profile, current number-type delta, and a batched summary of available number types. It is tenant-bound, read-only, and never syncs carrier data during a page load.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project; an invalid context fails instead of selecting another request.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Verification workspace aggregate"
