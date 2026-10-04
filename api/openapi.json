@@ -4781,7 +4781,7 @@
   "paths": {
     "/mcp": {
       "post": {
-        "description": "MCP Streamable HTTP transport with JSON responses (protocol 2025-11-25, 2025-06-18 or 2025-03-26). GET and HEAD answer 405 with Allow: POST; no server-sent event stream is offered.",
+        "description": "MCP Streamable HTTP transport with JSON responses. Protocol 2025-11-25, 2025-06-18 or 2025-03-26 through the initialize handshake; protocol 2026-07-28 without a handshake, selected by the MCP-Protocol-Version header (server/discover, per-request _meta, Mcp-Method and Mcp-Name headers). GET and HEAD answer 405 with Allow: POST; no server-sent event stream is offered.",
         "responses": {
           "200": {
             "description": "JSON-RPC response"
@@ -4790,7 +4790,13 @@
             "description": "Notification or client response accepted; empty body"
           },
           "400": {
-            "description": "Malformed body or unsupported MCP-Protocol-Version header"
+            "description": "Malformed body, unsupported MCP-Protocol-Version header, or a 2026-07-28 request refused with a JSON-RPC error (-32600, -32602, -32020 header mismatch, -32022 unsupported version)"
+          },
+          "403": {
+            "description": "Invalid supplied Origin or insufficient credential permissions"
+          },
+          "404": {
+            "description": "A 2026-07-28 request for a method this server does not implement (JSON-RPC -32601)"
           }
         },
         "summary": "Hosted MCP endpoint"
@@ -4798,7 +4804,7 @@
     },
     "/mcp/read-only": {
       "post": {
-        "description": "Streamable HTTP profile exposing account_overview, list_agents, get_agent, list_numbers and list_calls only. Every other tool is refused before dispatch, regardless of credential permissions. OAuth tokens are audience-bound to this endpoint and cannot be used on /mcp. GET and HEAD return 405.",
+        "description": "Streamable HTTP profile exposing account_overview, list_agents, get_agent, list_numbers and list_calls only, in the same protocol revisions as /mcp. Every other tool is refused before dispatch, regardless of credential permissions. OAuth tokens are audience-bound to this endpoint and cannot be used on /mcp. GET and HEAD return 405.",
         "responses": {
           "200": {
             "description": "JSON-RPC response"
@@ -4808,6 +4814,9 @@
           },
           "401": {
             "description": "Authentication or resource audience rejected"
+          },
+          "403": {
+            "description": "Invalid supplied Origin or insufficient credential permissions"
           }
         },
         "summary": "Use the read-only MCP connector"
