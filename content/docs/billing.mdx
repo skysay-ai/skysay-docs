@@ -58,6 +58,35 @@ reservation while you browse. Other verification and availability checks still
 apply. Previously purchased orders continue through reconciliation rather than
 being purchased again.
 
+## Adding funds for a number request
+
+When **Phone numbers** says **Payment required**, choose **Add funds** on that
+request. Billing keeps the request selected and shows its current status and
+recorded quote. If the request no longer needs payment, return to its details
+for the current next step.
+
+A top-up buys purchased wallet funds. It does not reserve a number, increase
+capacity, satisfy verification, or guarantee activation. Browser-testing credit
+cannot pay for phone-number setup, registration or rental. See
+[Regulated numbers](/docs/regulated-numbers) for the request states.
+
+Checkout success and cancellation return to the same request. Only a confirmed
+Stripe payment credits the wallet. A browser redirect alone cannot add funds.
+Retries in the same checkout context reuse the recorded session and frozen
+return destinations. If another same-amount checkout is still payable or its
+outcome is unknown, Billing explains the conflict and lists known open checkout
+links. Resolve that checkout first; a different request must not silently
+inherit its return destination. An unknown checkout outcome is not confirmation
+that no payment page exists.
+
+API callers can pass `number_request_id` and, optionally, `project_id` to
+`POST /v1/billing/stripe/topup-sessions`. This requires `numbers:read` in addition
+to `wallet:write`; the request must belong to the authenticated workspace and
+still require payment. The server builds the Numbers return URL from the
+configured site origin. In this mode the persisted checkout claim governs
+idempotency, including when a caller supplies its own key. Standalone top-ups
+keep their ordinary return behavior.
+
 ## Your browser-testing credit
 
 An eligible customer receives a **one-time USD $5 welcome credit** when signing
@@ -197,3 +226,7 @@ Overview spend totals combine settled charges with still-pending reservations
 and SMS charges. Released reservations and unpaid balances do not count as
 settled spend. Legacy calls without a component-billing verdict retain their
 existing cost calculation.
+
+For `GET /v1/dashboard/billing`, ordinary reads require `account:read`,
+`usage:read` and `wallet:read`. Adding `number_request_id` also requires
+`numbers:read` to read the selected request.
