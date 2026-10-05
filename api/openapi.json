@@ -50,6 +50,14 @@
           "name": {
             "type": "string"
           },
+          "opening": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentOpening"
+              }
+            ],
+            "description": "Accepted at creation. Read and update the opening policy through the voice-stack route; the generic agent update route refuses this field."
+          },
           "organization_id": {
             "type": "string"
           },
@@ -418,6 +426,28 @@
         },
         "type": "object"
       },
+      "AgentOpening": {
+        "additionalProperties": false,
+        "description": "Outbound opening policy shared across conversation engines. Only managed outbound telephone calls use this wait; inbound and browser tests retain their normal opening. Saved by voice-stack PATCH and frozen in each call publication. Empty object resets to callee-first with two seconds of observed silence. Speech is allowed to finish beyond this wait. The timer authorizes the opening request, not first audible sound; provider generation and network latency add time.",
+        "properties": {
+          "first_speaker": {
+            "default": "callee",
+            "enum": [
+              "callee",
+              "agent"
+            ],
+            "type": "string"
+          },
+          "silence_wait_seconds": {
+            "default": 2,
+            "description": "Silence before requesting the first message when first_speaker is callee. Preserved but unused with agent-first.",
+            "maximum": 5,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
       "AgentTemplateMessage": {
         "description": "Everything POST /v1/messages takes that names no resource, plus the template and what fills it. body, campaign_id, provider and segment_count are refused. The sending number, under any of its names, must belong to the agent's project.",
         "properties": {
@@ -605,7 +635,7 @@
         "type": "object"
       },
       "AgentUpdate": {
-        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
+        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: opening, turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
         "properties": {
           "audio_stream_url": {
             "type": "string"
@@ -809,6 +839,9 @@
           "model": {
             "type": "object"
           },
+          "opening": {
+            "$ref": "#/components/schemas/AgentOpening"
+          },
           "organization_id": {
             "type": "string"
           },
@@ -926,6 +959,9 @@
           },
           "model": {
             "$ref": "#/components/schemas/VoiceComponentSelection"
+          },
+          "opening": {
+            "$ref": "#/components/schemas/AgentOpening"
           },
           "system_prompt": {
             "type": "string"
