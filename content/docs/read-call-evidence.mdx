@@ -208,47 +208,44 @@ started. With the waveform focused, the arrow keys move 5 seconds, Page Up and
 Page Down move 15 seconds, Home and End jump to the start and the end, and
 Space plays or pauses. A speed button switches between 1×, 1.5× and 2×.
 
-The bars are coloured by who is speaking: the AI agent in one colour and the
-other person in another. The other person is named the same way in the legend,
-in the hover and on every transcript line:
+The waveform shows **audio from the AI side in teal** and **audio received from
+the other side in purple**. Its colors come from verified recorded audio channels,
+independently of transcript text and caption timing. This includes Gemini Live:
+missing or late captions do not by themselves remove the person's audio color.
 
-- a number saved in your contacts shows the contact's name, with the number
-  beside it in the legend;
-- another number shows the number itself in the legend and the hover, and the
-  transcript says **Called person** on an outbound call or **Caller** on an
-  inbound one;
-- a browser test call shows **Tester**.
+A split bar and the two thin lanes above the waveform show audio from both sides
+within that displayed time window. On a long call, one window can contain two
+successive turns, so this is not proof that both people spoke simultaneously.
+Channel colors also include background sounds, echo or generated audio from that
+side. They do not confirm speech, words, or the person's identity. Very quiet
+stretches appear as dots.
 
-Hovering over the waveform shows the time, the speaker and the first words of
-that turn. The colours come only from turns whose start and end were measured
-on the recording itself. Louder sound that no measured turn covers is grey and
-listed as **Other sound**; hovering it says **Not matched to a speaker**. That
-can be a hang-up click or line noise, and it can also be speech that was
-transcribed without a measured start and end, so grey never means "nobody
-spoke". Quiet stretches show as dots. Older recordings without measured turns
-show the waveform without speaker colours.
+The legend shows a saved contact name when available. Otherwise, it shows
+**Called person** and the number on outbound calls, **Caller** and the number on
+inbound calls, or **Tester** for browser tests. A saved name identifies your
+contact record; it does not prove who answered. Hovering shows the time and
+audio source for that window.
 
-On GPT-Live calls, the other person's turn is matched to their speech from the
-moment the engine first transcribed it, so most of their turns are coloured and
-have their own clip. A turn stays grey rather than borrowing a clip whenever
-its speech cannot be matched to one stretch of the recording, for example the
-second half of a sentence the engine split into two turns. Gemini Live sends
-its transcript only after the person stops talking, which cannot be matched
-safely yet, so the other person's turns on Gemini Live calls stay grey. Calls
-recorded before this change keep the timing they had.
+When source tracks cannot be linked reliably to the played recording, the
+waveform stays neutral with **Audio source colors are unavailable for this
+recording**. This does not mean nobody spoke. Eligible retained recordings can
+be recovered from their original tracks without another call or transcription.
+Recordings whose required tracks were deleted or never captured cannot gain
+verified source colors through this recovery.
+
+Waveform colors are separate from transcript-turn clips. A turn gets a play
+button only when its text can be matched safely to its own recorded audio.
+Gemini's late captions can therefore leave a turn without a clip even when the
+full-call waveform correctly shows purple person audio.
 
 The player reads only the start of the file when a call opens, so its length is
 known before you press play. From the press until audio actually plays it shows
 a loading state, and if the recording cannot be loaded it says so and offers
 **Try again**.
 
-The same data is in the `GET /v1/dashboard/calls` response for the selected
-call: `waveform.speaker_segments` lists each attributed span (`turn_id`,
-`speaker`, `start_ms`, `end_ms`) on the recording's clock, and
-`waveform.speaker_segments_truncated` is `true` when the call has more turns
-than the response carries. `counterparty` carries the other person's
-`phone_e164` (empty for a browser test) and `contact_name`, the name that
-number is saved under in your contacts (the newest when several lists hold it).
+The Calls workspace receives bounded audio-source evidence with its existing
+call-detail read. The public waveform endpoint continues to return mixed-audio
+peaks; it does not expose the workspace's per-channel projection.
 
 ## Listen turn by turn in Calls
 
