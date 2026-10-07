@@ -76,6 +76,9 @@
             },
             "type": "array"
           },
+          "translation": {
+            "$ref": "#/components/schemas/TranslationPolicy"
+          },
           "voice": {
             "oneOf": [
               {
@@ -202,6 +205,10 @@
                 "call.recording.ready",
                 "call.extraction.ready",
                 "call.extraction.failed",
+                "call.translation.ready",
+                "call.translation.failed",
+                "sms.translation.ready",
+                "sms.translation.failed",
                 "sms.received",
                 "sms.sent",
                 "campaign.launched",
@@ -253,6 +260,10 @@
                 "call.recording.ready",
                 "call.extraction.ready",
                 "call.extraction.failed",
+                "call.translation.ready",
+                "call.translation.failed",
+                "sms.translation.ready",
+                "sms.translation.failed",
                 "sms.received",
                 "sms.sent",
                 "campaign.launched",
@@ -683,6 +694,9 @@
               "$ref": "#/components/schemas/AgentTool"
             },
             "type": "array"
+          },
+          "translation": {
+            "$ref": "#/components/schemas/TranslationPolicy"
           },
           "voice": {
             "oneOf": [
@@ -2235,6 +2249,127 @@
         ],
         "type": "object"
       },
+      "CallTranscriptPage": {
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "properties": {
+                "speaker": {
+                  "const": "caller",
+                  "type": "string"
+                },
+                "start_ms": {
+                  "type": "integer"
+                },
+                "type": {
+                  "const": "caller_spoke_no_transcript"
+                }
+              },
+              "required": [
+                "type",
+                "speaker",
+                "start_ms"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/TranscriptPagination"
+          },
+          "source_revision": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTimelineItem"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "transcript_settled": {
+            "type": "boolean"
+          },
+          "transcript_status": {
+            "type": "string"
+          },
+          "translation": {
+            "$ref": "#/components/schemas/CommunicationTranslation"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTurn"
+            },
+            "maxItems": 500,
+            "type": "array"
+          }
+        },
+        "required": [
+          "call_id",
+          "source_revision",
+          "transcript_status",
+          "transcript_settled",
+          "pagination",
+          "translation",
+          "turns",
+          "events",
+          "timeline",
+          "text"
+        ],
+        "type": "object"
+      },
+      "CallTranscriptStreamPage": {
+        "description": "JSON envelope containing an ordered event page, with the NDJSON content type label preserved.",
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "content_type": {
+            "const": "application/x-ndjson",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTimelineItem"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/TranscriptPagination"
+          },
+          "source_revision": {
+            "type": "integer"
+          },
+          "transcript_settled": {
+            "type": "boolean"
+          },
+          "transcript_status": {
+            "type": "string"
+          },
+          "translation": {
+            "$ref": "#/components/schemas/CommunicationTranslation"
+          }
+        },
+        "required": [
+          "call_id",
+          "source_revision",
+          "transcript_status",
+          "transcript_settled",
+          "pagination",
+          "translation",
+          "content_type",
+          "events"
+        ],
+        "type": "object"
+      },
       "CallWorkflow": {
         "additionalProperties": false,
         "description": "Where a call's conversation workflow ended, read the same way on the call detail, MCP get_call and the call.completed / call.failed webhooks. Ids, platform and author-declared strings, and the author's outcome label only; never a call value. The vocabularies are open: a later release may add values, so handle unknown ones. On a webhook this is a snapshot at emission; GET /v1/calls/{call_id} is the current read, and `settled` says whether it can still change. To act on a request not to be contacted, check `\"cease_contact\" in interrupts`: it is the one canonical stop signal, and nothing adds the number to the do-not-call register by itself.",
@@ -2865,6 +3000,199 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "CommunicationTranslation": {
+        "properties": {
+          "catalog": {
+            "properties": {
+              "max_targets": {
+                "const": 6,
+                "type": "integer"
+              },
+              "supported_target_languages": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "tariff": {
+                "properties": {
+                  "currency": {
+                    "const": "USD",
+                    "type": "string"
+                  },
+                  "minimum_per_source_target": {
+                    "const": 0.01,
+                    "type": "number"
+                  },
+                  "rate_per_1000_words": {
+                    "const": 0.02,
+                    "type": "number"
+                  },
+                  "word_count_rule": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "supported_target_languages",
+              "max_targets",
+              "tariff"
+            ],
+            "type": "object"
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "pagination": {
+            "description": "Selected call translation units follow the original transcript timeline's pages.",
+            "properties": {
+              "has_more": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "next_cursor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "returned": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "quote": {
+            "description": "Pre-inference upper bound using all original words. Language detection can reduce the settled price. Absent for unavailable or unquoted summary sources.",
+            "properties": {
+              "currency": {
+                "type": "string"
+              },
+              "max_eligible_words": {
+                "type": "integer"
+              },
+              "maximum_amount_minor": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "quote_pending": {
+            "description": "The settled source is waiting for its current-revision word-count summary. Poll this pure read; quote is absent until ready.",
+            "type": "boolean"
+          },
+          "source_completeness": {
+            "description": "Partial indicates interrupted artifact delivery or unsettled source data; any available original text remains readable.",
+            "enum": [
+              "complete",
+              "partial",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "source_kind": {
+            "enum": [
+              "call",
+              "message"
+            ],
+            "type": "string"
+          },
+          "source_revision": {
+            "type": "integer"
+          },
+          "source_status": {
+            "enum": [
+              "historical",
+              "not_settled",
+              "unavailable",
+              "empty",
+              "unit_too_large",
+              "too_large",
+              "available"
+            ],
+            "type": "string"
+          },
+          "translations": {
+            "items": {
+              "properties": {
+                "amount_minor": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "eligible_words": {
+                  "type": "integer"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "source_revision": {
+                  "type": "integer"
+                },
+                "status": {
+                  "enum": [
+                    "not_requested",
+                    "queued",
+                    "running",
+                    "ready",
+                    "waiting_funds",
+                    "failed",
+                    "stale"
+                  ],
+                  "type": "string"
+                },
+                "target_language": {
+                  "type": "string"
+                },
+                "units": {
+                  "items": {
+                    "properties": {
+                      "id": {
+                        "description": "The immutable original turn or message id.",
+                        "type": "string"
+                      },
+                      "text": {
+                        "maxLength": 16000,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "text"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "maxItems": 49,
+            "type": "array"
+          }
+        },
+        "required": [
+          "source_kind",
+          "source_id",
+          "source_revision",
+          "eligible",
+          "source_status",
+          "translations",
+          "catalog"
+        ],
         "type": "object"
       },
       "ContactImport": {
@@ -4377,6 +4705,308 @@
           "failure_reason_code",
           "failure_stage",
           "sip_status_code"
+        ],
+        "type": "object"
+      },
+      "TranscriptPagination": {
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "limit": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "returned": {
+            "maximum": 500,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "returned",
+          "has_more",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
+      "TranscriptTimelineItem": {
+        "oneOf": [
+          {
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/TranscriptTurn"
+              },
+              "type": {
+                "const": "turn"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "speaker": {
+                    "const": "caller",
+                    "type": "string"
+                  },
+                  "start_ms": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "speaker",
+                  "start_ms"
+                ],
+                "type": "object"
+              },
+              "type": {
+                "const": "caller_spoke_no_transcript"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "TranscriptTurn": {
+        "properties": {
+          "audio_artifact_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "call_id": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "end_ms": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer"
+          },
+          "speaker": {
+            "type": "string"
+          },
+          "start_ms": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "description": "Original text; null with unavailable_reason for an oversized unit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "translated_text": {
+            "description": "Cached text for this exact original ID and revision; null when unavailable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "translation_status": {
+            "enum": [
+              "not_requested",
+              "queued",
+              "running",
+              "ready",
+              "waiting_funds",
+              "failed",
+              "stale"
+            ],
+            "type": "string"
+          },
+          "unavailable_reason": {
+            "enum": [
+              "source_unit_too_large"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "speaker",
+          "sequence",
+          "text",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "TranslationPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "target_languages": {
+            "items": {
+              "enum": [
+                "ar",
+                "bn",
+                "bg",
+                "ca",
+                "zh",
+                "hr",
+                "cs",
+                "da",
+                "nl",
+                "en",
+                "et",
+                "fi",
+                "fr",
+                "de",
+                "el",
+                "gu",
+                "he",
+                "hi",
+                "hu",
+                "id",
+                "it",
+                "ja",
+                "kn",
+                "ko",
+                "lv",
+                "lt",
+                "ms",
+                "ml",
+                "mr",
+                "no",
+                "fa",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sr",
+                "si",
+                "sk",
+                "sl",
+                "es",
+                "sw",
+                "sv",
+                "ta",
+                "te",
+                "th",
+                "tr",
+                "uk",
+                "ur",
+                "vi"
+              ],
+              "type": "string"
+            },
+            "maxItems": 6,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "type": "object"
+      },
+      "TranslationRequest": {
+        "additionalProperties": false,
+        "description": "Idempotent for the current source revision and target. Repeating the command reuses the saved result; no client-generated idempotency key is needed.",
+        "properties": {
+          "target_language": {
+            "enum": [
+              "ar",
+              "bn",
+              "bg",
+              "ca",
+              "zh",
+              "hr",
+              "cs",
+              "da",
+              "nl",
+              "en",
+              "et",
+              "fi",
+              "fr",
+              "de",
+              "el",
+              "gu",
+              "he",
+              "hi",
+              "hu",
+              "id",
+              "it",
+              "ja",
+              "kn",
+              "ko",
+              "lv",
+              "lt",
+              "ms",
+              "ml",
+              "mr",
+              "no",
+              "fa",
+              "pl",
+              "pt",
+              "ro",
+              "ru",
+              "sr",
+              "si",
+              "sk",
+              "sl",
+              "es",
+              "sw",
+              "sv",
+              "ta",
+              "te",
+              "th",
+              "tr",
+              "uk",
+              "ur",
+              "vi"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_language"
         ],
         "type": "object"
       },
@@ -8413,22 +9043,282 @@
     },
     "/v1/calls/{call_id}/transcript": {
       "get": {
+        "description": "Read one bounded original/translation timeline page with canonical IDs, source_revision, unchanged recording anchors, missing-caption events and pagination {limit, returned, has_more, next_cursor}. Follow next_cursor while has_more. Oversized source units return explicit unavailable placeholders so later events remain reachable. Cursors bind the source revision; refresh after a changed source. A selected translation language only reads a cached artifact and never creates work.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "translation_language",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "{call_id, transcript_status, turns: [...], text, events: [{type: caller_spoke_no_transcript, speaker: caller, start_ms}]}. `events` lists, with no text, each moment the other party spoke on a voice-to-voice call and the engine answered but gave no caption for that speech; `turns` and `text` hold only transcribed speech and are unchanged by it. `turns` and `text` are in the Calls drawer's reading order, not always `sequence` order: by offset, with a caller turn ordered no earlier than the caller turn before it, so a caller turn re-timed after the call reads ahead of an agent reply whenever that ordering offset is earlier. An empty `events` never means the other party was silent."
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallTranscriptPage"
+                }
+              }
+            },
+            "description": "One bounded, revision-consistent transcript page."
+          },
+          "409": {
+            "description": "Source revision changed; restart pagination from the first page."
           }
         },
-        "summary": "Get call transcript turns"
+        "summary": "Get call transcript turns",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
       }
     },
     "/v1/calls/{call_id}/transcript/stream": {
       "get": {
+        "description": "Read one bounded original/translation timeline page with canonical IDs, source_revision, unchanged recording anchors, missing-caption events and pagination {limit, returned, has_more, next_cursor}. Follow next_cursor while has_more. Oversized source units return explicit unavailable placeholders so later events remain reachable. Cursors bind the source revision; refresh after a changed source. A selected translation language only reads a cached artifact and never creates work.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "translation_language",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "{call_id, content_type, transcript_status, events: [{type: turn, data: <turn>} | {type: caller_spoke_no_transcript, data: {speaker: caller, start_ms}}]}, in the Calls drawer's reading order: turns and moments by offset, a caller turn never ahead of an earlier caller turn, and a moment before a turn at the same ordering offset; the turns in the same order as the transcript's `turns`."
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallTranscriptStreamPage"
+                }
+              }
+            },
+            "description": "One bounded, revision-consistent transcript page."
+          },
+          "409": {
+            "description": "Source revision changed; restart pagination from the first page."
           }
         },
-        "summary": "Get transcript stream events"
+        "summary": "Get transcript stream events",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
+      }
+    },
+    "/v1/calls/{call_id}/transcript/translations": {
+      "get": {
+        "description": "Pure read: target selection, original/translation/both display, and polling never invoke a provider or create paid work. Artifacts are fenced to the current source revision. Historical generation is unavailable.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_language",
+            "schema": {
+              "enum": [
+                "ar",
+                "bn",
+                "bg",
+                "ca",
+                "zh",
+                "hr",
+                "cs",
+                "da",
+                "nl",
+                "en",
+                "et",
+                "fi",
+                "fr",
+                "de",
+                "el",
+                "gu",
+                "he",
+                "hi",
+                "hu",
+                "id",
+                "it",
+                "ja",
+                "kn",
+                "ko",
+                "lv",
+                "lt",
+                "ms",
+                "ml",
+                "mr",
+                "no",
+                "fa",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sr",
+                "si",
+                "sk",
+                "sl",
+                "es",
+                "sw",
+                "sv",
+                "ta",
+                "te",
+                "th",
+                "tr",
+                "uk",
+                "ur",
+                "vi"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target, limit, or cursor."
+          },
+          "404": {
+            "description": "Source absent from the credential's own workspace, including for operator credentials."
+          },
+          "409": {
+            "description": "Source changed; restart from the first page."
+          }
+        },
+        "summary": "Read cached call translations",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
+      },
+      "post": {
+        "description": "Explicitly request translation for a new eligible source, even when automatic agent translation is disabled. $0.02 per 1,000 original words needing translation per target, minimum $0.01 per successfully translated source/target. Matching-language-only text and cached reads cost zero. Failed attempts and platform corrections never double-charge. No funds leaves translation waiting_funds and does not resume calls or SMS.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target or ineligible source."
+          },
+          "403": {
+            "description": "Missing content/paid-write scope, suspended source or workspace."
+          },
+          "404": {
+            "description": "Source not in the credential's workspace."
+          }
+        },
+        "summary": "Request paid call translation",
+        "x-required-scopes": [
+          "recordings:read",
+          "translations:write"
+        ]
       }
     },
     "/v1/calls/{call_id}/waveform": {
@@ -9979,7 +10869,7 @@
     },
     "/v1/dashboard/billing-history": {
       "get": {
-        "description": "Returns one read-only page DTO. `history` is wallet spend per UTC period (granularity `day` with periods up to 90, default 30; or `month` with periods up to 24, default 12; `end` optionally names the last day YYYY-MM-DD or month YYYY-MM), per category (`calls`, `sms`, `numbers`, `recordings`, `other`), in the wallet's currency as integer minor units, with every period present. Spend is money the ledger recorded as spent; top-ups, refunds and call holds/releases are not spend. `ledger` is one page of wallet entries, newest first by (created_at, id), filtered by `type` (`all`, `topup`, `call`, `sms`, `number`, `recording`, `refund`, `hold`, `other`) and an inclusive UTC date range `from`/`to` (YYYY-MM-DD, default the history window); pass `next_cursor` back as `cursor` while `has_more` is true. `matching_count` counts the filtered entries up to `export_row_cap`, and `matching_count_exceeds_export_cap` says the CSV export would be refused. `calls_split` divides the range's call spend into `phone_line_minor` (the carrier component's share of each hosted AI call, rounded down, or the whole of a call billed without hosted AI components) and `ai_agent_minor` (the rest); the two always add up to `calls_minor`. Each entry's `amount_minor` is how the entry reads to a customer: the amount spent, negative, for a charge (which is taken from an earlier hold), otherwise the change to available funds (a hold negative, its release positive, a credit positive); so amounts across a call's hold, charge and release do not sum to the balance change. `available_delta_minor` sums to the change in available funds and `spent_delta_minor` to spend. Entries carry only customer-safe fields: Stripe references in short form, a `call_id` only for a call in the same workspace, and an `sms_conversation_id` for an SMS charge. The ledger lists the whole organization's wallet, every project's entries alike, whatever `project_id` is passed (a `project_id` must belong to the session's organization, else 404). Each entry's `project_id` is the project of its call or SMS conversation (null when it has neither, or the conversation belongs to no project). The dashboard Calls and SMS pages read only the session's project, so the workspace links an entry's call or conversation only when the entry's `project_id` is that project. Tenant-bound to the bearer session; no provider request and no write.",
+        "description": "Returns one read-only page DTO. `history` is wallet spend per UTC period (granularity `day` with periods up to 90, default 30; or `month` with periods up to 24, default 12; `end` optionally names the last day YYYY-MM-DD or month YYYY-MM), per category (`calls`, `sms`, `numbers`, `recordings`, `translations`, `other`), in the wallet's currency as integer minor units, with every period present. Spend is money the ledger recorded as spent; top-ups, refunds and call holds/releases are not spend. `ledger` is one page of wallet entries, newest first by (created_at, id), filtered by `type` (`all`, `topup`, `call`, `sms`, `number`, `recording`, `translation`, `refund`, `hold`, `other`) and an inclusive UTC date range `from`/`to` (YYYY-MM-DD, default the history window); pass `next_cursor` back as `cursor` while `has_more` is true. `matching_count` counts the filtered entries up to `export_row_cap`, and `matching_count_exceeds_export_cap` says the CSV export would be refused. `calls_split` divides the range's call spend into `phone_line_minor` (the carrier component's share of each hosted AI call, rounded down, or the whole of a call billed without hosted AI components) and `ai_agent_minor` (the rest); the two always add up to `calls_minor`. Each entry's `amount_minor` is how the entry reads to a customer: the amount spent, negative, for a charge (which is taken from an earlier hold), otherwise the change to available funds (a hold negative, its release positive, a credit positive); so amounts across a call's hold, charge and release do not sum to the balance change. `available_delta_minor` sums to the change in available funds and `spent_delta_minor` to spend. Entries carry only customer-safe fields: Stripe references in short form, a `call_id` only for a call in the same workspace, and an `sms_conversation_id` for an SMS charge. The ledger lists the whole organization's wallet, every project's entries alike, whatever `project_id` is passed (a `project_id` must belong to the session's organization, else 404). Each entry's `project_id` is the project of its call or SMS conversation (null when it has neither, or the conversation belongs to no project). The dashboard Calls and SMS pages read only the session's project, so the workspace links an entry's call or conversation only when the entry's `project_id` is that project. Tenant-bound to the bearer session; no provider request and no write.",
         "parameters": [
           {
             "in": "query",
@@ -10025,6 +10915,7 @@
                 "sms",
                 "number",
                 "recording",
+                "translation",
                 "refund",
                 "hold",
                 "other"
@@ -12239,6 +13130,153 @@
           }
         },
         "summary": "List SMS provider delivery events for one message"
+      }
+    },
+    "/v1/messages/{message_id}/translations": {
+      "get": {
+        "description": "Pure read: target selection, original/translation/both display, and polling never invoke a provider or create paid work. Artifacts are fenced to the current source revision. Historical generation is unavailable.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_language",
+            "schema": {
+              "enum": [
+                "ar",
+                "bn",
+                "bg",
+                "ca",
+                "zh",
+                "hr",
+                "cs",
+                "da",
+                "nl",
+                "en",
+                "et",
+                "fi",
+                "fr",
+                "de",
+                "el",
+                "gu",
+                "he",
+                "hi",
+                "hu",
+                "id",
+                "it",
+                "ja",
+                "kn",
+                "ko",
+                "lv",
+                "lt",
+                "ms",
+                "ml",
+                "mr",
+                "no",
+                "fa",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sr",
+                "si",
+                "sk",
+                "sl",
+                "es",
+                "sw",
+                "sv",
+                "ta",
+                "te",
+                "th",
+                "tr",
+                "uk",
+                "ur",
+                "vi"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target, limit, or cursor."
+          },
+          "404": {
+            "description": "Source absent from the credential's own workspace, including for operator credentials."
+          },
+          "409": {
+            "description": "Source changed; restart from the first page."
+          }
+        },
+        "summary": "Read cached message translations",
+        "x-required-scopes": [
+          "sms:read"
+        ]
+      },
+      "post": {
+        "description": "Explicitly request translation for a new eligible source, even when automatic agent translation is disabled. $0.02 per 1,000 original words needing translation per target, minimum $0.01 per successfully translated source/target. Matching-language-only text and cached reads cost zero. Failed attempts and platform corrections never double-charge. No funds leaves translation waiting_funds and does not resume calls or SMS.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target or ineligible source."
+          },
+          "403": {
+            "description": "Missing content/paid-write scope, suspended source or workspace."
+          },
+          "404": {
+            "description": "Source not in the credential's workspace."
+          }
+        },
+        "summary": "Request paid message translation",
+        "x-required-scopes": [
+          "sms:read",
+          "translations:write"
+        ]
       }
     },
     "/v1/number-catalog": {
