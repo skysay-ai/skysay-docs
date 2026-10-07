@@ -24,6 +24,93 @@ rather than assuming every call has a recording.
 as `cursor` while `pagination.has_more` is true to read older calls; see
 [Bounded results and paging](/docs/mcp#bounded-results-and-paging).
 
+## Translate a transcript
+
+Open a call in **Calls** and choose **Original**, **Translation**, or **Both**.
+Choose the language you want to read. Switching the display or reading a saved
+translation is free and does not start processing.
+
+If no translation exists, **Translate** shows the maximum charge before you
+request it. You can translate an individual eligible call even when automatic
+translation is off. Original speaker labels, turn IDs, recording timestamps,
+and missing-caption markers stay in place. Translations are machine-generated
+reading aids; use the original and recording to verify important details.
+They do not replace structured call outcomes or regenerate the analysis.
+
+For automatic translation, open the AI agent's **Languages** settings, turn on
+**Translate transcripts automatically**, choose up to six target languages,
+and save translation settings. The setting is captured for each new
+communication. Later changes apply to future communications. Existing saved
+translations remain readable after automatic translation is turned off.
+
+Translation runs on a separate background worker after the call ends and its
+stored transcript settles. It does not add translation inference to the live
+voice conversation. AI-agent-associated SMS messages use the same policy and
+show translations beside the original message in **SMS**.
+
+Only communications created after this feature becomes available are eligible.
+Historical calls and messages keep their originals; this release has no
+historical translation or backfill command.
+
+### Languages, charges, and funds
+
+Choose any language in the supported-language selector. Text already entirely
+in that language is preserved and is not charged. A mixed-language turn is
+translated as one unit so its context is preserved; only its original words
+that need translation are charged. Missing speech cannot be recovered by
+translation.
+
+Translation costs **$0.02 per 1,000 eligible original words per target
+language**, with a **$0.01 minimum per successfully translated call or message
+per target**. It uses your usual Skysay balance. For example, translating 500
+eligible words into English costs $0.01; translating those words into English
+and German costs $0.02 in total. Charges are rounded up to a cent. The price
+shown before processing is an upper bound because language detection may find
+some text already in the requested language. Non-USD wallets use the platform's
+currency conversion.
+
+Word counts use a fixed Unicode word-boundary rule across writing systems,
+rather than counting spaces or estimating from audio duration. Punctuation by
+itself is not a word. Retries, cached reads, and replacement translations after
+platform transcript corrections do not produce duplicate customer charges.
+
+If funds are unavailable, only translation waits. Add funds to resume it;
+you can still read the original. A failed translation leaves the original
+available. Removing or redacting source text also invalidates and removes its
+stored translation text.
+
+### API reads and explicit requests
+
+Use the canonical API reference for the request and response fields:
+
+- `PATCH /v1/agents/{agent_id}` configures the agent's `translation` policy.
+- `POST /v1/calls/{call_id}/transcript/translations` explicitly requests a target.
+- `GET /v1/calls/{call_id}/transcript?translation_language=en` reads originals
+  and the current cached English translation together.
+- The call transcript translation read endpoint and SMS translation endpoints
+  expose the same saved artifact states. A GET never calls the translation
+  provider or creates paid work.
+
+Subscribe to `call.translation.ready`, `call.translation.failed`,
+`sms.translation.ready`, or `sms.translation.failed` for completion notices.
+These events contain source and translation references, the source revision,
+target language and status. Fetch the cached artifact through the API; the
+event does not include transcript text.
+
+Transcript reads are bounded pages. Follow `pagination.next_cursor` while
+`pagination.has_more` is true, keeping the same target language. A page contains
+complete original/translation turn pairs and caption-gap markers. If the
+original changes during pagination, the API returns `409`; restart at the first
+page rather than combining different transcript revisions. A source turn too
+large for a page has an explicit unavailable placeholder; its cursor still
+allows later turns to be read.
+
+Processing accepts at most 2,000 text units and 200,000 source characters, with
+at most 8,000 characters in one unit and 32 chunks. Oversized sources are
+rejected before provider processing and are never silently translated only
+partway. A partial original transcript can have a translation of all available
+text; its missing-caption markers remain visible.
+
 ## What a recording contains
 
 A `recording` is the call's audio metadata plus:
