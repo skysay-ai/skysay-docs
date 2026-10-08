@@ -122,6 +122,21 @@ rejected before provider processing and are never silently translated only
 partway. A partial original transcript can have a translation of all available
 text; its missing-caption markers remain visible.
 
+## When a turn clip is unavailable
+
+If Skysay detects delayed audio arriving in a backlog, it cannot reliably
+locate individual transcript turns in that recording. The Calls transcript
+keeps the original words and explains that clip timing is uncertain. Listen
+to the full recording instead. Both speakers' turn clips are withheld for
+that call; normal clip playback remains available for unaffected calls.
+
+For these turns, transcript `metadata.timing_quality` is `ambiguous`,
+`metadata.timing_reason` is `delivery_backlog`, and `audio_artifact_id` is
+null. New recordings without detected backlog use `heuristic` timing with
+reason `callback_timing`: absence of detected backlog is not a guarantee of
+sample-accurate timing. This detection does not repair the recording's timing
+or reconstruct missing captions. It does not change saved historical calls.
+
 ## What a recording contains
 
 A `recording` is the call's audio metadata plus:
