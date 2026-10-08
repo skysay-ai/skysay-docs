@@ -17,7 +17,15 @@ export async function GET() {
 
 Agent-native telephony: real phone numbers, calls, and SMS an AI agent runs on
 its own over MCP. This file is the entire Skysay documentation and blog in
-one pull. The machine-readable API lives at:
+one pull.
+
+## Product
+
+- [Phone numbers for AI agents](${SITE}/phone-numbers-for-ai-agents): numbers in 100+ countries for personal calls, businesses, and apps; connect through MCP, the API, or the workspace. Availability, supported features, and registration requirements vary by number.
+
+## API surface
+
+The machine-readable API lives at:
 
 - OpenAPI: ${SITE}/control-plane/openapi.json
 - API llms-full.txt: ${SITE}/control-plane/llms-full.txt

@@ -109,6 +109,12 @@ included. `sip_status_code` is nullable. When Skysay cannot prove a safe
 cause, `availability` and `terminal_status` remain `unknown` rather than being
 inferred from call duration or today’s configuration.
 
+A call refused before anything dialled reports `terminal_status: "failed"` and
+`failure_stage: "outbound_authorization"`, with `failure_reason_code`
+`outbound_authorization_rejected` (refused by your workspace capabilities) or
+`outbound_authorization_held_for_review` (held for review; its call `status`
+stays `needs_review`).
+
 Only final SIP responses from 200 through 699 are retained in this terminal
 failure field. Provisional call-progress responses such as 180 Ringing are not
 terminal evidence and are omitted.
@@ -282,6 +288,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `remote_party_disconnected` | the other party hung up |
 | `hangup_requested` | someone ended the call from your workspace or through the hangup endpoint |
 | `max_call_duration_reached` | the call reached its configured maximum length |
+| `funding_exhausted` | the current credit reservation could not be extended before its funded deadline — see [Funding a running call](/docs/billing#funding-a-call-while-it-is-running) |
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
 | `agent_completed` | the agent finished the conversation and ended the call |
 | `media_session_lost` | the media session went away while the call was still live |
@@ -290,8 +297,8 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
 
-The workspace Calls page does not display the ending reason yet; read it
-from the call resource or the `call.completed` webhook.
+The workspace Calls detail explains funding-related endings. Read the full
+ending-reason vocabulary from the call resource or the `call.completed` webhook.
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
@@ -308,6 +315,8 @@ and it qualifies one of the two, which you can tell from its value:
 | `looping_recording` | `answer_classification` `non_human_audio` | a recording repeated the same cycle of things over and over |
 | `no_audio` | `answer_classification` `silent` | the line answered and nothing at all was heard |
 | `model_unresponsive` | `ended_reason` `agent_unresponsive` | the agent stopped answering: see below |
+| `insufficient_balance` | `ended_reason` `funding_exhausted` | the latest renewal confirmed insufficient eligible credit |
+| `renewal_unavailable` | `ended_reason` `funding_exhausted` | additional funded time was not confirmed by the deadline |
 
 It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` is the
 ending that goes with the `non_human_audio` classification, and only an agent set to `end_call`
@@ -443,11 +452,14 @@ rather than being cut off without one.
 
 **Nobody spoke after the call was answered.** If no speech is heard from the
 other party for **20 seconds** after the call is answered, by default, the call
-ends and reports `no_caller_speech_after_answer`. Speech is detected from the audio
-itself by voice activity detection; on a GPT-Live 1 agent the engine's own live
-captions of the other party count as well, since it hears the caller directly.
-Once the other party has been heard once the rule does not apply again for the
-rest of that call. This measures audio, not intent: a voicemail greeting is
+ends and reports `no_caller_speech_after_answer`. A call stays open while the
+caller is heard, by voice, by transcript, or by the engine's own detection:
+speech is detected from the audio itself by voice activity detection; on a
+GPT-Live 1 or Gemini Live agent the engine's own live captions of the other
+party count as well, since it hears the caller directly; and on a Gemini Live
+agent the engine starting a reply of its own to what it heard counts too (its
+automatic reply to a tool result does not). Once the other party
+has been heard once the rule does not apply again for the rest of that call. This measures audio, not intent: a voicemail greeting is
 speech, so this rule is not a voicemail detector. What it catches is a call
 that connects to silence.
 

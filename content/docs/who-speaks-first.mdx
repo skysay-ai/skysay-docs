@@ -10,6 +10,40 @@ the moment the call is answered and speaks once the person has finished, so its
 opening does not land on top of their greeting and they do not have to say
 hello twice.
 
+## Configure the opening
+
+Open **AI agents → your AI agent → Identity**. Beside **First message**, choose:
+
+- **Wait for the person** (default): listen for their greeting. If nobody speaks,
+  wait two seconds by default; choose a silent wait between one and five seconds.
+- **AI agent speaks first**: request the opening as soon as the outbound call is
+  answered. The saved silent wait is retained for switching back.
+
+These settings apply to Standard, GPT-Live 1 and Gemini Live. Voice and engine
+selection stay on **Voice**. Keep your opening words in **First message** and
+behavioral instructions in **System prompt**; there is no duplicate editor.
+Publish changes to use the new opening on subsequent calls. A call already
+admitted keeps the opening policy in its publication snapshot.
+
+The wait applies to outbound telephone calls. An inbound call or browser test
+still opens normally, so a browser test alone does not verify pickup timing.
+
+API clients save the same policy with
+`PATCH /v1/agents/{agent_id}/voice-stack`:
+
+```json
+{
+  "opening": {
+    "first_speaker": "callee",
+    "silence_wait_seconds": 2
+  }
+}
+```
+
+Use `"agent"` for an AI-agent-first opening. An empty `opening` object resets
+both settings to their defaults; omitting `opening` preserves the saved policy.
+The API rejects values outside one to five seconds and unknown fields.
+
 ## Before the call is answered
 
 On every outbound call, whatever the conversation engine, the agent neither
@@ -24,12 +58,13 @@ them.
   replies. There is no time limit on a person: a long greeting such as "Good
   afternoon, Harbour Street Pharmacy, Sam speaking, how can I help?" is heard
   to the end. A short pause between sentences does not end their turn; a pause
-  of about 0.6 seconds or more does.
-- **Nobody speaks.** If the line stays silent for two seconds after the call is
-  answered, the agent speaks its opening.
+  of about 0.6 seconds or more starts the response decision. The agent also
+  allows a brief window for the person to resume before releasing a reply.
+- **Nobody speaks.** If the line stays silent for your configured wait after the call is
+  answered (two seconds by default), the agent requests its opening.
 - **The line plays sound that is not a voice.** Hold music, a tone or other
   continuous sound is not silence, so the two-second rule does not apply to it.
-  After six seconds of it, the agent speaks its opening once. Recognising an
+  After six seconds of it, the agent requests its opening once. Recognising an
   answering machine or a looping recording is a separate matter, covered in
   [Answer detection](/docs/answer-detection) and
   [Voicemail detection](/docs/voicemail-detection).
@@ -38,14 +73,27 @@ them.
 
 ## What the agent says first
 
-- If the person only greeted the agent or asked who is calling, the agent
-  replies with your opening line as written.
-- If they said something else, such as "wrong number", "can you call me back
-  later?" or a question, the agent answers that first and then carries on
+- If the person only greets the agent, it uses your **First message**.
+  Standard reads a literal opening as written; live models follow the opening
+  instruction and may phrase it differently.
+- If they said something else, such as "wrong number", "who is calling?",
+  "can you call me back later?" or another question, the agent answers that first and then carries on
   toward the purpose of the call. It does not read its opening over what it has
   just heard.
 - If your agent's opening is generated rather than a fixed line, it is written
   with what the person said in view.
+
+On GPT-Live 1 and Gemini Live, the model hears the pickup while Skysay waits
+to release its first response. If the person resumes during that wait, Skysay
+discards the pending response to the incomplete pickup. The model still
+decides the words: a timing safeguard does not guarantee that it understands
+every request or repeats a configured opening exactly. Test your agent's
+languages and instructions with representative calls.
+
+The two-second silent-line rule is when the opening is requested. Model and
+audio processing add time before the person hears it. If caller audio briefly
+stops arriving, Skysay waits for a fresh observed quiet interval; it does not
+count the missing audio as silence.
 
 The opening is an ordinary reply. The person can interrupt it, and the agent
 stops and listens, as it would at any other point in the call.
@@ -56,18 +104,29 @@ stops and listens, as it would at any other point in the call.
 | --- | --- |
 | Outbound phone call, **Standard** conversation engine | The person, as described on this page |
 | Inbound phone call | The agent, as soon as the call connects: the caller dialled and expects to be greeted |
-| Outbound call on **GPT-Live 1** or **Gemini Live** | The agent, when the call is answered. These engines cannot yet be held to a single reply after hearing a greeting ([Conversation engines](/docs/conversation-engines)) |
-| Outbound call bound to an [agent workflow](/docs/agent-workflows) | The agent, when the call is answered, with the workflow's first step |
+| Outbound call on **GPT-Live 1** or **Gemini Live** | The person, as described on this page; the live model hears the pickup and writes the reply |
+| Outbound Standard call bound to an [agent workflow](/docs/agent-workflows) | Follows the same opening setting; pickup speech is checked before the first workflow step |
 | Browser test call | The agent |
 
-There is no setting for who speaks first and no per-agent override: the call's
-direction, engine and workflow decide it as shown above.
+The outbound rows describe the default **Wait for the person** setting.
+Choosing **AI agent speaks first** changes those outbound rows only.
+
+For a workflow, pickup speech can trigger a configured global interrupt, such
+as a callback or stop request, before the entry step. If no interrupt matches,
+the workflow speaks its entry step. A greeting or other pickup never counts as
+an answer to a question that has not been spoken. Which interrupts exist and
+where they lead remain part of the workflow. Live-engine workflow binding is
+not added by this opening setting.
+
+Listening during speech and protecting a pending hangup are automatic engine
+behavior. They do not introduce additional Identity switches. Question-attempt
+limits are a separate workflow capability and are not part of this change.
 
 ## Time on the call
 
 The time the agent spends listening is part of the call. Outbound time is
 billed from the moment the call is placed, as described in
 [Billing](/docs/billing). The rules that end a call nobody speaks on are
-unchanged: a person who answers and says nothing hears the opening after two
-seconds, and the call then ends as described in
+unchanged: on a silent line the AI agent requests its opening after the
+configured wait, and the call then ends as described in
 [Answer detection](/docs/answer-detection) if they never reply.

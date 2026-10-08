@@ -12,6 +12,240 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 8 October 2026
+
+### Number requests link to the verification you complete later
+
+- Submitting verification links the request **Complete verification** started from, and your workspace's other open requests for the same country, number type and business or personal type.
+- When more than one verification profile could apply, Skysay does not choose; support links the request.
+- Approval moves linked requests to their next check in the same step instead of leaving them at `awaiting_verification`.
+- [Where a number request waits](/docs/regulated-numbers#where-a-number-request-waits)
+
+### More reliable transcript translation
+
+- Translation requests no longer fail because Skysay rejected a valid translation response from the language model; earlier requests that failed this way can be requested again.
+- Temporary provider failures are retried automatically up to three times; a translation that still fails releases its reserved funds and is not charged.
+- Translations whose output changes numbers or breaks language checks are refused rather than saved; the original transcript stays readable.
+- [Translate a transcript](/docs/read-call-evidence#translate-a-transcript) · [Translation charges](/docs/read-call-evidence#languages-charges-and-funds)
+
+## 7 October 2026
+
+### Recover funds reserved by ended calls
+
+- Ended hosted calls retry delivery of measured usage, settle at their original prices, and return unused reserved funds.
+- If trustworthy usage is still unavailable after 24 hours, automatic recovery returns the reservation without charging; active calls keep their reservations.
+- Purchased and promotional funds keep their original type, and a late usage report cannot charge a reservation already returned by recovery.
+- [Ended-call reservations](/docs/billing#a-call-has-ended-but-funds-are-still-reserved) · [Usage and ledger](/docs/billing)
+
+### Keep audio when live captions are missing
+
+- Live-call speech keeps its recorded audio when the engine omits a caption, and a known caption gap marks the transcript as partial.
+- Late captions are handled more reliably; missing words are never invented, and some provider captions can still be unavailable.
+- [Read call evidence](/docs/read-call-evidence) · [Listen turn by turn](/docs/read-call-evidence#listen-turn-by-turn-in-calls)
+
+### Translate older transcripts when needed
+
+- Use **Translate** or the translation API for any accessible, completed call with retained transcript text, including calls made before translation was introduced; retained SMS supports the same explicit request.
+- See the maximum price before requesting a translation; reuse an existing translation without another charge.
+- Older conversations remain unchanged until you request a translation; this does not enable automatic translation or start a historical backfill.
+- [Translate a transcript](/docs/read-call-evidence#translate-a-transcript) · [Translation API](/docs/read-call-evidence#api-reads-and-explicit-requests)
+
+### Read transcripts in another language
+
+- Open a new call’s transcript and choose **Original**, **Translation**, or **Both**; request a missing translation with **Translate** and see its maximum price first.
+- In an AI agent’s **Languages** settings, enable automatic translation for up to six languages; it is off by default and runs after calls end.
+- Calls and agent-associated SMS use your usual balance: $0.02 per 1,000 eligible words per target, with a $0.01 minimum; historical conversations stay unchanged.
+- [Translate a transcript](/docs/read-call-evidence#translate-a-transcript) · [Translation charges](/docs/read-call-evidence#languages-charges-and-funds)
+
+## 5 October 2026
+
+### Choose who speaks first on outbound calls
+
+- In **Identity**, choose whether the agent speaks first or listens at pickup; the silent wait defaults to two seconds.
+- The same opening settings apply to Standard, GPT-Live 1 and Gemini Live; ongoing speech holds the opening until the person finishes.
+- Live engines retain pickup speech for their first response, and caller speech can cancel a pending hangup so the conversation continues.
+- Standard reads a fixed **First message** as written; live engines follow its instruction, with no guarantee of exact wording.
+- [Opening settings](/docs/who-speaks-first) · [Conversation engines](/docs/conversation-engines)
+
+### Resume a number request after payment or verification
+
+- **Phone numbers** shows each request’s status and next action, including **Add funds** when payment is needed and **Complete verification** when required.
+- **Add funds** and **Complete verification** preserve the selected request through Billing and verification; completing either step does not claim the number is active.
+- [Number request status](/docs/regulated-numbers#where-a-number-request-waits) · [Adding funds](/docs/billing#adding-funds-for-a-number-request)
+
+## 4 October 2026
+
+### Bounded pages for REST and MCP clients
+
+- Seventeen REST collections now return named item arrays and pagination; existing clients must update their readers before treating a collection as complete.
+- Four MCP read tools return size-budgeted results, and collection tools support cursor paging rather than returning an entire growing workspace.
+- `GET /v1/agent-endpoints` requires an explicit `limit`; follow `next_cursor` while `has_more` is true, and refuse malformed or incomplete pages.
+- [REST list pages and migration](/docs/rest-endpoints#bounded-list-pages) · [MCP paging](/docs/mcp#bounded-results-and-paging)
+
+### A new MCP protocol version alongside existing clients
+
+- The hosted `/mcp` and `/mcp/read-only` endpoints accept MCP `2026-07-28` alongside existing handshake-based clients.
+- A supplied, unapproved `Origin` now receives `403` before authentication; server-side clients without that header keep the existing OAuth discovery response.
+- [MCP protocol and transport](/docs/mcp#results-errors-and-tool-metadata)
+
+### Customer onboarding keeps operator review data private
+
+- Customer onboarding responses no longer expose operators' internal review notes or reviewer identities.
+- Operator review screens retain their review data, while customer list, detail and verification views use a customer-safe projection.
+- [Customer REST operations](/docs/api-reference)
+
+## 3 October 2026
+
+### Sign in with the six-digit code emailed to you
+
+- Skysay sign-in now runs on a new account system; enter your email at **Skysay sign-in** and use the six-digit code we send you.
+- Browser sessions from before this update ended, so everyone signs in again once; your existing account and workspaces carry over.
+- [Sign into your workspace](/docs/authentication#sign-into-your-workspace)
+
+## 2 October 2026
+
+### Running hosted calls renew their credit reservation
+
+- Component-metered hosted calls try to reserve another five minutes before their funded time runs out, using the call's original prices and exchange rate.
+- Configured automatic recharge can help only when the additional reservation is confirmed before the deadline; the existing maximum call duration still applies.
+- A connected call that runs out of funded time remains `completed` with `ended_reason: "funding_exhausted"`; final charges still use actual component usage.
+- [Funding a running call](/docs/billing#funding-a-call-while-it-is-running) · [Call ending reasons](/docs/post-call-results#why-a-call-ended)
+
+### Browser tests report startup failures instead of staying live
+
+- Agent browser tests now show a startup failure when the voice worker cannot begin the session, instead of remaining connected without an answer.
+- These attempts end with `browser_startup_failed`, release their unused reservation, and leave the test controls ready for another attempt.
+- [Test an agent](/docs/wire-an-agent) · [Read call evidence](/docs/read-call-evidence)
+
+## 1 October 2026
+
+### Compare saved voice settings in the Agents list
+
+- Compare saved transcription, language and speech models, or native voice-engine settings, directly in your Agents list.
+- Search models and providers, filter by engine, and open agent details while keeping your place in the list.
+- Saved settings can differ from the published configuration used for calls.
+- [Manage agents in the workspace](/docs/wire-an-agent#or-do-it-in-the-workspace)
+
+### OAuth and a read-only MCP endpoint
+
+- The hosted MCP service now advertises OAuth discovery and uses Skysay sign-in to request workspace-scoped access.
+- `/mcp/read-only` exposes workspace overview, agent list and detail, phone numbers, and call metadata; it cannot place calls, send messages, or change workspace records.
+- [Connect with OAuth](/docs/mcp#connect-with-oauth) · [Read-only connector](/docs/mcp#read-only-connector-for-claude)
+
+## 30 September 2026
+
+### Catalog additions no longer require publishing your agents again
+
+- Adding a voice or model to the catalog leaves existing published agents ready to call, with their saved selections and prompts unchanged.
+- Queued calls keep their reserved configuration; an unavailable or invalid selection still needs correcting before it can run.
+- [Catalog updates and published agents](/docs/voice-library#catalog-updates-and-published-agents)
+
+### Calls held for review are explicitly refused without a wallet reservation
+
+- A single outbound call held as `needs_review` is never dialled and now emits `call.failed` with failure stage `outbound_authorization`.
+- It reserves no wallet funds and does not count toward your voice spend cap, but still counts toward call-count limits.
+- Cancel the held request to clear it, or submit a new request with a known relationship or explicit authorization naming who approved it and why.
+- [A call held for review](/docs/policy-and-outbound#a-call-held-for-review) · [API reference](/docs/api-reference)
+
+## 29 September 2026
+
+### Nothing adds a number to your do-not-call register automatically
+
+- A workflow's cease-contact interrupt and an AI agent's **Record the call outcome** tool now record that the caller asked not to be contacted, for you to review; they no longer add the number to your do-not-call register.
+- Only you add numbers, on the Contacts page, by CSV, or through the API or MCP; the numbers you add are still honoured on every outbound path, and entries added automatically before this change keep their source.
+- In a campaign, a workflow's cease contact still finishes that contact when it is the last request the caller made.
+- A reply to a spoken line that leads straight to a branch is now one choice between that branch's routes and the dispute, hardship, callback and human-request interrupts, so a route you wrote for the reply is taken when it fits better.
+- [Do-not-call](/docs/contacts#do-not-call) · [Do-not-call register](/docs/campaigns#do-not-call-register) · [Workflow routing](/docs/agent-workflows#the-canvas)
+
+### A call says where its workflow ended
+
+- `GET /v1/calls/{call_id}`, MCP `get_call`, and the `call.completed` and `call.failed` webhooks carry `workflow`: the last outcome step reached, whether the workflow is `settled`, and every interrupt it took, in `interrupts`.
+- `workflow` is `null` for a call that ran no workflow; the `GET /v1/calls` list does not include it.
+- To act on a caller who asked not to be contacted, check that `interrupts` contains `"cease_contact"` rather than matching a step id or label.
+- A campaign contact's `workflow_interrupt` is now the most recent interrupt the workflow took.
+- [Where a call's workflow ended](/docs/read-call-evidence#where-a-calls-workflow-ended)
+
+### A caller who spoke without a caption is marked in the transcript
+
+- On GPT-Live and Gemini Live calls, when the other party spoke and the engine answered without a caption, the Calls transcript shows a "Spoke — no transcript" line where their turn would be.
+- `get_call_transcript` keeps `turns` and `text` to captioned speech and adds an `events` list with these moments; the transcript stream places them between turns under their own `type`.
+- Post-call extraction reads a `[spoke, no transcript]` line at that point, and `turns`, `text`, the stream and extraction all read in the order the Calls workspace shows.
+- [When the other party spoke but has no transcript](/docs/read-call-evidence#when-the-other-party-spoke-but-has-no-transcript) · [What reaches the API and post-call analysis](/docs/read-call-evidence#what-reaches-the-api-and-post-call-analysis)
+
+### ElevenLabs v4 Turbo is a choosable voice model
+
+- ElevenLabs v4 Turbo (`eleven_v4_turbo`) can be chosen as cascade text-to-speech for English, Spanish, French, German, Italian, Portuguese, Dutch, Russian, Swedish and Estonian.
+- It is the default for none of them, so existing agents keep their saved voice model.
+- It takes stability and similarity only, and costs $0.050 per 1,000 characters.
+- [ElevenLabs v4 Turbo](/docs/language-qualification#elevenlabs-v4-turbo) · [Delivery profiles](/docs/delivery-profiles)
+
+## 28 September 2026
+
+### Call variables: give each call its own data
+
+- Declare an agent's variables once, write them into its greeting, workflow lines, instructions and SMS templates as `{{name}}`, and each call fills in its own values.
+- Values come from `call_context` on `POST /v1/calls`, from a campaign's contact-list columns, from an inbound caller lookup, or from `test_values` in Talk and Chat tests.
+- A `protected` value on a workflow agent is said only after the caller shows they are the right person; live engines cannot protect values.
+- An agent's SMS templates are sent during a call or with `POST /v1/agents/{agent_id}/messages`; free text stays allowed unless the agent is templates-only.
+- [Call variables](/docs/call-variables) · [SMS templates](/docs/call-variables#sms-templates) · [What changes for existing integrations](/docs/call-variables#what-changes-for-existing-integrations)
+
+### Scheduled maintenance windows answer `503 platform_maintenance`
+
+- During a short scheduled maintenance window, placing calls, sending SMS, starting tests and changing agents answer `503` with `"error": "platform_maintenance"`, `retry_after_seconds` and a `Retry-After` header.
+- Queued outbound calls wait for the window to close instead of failing, and reading anything keeps working.
+- A refused request changed nothing, so retrying it after the window is safe; MCP tools are refused the same way.
+- [Maintenance windows](/docs/errors#maintenance-windows)
+
+### An edit to an AI agent takes effect on its next call
+
+- An edit to an agent's prompt, greeting, language or voice stack through `PATCH /v1/agents/{agent_id}` now publishes the agent in the same step.
+- Before, such an edit to an already published agent was stored while calls kept running the last published version until the next publish from the editor.
+- An edit that cannot be published, such as a greeting its voice cannot speak, is refused and nothing changes; calls already under way keep what they started with.
+- [Changing an agent later](/docs/wire-an-agent#changing-an-agent-later)
+
+### MCP tool results carry the REST error body, and content needs its scope
+
+- A refused MCP tool call carries the same body the REST route returns, as `structuredContent.error.body`, such as the issues a refused config names.
+- Tool results carry `structuredContent` and `isError`, and every tool lists its required scopes under `_meta`.
+- SMS text needs `sms:read` and simulation conversation content needs `recordings:read` wherever it appears; tools stay callable at their base scope and omit those fields.
+- Subscribing a webhook to `sms.received` or `call.extraction.ready`, or changing a webhook address, needs the matching content scope.
+- [When a tool call is refused](/docs/mcp#when-a-tool-call-is-refused) · [Content fields](/docs/mcp#content-fields) · [Migration for custom MCP clients](/docs/mcp#migration-for-custom-mcp-clients)
+
+### On outbound calls the person says hello first
+
+- On outbound calls on the Standard engine, the agent waits for the person to answer and finish their hello before it speaks.
+- After two seconds of silence the agent speaks its opening; a plain hello gets the opening as written, and anything else is answered first.
+- Inbound calls, GPT-Live 1 and Gemini Live, workflow calls and browser tests keep the agent speaking first, and there is no setting to change.
+- [Who speaks first](/docs/who-speaks-first)
+
+### GPT-Live calls show who spoke when
+
+- On GPT-Live calls, the other person's turns are matched to their speech, so matched turns get speaker colours in the recording player and their own clip.
+- A turn that cannot be matched to one stretch of speech stays grey rather than playing someone else's words.
+- On Gemini Live calls the other person's turns stay grey for now, because that engine transcribes only after the person stops.
+- [Play a recording in Calls](/docs/read-call-evidence#play-a-recording-in-calls)
+
+### A Contacts page for your lists, one person, and the do-not-call register
+
+- **Contacts**, under **Tools & Operations**, has three tabs: **Lists**, **All contacts** to find one person across every list, and **Do-not-call**.
+- Open a list to search and filter its contacts, add, edit or delete one, append rows from a CSV, and see each contact's latest campaign outcome.
+- When a campaign uses the list, the page previews what its AI agent will say to the selected contact, rendered with that contact's values.
+- [Contacts](/docs/contacts) · [Preview](/docs/contacts#preview)
+
+### Rename, delete and export a contact list
+
+- **Rename** a list and the campaigns that use it keep using it; over the API, `PATCH /v1/contact-lists/{contact_list_id}` does the same.
+- **Delete list** is refused while a campaign that is launching, scheduled, running or paused uses the list, and the page names those campaigns.
+- **Export** downloads the list as a CSV that **Import CSV** reads back as the same contacts, custom values and consent basis included.
+- A contact's consent basis, **Existing customer** or **Explicit consent**, is set when you add or edit it, or mapped from a column on import.
+- [Deleting a list](/docs/contacts#deleting-a-list) · [The API](/docs/contacts#the-api)
+
+### A call stays open while the engine hears the caller
+
+- The rule that ends an answered call after 20 seconds with nobody speaking now counts the caller as heard by voice, by transcript, or by the engine's own detection.
+- On GPT-Live 1 and Gemini Live agents the engine's captions of the caller count, and on Gemini Live the engine starting a reply of its own counts too.
+- [When a call ends automatically](/docs/post-call-results#when-a-call-ends-automatically)
+
 ## 27 September 2026
 
 ### A recording player you can seek anywhere

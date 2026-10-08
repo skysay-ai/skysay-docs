@@ -9,6 +9,9 @@ the carrier to register an **end user** against the number first. Which one you
 are in decides what you have to supply and when the number is ordered, so read
 the requirement before you build a checkout around it.
 
+For an overview before choosing a country or integration, see
+[Phone numbers for AI agents](/phone-numbers-for-ai-agents).
+
 ## Read the requirement first
 
 `GET /v1/numbers/requirements` (`numbers:read`) resolves one country, number
@@ -115,14 +118,51 @@ you to abandon the country.
 
 ## Where a number request waits
 
-A number request reports a status and a sentence describing what it is waiting
-for. Registration changes which waits apply:
+A saved request is not yet an active phone number. **Phone numbers** shows
+its current status, recorded details, and the next action you can take.
 
-| Status | What it means |
+| Status | What you see and do |
 | --- | --- |
-| `awaiting_verification` | Your Skysay verification profile is not approved yet. Nothing carrier-side has started. |
-| `carrier_verification` | Your profile is approved by Skysay, and the number is waiting on documents or on the carrier's own verdict. |
-| `fulfillment_queued` | Everything Skysay needs is done and the number is being ordered. |
+| `payment_required` | **Payment required → Add funds.** Purchased wallet funds are needed. Browser-testing credit cannot pay for a number. |
+| `awaiting_verification` | **Verification required → Complete verification.** Supply the person or business details required for this request's country and number type. |
+| `requested` | **Request saved → View details.** Check the recorded details; this state alone does not establish what is blocking the request. |
+| `carrier_verification` | **Verification checks → View details.** Read the recorded next step. This state alone does not prove that documents have been submitted to, or approved by, the carrier. |
+| `fulfillment_queued` | **Finding an available number → View details.** The request is queued, which does not prove that the number has been purchased. |
+| `active`, `assigned` | The request is complete. Open its assigned number when it is available in the list. |
+| `failed` | **Could not activate → View details.** Read the recorded reason; the request remains visible. |
+| `closed` | The request is closed and normally leaves the pending list. A return link to that request still shows its current outcome. |
+
+Payment and verification are separate checks. Follow the current next action;
+completing one check can reveal another. A requirement recorded as
+`not_required` says registration is not required for that request. A missing
+requirement is shown as unknown, not as a request for documents. This is
+based on the request's recorded requirement, not a fixed country rule.
+
+**Add funds** opens Billing with the same request selected. It shows the
+recorded quote only when its currency and charge components are known;
+otherwise it says the quote is pending. The top-up amount you choose buys
+wallet credit and is not a charge for that exact quote. Checkout returns to
+the same request, even if its status changed while you were away. The wallet
+is credited only after a confirmed payment, not because a return URL says
+`success`. Availability, number limits and verification checks still apply.
+
+**Complete verification** opens the exact request's country, number type and
+person or business context. It does not substitute another request or the
+first profile in your workspace. Errors and identity-verification returns keep
+that context. Submitting verification links that request to the profile you
+verified and returns you to the same request; it does not itself claim the
+number is purchased, carrier-approved or active. The remaining provisioning
+checks must also be ready.
+
+A request you saved before verifying is linked to that verification as well.
+When you submit verification, Skysay links your workspace's open requests for
+the same country, number type and business or personal type. If more than one
+of your verification profiles could apply, Skysay does not choose for you: the
+request that **Complete verification** started from is linked, and Skysay
+support links any other. When Skysay approves the verification, the linked
+requests move to their next check in the same step, usually
+`carrier_verification`, instead of staying at `awaiting_verification`. A
+request saved after you submitted verification is linked at that approval.
 
 When the number is ordered, Skysay checks the exact number you chose with the
 carrier again, however long the request has waited:

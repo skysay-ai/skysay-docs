@@ -16,7 +16,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `account_overview` | `account:read` | Wallet, agents, numbers, calls, SMS conversations, and usage. SMS bodies require `sms:read`. |
+| `account_overview` | `account:read` | Bounded workspace summary: wallet, usage totals with up to 10 line items, and for agents, numbers, number requests, calls and SMS conversations a `total` with up to 5 newest previews and the `list_tool` that pages them. Never includes SMS message content. See [Bounded results and paging](/docs/mcp#bounded-results-and-paging). |
 | `list_audio_environments` | `account:read` | Read the immutable versioned ambience catalogue (including Off). It has the same result and scope as `GET /v1/audio-environments`; it never contacts a provider or changes a selection. |
 
 ## Coverage & catalog
@@ -32,7 +32,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `list_agents` | `agents:read` | Bounded newest-first `{ agents, pagination }` page using the safe REST agent item projection. |
+| `list_agents` | `agents:read` | Bounded newest-first `{ agents, pagination }` page (at most `limit` agents and 25,000 characters) using the safe REST agent item projection. |
 | `get_agent` | `agents:read` | Read one safe agent configuration projection. |
 | `create_agent` | `agents:write` | Create a first-class agent in `external_audio`, `external_text`, or `hosted` mode. |
 | `connect_external_agent` | `agents:write` | Shortcut for an `external_audio` agent with webhook + audio-stream URLs. |
@@ -53,7 +53,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `list_numbers` | `numbers:read` | List phone numbers and registration status. |
+| `list_numbers` | `numbers:read` | Bounded newest-first `{ numbers, pagination }` page of phone numbers with registration status (`limit` 1–50, default 10; at most 25,000 characters). |
 | `get_number_rules` | `numbers:read` | Get customer-facing number rules for one phone number. |
 | `list_phone_servers` | `numbers:read` | List customer phone servers for self-hosted media/calling. |
 | `request_number` | `numbers:write` | Create a managed number request (live ordering needs operator approval). |
@@ -65,8 +65,8 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `list_calls` | `calls:read` | List calls for a workspace. |
-| `get_call` | `calls:read` | Get call status and recording state. |
+| `list_calls` | `calls:read` | Bounded newest-first `{ calls, pagination }` page of call records without `runtime_config` (`limit` 1–50, default 10; at most 25,000 characters). `get_call` returns the full record. |
+| `get_call` | `calls:read` | Get call status, recording state, and where its conversation workflow ended (outcome, interrupts taken, settled). |
 | `get_call_recording` | `recordings:read` | Get recording metadata and disclosure state. |
 | `get_call_transcript` | `recordings:read` | Get transcript turns. |
 | `create_outbound_call` | `calls:write` | Place a policy-gated outbound call. |

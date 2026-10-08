@@ -13,11 +13,114 @@ rather than assuming every call has a recording.
 
 ```text
 → list_calls(...)                        # calls:read
-→ get_call(call_id="cl_...")             # calls:read — status + recording state
+→ get_call(call_id="cl_...")             # calls:read — status, recording state, where the workflow ended
 → get_call_recording(call_id="cl_...")   # recordings:read — metadata + disclosure
 → GET recording.download_url              # recordings:read — playable audio bytes
 → get_call_transcript(call_id="cl_...")  # recordings:read — transcript turns
 ```
+
+`list_calls` returns one newest-first page of call records (without the
+`runtime_config` that `get_call` includes). Pass `pagination.next_cursor` back
+as `cursor` while `pagination.has_more` is true to read older calls; see
+[Bounded results and paging](/docs/mcp#bounded-results-and-paging).
+
+## Translate a transcript
+
+Open a call in **Calls** and choose **Original**, **Translation**, or **Both**.
+Choose the language you want to read. Switching the display or reading a saved
+translation is free and does not start processing.
+
+If no translation exists, **Translate** shows the maximum charge before you
+request it. You can translate an individual eligible call even when automatic
+translation is off. Original speaker labels, turn IDs, recording timestamps,
+and missing-caption markers stay in place. Translations are machine-generated
+reading aids; use the original and recording to verify important details.
+They do not replace structured call outcomes or regenerate the analysis.
+
+When you enable automatic translation or request one explicitly, Skysay sends
+the stored transcript or message text to Google Gemini for translation. Audio
+is not sent by this feature. Switching views only reads the saved result.
+
+For automatic translation, open the AI agent's **Languages** settings, turn on
+**Translate transcripts automatically**, choose up to six target languages,
+and save translation settings. The setting is captured for each new
+communication. Later changes apply to future communications. Existing saved
+translations remain readable after automatic translation is turned off.
+
+Translation runs on a separate background worker after the call ends and its
+stored transcript settles. It does not add translation inference to the live
+voice conversation. AI-agent-associated SMS messages use the same policy and
+show translations beside the original message in **SMS**.
+
+You can explicitly translate an older call or message as long as you can access
+its retained text and the source is ready. The creation date does not prevent a
+translation request. Choose a language in the transcript or message viewer,
+check the price, and select **Translate**, or use the same API command below.
+Repeating a request for the same source revision and language reuses its result.
+
+Automatic AI agent settings apply to new communications. They do not start a
+bulk translation of your history. Requesting an older source translates only
+the languages you request; later source corrections refresh those translations
+without charging again. Deleted or redacted content cannot be regenerated.
+
+### Languages, charges, and funds
+
+Choose any language in the supported-language selector. Text already entirely
+in that language is preserved and is not charged. A mixed-language turn is
+translated as one unit so its context is preserved; only its original words
+that need translation are charged. Missing speech cannot be recovered by
+translation.
+
+Translation costs **$0.02 per 1,000 eligible original words per target
+language**, with a **$0.01 minimum per successfully translated call or message
+per target**. It uses your usual Skysay balance. For example, translating 500
+eligible words into English costs $0.01; translating those words into English
+and German costs $0.02 in total. Charges are rounded up to a cent. The price
+shown before processing is an upper bound because language detection may find
+some text already in the requested language. Non-USD wallets use the platform's
+currency conversion.
+
+Word counts use a fixed Unicode word-boundary rule across writing systems,
+rather than counting spaces or estimating from audio duration. Punctuation by
+itself is not a word. Retries, cached reads, and replacement translations after
+platform transcript corrections do not produce duplicate customer charges.
+
+If funds are unavailable, only translation waits. Add funds to resume it;
+you can still read the original. A failed translation leaves the original
+available. Removing or redacting source text also invalidates and removes its
+stored translation text.
+
+### API reads and explicit requests
+
+Use the canonical API reference for the request and response fields:
+
+- `PATCH /v1/agents/{agent_id}` configures the agent's `translation` policy.
+- `POST /v1/calls/{call_id}/transcript/translations` explicitly requests a target.
+- `GET /v1/calls/{call_id}/transcript?translation_language=en` reads originals
+  and the current cached English translation together.
+- The call transcript translation read endpoint and SMS translation endpoints
+  expose the same saved artifact states. A GET never calls the translation
+  provider or creates paid work.
+
+Subscribe to `call.translation.ready`, `call.translation.failed`,
+`sms.translation.ready`, or `sms.translation.failed` for completion notices.
+These events contain source and translation references, the source revision,
+target language and status. Fetch the cached artifact through the API; the
+event does not include transcript text.
+
+Transcript reads are bounded pages. Follow `pagination.next_cursor` while
+`pagination.has_more` is true, keeping the same target language. A page contains
+complete original/translation turn pairs and caption-gap markers. If the
+original changes during pagination, the API returns `409`; restart at the first
+page rather than combining different transcript revisions. A source turn too
+large for a page has an explicit unavailable placeholder; its cursor still
+allows later turns to be read.
+
+Processing accepts at most 2,000 text units and 200,000 source characters, with
+at most 8,000 characters in one unit and 32 chunks. Oversized sources are
+rejected before provider processing and are never silently translated only
+partway. A partial original transcript can have a translation of all available
+text; its missing-caption markers remain visible.
 
 ## What a recording contains
 
@@ -30,7 +133,7 @@ A `recording` is the call's audio metadata plus:
 - **Retention / disclosure state** — how long the audio is kept and whether the
   required call disclosure was made.
 
-`get_call` returns the call status and recording state; `get_call_recording`
+`get_call` returns the call status, recording state and [where its workflow ended](#where-a-calls-workflow-ended); `get_call_recording`
 returns recording metadata, disclosure state, and a relative `download_url`;
 `get_call_transcript` returns the transcript turns. Fetch `download_url` with
 the same bearer credential to play or download the audio. The endpoint accepts
@@ -274,13 +377,78 @@ being attributed to one of them.
 Deleting a recording, a retention expiry, or re-importing a corrected recording
 removes these rows along with it.
 
-### What this does not change
+### When the other party spoke but has no transcript
 
-The public transcript API and its stream are unchanged: `get_call_transcript`
-returns turns only, exactly as before. The `call.completed`,
-`call.transcript.ready` and `call.recording.ready` webhooks are unchanged, as
-are post-call extraction, turn counts, and campaign and call-group readiness —
-all of which read transcript turns and nothing else.
+On a GPT-Live or Gemini Live call, the engine's own captions of the other party
+can be missing — most often for Sinhala. When that happens, the agent's replies
+are in the transcript but what the other party said is not.
+
+So that such a call does not read as the agent talking to nobody, the
+transcript shows a **"Spoke — no transcript"** line where the other party's turn
+would be, under the same label as their turns (**Caller**, **Called person** on
+an outbound call, or the contact's name), with its offset into the call. It
+carries no words. Nothing the person said is known, only that they spoke.
+
+The line is written only when all of these hold:
+
+- voice activity was detected on the line before the engine's next reply,
+- no caption came back for that speech, and
+- Skysay did not ask the engine for a line in between, such as a check-in,
+  since the engine's reply could then be answering that request instead.
+
+It is placed where that speech began. If the person said something that was
+captioned and then something that was not, only the uncaptioned part is marked.
+
+Speech the engine never heard, such as someone who spoke only while the opening
+message was playing, is never marked, and neither is anything said once the
+call has started ending. Someone who starts over the end of the opening and
+keeps talking after it is marked where they began. A call on the standard pipeline never shows the line: its own
+transcriber writes the turn instead.
+
+The rule is deliberately cautious. It can miss a moment -- for example when the
+engine did not answer the person and Skysay then asked whether they were still
+there -- rather than invent one. It can occasionally mark the agent's own voice
+coming back on a phone line as the other party, since both reach Skysay as
+sound on the line.
+
+The line is evidence that the person spoke, not the other way round: **a call
+without it does not mean the other party was silent.** A call whose captions
+were all missing can have a transcript made only of the agent's turns. That
+transcript counts as available, like any transcript that has turns.
+
+### What reaches the API and post-call analysis
+
+Tool rows and language switches are shown in the Calls workspace only. The
+public transcript API does not return them.
+
+The "no transcript" moments are different, because they change what a call
+was. They are added to the transcript API beside the turns, never among them:
+
+- `get_call_transcript` keeps `turns` and `text` to captioned speech only, and
+  adds an `events` list with one entry per moment:
+  `{"type": "caller_spoke_no_transcript", "speaker": "caller", "start_ms": ...}`.
+  There is no text, because none exists.
+- The transcript stream places the same entries between the turns, in reading
+  order, under their own `type`, beside the existing `turn` entries. A client
+  that reads stream entries should check `type` before reading turn fields
+  such as `data.text`: a `caller_spoke_no_transcript` entry's `data` holds only
+  `speaker` and `start_ms`.
+- Post-call extraction reads a `[spoke, no transcript]` line for the caller at
+  that point, and is told the line carries no content. It can then see that
+  the person answered without inventing what they said.
+
+`turns`, `text`, the stream and the extraction input all read in the order the
+Calls workspace shows: by when each turn started, with the caller's own turns
+kept in the order they were spoken, and a moment before a turn that starts at
+the same instant. A caller turn whose start was measured on the recording after
+the call can therefore come before the agent reply it was answered with, so
+`turns` is not always in `sequence` order. Sort by `sequence` if you need the
+order the turns were stored in.
+
+An integration that reads only `turns` sees no new entries. The `call.completed`,
+`call.transcript.ready` and `call.recording.ready` webhooks carry a pointer to
+the transcript rather than its turns, so they are unchanged. Turn counts, and
+campaign and call-group readiness, count transcript turns only.
 
 ## Call variables on a call
 
@@ -301,6 +469,65 @@ lookup, a test) and its state.
   not sent** in Talk and Chat).
   Neither shows what the caller said, the value compared, the SMS text or the
   recipient.
+
+## Where a call's workflow ended
+
+A call that ran a [conversation workflow](/docs/agent-workflows) says where the
+workflow ended in `workflow`, on `GET /v1/calls/{call_id}`, MCP `get_call`, and
+the `call.completed` and `call.failed` webhooks. The field is always present,
+and `null` for a call that ran no workflow (a GPT-Live or Gemini Live call runs
+none). The `GET /v1/calls` list and the call's other reads do not include it.
+
+```json
+"workflow": {
+  "workflow_id": "wf_...",
+  "version": 3,
+  "status": "completed",
+  "settled": true,
+  "outcome": {"step_id": "cease_contact_stop", "type": "review_candidate", "label": "Asked not to be contacted — review"},
+  "interrupts": ["cease_contact"]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `workflow_id`, `version` | The workflow the call ran and its published version. `version` is `null` when the call ran an unpublished draft. |
+| `status` | `running`, `incomplete` (the call ended before the workflow finished), `completed`, `transferred` or `failed`. |
+| `settled` | `true` once the workflow can no longer change. Read the call again while it is `false`. |
+| `outcome` | The last outcome step the workflow reached: its `step_id` and `label` as you wrote them, and its `type` (for example `review_candidate`, `informational` or `terminal_note`). It is set even when `status` is `incomplete`: the step was reached before the call ended. `null` when it reached none. |
+| `interrupts` | Every global interrupt the workflow took, in the order first taken, each once: `wrong_party`, `dispute`, `hardship`, `cease_contact`, `callback`, `human_request` or `language_change`. Empty when it took none. |
+
+`status` and `type` are open: a later release can add a value, so handle one
+you don't recognise rather than rejecting it. `label` is for display only.
+Decide whether the workflow finished from `status` and `settled`, never from
+`outcome` being present.
+The object carries ids and your own labels only, never a value the call was
+given.
+
+**Act on `interrupts`, not on the step id or the label.** Those are your own
+text and change when you edit the workflow; the interrupt names are fixed. The
+caller asked not to be contacted when `interrupts` contains `"cease_contact"`,
+whatever the workflow did afterwards. Nothing adds the number to your
+do-not-call register by itself, so if you want to pause the number or send it
+for review, do it from this field.
+
+The webhook carries the value at the moment the call ended. When its `settled`
+is `false`, for example when the call ended while the workflow was still
+running, read `GET /v1/calls/{call_id}` for the current value: the read is the
+authoritative record.
+
+A campaign contact's outcome reports the same outcome as `workflow_outcome` and
+`workflow_outcome_label`, and the most recent interrupt as
+`workflow_interrupt`. For every interrupt the caller raised, read the call's
+`interrupts`.
+
+`outcome.label` is the label the run was pinned with, with one exception: the
+old starter label that claimed the number would be added to the do-not-call
+register, however it is spaced or capitalised, reads as the current starter
+label, because nothing adds it. The
+workflow run record (`GET /v1/agents/{agent_id}/workflow/runs/{run_id}`, also
+shown in Talk) returns `pinned_contract` unchanged: it is the historical
+record, so a label there can differ from `outcome.label`.
 
 ## Where a call's telemetry lives
 

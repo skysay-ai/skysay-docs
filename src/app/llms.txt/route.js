@@ -26,6 +26,7 @@ export function GET() {
 
 ## Product
 
+- [Phone numbers for AI agents](${SITE}/phone-numbers-for-ai-agents): numbers in 100+ countries for personal calls, businesses, and apps; connect through MCP, the API, or the workspace. Availability, supported features, and registration requirements vary by number.
 - [Pricing](${SITE}/pricing): public plans and usage pricing for numbers, voice, hosted AI, and SMS.
 
 ## Docs

@@ -155,10 +155,15 @@ time zone, not its language.
 `POST /v1/do-not-call` with `phone_numbers[]` adds numbers to the organization
 register. It is honoured on every outbound path, campaigns and the direct calls
 API alike, and by every campaign at launch (those contacts are marked and never
-dialed). A hosted agent adds a number itself with the
-`set_call_disposition` tool and the `do_not_call` outcome, and a workflow
-`cease_contact` interrupt does the same. `GET /v1/do-not-call` lists the
-register; `DELETE /v1/do-not-call/{phone_number}` removes one entry. The
+dialed). Only you add numbers. A hosted agent's `do_not_call` outcome (from the
+`set_call_disposition` tool), and a workflow `cease_contact` interrupt when it
+is the last request the caller made, record that the caller asked not to be
+contacted and finish that contact for the campaign, but they never add the
+number to the register: a caller can say anything, so review those calls and
+add the numbers you decide to. A call says so in its
+[`workflow`](/docs/read-call-evidence#where-a-calls-workflow-ended):
+`"cease_contact"` is in `interrupts`, even when a later request followed. `GET /v1/do-not-call` lists the register;
+`DELETE /v1/do-not-call/{phone_number}` removes one entry. The
 [Contacts](/docs/contacts#do-not-call) page manages the same register.
 
 ## Create and launch
@@ -243,6 +248,23 @@ A hosted agent declares the connected outcomes with the `set_call_disposition`
 builtin tool (a callback requires `callback_at`). Telephony outcomes come from
 the SIP result and are never model-supplied.
 
+A [conversation workflow](/docs/agent-workflows) also decides a disposition,
+from the last global interrupt it took. When that is `cease_contact`, the
+attempt is `do_not_call` even if the line then failed or the agent declared
+another outcome: the contact is closed and not dialed again by this campaign,
+and nothing is added to the register. When it
+is `wrong_party` or `callback`, the attempt is `connected_wrong_party` or
+`connected_callback_requested` unless the agent declared an outcome. A
+workflow callback carries no time, so the contact is finished with that
+disposition rather than dialed again; only an agent's declared callback with
+`callback_at` schedules a call. The last request wins: a caller who asked not
+to be contacted and then asked to be called back is recorded as a callback
+request, not `do_not_call`. Every interrupt the call took stays on its
+[`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended)
+if you want a stop request to win. Only interrupts the workflow runner took
+count: a route you named like an interrupt decides nothing, and a run is read
+only from your own workspace.
+
 ## Read progress
 
 - `GET /v1/campaigns/{campaign_id}` returns the campaign, its latest run and
@@ -314,9 +336,13 @@ the call's own evidence:
   `informational` or `terminal_note`), `workflow_outcome` (the outcome step
   the [conversation workflow](/docs/agent-workflows) landed on, for example
   `promise_review`) and `workflow_outcome_label` (that step's label);
-- `workflow_interrupt`: the global interrupt that ended the conversation, if
-  one did (`wrong_party`, `cease_contact`, `dispute`, `hardship`, `callback`,
-  `human_request`, `language_change`);
+- `workflow_interrupt`: the most recent global interrupt the workflow took, if
+  it took one (`wrong_party`, `cease_contact`, `dispute`, `hardship`, `callback`,
+  `human_request`, `language_change`). An empty cell with an empty
+  `workflow_status` means the call ran no workflow, not that the caller made
+  no request; with a status, it means the workflow took no interrupt. For
+  every interrupt a call took, read its
+  [`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended);
 - `extraction_status` (empty when no extraction was requested for the call;
   otherwise `pending`, `running`, `ready` or `failed`),
   `extraction_schema_version` (the schema version the row's cells were

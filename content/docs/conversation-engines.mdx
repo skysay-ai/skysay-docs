@@ -156,16 +156,29 @@ per-voice Language label, a description rather than a capability), `source`
 only; OpenAI does not document the other fields for them, and Skysay does
 not infer them.
 
-The opening message is spoken as written, in the language and script it is
-written in, before the engine starts following the caller. On these engines the
-agent speaks first on outbound calls too, when the call is answered; only the
-Standard engine lets the person say hello first
-([Who speaks first](/docs/who-speaks-first)). A per-call opening
-from the Calls API replaces the agent's saved opening for that call. This is an
-instruction to a voice-to-voice model: it raises adherence and cannot
-guarantee it, and the measured Sinhala limit in
-[Which languages the voice agent follows](/docs/language-following) still
-applies.
+On outbound phone calls without a workflow, GPT-Live 1 and Gemini Live let
+the person speak first. They hear the whole pickup before Skysay releases the
+first response. A request or correction in the pickup should be answered
+first; a simple hello is answered with the configured opening. If nobody
+speaks for two seconds, Skysay requests the opening. See
+[Who speaks first](/docs/who-speaks-first) for the timing and call types.
+
+The configured opening sets the initial language and script. A per-call opening
+from the Calls API replaces the agent's saved opening for that call. These are
+instructions to a voice-to-voice model and cannot guarantee exact delivery;
+the measured Sinhala limit in
+[Which languages the voice agent follows](/docs/language-following) still applies.
+
+If caller input cannot be preserved or observed during startup, the call fails
+instead of treating missing audio as silence. Startup audio is retained only
+in memory, for at most eight seconds. A reconnect during the pickup also ends
+that attempt. This is a universal opening safeguard, with no new API field or
+agent-editor setting.
+
+### Calls where the agent speaks first
+
+Inbound phone calls and browser tests keep their existing agent-first opening.
+The following input hold and quick-reply recovery apply to that opening path.
 
 While the opening plays, the engine does not hear the line. A voice-to-voice
 engine answers whatever it hears, so hold music, an automated announcement or
@@ -175,6 +188,20 @@ engine until the opening has been spoken: until the engine's own transcript of
 what it said covers the opening, and the line has then been quiet for about a
 second. Skysay itself keeps listening the whole time, so answer detection and
 the call recording are not affected.
+
+On GPT-Live, a quick reply after the greeting stops can arrive while Skysay is
+still checking that quiet period. Skysay briefly retains this post-greeting
+audio and passes it to the engine once the opening check succeeds, before new
+live audio. Silent intervals are not replayed; a recovered reply includes at most
+200 milliseconds of leading quiet. Retention is limited to two seconds and stays
+in memory. This does not recover words spoken over the audible greeting or establish what the
+person meant.
+
+Recovery is skipped when opening delivery cannot be established, the connection
+restarts, observation is interrupted, delayed audio arrives in a burst, the
+buffer reaches its limit, or the call is ending. Normal listening still resumes under the existing opening rules.
+If the caller's reply was not understood, the agent may still need to ask them
+to repeat it.
 
 Two consequences to plan for:
 
@@ -198,8 +225,24 @@ GPT-Live calls and text workflow simulations remain available.
 
 ## Call evidence
 
+If GPT-Live reconnects while an initial opening is still waiting to start,
+Skysay can request that opening once more. Recovery requires the replacement
+session to accept the same initial context and the original request to have
+left the send queue. It shares the original ten-second generation-start
+budget; reconnecting does not restart that budget.
+
+This recovery applies before any caller speech, generated response, or tool
+activity. An opening that already started is not repeated, and later replies
+and tool actions are not replayed. Caller input and call-ending controls stay
+active. Other engines retain their existing failure handling. No agent setting
+or API option is needed.
+
 GPT-Live saves native captions and full-call recordings when recording is enabled.
-Captions can be imperfect, especially across languages. Per-turn audio clips and
+Captions can be imperfect, especially across languages, and for some languages
+(Sinhala most often) they can be missing entirely. When the other party spoke
+and the engine answered without a caption, the transcript in the Calls
+workspace marks it with a "Spoke — no transcript" line; see
+[Read call evidence](/docs/read-call-evidence). Per-turn audio clips and
 some timing evidence can be incomplete even when the full recording is available.
 Check the call's evidence status before using those details to assess audio quality
 or response speed.
@@ -212,3 +255,27 @@ handles tools. Standard speech-to-text is not charged on that path.
 
 See the [generated API reference](/docs/api-reference) for the exact request
 and response shapes.
+
+## When a live agent proposes to end a call
+
+For a live voice model, Skysay waits for the model's goodbye to finish before
+closing the connection. Caller input stays open during that wait. If local
+speech detection says the caller is already speaking, the model's `end_call`
+request is refused. If the caller starts speaking while that close is pending,
+Skysay withdraws the close and leaves the conversation open. After the goodbye,
+there is up to 750 ms for the caller to take the floor, within the existing
+shutdown time limit.
+
+This safeguard is automatic; there is no new agent-editor switch or API field.
+It detects speech activity rather than meaning: noise can keep a call open,
+and speech the detector misses cannot stop closure. It does not establish
+identity, confirm a promise, count clarification questions, undo a goodbye
+already heard, or end a call when the model forgets to invoke `end_call`.
+Balance limits and other platform-enforced endings still close the call.
+
+On phone and workspace browser-test calls, the existing farewell fallback can
+also request closure after it recognizes the caller's closing words. If the
+caller takes the floor again, that pending request is withdrawn; a later
+goodbye can request a fresh close. A fallback close does not mean the model
+invoked `end_call`. Model tool use and actual call disconnection are separate
+evidence.

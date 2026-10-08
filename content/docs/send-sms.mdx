@@ -16,6 +16,17 @@ agent can follow a thread without ever being able to send.
 
 Connects SMS history to the same customer workspace as calls and numbers.
 
+For REST clients, `GET /v1/conversations` returns a
+[bounded `conversations` page](/docs/rest-endpoints#bounded-list-pages).
+Each list item and `GET /v1/conversations/{id}` contain `message_count` and the
+newest message as `last_message` when one exists, **not** an embedded `messages`
+history. Read that history through
+`GET /v1/messages?conversation_id=conv_example`, following its `messages`
+pages and `pagination.next_cursor`. An unknown conversation or one outside
+the key's workspace or selected project returns `404`.
+
+This REST change does not change the MCP `list_conversations` tool's contract.
+
 ## Send one of an agent's SMS templates
 
 An agent can hold SMS templates with call variables and model-filled slots.
@@ -50,3 +61,11 @@ an existing idempotency key.
   lead generation, and more) fail closed. Evaluate policy and get explicit human
   approval before sending live. See [Policy & outbound](/docs/policy-and-outbound).
 </Callout>
+
+## Read a message in another language
+
+For new messages associated with an AI agent, its transcript translation
+settings can generate saved translations after the original message is
+persisted. In **SMS**, choose Original, Translation, or Both, or explicitly
+request a translation with the displayed price. Reading a saved translation
+does not send another SMS. See [translation settings and pricing](/docs/read-call-evidence#translate-a-transcript).

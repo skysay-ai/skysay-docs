@@ -22,6 +22,77 @@ and request bodies and the key's own workspace is used. See
   operation set from the canonical OpenAPI snapshot.
 </Callout>
 
+## Bounded list pages
+
+The following growing lists return an **object**, not a bare array. Read the
+named item array and the `pagination` object together:
+
+```json
+{
+  "agents": [{ "id": "agent_example" }],
+  "pagination": {
+    "limit": 50,
+    "returned": 1,
+    "has_more": false,
+    "next_cursor": null
+  }
+}
+```
+
+`returned` counts this page, not the entire collection. A page is complete only
+when `has_more` is false. Otherwise send `next_cursor` unchanged as the next
+request's `cursor`, keeping the same organization, project and other filters.
+`limit` must be a whole number between 1 and the route's maximum; out-of-range
+and malformed limits or cursors return `400`, not a silently shortened page.
+All pages are newest first, with a stable creation-order tie break. A walk
+does not repeat rows or skip older rows that remain present throughout it;
+it is not a cross-request database snapshot and does not include newly added
+rows ahead of its cursor.
+
+| GET path | Item key | Default limit | Maximum |
+| --- | --- | --- | --- |
+| `/v1/agents` | `agents` | 50 | 200 |
+| `/v1/numbers` | `numbers` | 50 | 100 |
+| `/v1/agent-endpoints` | `agent_endpoints` | **Required** | 200 |
+| `/v1/number-requests` | `number_requests` | 50 | 100 |
+| `/v1/phone-servers` | `phone_servers` | 50 | 200 |
+| `/v1/trial-calls` | `trial_calls` | 50 | 100 |
+| `/v1/api-keys` | `api_keys` | 50 | 200 |
+| `/v1/customer-onboarding` | `customer_onboarding` | 50 | 200 |
+| `/v1/gateway-deployments` | `gateway_deployments` | 50 | 200 |
+| `/v1/end-users` | `end_users` | 50 | 200 |
+| `/v1/conversations` | `conversations` | 50 | 200 |
+| `/v1/messages` | `messages` | 100 | 500 |
+| `/v1/usage-records` | `usage_records` | 100 | 500 |
+| `/v1/wallet/ledger` | `entries` | 100 | 500 |
+| `/v1/billing/invoices` | `invoices` | 100 | 500 |
+| `/v1/audit-events` | `audit_events` | 100 | 500 |
+| `/v1/webhook-deliveries` | `deliveries` | 50 | 500 |
+
+The ledger retains its currency and totals, but **totals cover this page's
+entries only**; use `GET /v1/wallet` for the wallet balance. Invoice pages keep
+their currency. Delivery pages keep `event_catalog` and `retry_policy`.
+Number-request list items do not embed a provider mutation's audit history.
+`GET /v1/calls` retains its existing array and paging-header contract; call
+event responses are not changed by these list envelopes.
+
+### Migrating a list consumer
+
+This replaces the previous bare-array contract on the listed routes. Do not
+interpret an unexpected response shape or a failed request as an empty list.
+In particular, a find-or-create client must finish a strict page walk before
+deciding a matching object does not exist; otherwise it can create duplicates.
+`GET /v1/agent-endpoints` requires an explicit `limit` so an unupdated client
+receives `400` instead of misreading the new envelope as no endpoints.
+
+For each successful response, require an item array, positive integer `limit`,
+integer `returned` equal to the array length, boolean `has_more`, and a
+nonempty string `next_cursor` while more pages remain (otherwise `null`).
+Refuse repeated cursors and stop with an error if your own page budget is
+exhausted; never act on a partial collection as if it were complete. Read a
+known resource by its ID instead of searching only the first page. Keep
+project checks when replacing a project-filtered list with an ID lookup.
+
 ## Agents
 
 | Method | Path | Purpose |
@@ -151,7 +222,7 @@ preset or substituting another version.
 | `GET` | `/v1/calls` | List calls. |
 | `GET` | `/v1/calls/{id}` | Call status + recording state. |
 | `GET` | `/v1/calls/stats` | Call volume, outcome, talk time and spend over one or more date windows. |
-| `POST` | `/v1/calls/{id}/cancel` | Withdraw a call that is still queued, before anything dials. |
+| `POST` | `/v1/calls/{id}/cancel` | Withdraw a call that is still queued, or one held for review, before anything dials. |
 | `POST` | `/v1/calls/{id}/hangup` | Ask a live call to hang up. |
 
 ### What a call-stats window counts
@@ -163,9 +234,9 @@ with `since` and `until` plus five integers:
 | --- | --- |
 | `calls` | Every call created in the window, including ones a policy blocked and ones that were never billable. |
 | `answered` | Calls somebody was on: completed, or answered, in progress, or with media started right now. Never a call the platform merely accepted. |
-| `failed` | Calls that ended with nobody on them: failed, busy, no answer, canceled, or refused by a policy or live-call gate. |
+| `failed` | Calls that ended with nobody on them: failed, busy, no answer, canceled, refused by a policy or live-call gate, or held for review. |
 | `talk_seconds` | Total talk time across the window's recorded calls. |
-| `spend_minor` | The wallet reservation estimate made when each call was admitted, in the wallet's minor units. This is not settled billing. |
+| `spend_minor` | The wallet reservation estimate made when each call was admitted, in the wallet's minor units. This is not settled billing. Calls that never cost anything are left out: refused, held for review, or canceled before dialling. |
 
 `answered` and `failed` do not have to add up to `calls`. A call that is still
 dialing or still queued is in neither, and a call waiting on operator review is

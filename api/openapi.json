@@ -50,6 +50,14 @@
           "name": {
             "type": "string"
           },
+          "opening": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgentOpening"
+              }
+            ],
+            "description": "Accepted at creation. Read and update the opening policy through the voice-stack route; the generic agent update route refuses this field."
+          },
           "organization_id": {
             "type": "string"
           },
@@ -67,6 +75,9 @@
               "$ref": "#/components/schemas/AgentTool"
             },
             "type": "array"
+          },
+          "translation": {
+            "$ref": "#/components/schemas/TranslationPolicy"
           },
           "voice": {
             "oneOf": [
@@ -194,6 +205,10 @@
                 "call.recording.ready",
                 "call.extraction.ready",
                 "call.extraction.failed",
+                "call.translation.ready",
+                "call.translation.failed",
+                "sms.translation.ready",
+                "sms.translation.failed",
                 "sms.received",
                 "sms.sent",
                 "campaign.launched",
@@ -245,6 +260,10 @@
                 "call.recording.ready",
                 "call.extraction.ready",
                 "call.extraction.failed",
+                "call.translation.ready",
+                "call.translation.failed",
+                "sms.translation.ready",
+                "sms.translation.failed",
                 "sms.received",
                 "sms.sent",
                 "campaign.launched",
@@ -413,6 +432,28 @@
         "properties": {
           "seconds": {
             "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "AgentOpening": {
+        "additionalProperties": false,
+        "description": "Outbound opening policy shared across conversation engines. Only managed outbound telephone calls use this wait; inbound and browser tests retain their normal opening. Saved by voice-stack PATCH and frozen in each call publication. Empty object resets to callee-first with two seconds of observed silence. Speech is allowed to finish beyond this wait. The timer authorizes the opening request, not first audible sound; provider generation and network latency add time.",
+        "properties": {
+          "first_speaker": {
+            "default": "callee",
+            "enum": [
+              "callee",
+              "agent"
+            ],
+            "type": "string"
+          },
+          "silence_wait_seconds": {
+            "default": 2,
+            "description": "Silence before requesting the first message when first_speaker is callee. Preserved but unused with agent-first.",
+            "maximum": 5,
+            "minimum": 1,
             "type": "number"
           }
         },
@@ -605,7 +646,7 @@
         "type": "object"
       },
       "AgentUpdate": {
-        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
+        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: opening, turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
         "properties": {
           "audio_stream_url": {
             "type": "string"
@@ -653,6 +694,9 @@
               "$ref": "#/components/schemas/AgentTool"
             },
             "type": "array"
+          },
+          "translation": {
+            "$ref": "#/components/schemas/TranslationPolicy"
           },
           "voice": {
             "oneOf": [
@@ -809,6 +853,9 @@
           "model": {
             "type": "object"
           },
+          "opening": {
+            "$ref": "#/components/schemas/AgentOpening"
+          },
           "organization_id": {
             "type": "string"
           },
@@ -926,6 +973,9 @@
           },
           "model": {
             "$ref": "#/components/schemas/VoiceComponentSelection"
+          },
+          "opening": {
+            "$ref": "#/components/schemas/AgentOpening"
           },
           "system_prompt": {
             "type": "string"
@@ -1247,7 +1297,7 @@
         "type": "object"
       },
       "Call": {
-        "description": "The call resource GET /v1/calls and GET /v1/calls/{call_id} return. A synthetic simulation or platform-internal room is never returned here; only a call the customer or their agent actually made.",
+        "description": "The call resource GET /v1/calls returns, and GET /v1/calls/{call_id} returns as CallDetail (this plus workflow). A synthetic simulation or platform-internal room is never returned here; only a call the customer or their agent actually made.",
         "properties": {
           "agent_endpoint_id": {
             "type": [
@@ -1272,6 +1322,15 @@
             ],
             "type": "string"
           },
+          "browser_outcome": {
+            "description": "Specific-call detail only. A managed workspace browser worker's frozen outcome, readable before transport completion. Empty means unknown. browser_startup_failed means the requested opening failed before observed agent output; worker_ended confirms worker teardown. Neither changes transport status or promises a refund.",
+            "enum": [
+              "",
+              "browser_startup_failed",
+              "worker_ended"
+            ],
+            "type": "string"
+          },
           "call_context": {
             "description": "The small, non-secret JSON object you supplied at call creation.",
             "type": "object"
@@ -1289,7 +1348,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. They fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1301,7 +1360,9 @@
               "no_human_after_answer",
               "model_session_lost",
               "agent_unresponsive",
-              "caller_unresponsive"
+              "caller_unresponsive",
+              "browser_startup_failed",
+              "funding_exhausted"
             ],
             "type": "string"
           },
@@ -1353,14 +1414,16 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `insufficient_balance` and `renewal_unavailable` qualify only `funding_exhausted`: confirmed insufficient funds versus unavailable authorization, respectively. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
               "hold_music",
+              "insufficient_balance",
               "looping_recording",
               "model_unresponsive",
-              "no_audio"
+              "no_audio",
+              "renewal_unavailable"
             ],
             "type": "string"
           },
@@ -1443,7 +1506,7 @@
             "type": "string"
           },
           "status": {
-            "description": "Call lifecycle status, e.g. requested, queued, dialing, ringing, answered, in_progress, media_started, completed, failed, busy, no_answer, canceled, live_blocked, policy_blocked, needs_review. Not a closed set: track it as an opaque string and rely on the call.* events for exact transitions.",
+            "description": "Call lifecycle status, e.g. requested, queued, dialing, ringing, answered, in_progress, media_started, completed, failed, busy, no_answer, canceled, live_blocked, policy_blocked, needs_review (held for review: never dialled, with a call.failed at once). Not a closed set: track it as an opaque string and rely on the call.* events for exact transitions.",
             "type": "string"
           },
           "to_e164": {
@@ -1521,6 +1584,33 @@
           "source_path"
         ],
         "type": "object"
+      },
+      "CallDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Call"
+          },
+          {
+            "properties": {
+              "workflow": {
+                "description": "null when the call ran no workflow (every GPT-Live and Gemini Live call).",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CallWorkflow"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "workflow"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "The call GET /v1/calls/{call_id} returns: the Call resource plus where its workflow ended. The GET /v1/calls list returns Call without it."
       },
       "CallEvent": {
         "description": "One row of a call's internal lifecycle log, oldest first. Not the webhook envelope: this row's own id/type/payload, never the signed delivery body. Includes many types never delivered to any webhook endpoint at all.",
@@ -2014,9 +2104,11 @@
               "",
               "caller_tune",
               "hold_music",
+              "insufficient_balance",
               "looping_recording",
               "model_unresponsive",
-              "no_audio"
+              "no_audio",
+              "renewal_unavailable"
             ],
             "type": "string"
           },
@@ -2127,7 +2219,7 @@
             "type": "integer"
           },
           "failed": {
-            "description": "Calls in this window that ended with nobody on them: failed, busy, no_answer, canceled, or refused by a policy or live-call gate. answered + failed need not equal calls -- a dialing or queued call is in neither -- so do not derive one from the other.",
+            "description": "Calls in this window that ended with nobody on them: failed, busy, no_answer, canceled, refused by a policy or live-call gate, or held for review (needs_review). answered + failed need not equal calls -- a dialing or queued call is in neither -- so do not derive one from the other.",
             "type": "integer"
           },
           "since": {
@@ -2135,7 +2227,7 @@
             "type": "string"
           },
           "spend_minor": {
-            "description": "Sum of estimated_cost_minor across every call in this window. This is the wallet reservation estimate made at admission time, not settled billing -- excludes only calls that never reserved a wallet balance at all (policy_blocked, needs_review).",
+            "description": "Sum of estimated_cost_minor across every call in this window. This is the wallet reservation estimate made at admission time, not settled billing -- excludes calls that never cost anything: never reserved (policy_blocked, needs_review) or canceled before dialling.",
             "type": "integer"
           },
           "talk_seconds": {
@@ -2154,6 +2246,199 @@
           "talk_seconds",
           "answered",
           "failed"
+        ],
+        "type": "object"
+      },
+      "CallTranscriptPage": {
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "properties": {
+                "speaker": {
+                  "const": "caller",
+                  "type": "string"
+                },
+                "start_ms": {
+                  "type": "integer"
+                },
+                "type": {
+                  "const": "caller_spoke_no_transcript"
+                }
+              },
+              "required": [
+                "type",
+                "speaker",
+                "start_ms"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/TranscriptPagination"
+          },
+          "source_revision": {
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTimelineItem"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "transcript_settled": {
+            "type": "boolean"
+          },
+          "transcript_status": {
+            "type": "string"
+          },
+          "translation": {
+            "$ref": "#/components/schemas/CommunicationTranslation"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTurn"
+            },
+            "maxItems": 500,
+            "type": "array"
+          }
+        },
+        "required": [
+          "call_id",
+          "source_revision",
+          "transcript_status",
+          "transcript_settled",
+          "pagination",
+          "translation",
+          "turns",
+          "events",
+          "timeline",
+          "text"
+        ],
+        "type": "object"
+      },
+      "CallTranscriptStreamPage": {
+        "description": "JSON envelope containing an ordered event page, with the NDJSON content type label preserved.",
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "content_type": {
+            "const": "application/x-ndjson",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptTimelineItem"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/TranscriptPagination"
+          },
+          "source_revision": {
+            "type": "integer"
+          },
+          "transcript_settled": {
+            "type": "boolean"
+          },
+          "transcript_status": {
+            "type": "string"
+          },
+          "translation": {
+            "$ref": "#/components/schemas/CommunicationTranslation"
+          }
+        },
+        "required": [
+          "call_id",
+          "source_revision",
+          "transcript_status",
+          "transcript_settled",
+          "pagination",
+          "translation",
+          "content_type",
+          "events"
+        ],
+        "type": "object"
+      },
+      "CallWorkflow": {
+        "additionalProperties": false,
+        "description": "Where a call's conversation workflow ended, read the same way on the call detail, MCP get_call and the call.completed / call.failed webhooks. Ids, platform and author-declared strings, and the author's outcome label only; never a call value. The vocabularies are open: a later release may add values, so handle unknown ones. On a webhook this is a snapshot at emission; GET /v1/calls/{call_id} is the current read, and `settled` says whether it can still change. To act on a request not to be contacted, check `\"cease_contact\" in interrupts`: it is the one canonical stop signal, and nothing adds the number to the do-not-call register by itself.",
+        "properties": {
+          "interrupts": {
+            "description": "Every distinct global interrupt the run took, in the order first taken; [] when none. Known values: wrong_party, dispute, hardship, cease_contact, callback, human_request, language_change. An interrupt is what the caller said that the workflow acted on; it can differ from the outcome reached (an interrupt may lead to an ask or a transfer, and a run can take one and later end on an ordinary route).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "outcome": {
+            "description": "The step reached; null when the run reached no outcome step.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "description": "The step's label: display text the author can change. Never match on it.",
+                    "type": "string"
+                  },
+                  "step_id": {
+                    "description": "The last outcome step the run reached, as authored.",
+                    "type": "string"
+                  },
+                  "type": {
+                    "description": "The step's declared outcome type. Known values: review_candidate, informational, terminal_note.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "step_id",
+                  "type",
+                  "label"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "settled": {
+            "description": "true once the run is closed and nothing can change this object; false while a turn could still commit. An incomplete run on an ended call can be unsettled, can still change, and can stay unsettled: treat it as not final.",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Known values: running (the call is in progress), completed, transferred, failed (the workflow itself failed), incomplete (it stopped before completing or transferring, typically because the call ended first).",
+            "type": "string"
+          },
+          "version": {
+            "description": "The published version the run pinned; null when it pinned the draft (a Talk test or an inbound Phone test). A step_id resolves after later edits only against a published version.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "description": "The workflow the run pinned.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "status",
+          "settled",
+          "outcome",
+          "interrupts"
         ],
         "type": "object"
       },
@@ -2717,6 +3002,198 @@
         },
         "type": "object"
       },
+      "CommunicationTranslation": {
+        "properties": {
+          "catalog": {
+            "properties": {
+              "max_targets": {
+                "const": 6,
+                "type": "integer"
+              },
+              "supported_target_languages": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "tariff": {
+                "properties": {
+                  "currency": {
+                    "const": "USD",
+                    "type": "string"
+                  },
+                  "minimum_per_source_target": {
+                    "const": 0.01,
+                    "type": "number"
+                  },
+                  "rate_per_1000_words": {
+                    "const": 0.02,
+                    "type": "number"
+                  },
+                  "word_count_rule": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "supported_target_languages",
+              "max_targets",
+              "tariff"
+            ],
+            "type": "object"
+          },
+          "eligible": {
+            "type": "boolean"
+          },
+          "pagination": {
+            "description": "Selected call translation units follow the original transcript timeline's pages.",
+            "properties": {
+              "has_more": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "next_cursor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "returned": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "quote": {
+            "description": "Pre-inference upper bound using all original words. Language detection can reduce the settled price. Absent for unavailable or unquoted summary sources.",
+            "properties": {
+              "currency": {
+                "type": "string"
+              },
+              "max_eligible_words": {
+                "type": "integer"
+              },
+              "maximum_amount_minor": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "quote_pending": {
+            "description": "The settled source is waiting for its current-revision word-count summary. Poll this pure read; quote is absent until ready.",
+            "type": "boolean"
+          },
+          "source_completeness": {
+            "description": "Partial indicates interrupted artifact delivery or unsettled source data; any available original text remains readable.",
+            "enum": [
+              "complete",
+              "partial",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "source_kind": {
+            "enum": [
+              "call",
+              "message"
+            ],
+            "type": "string"
+          },
+          "source_revision": {
+            "type": "integer"
+          },
+          "source_status": {
+            "enum": [
+              "not_settled",
+              "unavailable",
+              "empty",
+              "unit_too_large",
+              "too_large",
+              "available"
+            ],
+            "type": "string"
+          },
+          "translations": {
+            "items": {
+              "properties": {
+                "amount_minor": {
+                  "type": "integer"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "eligible_words": {
+                  "type": "integer"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "source_revision": {
+                  "type": "integer"
+                },
+                "status": {
+                  "enum": [
+                    "not_requested",
+                    "queued",
+                    "running",
+                    "ready",
+                    "waiting_funds",
+                    "failed",
+                    "stale"
+                  ],
+                  "type": "string"
+                },
+                "target_language": {
+                  "type": "string"
+                },
+                "units": {
+                  "items": {
+                    "properties": {
+                      "id": {
+                        "description": "The immutable original turn or message id.",
+                        "type": "string"
+                      },
+                      "text": {
+                        "maxLength": 16000,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "text"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
+            "maxItems": 49,
+            "type": "array"
+          }
+        },
+        "required": [
+          "source_kind",
+          "source_id",
+          "source_revision",
+          "eligible",
+          "source_status",
+          "translations",
+          "catalog"
+        ],
+        "type": "object"
+      },
       "ContactImport": {
         "properties": {
           "contacts": {
@@ -2874,6 +3351,26 @@
             "type": "object"
           }
         },
+        "type": "object"
+      },
+      "ConversationSummary": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "last_message": {
+            "description": "The conversation's newest message, as GET /v1/messages returns it; absent when it has none.",
+            "type": "object"
+          },
+          "message_count": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "message_count"
+        ],
         "type": "object"
       },
       "CreateOrganization": {
@@ -3268,6 +3765,39 @@
         "required": [
           "organization_id",
           "project_id"
+        ],
+        "type": "object"
+      },
+      "ListPagination": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "description": "True while older rows remain. A page is the whole list only when this is false.",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "The page size used.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "next_cursor": {
+            "description": "Send as `cursor` to read the next page; null on the last page.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "returned": {
+            "description": "Items on this page.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "returned",
+          "has_more",
+          "next_cursor"
         ],
         "type": "object"
       },
@@ -3999,6 +4529,64 @@
         ],
         "type": "object"
       },
+      "StripeTopup": {
+        "anyOf": [
+          {
+            "required": [
+              "amount_minor"
+            ]
+          },
+          {
+            "required": [
+              "amount_cents"
+            ]
+          }
+        ],
+        "properties": {
+          "amount_cents": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "amount_minor": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "cancel_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "description": "Must match wallet settlement currency when provided.",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Request-aware checkout uses the persisted claim even when a caller supplies a key.",
+            "type": "string"
+          },
+          "number_request_id": {
+            "description": "Optional exact request context; never confirms, purchases or reserves a number.",
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "receipt_email": {
+            "format": "email",
+            "type": "string"
+          },
+          "success_url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id"
+        ],
+        "type": "object"
+      },
       "TechnicalCallFailureEvidence": {
         "additionalProperties": false,
         "allOf": [
@@ -4047,6 +4635,7 @@
               "unknown",
               "outbound_ringing_timeout",
               "outbound_authorization_rejected",
+              "outbound_authorization_held_for_review",
               "outbound_media_admission_rejected",
               "outbound_trunk_rejected",
               "outbound_room_rejected",
@@ -4118,22 +4707,305 @@
         ],
         "type": "object"
       },
-      "Topup": {
+      "TranscriptPagination": {
         "properties": {
-          "amount_cents": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "limit": {
+            "maximum": 500,
+            "minimum": 1,
             "type": "integer"
           },
-          "idempotency_key": {
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "returned": {
+            "maximum": 500,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "returned",
+          "has_more",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
+      "TranscriptTimelineItem": {
+        "oneOf": [
+          {
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/TranscriptTurn"
+              },
+              "type": {
+                "const": "turn"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "data": {
+                "properties": {
+                  "speaker": {
+                    "const": "caller",
+                    "type": "string"
+                  },
+                  "start_ms": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "speaker",
+                  "start_ms"
+                ],
+                "type": "object"
+              },
+              "type": {
+                "const": "caller_spoke_no_transcript"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "TranscriptTurn": {
+        "properties": {
+          "audio_artifact_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "call_id": {
             "type": "string"
           },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "end_ms": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
           "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer"
+          },
+          "speaker": {
+            "type": "string"
+          },
+          "start_ms": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "text": {
+            "description": "Original text; null with unavailable_reason for an oversized unit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "translated_text": {
+            "description": "Cached text for this exact original ID and revision; null when unavailable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "translation_status": {
+            "enum": [
+              "not_requested",
+              "queued",
+              "running",
+              "ready",
+              "waiting_funds",
+              "failed",
+              "stale"
+            ],
+            "type": "string"
+          },
+          "unavailable_reason": {
+            "enum": [
+              "source_unit_too_large"
+            ],
             "type": "string"
           }
         },
         "required": [
-          "organization_id",
-          "amount_cents",
-          "idempotency_key"
+          "id",
+          "speaker",
+          "sequence",
+          "text",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "TranslationPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "target_languages": {
+            "items": {
+              "enum": [
+                "ar",
+                "bn",
+                "bg",
+                "ca",
+                "zh",
+                "hr",
+                "cs",
+                "da",
+                "nl",
+                "en",
+                "et",
+                "fi",
+                "fr",
+                "de",
+                "el",
+                "gu",
+                "he",
+                "hi",
+                "hu",
+                "id",
+                "it",
+                "ja",
+                "kn",
+                "ko",
+                "lv",
+                "lt",
+                "ms",
+                "ml",
+                "mr",
+                "no",
+                "fa",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sr",
+                "si",
+                "sk",
+                "sl",
+                "es",
+                "sw",
+                "sv",
+                "ta",
+                "te",
+                "th",
+                "tr",
+                "uk",
+                "ur",
+                "vi"
+              ],
+              "type": "string"
+            },
+            "maxItems": 6,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "type": "object"
+      },
+      "TranslationRequest": {
+        "additionalProperties": false,
+        "description": "Idempotent for the current source revision and target. Repeating the command reuses the saved result; no client-generated idempotency key is needed.",
+        "properties": {
+          "target_language": {
+            "enum": [
+              "ar",
+              "bn",
+              "bg",
+              "ca",
+              "zh",
+              "hr",
+              "cs",
+              "da",
+              "nl",
+              "en",
+              "et",
+              "fi",
+              "fr",
+              "de",
+              "el",
+              "gu",
+              "he",
+              "hi",
+              "hu",
+              "id",
+              "it",
+              "ja",
+              "kn",
+              "ko",
+              "lv",
+              "lt",
+              "ms",
+              "ml",
+              "mr",
+              "no",
+              "fa",
+              "pl",
+              "pt",
+              "ro",
+              "ru",
+              "sr",
+              "si",
+              "sk",
+              "sl",
+              "es",
+              "sw",
+              "sv",
+              "ta",
+              "te",
+              "th",
+              "tr",
+              "uk",
+              "ur",
+              "vi"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_language"
         ],
         "type": "object"
       },
@@ -4613,7 +5485,7 @@
   "paths": {
     "/mcp": {
       "post": {
-        "description": "MCP Streamable HTTP transport with JSON responses (protocol 2025-11-25, 2025-06-18 or 2025-03-26). GET and HEAD answer 405 with Allow: POST; no server-sent event stream is offered.",
+        "description": "MCP Streamable HTTP transport with JSON responses. Protocol 2025-11-25, 2025-06-18 or 2025-03-26 through the initialize handshake; protocol 2026-07-28 without a handshake, selected by the MCP-Protocol-Version header (server/discover, per-request _meta, Mcp-Method and Mcp-Name headers). GET and HEAD answer 405 with Allow: POST; no server-sent event stream is offered.",
         "responses": {
           "200": {
             "description": "JSON-RPC response"
@@ -4622,10 +5494,36 @@
             "description": "Notification or client response accepted; empty body"
           },
           "400": {
-            "description": "Malformed body or unsupported MCP-Protocol-Version header"
+            "description": "Malformed body, unsupported MCP-Protocol-Version header, or a 2026-07-28 request refused with a JSON-RPC error (-32600, -32602, -32020 header mismatch, -32022 unsupported version)"
+          },
+          "403": {
+            "description": "Invalid supplied Origin or insufficient credential permissions"
+          },
+          "404": {
+            "description": "A 2026-07-28 request for a method this server does not implement (JSON-RPC -32601)"
           }
         },
         "summary": "Hosted MCP endpoint"
+      }
+    },
+    "/mcp/read-only": {
+      "post": {
+        "description": "Streamable HTTP profile exposing account_overview, list_agents, get_agent, list_numbers and list_calls only, in the same protocol revisions as /mcp. Every other tool is refused before dispatch, regardless of credential permissions. OAuth tokens are audience-bound to this endpoint and cannot be used on /mcp. GET and HEAD return 405.",
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response"
+          },
+          "202": {
+            "description": "Notification accepted"
+          },
+          "401": {
+            "description": "Authentication or resource audience rejected"
+          },
+          "403": {
+            "description": "Invalid supplied Origin or insufficient credential permissions"
+          }
+        },
+        "summary": "Use the read-only MCP connector"
       }
     },
     "/v1/activation-state": {
@@ -4682,9 +5580,76 @@
     },
     "/v1/agent-endpoints": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `agent_endpoints` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. `limit` is required on this list: a request without it is a 400, so a client that still reads the old array cannot mistake the refusal for an empty list and register a duplicate endpoint.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200. Required. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Agent endpoints"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agent_endpoints": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "agent_endpoints",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List agent webhook/audio endpoints"
@@ -4781,9 +5746,77 @@
     },
     "/v1/agents": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `agents` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Agents"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agents": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "agents",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List first-class agents"
@@ -4955,7 +5988,7 @@
             "description": "Reservation and dispatch metadata for a LiveKit join token"
           },
           "400": {
-            "description": "Either a plain {error, message} (an invalid draft overlay selection, unchanged from before) or, when the resolved config passes overlay validation but is still not runnable: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary already returned by the Agents/Numbers dashboard reads (e.g. voice_id_missing, system_prompt_missing, first_message_missing, language_not_runnable, llm_model_missing, capability_revision_mismatch). No room or reservation is created either way."
+            "description": "Either a plain {error, message} (an invalid draft overlay selection, unchanged from before) or, when the resolved config passes overlay validation but is still not runnable: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary already returned by the Agents/Numbers dashboard reads (e.g. voice_id_missing, system_prompt_missing, first_message_missing, language_not_runnable, llm_model_missing, delivery_profile_invalid). No room or reservation is created either way."
           }
         },
         "summary": "Create an authenticated LiveKit browser-test session for one hosted agent",
@@ -6829,9 +7862,68 @@
     },
     "/v1/api-keys": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `api_keys` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "API keys"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "api_keys": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "api_keys",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List scoped API keys"
@@ -6905,12 +7997,154 @@
     },
     "/v1/audit-events": {
       "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `audit_events` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Audit events"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "audit_events": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "audit_events",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List audit events"
+      }
+    },
+    "/v1/billing/invoices": {
+      "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `invoices` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. Top-up ledger entries only.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "count": {
+                      "description": "Invoices on this page.",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "invoices": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "organization_id": {
+                      "type": "string"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "invoices",
+                    "pagination",
+                    "organization_id",
+                    "currency",
+                    "count"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          }
+        },
+        "summary": "List wallet top-ups with their receipt and invoice links"
       }
     },
     "/v1/billing/settings": {
@@ -6943,11 +8177,12 @@
     },
     "/v1/billing/stripe/topup-sessions": {
       "post": {
+        "description": "Optional number_request_id must belong to the authenticated workspace/project and still be payment_required (requires numbers:read in addition to wallet:write). Return selection is rebuilt from this validated request and the configured website origin. Only a signed Stripe webhook credits funds. A still-payable or uncertain checkout with a different return context is refused; no second checkout is created.",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Topup"
+                "$ref": "#/components/schemas/StripeTopup"
               }
             }
           },
@@ -6956,6 +8191,12 @@
         "responses": {
           "201": {
             "description": "Stripe checkout session or disabled status"
+          },
+          "404": {
+            "description": "Request not found in workspace project"
+          },
+          "409": {
+            "description": "Stale request or conflicting open checkout (reason topup_context_conflict, known checkout_url when available)"
           }
         },
         "summary": "Create a Stripe checkout topup session when enabled"
@@ -7216,7 +8457,7 @@
             "description": "Call"
           },
           "400": {
-            "description": "Either a plain {error, message} (a malformed request), or, when the request is well formed but the selected agent's published configuration is one the voice worker could not build a call from: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary the Agents dashboard read returns (e.g. system_prompt_missing, voice_id_missing, first_message_missing, tts_not_runnable, language_not_runnable, capability_revision_mismatch). No call, wallet reservation or origination job is created; fix the agent's voice setup and retry."
+            "description": "Either a plain {error, message} (a malformed request), or, when the request is well formed but the selected agent's published configuration is one the voice worker could not build a call from: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary the Agents dashboard read returns (e.g. system_prompt_missing, voice_id_missing, first_message_missing, tts_not_runnable, language_not_runnable, delivery_profile_invalid). No call, wallet reservation or origination job is created; fix the agent's voice setup and retry."
           },
           "409": {
             "description": "Idempotency key was reused for a different request, or the call can no longer be canceled."
@@ -7371,11 +8612,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Call"
+                  "$ref": "#/components/schemas/CallDetail"
                 }
               }
             },
-            "description": "Call"
+            "description": "Call, with where its workflow ended"
           },
           "404": {
             "description": "Call not found"
@@ -7404,7 +8645,7 @@
     },
     "/v1/calls/{call_id}/cancel": {
       "post": {
-        "description": "Only a queued call with an unclaimed originate job can be canceled. The corresponding wallet reservation is released. Once a worker has claimed the job, this endpoint fails closed rather than implying the carrier call was stopped.",
+        "description": "A queued call with an unclaimed originate job, or a call held for review (status needs_review), can be canceled. A queued call's wallet reservation is released; a held call never reserved anything. Once a worker has claimed the job, this endpoint fails closed rather than implying the carrier call was stopped.",
         "responses": {
           "200": {
             "description": "Canceled call"
@@ -7413,7 +8654,7 @@
             "description": "Call is already being originated, terminal, or has no queued originate job."
           }
         },
-        "summary": "Cancel a queued outbound call before origination"
+        "summary": "Cancel an outbound call before origination"
       }
     },
     "/v1/calls/{call_id}/events": {
@@ -7801,22 +9042,282 @@
     },
     "/v1/calls/{call_id}/transcript": {
       "get": {
+        "description": "Read one bounded original/translation timeline page with canonical IDs, source_revision, unchanged recording anchors, missing-caption events and pagination {limit, returned, has_more, next_cursor}. Follow next_cursor while has_more. Oversized source units return explicit unavailable placeholders so later events remain reachable. Cursors bind the source revision; refresh after a changed source. A selected translation language only reads a cached artifact and never creates work.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "translation_language",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Transcript"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallTranscriptPage"
+                }
+              }
+            },
+            "description": "One bounded, revision-consistent transcript page."
+          },
+          "409": {
+            "description": "Source revision changed; restart pagination from the first page."
           }
         },
-        "summary": "Get call transcript turns"
+        "summary": "Get call transcript turns",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
       }
     },
     "/v1/calls/{call_id}/transcript/stream": {
       "get": {
+        "description": "Read one bounded original/translation timeline page with canonical IDs, source_revision, unchanged recording anchors, missing-caption events and pagination {limit, returned, has_more, next_cursor}. Follow next_cursor while has_more. Oversized source units return explicit unavailable placeholders so later events remain reachable. Cursors bind the source revision; refresh after a changed source. A selected translation language only reads a cached artifact and never creates work.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "translation_language",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Transcript stream"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallTranscriptStreamPage"
+                }
+              }
+            },
+            "description": "One bounded, revision-consistent transcript page."
+          },
+          "409": {
+            "description": "Source revision changed; restart pagination from the first page."
           }
         },
-        "summary": "Get transcript stream events"
+        "summary": "Get transcript stream events",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
+      }
+    },
+    "/v1/calls/{call_id}/transcript/translations": {
+      "get": {
+        "description": "Pure read: target selection, original/translation/both display, and polling never invoke a provider or create paid work. Artifacts are fenced to the current source revision. Single-source reads can calculate a bounded price estimate for retained older text without saving it or creating work.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_language",
+            "schema": {
+              "enum": [
+                "ar",
+                "bn",
+                "bg",
+                "ca",
+                "zh",
+                "hr",
+                "cs",
+                "da",
+                "nl",
+                "en",
+                "et",
+                "fi",
+                "fr",
+                "de",
+                "el",
+                "gu",
+                "he",
+                "hi",
+                "hu",
+                "id",
+                "it",
+                "ja",
+                "kn",
+                "ko",
+                "lv",
+                "lt",
+                "ms",
+                "ml",
+                "mr",
+                "no",
+                "fa",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sr",
+                "si",
+                "sk",
+                "sl",
+                "es",
+                "sw",
+                "sv",
+                "ta",
+                "te",
+                "th",
+                "tr",
+                "uk",
+                "ur",
+                "vi"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target, limit, or cursor."
+          },
+          "404": {
+            "description": "Source absent from the credential's own workspace, including for operator credentials."
+          },
+          "409": {
+            "description": "Source changed; restart from the first page."
+          }
+        },
+        "summary": "Read cached call translations",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
+      },
+      "post": {
+        "description": "Explicitly request translation for any accessible settled source with retained usable text, regardless of its creation date, even when automatic agent translation is disabled. This enrolls only the requested source for revision recovery and never enables automatic translation of other historical sources. $0.02 per 1,000 original words needing translation per target, minimum $0.01 per successfully translated source/target. Matching-language-only text and cached reads cost zero. Failed attempts and platform corrections never double-charge. No funds leaves translation waiting_funds and does not resume calls or SMS.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target or ineligible source."
+          },
+          "403": {
+            "description": "Missing content/paid-write scope, suspended source or workspace."
+          },
+          "404": {
+            "description": "Source not in the credential's workspace."
+          }
+        },
+        "summary": "Request paid call translation",
+        "x-required-scopes": [
+          "recordings:read",
+          "translations:write"
+        ]
       }
     },
     "/v1/calls/{call_id}/waveform": {
@@ -8814,9 +10315,77 @@
     },
     "/v1/conversations": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `conversations` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. Ordered by creation, newest first. Each conversation carries `message_count` and its newest message as `last_message`, never its history: read that with GET /v1/messages?conversation_id=.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Conversations"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "conversations": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "$ref": "#/components/schemas/ConversationSummary"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "conversations",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List SMS conversations"
@@ -8824,9 +10393,30 @@
     },
     "/v1/conversations/{conversation_id}": {
       "get": {
+        "description": "The conversation as GET /v1/conversations lists it: `message_count` and `last_message`, never its history; read that with GET /v1/messages?conversation_id=.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSummary"
+                }
+              }
+            },
             "description": "Conversation"
+          },
+          "404": {
+            "description": "Conversation not found"
           }
         },
         "summary": "Get one SMS conversation"
@@ -8844,9 +10434,68 @@
     },
     "/v1/customer-onboarding": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `customer_onboarding` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Records"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "customer_onboarding": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "customer_onboarding",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List business onboarding records"
@@ -9199,6 +10848,16 @@
     "/v1/dashboard/billing": {
       "get": {
         "description": "Returns one read-only Billing DTO for SSR and freshness polling, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Wallet available_minor is purchased funds; promotional_available_minor is browser-only credit and total_available_minor is their combined amount. The aggregate is tenant-bound to the bearer session, uses no Stripe or carrier request, and bounds recent wallet activity and receipts.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project; an invalid context fails instead of selecting another request. Requires numbers:read in addition to account:read, usage:read and wallet:read when present.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Billing workspace aggregate"
@@ -9209,7 +10868,7 @@
     },
     "/v1/dashboard/billing-history": {
       "get": {
-        "description": "Returns one read-only page DTO. `history` is wallet spend per UTC period (granularity `day` with periods up to 90, default 30; or `month` with periods up to 24, default 12; `end` optionally names the last day YYYY-MM-DD or month YYYY-MM), per category (`calls`, `sms`, `numbers`, `recordings`, `other`), in the wallet's currency as integer minor units, with every period present. Spend is money the ledger recorded as spent; top-ups, refunds and call holds/releases are not spend. `ledger` is one page of wallet entries, newest first by (created_at, id), filtered by `type` (`all`, `topup`, `call`, `sms`, `number`, `recording`, `refund`, `hold`, `other`) and an inclusive UTC date range `from`/`to` (YYYY-MM-DD, default the history window); pass `next_cursor` back as `cursor` while `has_more` is true. `matching_count` counts the filtered entries up to `export_row_cap`, and `matching_count_exceeds_export_cap` says the CSV export would be refused. `calls_split` divides the range's call spend into `phone_line_minor` (the carrier component's share of each hosted AI call, rounded down, or the whole of a call billed without hosted AI components) and `ai_agent_minor` (the rest); the two always add up to `calls_minor`. Each entry's `amount_minor` is how the entry reads to a customer: the amount spent, negative, for a charge (which is taken from an earlier hold), otherwise the change to available funds (a hold negative, its release positive, a credit positive); so amounts across a call's hold, charge and release do not sum to the balance change. `available_delta_minor` sums to the change in available funds and `spent_delta_minor` to spend. Entries carry only customer-safe fields: Stripe references in short form, a `call_id` only for a call in the same workspace, and an `sms_conversation_id` for an SMS charge. The ledger lists the whole organization's wallet, every project's entries alike, whatever `project_id` is passed (a `project_id` must belong to the session's organization, else 404). Each entry's `project_id` is the project of its call or SMS conversation (null when it has neither, or the conversation belongs to no project). The dashboard Calls and SMS pages read only the session's project, so the workspace links an entry's call or conversation only when the entry's `project_id` is that project. Tenant-bound to the bearer session; no provider request and no write.",
+        "description": "Returns one read-only page DTO. `history` is wallet spend per UTC period (granularity `day` with periods up to 90, default 30; or `month` with periods up to 24, default 12; `end` optionally names the last day YYYY-MM-DD or month YYYY-MM), per category (`calls`, `sms`, `numbers`, `recordings`, `translations`, `other`), in the wallet's currency as integer minor units, with every period present. Spend is money the ledger recorded as spent; top-ups, refunds and call holds/releases are not spend. `ledger` is one page of wallet entries, newest first by (created_at, id), filtered by `type` (`all`, `topup`, `call`, `sms`, `number`, `recording`, `translation`, `refund`, `hold`, `other`) and an inclusive UTC date range `from`/`to` (YYYY-MM-DD, default the history window); pass `next_cursor` back as `cursor` while `has_more` is true. `matching_count` counts the filtered entries up to `export_row_cap`, and `matching_count_exceeds_export_cap` says the CSV export would be refused. `calls_split` divides the range's call spend into `phone_line_minor` (the carrier component's share of each hosted AI call, rounded down, or the whole of a call billed without hosted AI components) and `ai_agent_minor` (the rest); the two always add up to `calls_minor`. Each entry's `amount_minor` is how the entry reads to a customer: the amount spent, negative, for a charge (which is taken from an earlier hold), otherwise the change to available funds (a hold negative, its release positive, a credit positive); so amounts across a call's hold, charge and release do not sum to the balance change. `available_delta_minor` sums to the change in available funds and `spent_delta_minor` to spend. Entries carry only customer-safe fields: Stripe references in short form, a `call_id` only for a call in the same workspace, and an `sms_conversation_id` for an SMS charge. The ledger lists the whole organization's wallet, every project's entries alike, whatever `project_id` is passed (a `project_id` must belong to the session's organization, else 404). Each entry's `project_id` is the project of its call or SMS conversation (null when it has neither, or the conversation belongs to no project). The dashboard Calls and SMS pages read only the session's project, so the workspace links an entry's call or conversation only when the entry's `project_id` is that project. Tenant-bound to the bearer session; no provider request and no write.",
         "parameters": [
           {
             "in": "query",
@@ -9255,6 +10914,7 @@
                 "sms",
                 "number",
                 "recording",
+                "translation",
                 "refund",
                 "hold",
                 "other"
@@ -10014,7 +11674,17 @@
     },
     "/v1/dashboard/numbers": {
       "get": {
-        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Each number includes calling_readiness: bounded inbound routing/pricing blockers and destination-dependent outbound configuration. Outbound registration_status distinguishes pending, failed, registered, not_required and legacy; pending or failed caller-ID registration blocks outbound only and is retried independently of carrier-ready inbound activation. DIDWW capacity pricing can report capacity_hybrid_unsupported, capacity_separate_metering_unsupported, or capacity_plan_unavailable; these refuse only the affected number. Inbound readiness remains indeterminate when mandatory call-time admission checks were not evaluated; a purchased number is not proof that calls can connect. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, billing history, calls, SMS, and verification documents. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "description": "Returns the read-only data needed by the Numbers dashboard, including workspace-wide number_allowance (used, limit, remaining, can_add; null limit means no billed-number cap). Each number includes calling_readiness: bounded inbound routing/pricing blockers and destination-dependent outbound configuration. Outbound registration_status distinguishes pending, failed, registered, not_required and legacy; pending or failed caller-ID registration blocks outbound only and is retried independently of carrier-ready inbound activation. DIDWW capacity pricing can report capacity_hybrid_unsupported, capacity_separate_metering_unsupported, or capacity_plan_unavailable; these refuse only the affected number. Inbound readiness remains indeterminate when mandatory call-time admission checks were not evaluated; a purchased number is not proof that calls can connect. The aggregate is tenant-bound to the bearer session, makes no provider calls or writes, and excludes provider internals, secrets, unrelated billing history, calls, SMS, and verification documents. An exact request return may include the most recent confirmed positive Stripe top-up summary for conversion capture. Pass project_id for an explicit project; when omitted, the response returns its selected default project. Bounded collections expose truncation flags rather than silently implying a complete export.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project. An unavailable selection returns no selected request so the bounded Numbers list remains usable; never selects another request.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Numbers workspace aggregate"
@@ -10126,6 +11796,16 @@
     "/v1/dashboard/verification": {
       "get": {
         "description": "Returns the selected verification profile, current number-type delta, and a batched summary of available number types. It is tenant-bound, read-only, and never syncs carrier data during a page load.",
+        "parameters": [
+          {
+            "description": "Optional exact request in the authenticated workspace project; an invalid context fails instead of selecting another request.",
+            "in": "query",
+            "name": "number_request_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Verification workspace aggregate"
@@ -10158,7 +11838,7 @@
         ]
       },
       "post": {
-        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Agents also add numbers here through the set_call_disposition(do_not_call) builtin tool.",
+        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Only the workspace adds numbers here: a caller asking not to be contacted is recorded as the call's outcome, never written to the register automatically.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -10204,6 +11884,75 @@
         ]
       }
     },
+    "/v1/end-users": {
+      "get": {
+        "description": "One bounded page, newest first, as an object: the items under `end_users` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "end_users": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "end_users",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          }
+        },
+        "summary": "List end-user verification profiles"
+      }
+    },
     "/v1/end-users/{end_user_profile_id}/registration-status": {
       "get": {
         "responses": {
@@ -10226,9 +11975,77 @@
     },
     "/v1/gateway-deployments": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `gateway_deployments` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Gateways"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "gateway_deployments": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "gateway_deployments",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List media gateways"
@@ -11145,9 +12962,89 @@
     },
     "/v1/messages": {
       "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `messages` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this conversation's messages: its history, newest first. A conversation of another workspace or project is a 404.",
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Messages"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "messages": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "messages",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          },
+          "404": {
+            "description": "`conversation_id` names no conversation of this workspace and project."
           }
         },
         "summary": "List SMS messages"
@@ -11234,6 +13131,153 @@
         "summary": "List SMS provider delivery events for one message"
       }
     },
+    "/v1/messages/{message_id}/translations": {
+      "get": {
+        "description": "Pure read: target selection, original/translation/both display, and polling never invoke a provider or create paid work. Artifacts are fenced to the current source revision. Single-source reads can calculate a bounded price estimate for retained older text without saving it or creating work.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_language",
+            "schema": {
+              "enum": [
+                "ar",
+                "bn",
+                "bg",
+                "ca",
+                "zh",
+                "hr",
+                "cs",
+                "da",
+                "nl",
+                "en",
+                "et",
+                "fi",
+                "fr",
+                "de",
+                "el",
+                "gu",
+                "he",
+                "hi",
+                "hu",
+                "id",
+                "it",
+                "ja",
+                "kn",
+                "ko",
+                "lv",
+                "lt",
+                "ms",
+                "ml",
+                "mr",
+                "no",
+                "fa",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sr",
+                "si",
+                "sk",
+                "sl",
+                "es",
+                "sw",
+                "sv",
+                "ta",
+                "te",
+                "th",
+                "tr",
+                "uk",
+                "ur",
+                "vi"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target, limit, or cursor."
+          },
+          "404": {
+            "description": "Source absent from the credential's own workspace, including for operator credentials."
+          },
+          "409": {
+            "description": "Source changed; restart from the first page."
+          }
+        },
+        "summary": "Read cached message translations",
+        "x-required-scopes": [
+          "sms:read"
+        ]
+      },
+      "post": {
+        "description": "Explicitly request translation for any accessible settled source with retained usable text, regardless of its creation date, even when automatic agent translation is disabled. This enrolls only the requested source for revision recovery and never enables automatic translation of other historical sources. $0.02 per 1,000 original words needing translation per target, minimum $0.01 per successfully translated source/target. Matching-language-only text and cached reads cost zero. Failed attempts and platform corrections never double-charge. No funds leaves translation waiting_funds and does not resume calls or SMS.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunicationTranslation"
+                }
+              }
+            },
+            "description": "Canonical cached translation state. Originals remain readable on every failure."
+          },
+          "400": {
+            "description": "Invalid target or ineligible source."
+          },
+          "403": {
+            "description": "Missing content/paid-write scope, suspended source or workspace."
+          },
+          "404": {
+            "description": "Source not in the credential's workspace."
+          }
+        },
+        "summary": "Request paid message translation",
+        "x-required-scopes": [
+          "sms:read",
+          "translations:write"
+        ]
+      }
+    },
     "/v1/number-catalog": {
       "get": {
         "responses": {
@@ -11246,9 +13290,86 @@
     },
     "/v1/number-requests": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `number_requests` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 100; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only requests in this status. The filter applies on every page of a walk.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Number requests"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "number_requests": {
+                      "description": "At most `limit` items, at most 100.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "number_requests",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List managed phone-number requests"
@@ -11292,9 +13413,77 @@
     },
     "/v1/numbers": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `numbers` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 100; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Phone numbers"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "numbers": {
+                      "description": "At most `limit` items, at most 100.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    }
+                  },
+                  "required": [
+                    "numbers",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List phone numbers"
@@ -11700,9 +13889,77 @@
     },
     "/v1/phone-servers": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `phone_servers` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. A project page includes the organization's servers that belong to no project.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 200; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Phone servers"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "phone_servers": {
+                      "description": "At most `limit` items, at most 200.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "phone_servers",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List customer phone servers"
@@ -11806,9 +14063,77 @@
     },
     "/v1/trial-calls": {
       "get": {
+        "description": "One bounded page, newest first, as an object: the items under `trial_calls` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 100; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Trial records"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "trial_calls": {
+                      "description": "At most `limit` items, at most 100.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "trial_calls",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List historical and offline trial fixtures"
@@ -11862,6 +14187,84 @@
           }
         },
         "summary": "Get usage summary"
+      }
+    },
+    "/v1/usage-records": {
+      "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `usage_records` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "usage_records": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "usage_records",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
+          }
+        },
+        "summary": "List usage records"
       }
     },
     "/v1/usage/daily": {
@@ -11945,10 +14348,92 @@
     },
     "/v1/wallet/ledger": {
       "get": {
-        "description": "A recent-entries read, not the full ledger: at most `limit` (default 100, maximum 500) of the newest entries, with no cursor, and totals computed over the returned entries only. To page through every entry, filter by type and date, or export CSV, use GET /v1/dashboard/billing-history and its /export.",
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `entries` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. `totals` cover the entries on this page only. For filters by type and date, or a CSV export, use GET /v1/dashboard/billing-history and its /export.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 100 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Wallet ledger"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "count": {
+                      "description": "Entries on this page.",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "entries": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "limit": {
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "organization_id": {
+                      "type": "string"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "totals": {
+                      "description": "Credit, debit, reserved and available deltas summed over this page's entries, in minor units (each also as *_cents).",
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "entries",
+                    "pagination",
+                    "organization_id",
+                    "limit",
+                    "count",
+                    "currency",
+                    "totals"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List the most recent org-level wallet ledger entries and linked usage/call refs"
@@ -11976,9 +14461,88 @@
     },
     "/v1/webhook-deliveries": {
       "get": {
+        "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `deliveries` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. `event_catalog` and `retry_policy` are returned with every page.",
+        "parameters": [
+          {
+            "description": "Optional with a workspace key, which lists its own organization. An operator credential must name one: no list spans organizations.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this project's rows. A project of another organization is a 400.",
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size, 1 to 500; 50 when omitted. A value outside that range or not a whole number is a 400, never shortened.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The previous page's `pagination.next_cursor`, exactly as received. Anything else is a 400.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Webhook deliveries"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deliveries": {
+                      "description": "At most `limit` items, at most 500.",
+                      "items": {
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "event_catalog": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/ListPagination"
+                    },
+                    "retry_policy": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "deliveries",
+                    "pagination",
+                    "event_catalog",
+                    "retry_policy"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "One page. Server-Timing and X-Skysay-Query-Count describe the read; Cache-Control is no-store."
+          },
+          "400": {
+            "description": "`limit` outside its range or missing where required, a `cursor` that is not a `next_cursor`, no organization for an operator credential, or a project of another organization."
           }
         },
         "summary": "List real webhook delivery attempts (status, attempts, last error, next retry)"
