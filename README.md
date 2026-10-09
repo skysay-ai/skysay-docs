@@ -14,6 +14,8 @@ This repository **is** the site. Its released image serves these paths on
 | `/docs/<page>.md`, `/blog/<post>.md` | the same page as raw markdown, for agents |
 | `/llms.txt` | the [llms.txt](https://llmstxt.org) index of every page |
 | `/llms-full.txt` | the entire docs + blog corpus in one file |
+| `/api/search` | full-text search over the docs |
+| `/docs/sitemap.xml` | sitemap for every URL this app owns |
 
 The blog is moving to its own app (`skysay-blog`), which serves
 `/blog/llms.txt` and `/blog/llms-full.txt`. The root `/llms.txt` and
@@ -23,8 +25,6 @@ back to this repository's frozen `content/blog` copy, the bundled legacy
 snapshot. A marker line under the Blog heading says which one was used. Both
 files are regenerated every 5 minutes. `/raw/blog/<slug>` redirects (308) to
 `/blog/<slug>.md`. See `src/lib/llms-blog.js`.
-| `/api/search` | full-text search over the docs |
-| `/docs/sitemap.xml` | sitemap for every URL this app owns |
 
 Everything else on `skysay.ai` — the marketing site, the dashboard, the
 API — is a separate application. Only the paths above come from here.
