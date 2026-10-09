@@ -1264,6 +1264,10 @@
       "BuiltinAgentTool": {
         "description": "A built-in tool the AI agent can invoke during a call. `phone_number` is conditionally required: see its own description.",
         "properties": {
+          "connection_id": {
+            "description": "Required for calendar builtins: one active, owner-configured calendar connection in the AI agent's organization/project. The model cannot select it.",
+            "type": "string"
+          },
           "country": {
             "type": "string"
           },
@@ -1273,7 +1277,9 @@
               "send_sms",
               "transfer_to_human",
               "request_callback",
-              "set_call_disposition"
+              "set_call_disposition",
+              "calendar_check_availability",
+              "calendar_book_appointment"
             ],
             "type": "string"
           },
@@ -1293,6 +1299,84 @@
         "required": [
           "type",
           "name"
+        ],
+        "type": "object"
+      },
+      "CalendarConfiguration": {
+        "properties": {
+          "allow_test_writes": {
+            "default": false,
+            "type": "boolean"
+          },
+          "buffer_minutes": {
+            "default": 0,
+            "maximum": 120,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "conflict_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "duration_minutes": {
+            "default": 30,
+            "maximum": 240,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "horizon_days": {
+            "default": 30,
+            "maximum": 60,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "invite_caller": {
+            "default": false,
+            "type": "boolean"
+          },
+          "location": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "minimum_notice_minutes": {
+            "default": 60,
+            "maximum": 10080,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "target_id": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "test_connection": {
+            "default": false,
+            "type": "boolean"
+          },
+          "timezone": {
+            "description": "IANA timezone identifier",
+            "type": "string"
+          },
+          "working_hours": {
+            "additionalProperties": {
+              "items": {
+                "maximum": 1440,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "description": "Monday=0 through Sunday=6; each value is [start,end] in local minutes since midnight. No overnight intervals.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "target_id",
+          "timezone"
         ],
         "type": "object"
       },
@@ -8253,6 +8337,466 @@
           }
         },
         "summary": "Run secret-redacted BYO SIP trunk readiness checks for one DID (trunk auth, caller ID, inbound destination, channel capacity)"
+      }
+    },
+    "/v1/calendars/oauth/calcom/complete": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "calcom calendar OAuth complete"
+      }
+    },
+    "/v1/calendars/oauth/calcom/start": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "calcom calendar OAuth start"
+      }
+    },
+    "/v1/calendars/oauth/calendly/complete": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "calendly calendar OAuth complete"
+      }
+    },
+    "/v1/calendars/oauth/calendly/start": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "calendly calendar OAuth start"
+      }
+    },
+    "/v1/calendars/oauth/google/complete": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "google calendar OAuth complete"
+      }
+    },
+    "/v1/calendars/oauth/google/start": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "google calendar OAuth start"
+      }
+    },
+    "/v1/calendars/oauth/microsoft/complete": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "microsoft calendar OAuth complete"
+      }
+    },
+    "/v1/calendars/oauth/microsoft/start": {
+      "post": {
+        "description": "First-party signed-in website-session command. One-use, provider/project/session-bound state. No application or provider tokens returned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization URL or safe connection metadata"
+          },
+          "403": {
+            "description": "Missing, mismatched, expired or replayed consent session"
+          }
+        },
+        "summary": "microsoft calendar OAuth start"
+      }
+    },
+    "/v1/calendars/{connection_id}/configure": {
+      "post": {
+        "description": "Bound to the authenticated organization and a project in that organization. agents:write required. Tokens and provider errors are never returned. selections is an explicit network command, bounded to 100 results with has_more.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "configuration": {
+                    "$ref": "#/components/schemas/CalendarConfiguration"
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id",
+                  "configuration"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Safe connection metadata or bounded selection list"
+          },
+          "400": {
+            "description": "Invalid policy or unsupported provider capability"
+          },
+          "404": {
+            "description": "Connection not found in this workspace/project"
+          }
+        },
+        "summary": "Choose calendar destination and booking policy"
+      }
+    },
+    "/v1/calendars/{connection_id}/disable": {
+      "post": {
+        "description": "Bound to the authenticated organization and a project in that organization. agents:write required. Tokens and provider errors are never returned. selections is an explicit network command, bounded to 100 results with has_more.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Safe connection metadata or bounded selection list"
+          },
+          "400": {
+            "description": "Invalid policy or unsupported provider capability"
+          },
+          "404": {
+            "description": "Connection not found in this workspace/project"
+          }
+        },
+        "summary": "Disconnect a calendar and erase locally stored tokens"
+      }
+    },
+    "/v1/calendars/{connection_id}/selections": {
+      "post": {
+        "description": "Bound to the authenticated organization and a project in that organization. agents:write required. Tokens and provider errors are never returned. selections is an explicit network command, bounded to 100 results with has_more.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Safe connection metadata or bounded selection list"
+          },
+          "400": {
+            "description": "Invalid policy or unsupported provider capability"
+          },
+          "404": {
+            "description": "Connection not found in this workspace/project"
+          }
+        },
+        "summary": "Fetch account calendar or event-type choices"
       }
     },
     "/v1/call-artifact-imports": {
