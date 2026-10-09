@@ -1,6 +1,6 @@
 ---
 title: How a call ends
-description: How the AI agent ends a call with end_call on each conversation engine, the standing instruction every agent with end_call receives, and the check-in and polite ending when both sides go quiet.
+description: How the AI agent ends a call with end_call on each conversation engine, the standing instruction every agent with end_call receives, when Skysay declines the agent's own hang-up on a phone call, and the check-in and polite ending when both sides go quiet.
 icon: PhoneXmark
 ---
 
@@ -10,8 +10,9 @@ A call ends in one of three ways:
 - the AI agent ends it with the `end_call` tool;
 - Skysay ends it under one of its safety rules.
 
-This page covers the second, and the one safety rule that watches for a
-conversation that has gone quiet. The complete set of reasons a call can end
+This page covers the second, the check Skysay makes before it lets a
+standard-engine agent hang up on a phone call, and the one safety rule that
+watches for a conversation that has gone quiet. The complete set of reasons a call can end
 with is in [Post-call results](/docs/post-call-results#why-a-call-ended).
 
 ## The agent ends the call with `end_call`
@@ -73,10 +74,14 @@ So the agent is instructed to end a call only when one of these happens:
 
 It is also instructed, when it cannot help with a request, to say so and stay
 on the line. This is an instruction to the model, not a guarantee: the model
-decides when to invoke `end_call`, and it can still end a call earlier than
-these rules allow, including while the caller is still talking. Whatever the
-agent does, the call also ends when the caller hangs up or when it reaches its
-maximum length.
+decides when to invoke `end_call`, and it can still ask to end a call earlier
+than these rules allow, including while the caller is still talking. On phone
+calls handled by the standard engine, Skysay checks that request before the
+goodbye is spoken and declines it when the caller is plainly still in the
+conversation; see [When Skysay declines the agent's
+hang-up](#when-skysay-declines-the-agents-hang-up). Whatever the agent does,
+the call also ends when the caller hangs up or when it reaches its maximum
+length.
 
 The wrong-person rule matters most when you call people about their own
 accounts. Your own prompt still decides everything else about the
@@ -85,6 +90,53 @@ conversation.
 The instruction also reaches every language profile a
 [language-following](/docs/language-following) agent can switch to. On
 GPT-Live 1 it also reaches the backend model that decides when to call tools.
+
+## When Skysay declines the agent's hang-up
+
+On phone calls handled by the **standard** engine (speech-to-text, model,
+text-to-speech), Skysay checks the agent's own request to end the call before
+the goodbye is spoken, and declines it when the caller is plainly still in
+the conversation:
+
+- while the caller is still speaking, or their last words have not yet
+  reached the agent;
+- when the speech recogniser reports that it did not understand the caller's
+  last words clearly (for English and Estonian recognisers today): the agent
+  asks them to repeat;
+- when the caller's last words did not close the conversation: a goodbye, or
+  confirming that nothing else is needed. This is read with particular care
+  when at least three of the agent's last four replies were cut off by the
+  caller, the pattern behind most premature hang-ups: there the agent
+  answers briefly and waits, instead of hanging up.
+
+The wrong person answering an outbound call still ends it, and a confirmed
+answering machine or automated message is never held open.
+
+After a declined hang-up the agent simply continues the conversation: it
+answers what the caller is saying, or waits for them. A declined hang-up may
+add one or two brief exchanges before the call ends. The not-understood and
+not-closing declines are limited to three per call; after that the agent's
+next request ends the call. On an automated hold message that
+has not yet been confirmed as a machine, the agent may try to end the call up
+to three times before it is allowed.
+
+If the caller says nothing after a declined hang-up, the check-in and polite
+ending described below apply to that call: a check-in after 30 seconds of
+silence, and the call ending 15 seconds after the check-in has played, with
+`ended_reason` `caller_unresponsive`. This holds for such a call even while
+the silence rule is otherwise still in observation. The maximum call length
+always applies.
+
+In the call's transcript events, a declined hang-up appears as an `end_call`
+tool call that did not succeed, with the reason as its output; the call's
+actual ending is recorded as before.
+
+Outside this check: the GPT-Live 1 and Gemini Live engines, calls placed from
+the workspace test page, agents that run a workflow, and the endings Skysay
+makes itself (silence, maximum length, transfers, answering-machine
+detection). If the check is unavailable on a call, the agent's request is
+honoured as before. Nothing in the API changes: no new fields, event types or
+ending reasons.
 
 ## When both sides go quiet
 
