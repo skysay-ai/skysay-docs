@@ -390,6 +390,15 @@ the right-hand hold column. See [Turn detection by
 language](/docs/turn-detection-by-language) for how the two signals behind
 this table work and for guidance on choosing a preset per language.
 
+The hold is a **minimum wait, not the reply time**. A turn never ends before
+voice detection reports the end of speech, which takes about 250 ms of silence,
+and never before the final transcript of what the caller said has arrived,
+which depends on the speech-to-text provider. In a language with the turn
+detector, `balanced` and `high` therefore end a turn at the same moment; `high`
+only lowers the interruption threshold there. The agent editor shows these
+figures for the agent's own language under **Interruption sensitivity**, with a
+timeline of when that agent's recorded replies actually started.
+
 What `turn_taking` in `set_agent_voice_stack` adds is per-agent control over
 that threshold, the endpointing hold, and whether an interruption must also
 carry recognized words. `interruption_sensitivity`, `min_speech_ms` and
@@ -405,9 +414,9 @@ an in-progress call.
 
 | Setting | Effect on a hosted phone call |
 | --- | --- |
-| `interruption_sensitivity` | Every language. `balanced` is the default: the 500 ms threshold and the platform hold. `low` requires 750 ms of continuous speech and holds longer after it. `high` uses 150 ms for callers who need a more responsive threshold and holds for less. The hold each preset sets depends on whether the language has the trained turn detector (table above). `min_speech_ms` and `silence_hold_ms`, when set, take precedence for their knob. |
+| `interruption_sensitivity` | Every language. `balanced` is the default: the 500 ms threshold and the platform hold. `low` requires 750 ms of continuous speech and holds longer after it. `high` uses 150 ms for callers who need a more responsive threshold; it holds for less only in a language without the turn detector. The hold each preset sets depends on whether the language has the trained turn detector (table above), and it is a minimum wait, not the reply time. `min_speech_ms` and `silence_hold_ms`, when set, take precedence for their knob. |
 | `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call it is honoured down to 150 ms; a value below 150 ms is raised to 150 ms. A phone call without it, and without a preset, uses the 500 ms default. Browser and web calls store it but do not apply it. |
-| `silence_hold_ms` | Every language. An explicit 100–2000 ms endpointing hold after speech. It overrides the platform hold and any sensitivity preset. |
+| `silence_hold_ms` | Every language. The shortest wait, 100–2000 ms, after the caller stops speaking before their turn can end. It overrides the platform hold and any sensitivity preset. A value below about 250 ms has no effect, because voice detection needs that much silence to report the end of speech, and the wait is longer whenever the final transcript arrives later than this value. |
 | `min_interruption_words` | 0–5. Defaults to `1` on hosted **English** calls and to `0` (off) everywhere else. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
 | `barge_in_speech_rms` | **Deprecated.** Accepted, stored and returned for compatibility only; the runtime does not apply it to call behavior. Use `interruption_sensitivity`, `min_speech_ms` and `min_interruption_words` to control interruptions. |
 

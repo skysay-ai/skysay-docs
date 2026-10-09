@@ -52,6 +52,29 @@ language, 500 ms by default, 750 ms on `low` and 150 ms on `high`. See
 [Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in)
 for that table and every other `turn_taking` setting.
 
+## The hold is a minimum
+
+The hold is the shortest wait before a turn can end. It is not the time the
+caller waits for a reply. Two other things have to happen first, and the turn
+ends at whichever comes last:
+
+- **Voice activity reports the end of speech.** That takes about 250 ms of
+  silence, on every call. A hold shorter than that changes nothing, which is
+  why `balanced` (200 ms) and `high` (260 ms) end a turn at the same moment in
+  a turn-model language.
+- **The final transcript arrives.** The agent does not answer words it has not
+  received as text. How long that takes depends on the speech-to-text provider,
+  and on many stacks it is longer than the hold, so changing the preset there
+  changes nothing a caller can hear.
+
+After the turn ends, the model and the voice still need their own time before
+the caller hears anything.
+
+The agent editor shows this for each agent. Under **Interruption sensitivity**
+it lists the seconds behind all three choices for the agent's language, and a
+timeline of the selected one: the caller stops talking, the shortest pause
+ends, and where that agent's recorded replies actually started.
+
 ## Overrides
 
 An explicit `silence_hold_ms` replaces the hold above, in any language,
@@ -64,9 +87,12 @@ is honoured on phone calls down to 150 ms.
 In a language without the turn model, the hold is the entire end-of-turn
 decision, so it is worth tuning directly: if callers are being cut off
 mid-sentence, move to `low` or raise `silence_hold_ms`; if the agent feels
-slow to respond, move to `high` or lower `silence_hold_ms`. Try the change in
-the [Simulations Lab](/docs/simulations-lab) before pushing it to a live
-campaign.
+slow to respond, move to `high` or lower `silence_hold_ms`. That only helps
+down to the point where the final transcript arrives: if the editor's timeline
+shows the agent's replies starting well after the shortest pause, the wait is
+somewhere else, and a faster speech-to-text provider or model will do more than
+a shorter hold. Check the result on a phone call: browser test calls and the
+[Simulations Lab](/docs/simulations-lab) do not apply these settings.
 
 Whichever preset an agent runs, interruption itself is unaffected: barge-in is
 governed by the threshold above, not by the hold, so a caller who wants to cut
