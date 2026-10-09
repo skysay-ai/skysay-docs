@@ -39,7 +39,7 @@ match the selected duration. Optional email invitations require the caller's
 confirmed email. Scheduling providers require an email and may apply their own
 notification rules even when a Skysay invitation checkbox is off.
 
-Tokens are encrypted and refreshed server-side. They are never included in an
+Tokens are encrypted and refreshed server-side. A failed or interrupted refresh requires account reconnection because a rotating refresh token might already have been consumed. They are never included in an
 AI agent prompt or a workspace response. **Disconnect** erases the locally
 stored credentials and invalidates offers. Revoke the application in the
 provider account as well if you want to remove its consent grant there.
@@ -59,7 +59,7 @@ external MCP client is not required. Their definitions are part of the
 ## During a conversation
 
 1. The AI agent checks a future UTC range against your calendar and rules. It
-   receives up to five offers with local time, timezone and a short expiry.
+   receives up to five offers with local time, timezone and a three-minute expiry.
 2. The caller chooses a time. The AI agent collects and reads back the date,
    time, timezone, name, required email and event-type answers, then asks for
    explicit confirmation. It must not invent an email or fill in the owner's.
@@ -107,3 +107,5 @@ obtain the account owner's permission first.
 Required validation includes consent, token refresh, an authenticated browser
 call and a PSTN call with the appointment visible in the real selected calendar
 or event type. Keep real-calendar validation separate from mock-provider tests.
+
+The first release supports individual, immediate, unpaid scheduling events with text questions. Caller-chosen and outbound-phone locations, seated events and approval flows are refused. Cal.com uses a public OAuth client with PKCE; its token exchange stays server-side. Provider HTTP calls share a ten-second adapter budget, with a maximum of five seconds per request. Google read reconciliation handles one stale appointment per minute in the execute-enabled realtime worker; other unknown outcomes need account verification.
