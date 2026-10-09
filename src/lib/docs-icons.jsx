@@ -31,7 +31,6 @@ import {
   Link,
   List,
   Lock,
-  Mail,
   Megaphone,
   MicrophoneSpeaking,
   MusicDoubleNote,
@@ -98,7 +97,6 @@ const ICONS = {
   Download,
   Key,
   CreditCard,
-  Mail,
   ClockRotateRight,
 
   // --- Tutorials ---
