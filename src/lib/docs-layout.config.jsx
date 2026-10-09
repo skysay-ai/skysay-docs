@@ -8,6 +8,11 @@ import { Book } from "iconoir-react";
 // main skysay.ai app, not by this one. They are same-origin absolute paths
 // on purpose: on the live domain a path-based ingress rule sends them to the
 // right component.
+//
+// /blog is served by the separate blog app (skysay-blog), so "Blog" is a
+// plain document link (`external`: an <a>, not the Next client router, which
+// would try to load the page as this app's route). Fumadocs opens external
+// links in a new tab.
 export const baseNavOptions = {
   title: (
     <span className="inline-flex items-center gap-2 font-semibold">
@@ -23,7 +28,7 @@ export const baseNavOptions = {
 
 export const baseLinks = [
   { text: "Home", url: "/", active: "none" },
-  { text: "Blog", url: "/blog" },
+  { text: "Blog", url: "/blog", external: true },
   { text: "Pricing", url: "/pricing" },
   { text: "API", url: "/control-plane/openapi.json", external: true },
   { text: "llms.txt", url: "/llms.txt", external: true },

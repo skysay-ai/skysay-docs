@@ -14,6 +14,15 @@ This repository **is** the site. Its released image serves these paths on
 | `/docs/<page>.md`, `/blog/<post>.md` | the same page as raw markdown, for agents |
 | `/llms.txt` | the [llms.txt](https://llmstxt.org) index of every page |
 | `/llms-full.txt` | the entire docs + blog corpus in one file |
+
+The blog is moving to its own app (`skysay-blog`), which serves
+`/blog/llms.txt` and `/blog/llms-full.txt`. The root `/llms.txt` and
+`/llms-full.txt` take their Blog section and blog corpus from it (via
+`BLOG_INTERNAL_URL`, then the public `https://skysay.ai/blog/...`), and fall
+back to this repository's frozen `content/blog` copy, the bundled legacy
+snapshot. A marker line under the Blog heading says which one was used. Both
+files are regenerated every 5 minutes. `/raw/blog/<slug>` redirects (308) to
+`/blog/<slug>.md`. See `src/lib/llms-blog.js`.
 | `/api/search` | full-text search over the docs |
 | `/docs/sitemap.xml` | sitemap for every URL this app owns |
 
@@ -91,6 +100,7 @@ python3 scripts/scan_secrets.py --self-test
 npm run parity -- --no-live          # every URL resolves, corpora complete
 npm run anchor-check                 # every in-site #anchor resolves
 npm run sidebar-icons:test           # every sidebar node has a real, unique icon
+npm run llms-blog:test               # Blog part of the root llms files (fetch, contract, fallback)
 ```
 
 `scripts/anchor-check.mjs` resolves every in-site `#fragment` link against the
@@ -164,6 +174,7 @@ the way down.
 | Output | `.next/` — served by `next start`, not a static export |
 | Node | 22 or newer (`engines.node` is `>=22.0.0 <27`) |
 | Env | `NEXT_PUBLIC_SITE_URL` — absolute-URL base for `llms.txt`, `llms-full.txt` and the sitemap. Needed at **build** time. Defaults to `https://skysay.ai`. |
+| Env | `BLOG_INTERNAL_URL` — optional; the blog app's private URL (bound to `${skysay-blog.PRIVATE_URL}`). The root llms files fetch `/blog/llms*.txt` from it first. Unset or unreachable is fine. |
 
 Some pages are prerendered at build time and `/api/search` is rendered on
 demand, so the app needs a Node runtime — a static-site host will not work.
