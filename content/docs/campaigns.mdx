@@ -241,6 +241,68 @@ Pause and cancel work as usual. A test shows how one call went; it does not
 promise how the rest will go. MCP: `launch_campaign` takes `test_contact_id`,
 and `continue_campaign` continues.
 
+### Check with your system before each call
+
+A contact list is a snapshot: by the time a contact is due, an invoice may be
+paid, an appointment cancelled, consent withdrawn or a lead handled elsewhere.
+A campaign can ask your own system, just before each call, whether that call is
+still appropriate. Set `eligibility_check` on the campaign to a read action of
+one of your project's [Integrations](/docs/integrations):
+
+```json
+"eligibility_check": {"tool_id": "itool_123", "include_phone_number": false}
+```
+
+The action must be active, read-only and need no confirmation. Without
+`eligibility_check` nothing changes. Before each attempt Skysay sends the
+action's endpoint a signed request (the same signing, network protections and
+timeout as every Integration action):
+
+```json
+{
+  "type": "skysay.campaign_eligibility_check",
+  "request_id": "elig_…",
+  "campaign_id": "camp_…",
+  "run_id": "crun_…",
+  "campaign_contact_id": "cc_…",
+  "contact_id": "contact_…",
+  "external_reference": "crm-123",
+  "attempt_no": 1
+}
+```
+
+`request_id` is the same if the same attempt is asked again, and new for the
+next attempt. `phone_e164` is included only with `include_phone_number: true`;
+contact variables are never sent. Answer with:
+
+```json
+{"decision": "eligible" | "skip" | "defer", "reason": "invoice_paid", "recheck_at": "2026-10-11T09:00:00Z"}
+```
+
+- `eligible`: the call goes ahead, if the answer is at most a minute old when
+  it is placed. Your answer never overrides Skysay's own checks: the
+  do-not-call register, calling windows, capacity and policy are checked again
+  and still win.
+- `skip`: the contact is skipped (`skip_reason: eligibility_skip`) and your
+  `reason` is recorded. Nothing is dialled or charged.
+- `defer`: asked again at `recheck_at` (one hour when absent; between five
+  minutes and seven days, never after the campaign ends). After ten deferrals the
+  contact is skipped (`eligibility_defer_limit`).
+
+`reason` is optional, lower-case letters, digits and underscores, at most 64
+characters. No valid answer (a timeout, an error, an unreachable or blocked
+endpoint, any other response shape) is never treated as eligible: the contact
+is asked again after 5, 15, 45 minutes and so on (at most six hours), and after
+five failures in a row it ends as `pre_dial_failed` with `skip_reason`
+`eligibility_unavailable`, so you can see it. Asking is not an attempt: a skip,
+a deferral or a failure spends none of the contact's attempts.
+
+Each contact shows its latest `eligibility_decision`, `eligibility_reason` and
+`eligibility_checked_at`, and the campaign page counts the contacts the check
+skipped, deferred, is retrying and ended as unavailable. The check is a
+customer-policy hook for campaign calls; it does not cover direct
+`POST /v1/calls` requests.
+
 ### Calling hours
 
 `calling_windows` is `{weekday: [{start, end}]}` in `HH:MM`, at most four
