@@ -55,6 +55,11 @@ Sending requires `sms:send`; reading the returned message content also requires
 applies through both MCP and REST, including template sends and retries using
 an existing idempotency key.
 
+`POST /v1/messages` accepts the same optional `calling_window` as a call (see
+[Calling hours on a direct call](/docs/customer-applications#calling-hours-on-a-direct-call)):
+outside it, the message is refused with `409` `outside_calling_window` and is
+neither sent nor charged.
+
 <Callout type="warn" title="Sending is policy-gated">
   `send_sms` requires the `sms:send` scope and is subject to the same outbound
   policy as calls — blocked categories (telemarketing, mass outreach,

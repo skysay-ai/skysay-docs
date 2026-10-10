@@ -202,6 +202,120 @@ live-call gate (a direct
 `POST /v1/calls` request that reuses the campaign id as its
 `external_group_reference` is not touched).
 
+### Test one contact, then pause
+
+You can launch a campaign so that it calls exactly one contact first and then
+stops for you to check the result before anyone else is called. In the launch
+review choose **Test one contact, then pause**, pick a contact from the list
+(ideally a number you control), and confirm that this places one real call.
+Through the API:
+
+```bash
+curl -X POST https://api.skysay.ai/v1/campaigns/{campaign_id}/launch \
+  -H "Authorization: Bearer $SKYSAY_TOKEN" -H "Content-Type: application/json" \
+  -d '{"test_contact_id": "contact_123"}'
+```
+
+The run's `test.state` is `testing`. Only that contact can be called, until its
+call has an outcome, and never alongside another call of the campaign. As soon
+as it has an outcome, or can no longer be called (a do-not-call entry, no
+calling window, a refusal before dialling), the campaign pauses with
+`test.state` `awaiting_review`. A deferral the campaign caused itself (you
+paused it, the calling window closed) is not an outcome, and the test contact
+may be called again. There is no automatic retry and no next contact in test
+mode.
+
+`GET /v1/campaigns/{campaign_id}` then carries `test_review`: the contact
+(masked), the call's status, termination cause and
+[disposition](/docs/post-call-results#what-happened-on-the-call), whether a
+recording, transcript and post-call result exist, the workflow outcome, and the
+billing state. A completed call is not a passed test on its own: listen to it.
+
+`POST /v1/campaigns/{campaign_id}/continue` returns the campaign to normal
+calling. It is refused with `409` and `reason: "test_not_ready"` while the test
+call is still live or its charge is not settled or released
+(`continue_blockers` says which), and repeating it is harmless. `resume` cannot
+skip the review (`409`, `test_review_required`). Continuing never calls the
+test contact again at once: a retry its policy scheduled waits for its own time.
+Pause and cancel work as usual. A test shows how one call went; it does not
+promise how the rest will go. MCP: `launch_campaign` takes `test_contact_id`,
+and `continue_campaign` continues.
+
+### Check with your system before each call
+
+A contact list is a snapshot: by the time a contact is due, an invoice may be
+paid, an appointment cancelled, consent withdrawn or a lead handled elsewhere.
+A campaign can ask your own system, just before each call, whether that call is
+still appropriate. Set `eligibility_check` on the campaign to a read action of
+one of your project's [Integrations](/docs/integrations):
+
+```json
+"eligibility_check": {"tool_id": "itool_123", "include_phone_number": false}
+```
+
+The action must be active, read-only and need no confirmation. Its
+`output_schema` (what the action returns to an AI agent) is not used for the
+check: Skysay validates the answer against the fixed shape below. Without
+`eligibility_check` nothing changes. The setting works the same through
+`POST`/`PATCH /v1/campaigns`, the MCP `create_campaign` and `update_campaign`
+tools and the campaign wizard; a scheduled or paused campaign can change or
+remove it, and contacts waiting on the old check are asked again on the next
+dispatch. Before each attempt Skysay sends the
+action's endpoint a signed request (the same signing, network protections and
+timeout as every Integration action):
+
+```json
+{
+  "type": "skysay.campaign_eligibility_check",
+  "request_id": "elig_…",
+  "tool": {"id": "itool_123", "name": "check_invoice", "operation_kind": "read"},
+  "campaign_id": "camp_…",
+  "run_id": "crun_…",
+  "campaign_contact_id": "cc_…",
+  "contact_id": "contact_…",
+  "external_reference": "crm-123",
+  "attempt_no": 1
+}
+```
+
+`request_id` identifies one question: a repeated delivery of that question
+carries the same id, and every new question about the contact (a later check,
+a retry after a failure, the next attempt) carries a new one. `tool` names the
+action the campaign selected, in the same shape your endpoint receives for an
+AI agent's action call, so one endpoint can serve several checks.
+`phone_e164` is included only with `include_phone_number: true`; contact
+variables are never sent. Answer with:
+
+```json
+{"decision": "eligible" | "skip" | "defer", "reason": "invoice_paid", "recheck_at": "2026-10-11T09:00:00Z"}
+```
+
+- `eligible`: the call goes ahead, if the answer is at most a minute old when
+  it is placed. Your answer never overrides Skysay's own checks: the
+  do-not-call register, calling windows, capacity and policy are checked again
+  and still win.
+- `skip`: the contact is skipped (`skip_reason: eligibility_skip`) and your
+  `reason` is recorded. Nothing is dialled or charged.
+- `defer`: asked again at `recheck_at` (one hour when absent; between five
+  minutes and seven days, never after the campaign ends). After ten deferrals the
+  contact is skipped (`eligibility_defer_limit`).
+
+`reason` is optional: when present it is lower-case letters, digits and
+underscores, at most 64 characters. `recheck_at` is allowed only with `defer`
+and must carry a time zone. Leave out a field you do not use; `null` and any
+other field make the answer invalid. No valid answer (a timeout, an error, an unreachable or blocked
+endpoint, any other response shape) is never treated as eligible: the contact
+is asked again after 5, 15, 45 minutes and so on (at most six hours), and after
+five failures in a row it ends as `pre_dial_failed` with `skip_reason`
+`eligibility_unavailable`, so you can see it. Asking is not an attempt: a skip,
+a deferral or a failure spends none of the contact's attempts.
+
+Each contact shows its latest `eligibility_decision`, `eligibility_reason` and
+`eligibility_checked_at`, and the campaign page counts the contacts the check
+skipped, deferred, is retrying and ended as unavailable. The check is a
+customer-policy hook for campaign calls; it does not cover direct
+`POST /v1/calls` requests.
+
 ### Calling hours
 
 `calling_windows` is `{weekday: [{start, end}]}` in `HH:MM`, at most four
@@ -242,7 +356,11 @@ structured termination cause and the agent's own signal:
 
 `connected_completed`, `connected_wrong_party`, `connected_callback_requested`,
 `connected_refused`, `no_answer`, `busy`, `voicemail`, `invalid_number`,
-`carrier_rejected`, `do_not_call`, `cancelled`, `failed_technical`.
+`carrier_rejected`, `do_not_call`, `blocked`, `cancelled`, `failed_technical`.
+This is the same [disposition every call carries](/docs/post-call-results#what-happened-on-the-call).
+`blocked` means Skysay refused the call before the line rang for a reason that
+is not the campaign's own (for example a destination your capabilities do not
+allow); it closes the contact and is never redialed.
 
 A hosted agent declares the connected outcomes with the `set_call_disposition`
 builtin tool (a callback requires `callback_at`). Telephony outcomes come from
@@ -368,9 +486,76 @@ contact (the fields above, `extraction` as an object,
 `extraction_schema_version`) and `extraction_fields`, the AI agent's current
 field list. Bounded and paged like the contact page (`has_more`).
 
+## Campaign reports
+
+A report answers questions such as "in the last seven days, how many people
+promised to pay, could not be identified, or asked for a callback?" for one
+campaign, across its runs. The workspace shows it on the campaign's
+**Results** page; the API and MCP read the same report.
+
+- `GET /v1/campaigns/{campaign_id}/report` returns complete counts for the
+  filtered rows (total, per outcome, per disposition and per analysis state)
+  and one page of rows (`limit` up to 200, `has_more`, `next_cursor`; pass the
+  cursor back with the same filters).
+- `GET /v1/campaigns/{campaign_id}/report/export` returns every matching row as
+  CSV, with the schema and analysis version of each row; very large exports
+  are capped and say so.
+
+Filters combine with AND; the values inside one filter combine with OR, and an
+empty filter means everything:
+
+- `run_id` (one run; all runs when absent).
+- `from` and `to`: local dates (`YYYY-MM-DD`, inclusive) in `time_zone`, which
+  defaults to the campaign's time zone, so a day is the campaign's day, also
+  on a daylight-saving change. At most 366 days.
+- `mode`: `attempts` counts every call attempt, retries included; `contacts`
+  first picks the rows in the date range and run, keeps each contact's latest
+  attempt, and only then applies the other filters.
+- `outcome` (repeatable): the business outcome your result profile names, or
+  `unknown` when the call did not say or has no ready analysis.
+- `disposition` (repeatable): how the call ended, in the
+  [disposition vocabulary](/docs/post-call-results#what-happened-on-the-call),
+  or `unsettled`.
+- `analysis` (repeatable): `ready`, `pending`, `failed`, `not_requested`.
+- `review` (repeatable): `flagged`, `open`, `resolved`.
+- `q`: a contact name, external reference or the end of a phone number.
+
+Each row carries the contact, attempt, run, call, disposition, the typed
+[post-call result](/docs/post-call-results#optional-post-call-extraction)
+values when the analysis is ready (never a default `false` for a field the
+call did not answer), whether a recording and a transcript exist, and the
+review state. An outcome is what the caller said, not a confirmed effect: a
+caller saying "already paid" is not a payment.
+
+### Result profiles
+
+A result profile tells the report how to read one AI agent's post-call
+results: which text field holds the business outcome and how to label its
+values, which outcomes count as positive, and optionally which yes/no field
+says the person was identified, which date field holds the follow-up date, and
+which yes/no field asks for a person's review. Profiles are configuration only
+and reusable across that AI agent's campaigns; the mapping is checked against
+the AI agent's published results when you save it. Built-in starting points
+cover collections, sales qualification and appointment reminders.
+
+`GET`/`POST /v1/campaign-result-profiles`,
+`GET`/`PATCH`/`DELETE /v1/campaign-result-profiles/{profile_id}` (a profile a
+campaign still uses cannot be deleted), and `result_profile_id` on a campaign,
+which can be set in any status.
+
+### Report-only access
+
+The scope `campaign_reports:read` reads reports, exports and result profiles
+and nothing else. Give it to an API key for a reporting tool or a customer's
+system: it cannot launch or edit a campaign, resolve reviews, or read
+recordings and transcripts (those need `recordings:read`).
+
 ## Review inbox
 
-A conversation workflow ends most calls that need a person on a
+A call joins the review inbox when its workflow ended on a `review_candidate`
+outcome, or when its ready post-call result sets the review field of the
+campaign's [result profile](#result-profiles); each attempt appears once and
+its `sources` say why. A conversation workflow ends most calls that need a person on a
 `review_candidate` outcome: a promise to pay, a payment already made, a
 dispute, hardship, a callback request, a language request, a wrong party.
 The review inbox lists those attempts for a campaign's latest run with the

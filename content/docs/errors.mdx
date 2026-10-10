@@ -59,6 +59,7 @@ keep their own `error` code and carry no `request_id`.
 | `401` | `UnauthorizedError` | No key, a key that is not a `Bearer` token, or a key that is invalid or revoked. | Check the `Authorization: Bearer sky_…` header, or create a new key. |
 | `402` | `InsufficientBalanceError` | The wallet cannot cover what the request would reserve. | Top up; see [Billing](/docs/billing). |
 | `403` | `ForbiddenError` | The key lacks a scope (`missing required scope: calls:read`), or the request names a workspace other than the key's own. | Add the scope to the key, or remove the foreign `organization_id`. |
+| `403` | `ForbiddenError` with `reason: "do_not_call"` | `POST /v1/calls`: the number is on your workspace's do-not-call register. Only this refusal carries a `reason`. | Skip that one contact and carry on with the rest of a batch; any other `403` stops the batch. |
 | `404` | `NotFoundError` | The id does not exist, **or** it belongs to another workspace. The two are deliberately indistinguishable. | Check the id and the key's workspace. |
 | `404` | `not_found` | No such route. | Check the method and path. |
 | `405` | `method_not_allowed` | The path exists but not with this method. | Use a method from `allow`. |
