@@ -372,9 +372,76 @@ contact (the fields above, `extraction` as an object,
 `extraction_schema_version`) and `extraction_fields`, the AI agent's current
 field list. Bounded and paged like the contact page (`has_more`).
 
+## Campaign reports
+
+A report answers questions such as "in the last seven days, how many people
+promised to pay, could not be identified, or asked for a callback?" for one
+campaign, across its runs. The workspace shows it on the campaign's
+**Results** page; the API and MCP read the same report.
+
+- `GET /v1/campaigns/{campaign_id}/report` returns complete counts for the
+  filtered rows (total, per outcome, per disposition and per analysis state)
+  and one page of rows (`limit` up to 200, `has_more`, `next_cursor`; pass the
+  cursor back with the same filters).
+- `GET /v1/campaigns/{campaign_id}/report/export` returns every matching row as
+  CSV, with the schema and analysis version of each row; very large exports
+  are capped and say so.
+
+Filters combine with AND; the values inside one filter combine with OR, and an
+empty filter means everything:
+
+- `run_id` (one run; all runs when absent).
+- `from` and `to`: local dates (`YYYY-MM-DD`, inclusive) in `time_zone`, which
+  defaults to the campaign's time zone, so a day is the campaign's day, also
+  on a daylight-saving change. At most 366 days.
+- `mode`: `attempts` counts every call attempt, retries included; `contacts`
+  first picks the rows in the date range and run, keeps each contact's latest
+  attempt, and only then applies the other filters.
+- `outcome` (repeatable): the business outcome your result profile names, or
+  `unknown` when the call did not say or has no ready analysis.
+- `disposition` (repeatable): how the call ended, in the
+  [disposition vocabulary](/docs/post-call-results#what-happened-on-the-call),
+  or `unsettled`.
+- `analysis` (repeatable): `ready`, `pending`, `failed`, `not_requested`.
+- `review` (repeatable): `flagged`, `open`, `resolved`.
+- `q`: a contact name, external reference or the end of a phone number.
+
+Each row carries the contact, attempt, run, call, disposition, the typed
+[post-call result](/docs/post-call-results#optional-post-call-extraction)
+values when the analysis is ready (never a default `false` for a field the
+call did not answer), whether a recording and a transcript exist, and the
+review state. An outcome is what the caller said, not a confirmed effect: a
+caller saying "already paid" is not a payment.
+
+### Result profiles
+
+A result profile tells the report how to read one AI agent's post-call
+results: which text field holds the business outcome and how to label its
+values, which outcomes count as positive, and optionally which yes/no field
+says the person was identified, which date field holds the follow-up date, and
+which yes/no field asks for a person's review. Profiles are configuration only
+and reusable across that AI agent's campaigns; the mapping is checked against
+the AI agent's published results when you save it. Built-in starting points
+cover collections, sales qualification and appointment reminders.
+
+`GET`/`POST /v1/campaign-result-profiles`,
+`GET`/`PATCH`/`DELETE /v1/campaign-result-profiles/{profile_id}` (a profile a
+campaign still uses cannot be deleted), and `result_profile_id` on a campaign,
+which can be set in any status.
+
+### Report-only access
+
+The scope `campaign_reports:read` reads reports, exports and result profiles
+and nothing else. Give it to an API key for a reporting tool or a customer's
+system: it cannot launch or edit a campaign, resolve reviews, or read
+recordings and transcripts (those need `recordings:read`).
+
 ## Review inbox
 
-A conversation workflow ends most calls that need a person on a
+A call joins the review inbox when its workflow ended on a `review_candidate`
+outcome, or when its ready post-call result sets the review field of the
+campaign's [result profile](#result-profiles); each attempt appears once and
+its `sources` say why. A conversation workflow ends most calls that need a person on a
 `review_candidate` outcome: a promise to pay, a payment already made, a
 dispute, hardship, a callback request, a language request, a wrong party.
 The review inbox lists those attempts for a campaign's latest run with the
