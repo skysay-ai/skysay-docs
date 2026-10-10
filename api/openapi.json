@@ -580,7 +580,7 @@
           },
           "interruption_sensitivity": {
             "default": "balanced",
-            "description": "Hosted phone calls in every language. Preset interruption threshold: balanced 500 ms (the default), low 750 ms, high 150 ms. Preset end-of-turn hold on a language with the trained turn detector: balanced 200 ms (the default), low 520 ms, high 260 ms; on a language without one, where the hold is the whole end-of-turn decision: balanced 800 ms (the default), low 1100 ms, high 600 ms. An explicit `min_speech_ms` or `silence_hold_ms` takes precedence over the preset for its knob.",
+            "description": "Hosted phone calls in every language. Preset interruption threshold: balanced 500 ms (the default), low 750 ms, high 150 ms. Preset end-of-turn hold on a language with the trained turn detector: balanced 200 ms (the default), low 520 ms, high 260 ms; on a language without one, where the hold is the whole end-of-turn decision: balanced 800 ms (the default), low 1100 ms, high 600 ms. An explicit `min_speech_ms` or `silence_hold_ms` takes precedence over the preset for its knob. The end-of-turn hold is a minimum wait, not the reply time: a turn never ends before voice detection reports the end of speech, which takes about 250 ms of silence, or before the final transcript arrives, which depends on the speech-to-text provider. On a language with the trained turn detector, `high` therefore does not shorten the end-of-turn wait; it only lowers the interruption threshold.",
             "enum": [
               "balanced",
               "low",
@@ -615,7 +615,7 @@
             "type": "integer"
           },
           "silence_hold_ms": {
-            "description": "Hosted phone calls in every language. Explicit endpointing delay after the caller stops speaking; it overrides the platform default hold and any sensitivity preset.",
+            "description": "Hosted phone calls in every language. The shortest wait after the caller stops speaking before their turn can end; it overrides the platform default hold and any sensitivity preset. It is a minimum, not the reply time: a value below about 250 ms has no effect, because voice detection needs that much silence to report the end of speech, and the wait is longer whenever the final transcript arrives later than this value.",
             "maximum": 2000,
             "minimum": 100,
             "type": "integer"
