@@ -268,6 +268,7 @@ timeout as every Integration action):
 {
   "type": "skysay.campaign_eligibility_check",
   "request_id": "elig_…",
+  "tool": {"id": "itool_123", "name": "check_invoice", "operation_kind": "read"},
   "campaign_id": "camp_…",
   "run_id": "crun_…",
   "campaign_contact_id": "cc_…",
@@ -279,8 +280,11 @@ timeout as every Integration action):
 
 `request_id` identifies one question: a repeated delivery of that question
 carries the same id, and every new question about the contact (a later check,
-a retry after a failure, the next attempt) carries a new one. `phone_e164` is included only with `include_phone_number: true`;
-contact variables are never sent. Answer with:
+a retry after a failure, the next attempt) carries a new one. `tool` names the
+action the campaign selected, in the same shape your endpoint receives for an
+AI agent's action call, so one endpoint can serve several checks.
+`phone_e164` is included only with `include_phone_number: true`; contact
+variables are never sent. Answer with:
 
 ```json
 {"decision": "eligible" | "skip" | "defer", "reason": "invoice_paid", "recheck_at": "2026-10-11T09:00:00Z"}
@@ -296,8 +300,10 @@ contact variables are never sent. Answer with:
   minutes and seven days, never after the campaign ends). After ten deferrals the
   contact is skipped (`eligibility_defer_limit`).
 
-`reason` is optional, lower-case letters, digits and underscores, at most 64
-characters. No valid answer (a timeout, an error, an unreachable or blocked
+`reason` is optional: when present it is lower-case letters, digits and
+underscores, at most 64 characters. `recheck_at` is allowed only with `defer`
+and must carry a time zone. Leave out a field you do not use; `null` and any
+other field make the answer invalid. No valid answer (a timeout, an error, an unreachable or blocked
 endpoint, any other response shape) is never treated as eligible: the contact
 is asked again after 5, 15, 45 minutes and so on (at most six hours), and after
 five failures in a row it ends as `pre_dial_failed` with `skip_reason`
