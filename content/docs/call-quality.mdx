@@ -1,0 +1,181 @@
+---
+title: Call quality
+description: Score every production call against your AI agent's rubric, see why calls fail, and turn a bad call into a regression test that guards every later publish.
+icon: StatsReport
+---
+
+Every inbound and outbound call your AI agent takes is scored after it ends,
+against a rubric you write, and filed under one failure taxonomy that covers the
+line, the media pipeline and the AI agent itself. A call that went wrong once
+can then become a permanent [Simulations Lab](/docs/simulations-lab) scenario,
+and a workflow draft that does worse on those scenarios than the version that is
+live is refused at publish.
+
+Scoring never runs during the call and never on a read. It is a background job
+that starts after the call reaches a terminal state and waits for the call's
+recording, transcript and telemetry to arrive.
+
+## Write a production rubric
+
+A rubric is up to five criteria. Each criterion is a sentence describing what a
+good call does, a 1-5 threshold that passes, optional examples that anchor the
+scale, and the failure category a failed criterion files under:
+
+```json
+{
+  "criteria": [
+    {
+      "id": "moves_appointment",
+      "prompt": "The AI agent moved the appointment to the time the caller asked for.",
+      "threshold": 3,
+      "category": "agent_missed_intent"
+    }
+  ]
+}
+```
+
+Set it on the AI agent's **Quality** page or with
+`PUT /v1/agents/{agent_id}/quality-rubric`; read it with
+`GET /v1/agents/{agent_id}/quality-rubric`. Every change creates a new
+immutable revision. A call keeps the revision that was active when it ended, so
+editing the rubric never re-scores history. Send `base_revision` to be refused
+with `409` when someone else changed the rubric since you read it.
+
+`category` is one of `agent_wrong_answer`, `agent_missed_intent`,
+`agent_bad_handoff` or `agent_rubric_failure` (the default). A transcript can
+show that a reply was wrong; it cannot show a dropped media session or a carrier
+refusal, so a criterion cannot claim one.
+
+Each criterion is one evaluator call per scored call. Send an empty `criteria`
+list to stop scoring; failure classification continues without a rubric, at no
+cost.
+
+## Read a call's score
+
+`GET /v1/calls/{call_id}/quality` returns the result. Its `status` is one of:
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | The call ended; scoring is waiting for its evidence or for the worker. |
+| `scored` | The transcript was judged against the rubric. `verdict` is `pass`, `fail` or `unknown`, and `score_bps` is the mean criterion score on 0-10000. |
+| `not_configured` | The evidence was complete, but the AI agent has no rubric. The failure classification is still filled in. |
+| `not_applicable` | The call never became a conversation — not answered, busy, refused by the carrier. Only its telephony failure is classified. |
+| `unscoreable` | The call happened but cannot be judged fairly. `unscoreable_reason` says why. |
+
+**Partial evidence is never a failure.** When a call's transcript or its
+telemetry bundle arrived `partial`, when nothing arrived within twenty minutes
+of the call ending, or when the transcript is longer than the evaluator reads
+whole, the call is `unscoreable` — it has no verdict and no score, and it is not
+counted among failed calls. Its failure classification then uses only facts the
+platform recorded itself (why the call ended, what the carrier answered), never
+something inferred from a missing transcript line.
+
+| `unscoreable_reason` | Meaning |
+| --- | --- |
+| `transcript_partial` | The transcript is missing text the AI agent spoke. |
+| `evidence_partial` | The call's telemetry bundle is incomplete. |
+| `evidence_unavailable` | The recording, transcript or telemetry never arrived. |
+| `transcript_unavailable` | The call has no transcript turns. |
+| `transcript_too_long` | The evaluator cannot read the whole transcript, and a partial reading would not be a fair score. |
+| `evaluator_unavailable` | The evaluator stayed unreachable through its retries. |
+| `processing_failed` | Scoring failed for another reason. |
+
+The response carries each criterion's score, threshold, result and a one-line
+rationale. It requires `recordings:read`, because the rationale is derived from
+the transcript.
+
+## Failure taxonomy
+
+Each scored or classified call has one primary `failure.category` and every
+other signal observed in `failure.signals`. The primary category follows root
+cause: a call that never connected is a telephony failure, and a broken media
+pipeline explains the AI agent's failures on it.
+
+| Layer | Categories |
+| --- | --- |
+| `telephony` | `telephony_inbound_rejected`, `telephony_invalid_number`, `telephony_carrier_rejected`, `telephony_busy`, `telephony_no_answer`, `telephony_non_human_answer`, `telephony_technical_failure` |
+| `media` | `media_session_lost`, `media_engine_lost`, `media_response_stall`, `media_caller_speech_missed`, `media_agent_silent`, `media_stt_stall`, `media_model_failure`, `media_synthesis_failure`, `media_truncated_goodbye` |
+| `agent` | `agent_bad_handoff`, `agent_sms_send_failed`, `agent_tool_failure`, `agent_wrong_answer`, `agent_missed_intent`, `agent_rubric_failure` |
+
+The telephony categories are the same outcomes campaigns already report as
+dispositions, and the media categories come from the call's `ended_reason`
+and its recorded telemetry, so a call reads the same here as on the Calls page.
+A cancelled call, or one refused by your own outbound policy, is not a failure
+and has no category.
+
+## The Quality page
+
+Open an AI agent and choose **Quality**. The page shows, for the last 30 days:
+
+- the average score and pass rate of scored calls, and a daily trend — or
+  **No scored calls yet** when there are none, never an empty chart;
+- the failure mix by taxonomy, and why calls were unscoreable;
+- the measured reply time from call telemetry, where it was recorded;
+- a page of calls with their verdict and category, filterable to failures,
+  unscoreable calls or one category, 25 at a time.
+
+## Turn a bad call into a regression scenario
+
+On a call whose evidence was complete (`scored` or `not_configured`), choose
+**Add to regression suite**, or call
+`POST /v1/calls/{call_id}/quality/regression-scenario`. Skysay adds an adaptive
+scenario to the AI agent's **Production regressions** suite in Simulations Lab,
+creating the suite the first time:
+
+- the adaptive caller replays the shape of the real caller — how it opened,
+  what it went on to ask, how many turns it took, whether it cut in — not a
+  verbatim script;
+- the scenario is judged by the rubric the call was scored with;
+- every phone number, email address, run of four or more digits (also inside a
+  code such as `AB1234CD`), and every value the call itself carried (caller id,
+  your references, call variables) is removed before anything is stored, even
+  where one sits inside another (a known word inside an email address removes
+  the whole address). A call carrying more than 500 such values keeps none of
+  the caller's words, and a text longer than 20,000 characters is replaced by a
+  placeholder that keeps only its length. Names a caller spoke that Skysay was
+  never told cannot be recognised in every language, so review the scenario in
+  Simulations Lab, where you can edit it like any other.
+
+Promoting the same call again returns the first scenario. The suite holds at
+most 50 scenarios; promotion is refused with `409 regression_suite_full` beyond
+that.
+
+## The regression gate
+
+The Production regressions suite is created with a publish gate that refuses a
+workflow draft when:
+
+- the draft has no completed run of the whole suite (`no_qualifying_run`) — a
+  cancelled run, a rerun of only the failed scenarios, or a run in which every
+  attempt errored, does not count; or
+- the draft's newest completed run of the suite passes less than the recorded
+  baseline (`regression_score_drop`): a lower pass rate, more failed attempts,
+  or any scenario whose pass ratio fell. Pass rates count judged attempts only:
+  an attempt that errored in the Lab is evidence about neither version.
+
+The baseline is the run you recorded as the suite's baseline when it tested the
+same scenarios; otherwise the newest completed run of the version that is live.
+With no baseline yet, there is nothing to compare and the draft is not refused
+for a drop. The comparison reads recorded verdicts only, never timing.
+
+The refusal is `422 publish_blocked_by_simulation_suite` with
+`reason: regression_score_drop`, the two runs and the scenarios that regressed.
+
+### Emergency override
+
+A workspace owner or admin, signed in, can let exactly the current draft past
+the regression gate once: `POST /v1/agents/{agent_id}/quality-gate/overrides`
+with a `reason` and `expires_in_hours` (1-24, default 24), or the form on the
+Quality page. The override binds the draft's compiled content — any further
+edit needs a new one — and is spent by the first publish it lets through. It
+never waives any other suite's gate. Granting and using it are both written to
+the audit log with the person who granted it; if the use cannot be recorded,
+the publish is refused and the override stays unspent. An override that
+expires before the publish spends it lets nothing through. API keys cannot
+grant one.
+
+## Availability
+
+Scoring runs where the post-call worker runs. Promotion and the regression gate
+need Simulations Lab enabled for the workspace. Browser tests on the agent page
+are not production calls and are not scored.

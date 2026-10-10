@@ -1946,6 +1946,230 @@
         ],
         "type": "object"
       },
+      "CallQuality": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "call_id": {
+            "type": "string"
+          },
+          "criteria": {
+            "items": {
+              "properties": {
+                "category": {
+                  "type": "string"
+                },
+                "criterion_id": {
+                  "type": "string"
+                },
+                "rationale": {
+                  "maxLength": 300,
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                "score": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "threshold": {
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "evidence": {
+            "properties": {
+              "telemetry_status": {
+                "type": "string"
+              },
+              "transcript_status": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "failure": {
+            "properties": {
+              "category": {
+                "enum": [
+                  "",
+                  "telephony_inbound_rejected",
+                  "telephony_invalid_number",
+                  "telephony_carrier_rejected",
+                  "telephony_busy",
+                  "telephony_no_answer",
+                  "telephony_non_human_answer",
+                  "telephony_technical_failure",
+                  "media_session_lost",
+                  "media_engine_lost",
+                  "media_response_stall",
+                  "media_caller_speech_missed",
+                  "media_agent_silent",
+                  "media_stt_stall",
+                  "media_model_failure",
+                  "media_synthesis_failure",
+                  "media_truncated_goodbye",
+                  "agent_bad_handoff",
+                  "agent_sms_send_failed",
+                  "agent_tool_failure",
+                  "agent_wrong_answer",
+                  "agent_missed_intent",
+                  "agent_rubric_failure"
+                ],
+                "type": "string"
+              },
+              "layer": {
+                "enum": [
+                  "",
+                  "telephony",
+                  "media",
+                  "agent"
+                ],
+                "type": "string"
+              },
+              "signals": {
+                "items": {
+                  "enum": [
+                    "telephony_inbound_rejected",
+                    "telephony_invalid_number",
+                    "telephony_carrier_rejected",
+                    "telephony_busy",
+                    "telephony_no_answer",
+                    "telephony_non_human_answer",
+                    "telephony_technical_failure",
+                    "media_session_lost",
+                    "media_engine_lost",
+                    "media_response_stall",
+                    "media_caller_speech_missed",
+                    "media_agent_silent",
+                    "media_stt_stall",
+                    "media_model_failure",
+                    "media_synthesis_failure",
+                    "media_truncated_goodbye",
+                    "agent_bad_handoff",
+                    "agent_sms_send_failed",
+                    "agent_tool_failure",
+                    "agent_wrong_answer",
+                    "agent_missed_intent",
+                    "agent_rubric_failure"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "taxonomy_version": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "judge": {
+            "properties": {
+              "prompt_version": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "regression": {
+            "properties": {
+              "promoted_at": {
+                "type": "string"
+              },
+              "scenario_id": {
+                "type": "string"
+              },
+              "suite_id": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "rubric": {
+            "description": "The rubric revision active when the call ended. Later rubric edits never re-score a call.",
+            "properties": {
+              "revision": {
+                "type": "integer"
+              },
+              "rubric_id": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "score_bps": {
+            "description": "Mean criterion score on 0-10000; null unless at least one criterion was decided.",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "scored_at": {
+            "type": "string"
+          },
+          "status": {
+            "description": "not_applicable: the call never became a conversation. unscoreable: its evidence was partial, missing or longer than the evaluator reads whole -- never scored and never counted as a failed score. not_configured: complete evidence, no rubric. not_scored: the call ended before scoring existed.",
+            "enum": [
+              "pending",
+              "scored",
+              "not_configured",
+              "not_applicable",
+              "unscoreable",
+              "not_scored"
+            ],
+            "type": "string"
+          },
+          "unscoreable_reason": {
+            "enum": [
+              "",
+              "transcript_partial",
+              "evidence_partial",
+              "evidence_unavailable",
+              "transcript_unavailable",
+              "transcript_too_long",
+              "evaluator_unavailable",
+              "processing_failed"
+            ],
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "",
+              "pass",
+              "fail",
+              "unknown"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CallRecording": {
         "description": "Metadata for the active recording. Use download_url for playback; storage_key and media_url are legacy implementation details, not download contracts.",
         "properties": {
@@ -4441,6 +4665,187 @@
         ],
         "type": "object"
       },
+      "QualityGateOverride": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "compiled_hash": {
+            "description": "The exact workflow draft this override lets past the regression gate.",
+            "type": "string"
+          },
+          "consumed_at": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by_email": {
+            "type": "string"
+          },
+          "created_by_role": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "live": {
+            "type": "boolean"
+          },
+          "override_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "QualityRubric": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "rubric": {
+            "properties": {
+              "author_email": {
+                "type": "string"
+              },
+              "content_hash": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "criteria": {
+                "items": {
+                  "$ref": "#/components/schemas/QualityRubricCriterion"
+                },
+                "type": "array"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "rubric_id": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "QualityRubricCriterion": {
+        "properties": {
+          "category": {
+            "default": "agent_rubric_failure",
+            "description": "Failure category a failed criterion files under.",
+            "enum": [
+              "agent_wrong_answer",
+              "agent_missed_intent",
+              "agent_bad_handoff",
+              "agent_rubric_failure"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "negative_examples": {
+            "items": {
+              "maxLength": 200,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "positive_examples": {
+            "items": {
+              "maxLength": 200,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "prompt": {
+            "description": "What a good call does, judged on the call's transcript.",
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "threshold": {
+            "default": 3,
+            "description": "Lowest 1-5 score that passes.",
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "prompt"
+        ],
+        "type": "object"
+      },
+      "QualityRubricUpdate": {
+        "properties": {
+          "base_revision": {
+            "description": "The revision this edit is based on; a different current revision answers 409.",
+            "type": "integer"
+          },
+          "criteria": {
+            "description": "Replaces the rubric with a new revision. An empty list stops scoring; failure classification continues.",
+            "items": {
+              "$ref": "#/components/schemas/QualityRubricCriterion"
+            },
+            "maxItems": 5,
+            "type": "array"
+          }
+        },
+        "required": [
+          "criteria"
+        ],
+        "type": "object"
+      },
+      "RegressionPromotion": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "call_id": {
+            "type": "string"
+          },
+          "created": {
+            "description": "False when this call had already been promoted; the first promotion is returned.",
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "failure_category": {
+            "type": "string"
+          },
+          "promoted_by": {
+            "type": "string"
+          },
+          "scenario_id": {
+            "type": "string"
+          },
+          "suite_id": {
+            "type": "string"
+          },
+          "suite_revision": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "RetryRule": {
         "properties": {
           "backoff_seconds": {
@@ -6271,6 +6676,149 @@
         ]
       }
     },
+    "/v1/agents/{agent_id}/quality-gate/overrides": {
+      "post": {
+        "description": "Granted by a signed-in workspace owner or admin only (not an API key). Binds the current workflow draft's compiled hash, expires within 24 hours, and is spent by the first publish it lets through. Granting and spending are both written to the audit log. It never waives any other suite's gate.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "expires_in_hours": {
+                    "default": 24,
+                    "maximum": 24,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "maxLength": 500,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityGateOverride"
+                }
+              }
+            },
+            "description": "Override granted"
+          },
+          "403": {
+            "description": "Not a workspace owner or admin session"
+          },
+          "409": {
+            "description": "An override for this draft is already in force, or the AI agent has no regression suite (no_regression_gate)"
+          }
+        },
+        "summary": "Let one exact draft past the regression-score gate, once",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/quality-rubric": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRubric"
+                }
+              }
+            },
+            "description": "Active rubric, or configured: false"
+          },
+          "404": {
+            "description": "Agent not found in this workspace"
+          }
+        },
+        "summary": "Read the AI agent's production quality rubric",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
+      "put": {
+        "description": "At most 5 criteria. Each content change creates a new immutable revision; calls already ended keep the revision they were judged with. Every completed call with complete evidence is then scored asynchronously after it ends, one evaluator call per criterion. Refused during a platform maintenance window.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualityRubricUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRubric"
+                }
+              }
+            },
+            "description": "The rubric now in force"
+          },
+          "400": {
+            "description": "Invalid criteria"
+          },
+          "404": {
+            "description": "Agent not found"
+          },
+          "409": {
+            "description": "base_revision is stale"
+          }
+        },
+        "summary": "Replace the production quality rubric",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
     "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}": {
       "get": {
         "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers.",
@@ -7586,6 +8134,9 @@
           },
           "409": {
             "description": "The draft was changed by someone else since base_revision; body carries the current draft under 'current'"
+          },
+          "422": {
+            "description": "A Simulations Lab suite set to block publishing refused this draft (error publish_blocked_by_simulation_suite). reason is one of critical_failures, blocking_rubric, regression_score_drop (this draft's newest completed run of the suite passes less than the recorded baseline; detail names the runs and the regressed scenarios), unknown_verdicts, no_qualifying_run, run_incomplete or run_too_old."
           }
         },
         "summary": "Publish the current draft as a new immutable workflow version",
@@ -8810,6 +9361,121 @@
         },
         "summary": "Read an optional advisory extraction result for one call",
         "x-required-scopes": [
+          "recordings:read"
+        ]
+      }
+    },
+    "/v1/calls/{call_id}/quality": {
+      "get": {
+        "description": "Pure read of the asynchronous result. A call whose recording, transcript or telemetry arrived partial is unscoreable, never a failed score.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallQuality"
+                }
+              }
+            },
+            "description": "Call quality"
+          },
+          "404": {
+            "description": "Call not found in this workspace"
+          }
+        },
+        "summary": "Read one call's quality score and failure classification",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
+      }
+    },
+    "/v1/calls/{call_id}/quality/regression-scenario": {
+      "post": {
+        "description": "Appends an adaptive scenario to the AI agent's production-regression suite, creating that suite on first use with a publish gate that refuses a draft whose regression score drops against the recorded baseline, or that has not been run against these scenarios. The scenario replays the shape of the caller -- how it opened, what it asked, how many turns it took -- with every phone number, email, long number and every value the call itself holds (caller id, references, call variables) redacted. Idempotent per call. Requires Simulations Lab.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "behavior": {
+                    "maxLength": 600,
+                    "type": "string"
+                  },
+                  "goal": {
+                    "maxLength": 600,
+                    "type": "string"
+                  },
+                  "name": {
+                    "maxLength": 120,
+                    "type": "string"
+                  },
+                  "opening": {
+                    "maxLength": 300,
+                    "type": "string"
+                  },
+                  "suite_name": {
+                    "description": "Name for the suite when this promotion creates it.",
+                    "maxLength": 120,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionPromotion"
+                }
+              }
+            },
+            "description": "Already promoted; the first promotion"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegressionPromotion"
+                }
+              }
+            },
+            "description": "Scenario created"
+          },
+          "404": {
+            "description": "Call not found, not yet scored, or Simulations Lab is not enabled"
+          },
+          "409": {
+            "description": "call_not_promotable (evidence was not complete), regression_suite_full, regression_suite_archived, or a concurrent suite edit"
+          }
+        },
+        "summary": "Promote a call into a permanent Simulations Lab regression scenario",
+        "x-required-scopes": [
+          "agents:write",
           "recordings:read"
         ]
       }
@@ -10619,6 +11285,108 @@
           "account:read",
           "agents:read",
           "wallet:read"
+        ]
+      }
+    },
+    "/v1/dashboard/agent-quality": {
+      "get": {
+        "description": "Workspace-bound, pure read: 30-day score trend, failure mix by taxonomy, unscoreable reasons, measured reply time, one keyset page of calls with has_more and next_cursor, and the regression suite with the publish gate's comparison for the current draft. Constant query count. An agent with no scored calls returns an empty trend.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "failed",
+                "unscoreable"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "telephony_inbound_rejected",
+                "telephony_invalid_number",
+                "telephony_carrier_rejected",
+                "telephony_busy",
+                "telephony_no_answer",
+                "telephony_non_human_answer",
+                "telephony_technical_failure",
+                "media_session_lost",
+                "media_engine_lost",
+                "media_response_stall",
+                "media_caller_speech_missed",
+                "media_agent_silent",
+                "media_stt_stall",
+                "media_model_failure",
+                "media_synthesis_failure",
+                "media_truncated_goodbye",
+                "agent_bad_handoff",
+                "agent_sms_send_failed",
+                "agent_tool_failure",
+                "agent_wrong_answer",
+                "agent_missed_intent",
+                "agent_rubric_failure"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent quality aggregate"
+          },
+          "404": {
+            "description": "Agent not found in this workspace"
+          }
+        },
+        "summary": "Read one AI agent's Quality page aggregate",
+        "x-required-scopes": [
+          "account:read",
+          "agents:read",
+          "calls:read"
         ]
       }
     },
