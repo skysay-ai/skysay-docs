@@ -253,8 +253,13 @@ one of your project's [Integrations](/docs/integrations):
 "eligibility_check": {"tool_id": "itool_123", "include_phone_number": false}
 ```
 
-The action must be active, read-only and need no confirmation. Without
-`eligibility_check` nothing changes. Before each attempt Skysay sends the
+The action must be active, read-only and need no confirmation, and its
+`output_schema` must declare `decision` (or declare no properties). Without
+`eligibility_check` nothing changes. The setting works the same through
+`POST`/`PATCH /v1/campaigns`, the MCP `create_campaign` and `update_campaign`
+tools and the campaign wizard; a scheduled or paused campaign can change or
+remove it, and contacts waiting on the old check are asked again on the next
+dispatch. Before each attempt Skysay sends the
 action's endpoint a signed request (the same signing, network protections and
 timeout as every Integration action):
 
@@ -271,8 +276,9 @@ timeout as every Integration action):
 }
 ```
 
-`request_id` is the same if the same attempt is asked again, and new for the
-next attempt. `phone_e164` is included only with `include_phone_number: true`;
+`request_id` identifies one question: a repeated delivery of that question
+carries the same id, and every new question about the contact (a later check,
+a retry after a failure, the next attempt) carries a new one. `phone_e164` is included only with `include_phone_number: true`;
 contact variables are never sent. Answer with:
 
 ```json
