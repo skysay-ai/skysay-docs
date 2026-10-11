@@ -14,11 +14,20 @@ This page covers the second, and the one safety rule that watches for a
 conversation that has gone quiet. The complete set of reasons a call can end
 with is in [Post-call results](/docs/post-call-results#why-a-call-ended).
 
+If the caller leaves while Skysay is still preparing the call, Skysay checks
+that the original caller is still connected before starting providers and
+reporting media startup. A departure detected at those checks stops setup; it
+is not recorded as a completed conversation.
+Inbound phone calls also require confirmation that SIP actually answered
+before Skysay reports an answered call and starts the conversation model.
+
 ## The agent ends the call with `end_call`
 
 When the conversation is over, the agent calls the built-in `end_call` tool.
-Skysay then plays its goodbye to the end and hangs up. The call reports
-`ended_reason` `agent_completed`.
+Skysay then plays its goodbye and hangs up if the caller does not resume
+speaking before the close is committed. When that agent-requested ending
+completes, the call reports `ended_reason` `agent_completed`. A safety rule
+that takes over first reports its own ending reason instead.
 
 Where the goodbye comes from depends on the conversation engine:
 
@@ -33,6 +42,24 @@ Where the goodbye comes from depends on the conversation engine:
 
 Either way, the wait for the goodbye is bounded. If it does not finish within
 about 15 seconds, the call is ended anyway.
+
+### Speaking again during a goodbye
+
+An agent's pending hang-up can be canceled when Skysay detects the caller
+speaking again. On Standard agents, this stops the pending goodbye and keeps
+caller input open so the agent can answer the new request. A later legitimate
+ending needs a fresh `end_call` request; the canceled one cannot disconnect
+the continued conversation. GPT-Live 1 and Gemini Live also protect the
+caller's turn during a pending close.
+
+This protection depends on speech detection, not on recognizing a particular
+word such as "no"; recognized words can also cancel a Standard agent's close
+when the acoustic detector misses them. Missed speech may not cancel a
+hang-up, and noise mistaken for speech can cancel it unnecessarily. Even a
+spoken response to the goodbye can keep the conversation open until a fresh
+ending request or a safety limit. It cannot undo a goodbye already heard or reopen a call
+after disconnection. Call-length, balance and operator limits still end the
+call even if the caller is speaking.
 
 ## The standing call-ending instruction
 
@@ -73,8 +100,9 @@ So the agent is instructed to end a call only when one of these happens:
 
 It is also instructed, when it cannot help with a request, to say so and stay
 on the line. This is an instruction to the model, not a guarantee: the model
-decides when to invoke `end_call`, and it can still end a call earlier than
-these rules allow, including while the caller is still talking. Whatever the
+decides when to invoke `end_call`, and it can still request an ending earlier
+than these rules allow. Speech detection protects a pending close, but does
+not prove the caller intended to finish. Whatever the
 agent does, the call also ends when the caller hangs up or when it reaches its
 maximum length.
 
