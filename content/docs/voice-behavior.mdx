@@ -193,6 +193,17 @@ anything, or on a call whose replies come from a workflow.
 A call where nobody speaks at all is a different situation, with its own
 reason, `no_caller_speech_after_answer`.
 
+On GPT-Live calls with `end_call` enabled, Skysay can request one recovery
+reply if caller input reached the engine but the engine stopped responding.
+It waits until half the configured bound, capped at 10 seconds of free-line
+time, and does not interrupt the caller or an active tool or backend request.
+The model can answer a continuing question or invoke `end_call` if the
+conversation is finished. Saying goodbye alone never authorizes a hang-up.
+The agent keeps its configured tools and is instructed not to repeat completed
+actions. Recovery runs at most once per call and does not extend the original
+unresponsive deadline. It is a safety net, not a guarantee that a model will
+respond or choose to end the call.
+
 Change it per agent in the same `voice_polish` object:
 
 ```json
