@@ -1,0 +1,91 @@
+---
+title: Why a call failed
+description: The failure label on every finished call, what each one means, and who acts on it.
+icon: DocMagnifyingGlass
+---
+
+Every finished call in your workspace can carry one **failure label**: why the
+call went wrong, and which side caused it. The label shows as a chip on the
+Calls page, in full in the call's drawer, as a breakdown on a campaign, and for
+the last 30 days on each AI agent's overview.
+
+A call with no label chip had **no failure observed**. That is not the same as
+proof that the call went well: some failures can only be detected when the
+call's full evidence (its transcript and its timing telemetry) has arrived.
+
+The label is not the reason the call *ended*. Every call also reports why it
+ended (the caller hung up, the AI agent finished, a safety rule ended it); see
+[Post-call results](/docs/post-call-results#why-a-call-ended). The failure label
+reads that reason, the line's own result and the call's evidence, and says
+whether anything went wrong.
+
+## Three places a call can fail
+
+| Layer | What happened | Who acts |
+| --- | --- | --- |
+| **Telephony** | The call never became a conversation. | You: check the contact list, the calling times or the number. |
+| **Audio and media** | A conversation started and Skysay's voice pipeline broke. | Skysay: the failure is ours. |
+| **AI agent behaviour** | The pipeline worked; the AI agent or one of your own systems failed. | You: check the AI agent's prompt, your webhook or tool, or the transfer number. |
+
+When a call shows more than one problem, the label names the root cause: a
+call that never connected is a telephony failure whatever else happened, and a
+broken pipeline explains anything the AI agent did wrong on that call. The
+other problems observed stay visible in the call's drawer.
+
+## The labels
+
+### Telephony
+
+| Label | Meaning |
+| --- | --- |
+| Inbound call rejected | Skysay's admission refused the incoming call before it was answered, for example because the workspace could not take it. |
+| Invalid number | The number does not exist or cannot be dialled. |
+| Rejected by the carrier | The carrier refused the call. |
+| Line busy | The line was busy. |
+| No answer | Nobody answered before the ring timed out. |
+| Answered by a machine | The line was answered, but only by a machine, music or tones, never a person. |
+| Telephony technical failure | The call failed before it could connect, for a technical reason on the line. |
+
+### Audio and media
+
+| Label | Meaning |
+| --- | --- |
+| Media session lost | The audio session went away during the call. |
+| Voice engine lost | The conversation engine closed underneath the call. |
+| Reply stalled | The AI agent stopped replying while the caller was talking to it, and the call was ended. |
+| Caller speech missed | The call was ended for no caller speech although the caller did speak. |
+| AI agent went silent | The caller spoke and the AI agent never replied. |
+| Speech recognition stalled | Recognising what the caller said failed or timed out. |
+| Language model failed | The language model failed or timed out on a reply. |
+| Speech synthesis failed | Turning the reply into speech failed or timed out. |
+| Goodbye cut off | The AI agent's closing line was cut before it finished playing. |
+
+### AI agent behaviour
+
+| Label | Meaning |
+| --- | --- |
+| Transfer went wrong | A transfer to a person failed, was rejected, or its outcome never came back. |
+| Text message not sent | An SMS the AI agent tried to send during the call failed. |
+| Tool call failed | A tool the AI agent called (your webhook or integration) failed or timed out. |
+
+## Limited evidence
+
+Some labels rest on the call's transcript and timing telemetry: *Caller speech
+missed*, *AI agent went silent*, *Speech recognition stalled*, *Language model
+failed*, *Speech synthesis failed*, *Goodbye cut off*, *Tool call failed* and
+*Text message not sent*. Skysay only uses them when that evidence is complete,
+because on partial evidence a missing turn may be a gap in the evidence rather
+than something that happened.
+
+When a call connected but its evidence is incomplete, the call's drawer says
+so: *Limited evidence: only carrier and session problems can be detected for
+this call.* Labels are decided again as evidence arrives, so a call can gain a
+more specific label a few moments after it ends.
+
+## Finding failed calls
+
+On the Calls page, the failure filter narrows the list to one layer or one
+label; the count and "Load more" follow the filter. A campaign's detail page
+breaks its calls down by layer and label, and each AI agent's overview shows the
+same breakdown for its calls from the last 30 days. When there is nothing to
+show, the breakdown says *No failures detected* rather than drawing zeroes.
