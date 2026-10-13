@@ -62,6 +62,27 @@ an existing idempotency key.
   approval before sending live. See [Policy & outbound](/docs/policy-and-outbound).
 </Callout>
 
+## When a number can't send
+
+Two different things can stop a message, and Skysay says which one:
+
+- **SMS sending isn't switched on for Skysay.** This is platform-wide: it is
+  the same for every workspace and every number, and nothing you change fixes
+  it. You can still receive texts. In the workspace, **SMS** says so and the
+  composer waits. A message sent in the meantime is not delivered: its status
+  is `live_blocked`, never `queued`.
+- **This number can't send.** Its carrier connection is voice-only, or Skysay
+  doesn't send SMS through the carrier that hosts it. `send_sms` refuses with
+  `400` and a reason naming the number, before anything is stored or charged.
+  In the workspace, the number is shown as unable to send, with the reason.
+
+When you buy a number, the checkout says what it will do with SMS for that
+country and number type: receive and send, receive only, send only, or calls
+only.
+
+AI agents don't answer texts automatically. A text to one of your numbers is
+kept in **SMS** and delivered to your `sms.received` webhook.
+
 ## Read a message in another language
 
 For new messages associated with an AI agent, its transcript translation
