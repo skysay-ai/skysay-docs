@@ -8064,6 +8064,121 @@
         "summary": "List audit events"
       }
     },
+    "/v1/available-numbers": {
+      "get": {
+        "parameters": [
+          {
+            "description": "ISO country code, for example US. Comma-separated for several.",
+            "in": "query",
+            "name": "country",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Number type, for example local. Comma-separated for several.",
+            "in": "query",
+            "name": "number_type",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only numbers in this area code, for example 212.",
+            "in": "query",
+            "name": "area_code",
+            "required": false,
+            "schema": {
+              "pattern": "^[0-9]{1,6}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only numbers in this state or region, by name or code, for example Texas, TX or US-TX.",
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 250,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "rows (id, country, number_type, phone_number, capabilities, customer prices, area_code, area_name, city, region, region_code, checked_at, expires_at), inventory_mode (exact_cached|category_fallback) and has_more"
+          },
+          "400": {
+            "description": "area_code is not 1-6 digits, region is longer than 64 characters, or limit is not an integer"
+          }
+        },
+        "summary": "List the exact numbers currently loaded for purchase. Each row is an availability snapshot, not a reservation: availability and price are rechecked with the carrier before the number is ordered, so a row past its expires_at can still be chosen"
+      }
+    },
+    "/v1/available-numbers/search": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "area_code": {
+                    "description": "Only numbers in this area code, for example 212",
+                    "pattern": "^[0-9]{1,6}$",
+                    "type": "string"
+                  },
+                  "country": {
+                    "description": "ISO country code, for example US",
+                    "type": "string"
+                  },
+                  "limit": {
+                    "default": 10,
+                    "maximum": 20,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "number_type": {
+                    "default": "local",
+                    "type": "string"
+                  },
+                  "region": {
+                    "description": "Only numbers in this state or region, by name or code, for example Texas, TX or US-TX",
+                    "maxLength": 64,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "country"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The rows as GET /v1/available-numbers returns them, the area_code and region searched, refresh_status (succeeded|fresh_cache|cooldown|failed|blocked) and expires_at. Only succeeded and fresh_cache mean the rows are current carrier inventory; cooldown and failed return no rows"
+          },
+          "400": {
+            "description": "country is missing, area_code is not 1-6 digits, region is longer than 64 characters, or limit is not an integer"
+          }
+        },
+        "summary": "Load exact numbers from the carrier for one country and number type, optionally narrowed by area code or region. A safe read: nothing is reserved, ordered or charged. A recent identical search is answered from the loaded snapshot or its cooldown instead of reading the carrier again"
+      }
+    },
     "/v1/billing/invoices": {
       "get": {
         "description": "One bounded page, newest first by `created_at`, ties by creation order, as an object: the items under `invoices` and `pagination`. Follow `pagination.next_cursor` while `pagination.has_more` is true; a walk returns every row that exists for the whole walk exactly once. Top-up ledger entries only.",
