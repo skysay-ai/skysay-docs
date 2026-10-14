@@ -1,0 +1,129 @@
+---
+title: Calendar booking
+description: Connect a calendar or scheduling account so an AI agent can offer and book a caller-confirmed appointment.
+icon: ClockRotateRight
+---
+
+<Callout title="Implementation preview">
+Calendar booking is being developed for Google Calendar, Microsoft 365 / Outlook,
+Calendly and Cal.com. This guide accompanies the open implementation change;
+Google has local real-account/browser-call validation at application commit `9042bcdc1eabc47d18e02b458baf357119f2eb1f`; later code changes require a fresh call test before release. Outlook, Calendly and Cal.com still need real booking/call proof. Production availability is pending for all providers.
+</Callout>
+
+Calendar booking gives a hosted AI agent two permitted tools: check available
+times and submit one confirmed appointment. It uses a calendar connection owned
+by your workspace and project. The caller cannot change its destination,
+credentials or booking rules. Existing [webhook Integrations](/docs/integrations)
+continue to work independently.
+
+## Connect and select a destination
+
+Open **Integrations → Calendar booking** and choose the provider. A signed-in
+workspace user completes consent in that provider's account. Application setup
+must be provisioned securely by the platform operator first; never paste an
+application secret into a chat or an issue.
+
+Choose a writable Google or Outlook calendar, or an individual Calendly/Cal.com
+event type. For Google and Outlook, select any other calendars to check for
+conflicts. The destination is always checked. A previously selected calendar
+missing from the current list must be explicitly deselected, or its account
+access restored, before saving. For Calendly and Cal.com, configure
+the connected calendars and conflict rules in your scheduling account.
+
+Calendly direct booking uses its paid Scheduling API; unsupported accounts can
+refuse booking. Payment, approval, seated and unsupported event types are
+rejected. Real-account proof is required separately for each provider; support
+for one account is not proof for the other three.
+
+The main settings are the booking destination, appointment length and timezone
+(for example `Europe/Tallinn`). Google/Outlook show a summary of your working
+hours with an expandable editor. **Advanced** holds buffers, notice periods,
+booking horizon, location, invitations and test permissions. Closing Advanced
+preserves those settings.
+
+For Calendly/Cal.com, choosing an event type prefills its duration when available;
+it must match that event type. New connections use the provider's availability
+across the week with no extra notice, within Skysay's 60-day maximum horizon.
+Existing custom hours and limits are preserved; additional Skysay hours are
+optional under Advanced. Slots must fit within one local calendar day; an appointment may end exactly at midnight when working hours close at 24:00. Optional email invitations require the caller's
+confirmed email. Scheduling providers require an email and may apply their own
+notification rules even when a Skysay invitation checkbox is off.
+
+Tokens are encrypted and refreshed server-side. A failed or interrupted refresh requires account reconnection because a rotating refresh token might already have been consumed. They are never included in an
+AI agent prompt or a workspace response. **Disconnect** erases the locally
+stored credentials and invalidates offers. Revoke the application in the
+provider account as well if you want to remove its consent grant there.
+
+## Give an AI agent permission
+
+Select a hosted AI agent on the calendar connection and choose **Enable booking**.
+This attaches `calendar_check_availability` and `calendar_book_appointment` to
+that connection while keeping the agent's other tools. If another editor changed the tool list since it was read, the save is refused; reload before trying again. An AI agent can use one
+calendar connection at a time. Native tools become available once the managed
+voice workers support both operations.
+
+These are agent tools within Skysay's existing execution path; a generic
+external MCP client is not required. Their definitions are part of the
+[generated API reference](/docs/api-reference).
+
+## During a conversation
+
+1. The AI agent checks a future UTC range against your calendar and rules. It
+   receives up to five offers with local time, timezone and a three-minute expiry.
+2. The caller chooses a time. The AI agent collects and reads back the date,
+   time, timezone, name, required email and event-type answers, then asks for
+   explicit confirmation. It must not invent an email or fill in the owner's.
+3. Skysay checks the offer again and records an appointment intent before
+   contacting the provider. An expired offer, changed configuration, ended call
+   or concurrent overlapping claim is refused.
+4. The AI agent reports a booking only when the result has `booking_succeeded: true` and `state: booked`. A completed tool request by itself does not mean an appointment exists.
+
+Daylight-saving time is handled using UTC instants and the selected IANA
+zone. An old offer cannot be moved to another call. A definite conflict before
+submission can use a fresh offer; Skysay allows at most two booking attempts per
+call. A submitted, successful or uncertain result cannot produce a second
+appointment for that call.
+
+Skysay serializes its own overlapping submissions, including duplicate
+connections to the same destination. Google Calendar's free/busy check and event
+insertion cannot prevent an unrelated external application from writing between
+those requests.
+
+## Read the result
+
+The selected **Calls** detail shows the appointment's interval, timezone and
+state:
+
+| Result | Meaning |
+| --- | --- |
+| Booked | The provider confirmed the appointment. |
+| Unavailable | Skysay refused before sending a booking request. Request fresh availability. |
+| Submitting | The provider may still commit the request. Its interval stays reserved; resolution and retries are refused, even after a timeout. |
+| Unconfirmed | A request may have reached the provider, but success is not proven. Check the provider account before doing anything else. |
+| Not booked — verified | An authorized workspace user checked the provider account and recorded that no appointment was created. The same call is not retried. |
+
+Skysay never automatically repeats a booking POST after an uncertain response.
+Google appointments may recover through a read-only check of their deterministic
+event identity and exact interval. Other provider uncertainties remain visible
+for account inspection. After verifying the provider account, an authorized workspace user can record the result with `POST /v1/calendars/{connection_id}/appointments/{appointment_id}/resolve`: supply `project_id`, `provider_checked: true`, and either `state: booked` with the verified `provider_id`, or `state: not_created` for a request verified not to have created an appointment. This command is audited and sends no provider request or retry. A not-created resolution does not permit the same call to resubmit another offer. Still-submitting requests are refused even after a timeout; they might commit remotely. A crash during submission can leave the interval reserved pending investigation. Elapsed time alone never proves that no appointment will be created. Identical repeated resolutions return the same state, while contradictory resolutions are refused. Do not tell a caller their appointment is booked while
+its state is unconfirmed.
+
+## Test without accidental appointments
+
+Anonymous and public demo calls cannot write to calendars. An authenticated
+browser call can write only when the owner has selected a **dedicated test
+connection** and explicitly enabled **real calendar writes in browser tests**.
+These settings do not themselves authorize someone to run real test bookings;
+obtain the account owner's permission first.
+
+Required validation includes consent, token refresh, an authenticated browser
+call and a PSTN call with the appointment visible in the real selected calendar
+or event type. Keep real-calendar validation separate from mock-provider tests.
+
+The first release supports individual, immediate, unpaid scheduling events with text questions. Calendly multiple, caller-chosen and outbound-phone locations, seated events and approval flows are refused. Cal.com uses its event type’s provider-selected location; validate that contract with the connected account. Reconfigure a connection after changing the provider event type. Cal.com uses a public OAuth client with PKCE; its token exchange stays server-side. Provider reads share a ten-second adapter budget, with five-second HTTP timeouts. Each booking POST has its own five-second timeout. An expired pre-write recheck refuses as unavailable; it does not create an uncertain write. Google read reconciliation handles one stale appointment per minute in the execute-enabled realtime worker; other unknown outcomes need account verification.
+
+Expired unused offers and OAuth attempts older than 24 hours are removed in bounded worker batches of at most 1000 rows per table per minute. Linked offers and all appointment history, including uncertain outcomes, are retained.
+
+Read-only Google reconciliation holds a 60-second fenced lease. Account resolution is refused while that lease is active. A confirmed result and lease release commit together; a read that finds no proof leaves the interval unconfirmed for account inspection. An expired read lease permits another read or verified resolution, never a repeated booking POST. Verified not-created resolutions also record one safe `call.appointment_not_created` entry in the call event history; identical resolutions do not duplicate it. These appointment events are not currently subscribable webhook events. A stuck submitting result requires support investigation, even after its local request timeout.
+
+The Calls page and its row-detail response include the same safe appointment state and interval. Opening a call does not discard its appointment status.
