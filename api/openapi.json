@@ -580,7 +580,7 @@
           },
           "interruption_sensitivity": {
             "default": "balanced",
-            "description": "Hosted phone calls in every language. Preset interruption threshold: balanced 500 ms (the default), low 750 ms, high 150 ms. Preset end-of-turn hold on a language with the trained turn detector: balanced 200 ms (the default), low 520 ms, high 260 ms; on a language without one, where the hold is the whole end-of-turn decision: balanced 800 ms (the default), low 1100 ms, high 600 ms. An explicit `min_speech_ms` or `silence_hold_ms` takes precedence over the preset for its knob. The end-of-turn hold is a minimum wait, not the reply time: a turn never ends before voice detection reports the end of speech, which takes about 250 ms of silence, or before the final transcript arrives, which depends on the speech-to-text provider. On a language with the trained turn detector, `high` therefore does not shorten the end-of-turn wait; it only lowers the interruption threshold.",
+            "description": "Hosted phone calls in every language. Preset interruption threshold: balanced 500 ms (the default), low 750 ms, high 150 ms. Preset end-of-turn hold on a language with the trained turn detector, the wait when the detector judges the caller finished: balanced 600 ms (the default), low 900 ms, high 260 ms; and the longest wait when it judges them probably not finished, before the turn ends anyway: balanced 1200 ms (the default), low 1800 ms, high 600 ms. On a language without the detector, where the hold is the whole end-of-turn decision: balanced 800 ms (the default), low 1100 ms, high 600 ms. Phone lines get these longer holds than a browser test because a caller pausing mid-sentence (after their name, before a number, while leaving a message) must not have their turn ended for them; `low` holds longer still, and `high` replies sooner. An explicit `min_speech_ms` or `silence_hold_ms` takes precedence over the preset for its knob. The end-of-turn hold is a minimum wait, not the reply time: a turn never ends before voice detection reports the end of speech, which takes about 250 ms of silence, or before the final transcript arrives, which depends on the speech-to-text provider.",
             "enum": [
               "balanced",
               "low",
@@ -615,7 +615,7 @@
             "type": "integer"
           },
           "silence_hold_ms": {
-            "description": "Hosted phone calls in every language. The shortest wait after the caller stops speaking before their turn can end; it overrides the platform default hold and any sensitivity preset. It is a minimum, not the reply time: a value below about 250 ms has no effect, because voice detection needs that much silence to report the end of speech, and the wait is longer whenever the final transcript arrives later than this value.",
+            "description": "Hosted phone calls in every language. The shortest wait after the caller stops speaking before their turn can end; it overrides the platform default hold and any sensitivity preset's shortest wait (the preset's longest wait still applies on a language with the trained turn detector, and is raised to this value when it is shorter). It is a minimum, not the reply time: a value below about 250 ms has no effect, because voice detection needs that much silence to report the end of speech, and the wait is longer whenever the final transcript arrives later than this value.",
             "maximum": 2000,
             "minimum": 100,
             "type": "integer"
@@ -1348,7 +1348,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -2616,6 +2616,7 @@
           },
           "time_zone": {
             "default": "UTC",
+            "description": "IANA time zone (default UTC), matched and stored like a contact's time_zone",
             "type": "string"
           },
           "time_zone_mode": {
@@ -2735,6 +2736,7 @@
             "type": "string"
           },
           "time_zone": {
+            "description": "IANA time zone (default UTC), matched and stored like a contact's time_zone",
             "type": "string"
           },
           "time_zone_mode": {
@@ -3345,7 +3347,7 @@
             "type": "string"
           },
           "time_zone": {
-            "description": "IANA zone; defaults from the number's country",
+            "description": "IANA time zone such as America/New_York, matched ignoring case. Another spelling of a zone (US/Eastern, Europe/Kiev, EST) is stored as the zone it names; an offset such as UTC-5 is refused. Empty: the number's zone, when the number has only one",
             "type": "string"
           },
           "variables": {
@@ -3390,7 +3392,7 @@
             "type": "string"
           },
           "time_zone": {
-            "description": "IANA zone; an empty value takes the default for the number's country",
+            "description": "IANA time zone such as America/New_York, matched ignoring case. Another spelling of a zone (US/Eastern, Europe/Kiev, EST) is stored as the zone it names; an offset such as UTC-5 is refused. Empty: the number's zone, when the number has only one",
             "type": "string"
           },
           "variables": {
@@ -3855,6 +3857,7 @@
             "type": "string"
           },
           "agent_id": {
+            "description": "The AI agent the number should answer with once it is active. Optional: when omitted, an activated number answers with the workspace's only active AI agent, and with nobody (an explicit do-not-answer rule) when there are several or none. A named agent that is no longer active is not replaced.",
             "type": "string"
           },
           "carrier": {
@@ -10128,7 +10131,7 @@
         ]
       },
       "post": {
-        "description": "Rows carry phone_e164 plus optional name, language, time_zone (IANA; defaults from the number's country), external_reference, consent_basis and flat template variables (the attempt's whole call context: at most 32 keys and 4 KB, lists of at most 16 items; never secrets). Invalid rows are reported per row; duplicates within the list are skipped. At most 10,000 rows per request.",
+        "description": "Rows carry phone_e164 plus optional name, language, time_zone (an IANA time zone, matched ignoring case and stored by its zone name; empty takes the number's zone when it has only one), external_reference, consent_basis and flat template variables (the attempt's whole call context: at most 32 keys and 4 KB, lists of at most 16 items; never secrets). Invalid rows are reported per row; duplicates within the list are skipped. At most 10,000 rows per request.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -11478,7 +11481,7 @@
     },
     "/v1/dashboard/campaigns": {
       "get": {
-        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). With `preview_agent_id` (an AI agent in the session workspace) the page also carries `agent_preview`: what that AI agent will say, rendered by the same preview the Contacts list detail serves (its DTO unchanged) for the first contact of `preview_list_id` by import order in the wizard's `preview_language` (a contact's own language still wins, as on the call), or state no_contact without a list and no_agent for an AI agent outside the workspace. The wizard sends one such request per AI agent selection its agent step shows. `agent_preview` is null when no AI agent is named. The selected campaign's summary carries the latest run's failure_breakdown, over the calls its dispatcher placed: failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. Fixed query budget; never a caller-selected tenant.",
+        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). With `preview_agent_id` (an AI agent in the session workspace) the page also carries `agent_preview`: what that AI agent will say, rendered by the same preview the Contacts list detail serves (its DTO unchanged) for the first contact of `preview_list_id` by import order in the wizard's `preview_language` (a contact's own language still wins, as on the call), or state no_contact without a list and no_agent for an AI agent outside the workspace. The wizard sends one such request per AI agent selection its agent step shows. `agent_preview` is null when no AI agent is named. The same request carries `agent_opening`, how that AI agent's calls open, read from the publication a call freezes (its own settings while unpublished): `first_speaker` (`callee` or `agent`), `silence_wait_seconds`, `kind` (`literal`, `generated` or `workflow`), `line` (the written opening for `literal`, else empty), `published`, `language`, and `waits_without_line`, true when the AI agent waits for the callee and has no opening line, so a call where the person also waits can stay silent. A campaign has no opening of its own. `agent_opening` is null when no AI agent is named or it is outside the workspace. The selected campaign's summary carries the latest run's failure_breakdown, over the calls its dispatcher placed: failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. Fixed query budget; never a caller-selected tenant.",
         "parameters": [
           {
             "in": "query",
@@ -13151,6 +13154,9 @@
         "responses": {
           "201": {
             "description": "Verification session with hosted didit URL; reused when one is already pending or approved"
+          },
+          "503": {
+            "description": "error kyc_provider_not_configured: identity verification is not available on this deployment for the profile type. Retry later or contact support."
           }
         },
         "summary": "Start a didit.me KYC (individual) or KYB (business) verification session for an end-user profile"
@@ -13594,6 +13600,9 @@
         "responses": {
           "201": {
             "description": "Number request"
+          },
+          "409": {
+            "description": "error inbound_coverage_missing: a confirmed purchase in a market Skysay cannot yet carry incoming calls for (blocker capacity_plan_unavailable or carrier_rate_missing). Refused before the request is created; nothing is charged."
           }
         },
         "summary": "Request a managed Skysay phone number"
