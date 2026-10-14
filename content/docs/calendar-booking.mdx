@@ -7,7 +7,7 @@ icon: ClockRotateRight
 <Callout title="Implementation preview">
 Calendar booking is being developed for Google Calendar, Microsoft 365 / Outlook,
 Calendly and Cal.com. This guide accompanies the open implementation change;
-Google has local real-account/browser-call validation. Outlook, Calendly and Cal.com still need real booking/call proof. Production availability is pending for all providers.
+Google has local real-account/browser-call validation at application commit `9042bcdc1eabc47d18e02b458baf357119f2eb1f`; later code changes require a fresh call test before release. Outlook, Calendly and Cal.com still need real booking/call proof. Production availability is pending for all providers.
 </Callout>
 
 Calendar booking gives a hosted AI agent two permitted tools: check available
@@ -45,7 +45,7 @@ For Calendly/Cal.com, choosing an event type prefills its duration when availabl
 it must match that event type. New connections use the provider's availability
 across the week with no extra notice, within Skysay's 60-day maximum horizon.
 Existing custom hours and limits are preserved; additional Skysay hours are
-optional under Advanced. Slots must fit within one local calendar day; an appointment may end exactly at midnight when working hours close at24:00. Optional email invitations require the caller's
+optional under Advanced. Slots must fit within one local calendar day; an appointment may end exactly at midnight when working hours close at 24:00. Optional email invitations require the caller's
 confirmed email. Scheduling providers require an email and may apply their own
 notification rules even when a Skysay invitation checkbox is off.
 
@@ -98,13 +98,14 @@ state:
 | --- | --- |
 | Booked | The provider confirmed the appointment. |
 | Unavailable | Skysay refused before sending a booking request. Request fresh availability. |
+| Submitting | The provider may still commit the request. Its interval stays reserved; resolution and retries are refused, even after a timeout. |
 | Unconfirmed | A request may have reached the provider, but success is not proven. Check the provider account before doing anything else. |
 | Not booked — verified | An authorized workspace user checked the provider account and recorded that no appointment was created. The same call is not retried. |
 
 Skysay never automatically repeats a booking POST after an uncertain response.
 Google appointments may recover through a read-only check of their deterministic
 event identity and exact interval. Other provider uncertainties remain visible
-for account inspection. After verifying the provider account, an authorized workspace user can record the result with `POST /v1/calendars/{connection_id}/appointments/{appointment_id}/resolve`: supply `project_id`, `provider_checked: true`, and either `state: booked` with the verified `provider_id`, or `state: not_created` for a request verified not to have created an appointment. This command is audited and sends no provider request or retry. A not-created resolution does not permit the same call to resubmit another offer. Still-submitting requests are refused; they might commit remotely. Identical repeated resolutions return the same state, while contradictory resolutions are refused. Do not tell a caller their appointment is booked while
+for account inspection. After verifying the provider account, an authorized workspace user can record the result with `POST /v1/calendars/{connection_id}/appointments/{appointment_id}/resolve`: supply `project_id`, `provider_checked: true`, and either `state: booked` with the verified `provider_id`, or `state: not_created` for a request verified not to have created an appointment. This command is audited and sends no provider request or retry. A not-created resolution does not permit the same call to resubmit another offer. Still-submitting requests are refused even after a timeout; they might commit remotely. A crash during submission can leave the interval reserved pending investigation. Elapsed time alone never proves that no appointment will be created. Identical repeated resolutions return the same state, while contradictory resolutions are refused. Do not tell a caller their appointment is booked while
 its state is unconfirmed.
 
 ## Test without accidental appointments
@@ -121,4 +122,4 @@ or event type. Keep real-calendar validation separate from mock-provider tests.
 
 The first release supports individual, immediate, unpaid scheduling events with text questions. Calendly multiple, caller-chosen and outbound-phone locations, seated events and approval flows are refused. Cal.com uses its event type’s provider-selected location; validate that contract with the connected account. Reconfigure a connection after changing the provider event type. Cal.com uses a public OAuth client with PKCE; its token exchange stays server-side. Provider reads share a ten-second adapter budget, with five-second HTTP timeouts. Each booking POST has its own five-second timeout. An expired pre-write recheck refuses as unavailable; it does not create an uncertain write. Google read reconciliation handles one stale appointment per minute in the execute-enabled realtime worker; other unknown outcomes need account verification.
 
-Expired unused offers and OAuth attempts older than24 hours are removed in bounded worker batches. Linked offers and all appointment history, including uncertain outcomes, are retained.
+Expired unused offers and OAuth attempts older than 24 hours are removed in bounded worker batches of at most 1000 rows per table per minute. Linked offers and all appointment history, including uncertain outcomes, are retained.
