@@ -125,3 +125,5 @@ The first release supports individual, immediate, unpaid scheduling events with 
 Expired unused offers and OAuth attempts older than 24 hours are removed in bounded worker batches of at most 1000 rows per table per minute. Linked offers and all appointment history, including uncertain outcomes, are retained.
 
 Read-only Google reconciliation holds a 60-second fenced lease. Account resolution is refused while that lease is active. A confirmed result and lease release commit together; a read that finds no proof leaves the interval unconfirmed for account inspection. An expired read lease permits another read or verified resolution, never a repeated booking POST. Verified not-created resolutions also record one safe `call.appointment_not_created` entry in the call event history; identical resolutions do not duplicate it. These appointment events are not currently subscribable webhook events. A stuck submitting result requires support investigation, even after its local request timeout.
+
+The Calls page and its row-detail response include the same safe appointment state and interval. Opening a call does not discard its appointment status.
