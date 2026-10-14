@@ -116,6 +116,67 @@ can price. That refusal is about the selected product, not the market: it also
 fires when the product's channel count was never recorded, so it does not tell
 you to abandon the country.
 
+## Choose an exact number
+
+You can let Skysay pick any available number in a country and type, or choose
+the exact number yourself.
+
+`POST /v1/available-numbers/search` (`numbers:write`) loads the numbers the
+carrier can sell right now for one `country` and `number_type`. It is a read:
+nothing is reserved, ordered or charged. `GET /v1/available-numbers`
+(`numbers:read`) lists what is loaded. Both take two optional narrowings:
+
+- `area_code`: digits only, for example `212`.
+- `region`: a state or region, by name or code: `Texas`, `TX` and `US-TX` all
+  name the same one, in any case.
+
+Each row says where the number is, as the carrier states it: `area_code`,
+`area_name`, `city`, `region` and `region_code`. A field the carrier does not
+state is empty.
+
+The search answers with a `refresh_status`:
+
+| `refresh_status` | Meaning |
+| --- | --- |
+| `succeeded` | The carrier answered. `rows` holds the numbers it offered, and is empty when nothing matched. |
+| `fresh_cache` | The same search ran moments ago and its numbers are still current, so they are returned without asking the carrier again. |
+| `cooldown` | The same search found nothing moments ago. Try again in a couple of minutes, or order without choosing a number. |
+| `failed`, `blocked` | The carrier could not be read. Order without choosing a number, or try again later. |
+
+A narrowed search is its own search: an area code with no numbers does not
+hold back a search for another one.
+
+Every row is a snapshot, not a reservation. `expires_at` says when it stops
+being current, and the list stops showing it then; search again for a fresh
+list. A number you already chose stays valid after that: pass its `id` as
+`provider_available_number_cache_id` on `POST /v1/number-requests`, and Skysay
+checks it with the carrier again before ordering, as described below.
+
+In the workspace, **Phone numbers → Get a number** opens a checkout dialog with
+area code and state fields. Each number shows where it is, and once the list
+is a few minutes old the dialog offers **Refresh list**; buying the number you
+picked still works.
+
+## Numbers Skysay cannot carry yet
+
+A confirmed purchase (`POST /v1/number-requests` with
+`customer_purchase_confirmed`) is checked before it is saved: Skysay must be
+able to carry incoming calls for that market. When no capacity plan or inbound
+rate covers it, the request is refused with **409** and nothing is created or
+charged:
+
+```json
+{
+  "error": "inbound_coverage_missing",
+  "message": "Skysay cannot carry incoming calls for this number type yet, so it cannot be bought. Nothing was charged.",
+  "blocker": "carrier_rate_missing"
+}
+```
+
+`blocker` uses the same words the Numbers page shows after activation
+(`capacity_plan_unavailable`, `carrier_rate_missing`). Choose another market,
+or contact support.
+
 ## Where a number request waits
 
 A saved request is not yet an active phone number. **Phone numbers** shows
@@ -174,6 +235,20 @@ carrier again, however long the request has waited:
   and the request returns to `awaiting_verification`.
 - If someone else took the number meanwhile, nothing is charged and you are
   asked to choose another number.
+
+## Who a new number answers with
+
+A number starts with a number rule as soon as it is active, so it never
+answers by accident and never sits half-configured:
+
+- the AI agent you named in `agent_id` when you requested it, if it is still
+  active;
+- otherwise your workspace's only active AI agent;
+- otherwise nobody: the rule is set to do not answer until you choose.
+
+A named AI agent that has since been deleted or switched off is not replaced by
+a guess. A rule you set yourself before activation is kept. Change it any time
+with `PATCH /v1/phone-numbers/{number_id}/number-rules`.
 
 ## Inbound activation and outbound calling are separate
 
