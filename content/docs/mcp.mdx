@@ -68,6 +68,39 @@ authorization server can be granted through OAuth; the API-key catalogue is
 broader. Skysay does not currently provide OpenID Connect UserInfo or the
 `openid` and `email` scopes for ChatGPT Enterprise workspace-domain restrictions.
 
+### Permissions, consent and reconnecting
+
+The resource discovery document lists **every** scope an OAuth client can be
+granted in `scopes_supported`, including `calls:write` (place calls). A client
+may ask for any of them; if it asks for nothing, it gets the read set.
+
+The consent screen shows each permission as a checkbox. What is ticked when you
+press **Allow access** is exactly what the app gets:
+
+- what the app asked for starts ticked;
+- what you already allowed it starts ticked, under **Already allowed**;
+- **Place calls** is offered unticked under **You can also allow** when the app
+  did not ask for it, so an assistant that never completes a scope step-up can
+  still be allowed to place calls.
+
+Connecting the same app again never takes a permission away on its own: approval
+keeps everything already allowed and adds what was asked for, so tokens issued
+earlier keep working. A permission is removed only when you untick it (or
+disconnect the app under **Connected apps**).
+
+When a tool needs a permission the connection lacks, the `403` scope challenge
+names it in `WWW-Authenticate` and in the body:
+
+```json
+{
+  "error": "InsufficientMcpScope",
+  "message": "additional consent is required for this tool: calls:write",
+  "missing_scopes": ["calls:write"]
+}
+```
+
+Reconnect and tick the named permission.
+
 ## Read-only connector for Claude
 
 Use `https://api.skysay.ai/mcp/read-only` for a connection that can inspect
@@ -171,9 +204,11 @@ are refused before tools run.
 
 ### Bounded results and paging
 
-`account_overview`, `list_agents`, `list_calls` and `list_numbers` grow with
-your workspace, so each answers with at most **25,000 characters** of result
-text, however large the workspace is.
+`account_overview`, `list_agents`, `list_calls`, `list_numbers`,
+`list_contact_lists` and `list_contacts` grow with your workspace, so each
+answers with at most **25,000 characters** of result text, however large the
+workspace is. `list_contact_lists` takes `limit` 1 to 50 (default 20) and
+`list_contacts` 1 to 100 (default 25); both page with `cursor` the same way.
 
 The three list tools return one newest-first page:
 
