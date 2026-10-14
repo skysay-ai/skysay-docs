@@ -70,7 +70,7 @@ connecting your first MCP client.
 curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
   -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"OpenClaw agent",
+  -d '{"name":"MCP client",
        "scopes":["account:read","coverage:read","agents:write",
                  "calls:read","recordings:read"]}'
 ```
@@ -333,12 +333,14 @@ and those are answers about the request, not about the service.
 
 ## Rotate / revoke
 
-Mint a new key, swap the mcporter `env`, then revoke the old one:
+Mint a new key, update `SKYSAY_API_KEY` in the environment that launches your
+client, restart the client and verify a read, then revoke the old one:
 
 ```bash
 curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys/{key_id}/revoke" \
   -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN"
 ```
 
-The bridge is stateless, so there is no downtime on the Skysay side. See the
-full [scope catalog](/docs/scopes) for every scope and the tool it gates.
+Do not revoke the old key before verifying the new connection if you need an
+uninterrupted workflow. See the [scope catalog](/docs/scopes) for every scope
+and the tool it gates.
