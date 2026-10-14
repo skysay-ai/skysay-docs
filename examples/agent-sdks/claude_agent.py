@@ -9,10 +9,11 @@ URL = 'https://api.skysay.ai/mcp/read-only'
 def options():
     return ClaudeAgentOptions(
         mcp_servers={'skysay': {'type': 'http', 'url': URL,
-            'headers': {'Authorization': f"Bearer {os.environ['SKYSAY_API_KEY']}"}}},
+            'headers': {'Authorization': 'Bearer ${SKYSAY_API_KEY}'}}},
         tools=[],  # No built-in shell, file, browser or search tools.
         allowed_tools=['mcp__skysay__account_overview'],
         setting_sources=[],  # Do not inherit project or user tool configuration.
+        extra_args={"strict-mcp-config": None, "no-session-persistence": None},
         max_turns=3,
     )
 
@@ -29,6 +30,8 @@ async def main(ask_model=False):
         deadline = asyncio.get_running_loop().time() + 20
         while True:
             status = await client.get_mcp_status()
+            if sorted(s["name"] for s in status.get("mcpServers", [])) != ["skysay"]:
+                raise RuntimeError("Unexpected MCP configuration; use the isolated sample settings.")
             server = next((s for s in status.get('mcpServers', []) if s['name'] == 'skysay'), None)
             if server and server['status'] == 'connected':
                 break
