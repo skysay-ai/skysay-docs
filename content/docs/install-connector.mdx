@@ -1,114 +1,39 @@
 ---
-title: Install the connector
-description: The OpenClaw connector in detail — skill, stdio bridge, mcporter registration, the remote-MCP shortcut, and the offline smoke test.
+title: Connect an MCP client
+description: Choose a client recipe and connect directly to hosted Skysay MCP without a private checkout or local bridge.
 icon: Download
 ---
 
-The OpenClaw connector is the reference way to give an agent Skysay tools. It
-is two parts that work together: an OpenClaw **skill** (a `SKILL.md` playbook
-that makes the capability discoverable) and an **mcporter MCP registration** that
-points at Skysay Cloud's hosted `POST /mcp`. The MCP entry runs a thin local
-**stdio bridge** that forwards each JSON-RPC call to `/mcp` with your scoped
-`sky_` key as a Bearer token. You need both — the skill makes it discoverable,
-the MCP entry makes it callable.
+Connect your client directly to Skysay's hosted HTTP MCP server. The public
+setup needs no `connectors/openclaw` directory, private repository, custom
+stdio bridge or key-minting script.
 
-<Callout title="What it is NOT">
-  Not billing, provider ordering, operator/compliance actions, or access to any
-  other tenant. Numbers, compliance, billing, and provider operations stay in
-  Skysay Cloud. The scoped key is your permission boundary: capabilities you
-  were not granted fail closed, and every call is pinned to your organization
-  server-side. `request_number` creates a *request* — a live number still
-  requires an Skysay operator.
-</Callout>
+<Cards>
+  <Card title="Claude Code" href="/docs/claude-code" description="HTTP configuration with an environment-variable key, or OAuth." />
+  <Card title="Codex" href="/docs/codex" description="Bearer-token environment variable, or OAuth, with a read-only verification." />
+</Cards>
 
-## 1. Install the skill
+Start with [Quickstart](/docs/quickstart). The read-only resource is
+`https://api.skysay.ai/mcp/read-only`; the full resource is
+`https://api.skysay.ai/mcp`. Use a recipe for your actual client rather than
+pasting another client's JSON into its settings. Other clients have different
+configuration and authorization flows; [MCP overview](/docs/mcp) describes the
+server's protocol and resource boundaries.
 
-Copy this directory into your OpenClaw checkout as `skills/skysay/` and make
-the bridge scripts executable.
+## Credentials and verification
 
-```bash
-cp -R connectors/openclaw /path/to/openclaw/skills/skysay
-cd /path/to/openclaw
-chmod +x skills/skysay/bin/skysay-mcp-bridge.mjs \
-         skills/skysay/bin/skysay_mcp_bridge.py \
-         skills/skysay/bin/skysay-mint-key.sh
-```
+Create a narrow API key in the workspace, or use the client's OAuth flow and
+review its consent screen. Store API keys in a local secret store/environment;
+never in a prompt, skill file or committed config. The workspace determines the
+credential's tenant; no caller-supplied organization ID can change it.
 
-## 2. Register the MCP server
+Verify `account_overview` with `account:read` before adding write access. A
+configured server does not prove a successful tool call, and a successful read
+does not create an active phone line. See the client recipe's troubleshooting
+section for 401, missing scopes, missing environment variables and expected 405
+responses to browser GETs.
 
-Merge the `skysay` block from `mcporter.template.json` into your
-`config/mcporter.json` under `mcpServers`, alongside any existing entries.
-
-```json
-{
-  "mcpServers": {
-    "skysay": {
-      "command": "node",
-      "args": ["skills/skysay/bin/skysay-mcp-bridge.mjs"],
-      "env": {
-        "SKYSAY_BASE_URL": "https://api.skysay.ai",
-        "SKYSAY_API_KEY": "sky_your_scoped_key",
-        "SKYSAY_ORGANIZATION_ID": "org_your_org"
-      }
-    }
-  }
-}
-```
-
-The `SKYSAY_API_KEY` is a **secret** — keep it in the mcporter `env` block
-(or an env-var reference), never in `SKILL.md`, and git-ignore it the same way
-you would `.env`.
-
-### Prefer the Python bridge?
-
-Swap the command — the wire protocol is identical.
-
-```json
-"command": "python3",
-"args": ["skills/skysay/bin/skysay_mcp_bridge.py"]
-```
-
-### Remote-MCP shortcut
-
-If your mcporter build supports remote MCP directly, you can skip the local
-bridge entirely.
-
-```json
-"skysay": {
-  "url": "https://api.skysay.ai/mcp",
-  "headers": { "Authorization": "Bearer sky_your_scoped_key" }
-}
-```
-
-The stdio bridge is the guaranteed-portable default because it matches the
-mcporter schema already in use. Restart OpenClaw / re-run mcporter so it picks up
-the new server; `tools/list` will then show the Skysay tools.
-
-## 3. Verify
-
-Run the offline smoke test (no live Cloud needed) from the Skysay repo.
-
-```bash
-PYTHONPATH=src python -m unittest discover -s connectors/openclaw/tests
-# or
-PYTHONPATH=src python -m pytest connectors/openclaw/tests
-```
-
-Then a read-only check with the agent:
-
-- *"search coverage for GB and read the coverage matrix"* → `get_coverage`
-- *"show my workspace balance"* → `account_overview`
-- *"show me the transcript for call X"* → `get_call_transcript`
-
-For audio, use a [browser test](/docs/trial-calls). Shared-number live PIN
-trials are retired.
-
-## Troubleshooting
-
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `missing MCP scopes: X` | The key lacks scope `X`. | Re-mint with the needed scope (within what your admin credential holds). |
-| `MCP organization mismatch` | A tool arg's `organization_id` differs from the key's org. | Pass your own `organization_id` (prefill from `SKYSAY_ORGANIZATION_ID`). |
-| `invalid or revoked API key` | The key was rotated/revoked, or is wrong. | Mint a fresh key and update the mcporter `env`. |
-| `bridge transport error` | The bridge can't reach `SKYSAY_BASE_URL`. | Check the URL, network egress, and that the instance is reachable. |
-| No Skysay tools in `tools/list` | mcporter didn't pick up the new server. | Confirm the merge into `config/mcporter.json` and restart OpenClaw. |
+Before adding number orders, calls, SMS or paid previews, read the
+[approval and billing boundaries](/docs/quickstart#before-any-billable-action).
+A plugin or skill is optional guidance, not a prerequisite for the hosted
+connection and not a substitute for scopes or explicit approval.

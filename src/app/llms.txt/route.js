@@ -29,7 +29,7 @@ export async function GET() {
 
   const body = `# Skysay
 
-> Agent-native telephony: real phone numbers, calls, and SMS an AI agent runs on its own over MCP, described in llms.txt so any AI already knows how to use it.
+> Agent-native telephony: phone numbers and supported calling/SMS capabilities for AI agents through MCP and an API. Client setup and scope permissions are required.
 
 ## Product
 
@@ -47,9 +47,9 @@ ${blog.lines}
 
 ## API surface
 
-- [OpenAPI spec](${SITE}/control-plane/openapi.json): machine-readable API document.
-- [API llms.txt](${SITE}/control-plane/llms.txt): the API's own agent index.
-- [MCP endpoint](${SITE}/control-plane/mcp): POST /mcp — hosted Model Context Protocol.
+- [OpenAPI spec](https://api.skysay.ai/openapi.json): machine-readable API document.
+- [API llms.txt](https://api.skysay.ai/llms.txt): the API's own agent index.
+- [MCP endpoint](https://api.skysay.ai/mcp): POST /mcp — hosted Model Context Protocol.
 
 ## Full corpus
 
