@@ -1,0 +1,90 @@
+---
+title: Give Claude Code a phone number with Skysay MCP
+description: Connect Claude Code to Skysay over HTTP, verify a read-only tool, and choose when to enable calls and SMS.
+icon: Brain
+---
+
+Claude Code connects directly to hosted Skysay MCP. No private repository,
+local bridge or downloaded skill is needed. Start by inspecting your workspace;
+connecting the server alone does not give you an active phone number.
+
+## Prerequisites
+
+- A current Claude Code installation and a Skysay workspace.
+- For API-key setup, a workspace key with `account:read`, supplied through
+  `SKYSAY_API_KEY` in the environment of the process launching Claude Code.
+- For OAuth instead, access to Skysay sign-in and permission to approve the
+  read-only connection. Choose one method, not both.
+
+[Create the credential](/docs/quickstart#1-sign-in-and-choose-a-credential).
+Do not paste its value into a conversation or commit it.
+
+## API key: configure HTTP explicitly
+
+In the project where you run Claude Code, merge this server entry into
+`.mcp.json`. Preserve any other server entries:
+
+```json
+{
+  "mcpServers": {
+    "skysay": {
+      "type": "http",
+      "url": "https://api.skysay.ai/mcp/read-only",
+      "headers": {
+        "Authorization": "Bearer ${SKYSAY_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+The environment-variable reference is literal in the file. The `type` field
+is required: a URL-only entry is not Claude Code's HTTP configuration. This file
+contains no key; the exported variable must be present when you start Claude
+Code. Approve the project MCP configuration if Claude Code asks.
+
+Use `/mcp` in Claude Code to inspect the connection, then ask:
+
+```text
+Use Skysay account_overview and summarize the result.
+Do not perform writes, place calls or send SMS.
+```
+
+## OAuth alternative
+
+Without the API-key entry above, run:
+
+```bash
+claude mcp add --transport http skysay https://api.skysay.ai/mcp/read-only
+```
+
+Start Claude Code, open `/mcp`, select Skysay and follow its authentication
+flow. Sign in to Skysay and review the workspace and read-only permissions
+before approving. Then use the same read-only prompt.
+
+Do not combine this local server entry with another project/user entry named
+`skysay`. If you previously configured one, update or remove that entry using
+its original scope before adding a different authentication method.
+
+## Calls, SMS and number setup
+
+Once the read succeeds, follow [Quickstart](/docs/quickstart#4-choose-what-to-enable-next)
+to move to the full `/mcp` resource with the exact additional scopes. A
+read-only OAuth token must be replaced by a grant for that full resource.
+Review the [billable-action controls](/docs/quickstart#before-any-billable-action)
+and the tool reference; do not let a connection test contact people or spend
+money. Endpoint authorization does not enforce a conversational human-confirmation
+step on behalf of your assistant.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Configured, but no successful tool result | Use `/mcp` to check authentication and server status; configuration alone is not a connected tool call. |
+| HTTP 401 or authentication required | Export the correct API key before starting Claude Code, or complete OAuth. A revoked key or a token for the other MCP resource will not work. |
+| Missing scopes | Read the named scope; for this check use `account:read`. Do not solve it by granting `all`. |
+| Coverage or write tool refused | `/mcp/read-only` deliberately exposes only five workspace read tools. Switch resources and permissions only for an approved workflow. |
+| GET returns 405 | Hosted MCP uses HTTP POST; opening its URL in a browser is not an MCP connection test. |
+
+Configuration syntax: [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
+For endpoint permissions and protocol details, see [MCP overview](/docs/mcp).
