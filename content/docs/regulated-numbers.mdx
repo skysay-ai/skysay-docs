@@ -1,6 +1,6 @@
 ---
 title: Regulated numbers
-description: How carrier registration decides when a number can be ordered — reading the requirement, what you upload, and why some markets order first.
+description: Validate carrier requirements before funding a number purchase, then track carrier review and activation.
 icon: SecurityPass
 ---
 
@@ -116,6 +116,47 @@ can price. That refusal is about the selected product, not the market: it also
 fires when the product's channel count was never recorded, so it does not tell
 you to abandon the country.
 
+## Choose an exact number
+
+You can let Skysay pick any available number in a country and type, or choose
+the exact number yourself.
+
+`POST /v1/available-numbers/search` (`numbers:write`) loads the numbers the
+carrier can sell right now for one `country` and `number_type`. It is a read:
+nothing is reserved, ordered or charged. `GET /v1/available-numbers`
+(`numbers:read`) lists what is loaded. Both take two optional narrowings:
+
+- `area_code`: digits only, for example `212`.
+- `region`: a state or region, by name or code: `Texas`, `TX` and `US-TX` all
+  name the same one, in any case.
+
+Each row says where the number is, as the carrier states it: `area_code`,
+`area_name`, `city`, `region` and `region_code`. A field the carrier does not
+state is empty.
+
+The search answers with a `refresh_status`:
+
+| `refresh_status` | Meaning |
+| --- | --- |
+| `succeeded` | The carrier answered. `rows` holds the numbers it offered, and is empty when nothing matched. |
+| `fresh_cache` | The same search ran moments ago and its numbers are still current, so they are returned without asking the carrier again. |
+| `cooldown` | The same search found nothing moments ago. Try again in a couple of minutes, or order without choosing a number. |
+| `failed`, `blocked` | The carrier could not be read. Order without choosing a number, or try again later. |
+
+A narrowed search is its own search: an area code with no numbers does not
+hold back a search for another one.
+
+Every row is a snapshot, not a reservation. `expires_at` says when it stops
+being current, and the list stops showing it then; search again for a fresh
+list. A number you already chose stays valid after that: pass its `id` as
+`provider_available_number_cache_id` on `POST /v1/number-requests`, and Skysay
+checks it with the carrier again before ordering, as described below.
+
+In the workspace, **Phone numbers → Get a number** opens a checkout dialog with
+area code and state fields. Each number shows where it is, and once the list
+is a few minutes old the dialog offers **Refresh list**; buying the number you
+picked still works.
+
 ## Where a number request waits
 
 A saved request is not yet an active phone number. **Phone numbers** shows
@@ -211,29 +252,37 @@ approved one, which is what `GET /v1/numbers/{number_id}/activation` reports:
 `submit_address_verification` while the task has still to be opened, and
 `wait_for_carrier_approval` once the carrier has it.
 
-## Markets with no documents are ordered first
+## Validate requirements before funding the purchase
 
-Where `carrier_proof_requirement` is `none`, the request goes to
-`fulfillment_queued` as soon as your profile is approved and the first payment
-is funded — **before** the carrier has verified anything.
+For a number requiring registration, the Phone numbers page shows five steps:
 
-That is not a shortcut. In these markets the carrier only ever reviews a
-registration that names an already-ordered number, so there is no verdict to
-wait for beforehand, and nothing you could upload to speed it up. Ordering first
-is the only sequence that can complete. Estonian national numbers work this way.
+1. **Verification details** — provide the required person or business details and documents.
+2. **Skysay approval** — Skysay reviews the submitted information and documents.
+3. **Carrier requirements** — Skysay validates the prepared identity, address and proofs against the applicable requirements. Once both checks pass, add funds for the confirmed number purchase.
+4. **Carrier review** — after purchasing the number, Skysay submits its registration for the carrier's compliance review.
+5. **Number active** — the number becomes available after carrier approval and activation checks.
 
-Two consequences worth designing for:
+Skysay approval and successful carrier requirement validation must both be
+complete before the request asks for funding. Requirement validation checks
+whether the prepared information satisfies the selected rules. It **does not
+mean the carrier has approved the company or the number**.
 
-- The number is **paid for before the carrier reviews the registration.** If the
-  carrier later refuses it, you hold a number that cannot carry production
-  traffic. `GET /v1/numbers/{number_id}/activation` reports that outcome.
-- The status copy on these requests says the carrier lists no documents and that
-  Skysay approved your profile. It deliberately does **not** claim the
-  carrier approved anything, because at that point the carrier has not looked.
+The same sequence applies when the carrier lists no documents: required
+identity and address information must still be validated. Unknown requirements
+remain blocked. If information or requirements change, an old validation result
+cannot authorize the purchase. A carrier validation refusal requires correction;
+a temporary provider outage leaves the check pending.
 
-Where `carrier_proof_requirement` is `required` or `unknown`, nothing changes:
-the request stays in `carrier_verification` until the documents are supplied and
-approved, and it is never ordered on the strength of an unread requirement.
+Actual carrier review requires a purchased number. The number is therefore paid
+for before the final carrier decision and remains inactive while review is
+pending. A rejection can leave a purchased number that cannot be activated;
+requirement validation cannot guarantee final approval.
+
+The carrier-review email is sent only after the carrier accepts the actual
+number-specific review request. Uploading documents, approving a profile,
+validating requirements, or adding funds does not start that review or its
+estimated duration. The email's review estimate is measured from the actual
+submission time and is an estimate, not an activation guarantee.
 
 ## The inbound rate the quote is based on
 
@@ -282,14 +331,14 @@ falls back to a default rate.
 
 ## What Skysay still checks
 
-Ordering first removes the *carrier's* precondition, never Skysay's. In every
-market, regardless of `carrier_proof_requirement`, a number request still waits
-for all of these:
+In every registration-required market, regardless of
+`carrier_proof_requirement`, a number request waits for all of these:
 
 - your verification profile approved by Skysay (identity check for a personal
   profile, company review or identity check for a business one);
 - every requirement item Skysay tracks for the market satisfied and reviewed;
-- the first payment funded.
+- a successful carrier requirement validation for the current evidence;
+- the first payment funded and the displayed purchase confirmed.
 
 
 ## Capacity pricing for an owned number

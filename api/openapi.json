@@ -2616,6 +2616,7 @@
           },
           "time_zone": {
             "default": "UTC",
+            "description": "IANA time zone (default UTC), matched and stored like a contact's time_zone",
             "type": "string"
           },
           "time_zone_mode": {
@@ -2735,6 +2736,7 @@
             "type": "string"
           },
           "time_zone": {
+            "description": "IANA time zone (default UTC), matched and stored like a contact's time_zone",
             "type": "string"
           },
           "time_zone_mode": {
@@ -3345,7 +3347,7 @@
             "type": "string"
           },
           "time_zone": {
-            "description": "IANA zone; defaults from the number's country",
+            "description": "IANA time zone such as America/New_York, matched ignoring case. Another spelling of a zone (US/Eastern, Europe/Kiev, EST) is stored as the zone it names; an offset such as UTC-5 is refused. Empty: the number's zone, when the number has only one",
             "type": "string"
           },
           "variables": {
@@ -3390,7 +3392,7 @@
             "type": "string"
           },
           "time_zone": {
-            "description": "IANA zone; an empty value takes the default for the number's country",
+            "description": "IANA time zone such as America/New_York, matched ignoring case. Another spelling of a zone (US/Eastern, Europe/Kiev, EST) is stored as the zone it names; an offset such as UTC-5 is refused. Empty: the number's zone, when the number has only one",
             "type": "string"
           },
           "variables": {
@@ -3855,6 +3857,7 @@
             "type": "string"
           },
           "agent_id": {
+            "description": "The AI agent the number should answer with once it is active. Optional: when omitted, an activated number answers with the workspace's only active AI agent, and with nobody (an explicit do-not-answer rule) when there are several or none. A named agent that is no longer active is not replaced.",
             "type": "string"
           },
           "carrier": {
@@ -10128,7 +10131,7 @@
         ]
       },
       "post": {
-        "description": "Rows carry phone_e164 plus optional name, language, time_zone (IANA; defaults from the number's country), external_reference, consent_basis and flat template variables (the attempt's whole call context: at most 32 keys and 4 KB, lists of at most 16 items; never secrets). Invalid rows are reported per row; duplicates within the list are skipped. At most 10,000 rows per request.",
+        "description": "Rows carry phone_e164 plus optional name, language, time_zone (an IANA time zone, matched ignoring case and stored by its zone name; empty takes the number's zone when it has only one), external_reference, consent_basis and flat template variables (the attempt's whole call context: at most 32 keys and 4 KB, lists of at most 16 items; never secrets). Invalid rows are reported per row; duplicates within the list are skipped. At most 10,000 rows per request.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -13151,6 +13154,9 @@
         "responses": {
           "201": {
             "description": "Verification session with hosted didit URL; reused when one is already pending or approved"
+          },
+          "503": {
+            "description": "error kyc_provider_not_configured: identity verification is not available on this deployment for the profile type. Retry later or contact support."
           }
         },
         "summary": "Start a didit.me KYC (individual) or KYB (business) verification session for an end-user profile"
@@ -13594,6 +13600,9 @@
         "responses": {
           "201": {
             "description": "Number request"
+          },
+          "409": {
+            "description": "error inbound_coverage_missing: a confirmed purchase in a market Skysay cannot yet carry incoming calls for (blocker capacity_plan_unavailable or carrier_rate_missing). Refused before the request is created; nothing is charged."
           }
         },
         "summary": "Request a managed Skysay phone number"
