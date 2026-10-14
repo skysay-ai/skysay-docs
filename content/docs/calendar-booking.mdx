@@ -5,9 +5,11 @@ icon: ClockRotateRight
 ---
 
 <Callout title="Implementation preview">
-Calendar booking is being developed for Google Calendar, Microsoft 365 / Outlook,
-Calendly and Cal.com. This guide accompanies the open implementation change;
-Google has local real-account/browser-call validation at application commit `9042bcdc1eabc47d18e02b458baf357119f2eb1f`; later code changes require a fresh call test before release. Outlook, Calendly and Cal.com still need real booking/call proof. Production availability is pending for all providers.
+The implementation for Google Calendar, Microsoft 365 / Outlook, Calendly and
+Cal.com is merged, with production availability pending. Google has local
+real-account and browser-call proof. Outlook, Calendly and Cal.com still need
+real booking/call proof. None has PSTN or production certification. Changes to
+calendar call behavior require fresh call proof before release.
 </Callout>
 
 Calendar booking gives a hosted AI agent two permitted tools: check available
@@ -22,6 +24,18 @@ Open **Integrations → Calendar booking** and choose the provider. A signed-in
 workspace user completes consent in that provider's account. Application setup
 must be provisioned securely by the platform operator first; never paste an
 application secret into a chat or an issue.
+
+Only configured providers offer a Connect action. If no provider is configured
+and your workspace has no calendar connections, the Calendar booking section
+is absent. A still-linked account whose provider is unavailable stays visible
+with an explanation and **Disconnect**; configuration and attachment are
+unavailable until the provider returns. An already disconnected account stays
+listed as disconnected, with **Disconnect** unavailable. Setup availability does not certify
+that a particular account can complete a booking.
+
+Google sign-in and calendar consent are separate. Signing into Skysay with
+Google does not grant access to your calendar; approve that access when you
+connect the account here.
 
 Choose a writable Google or Outlook calendar, or an individual Calendly/Cal.com
 event type. For Google and Outlook, select any other calendars to check for
@@ -61,6 +75,11 @@ This attaches `calendar_check_availability` and `calendar_book_appointment` to
 that connection while keeping the agent's other tools. If another editor changed the tool list since it was read, the save is refused; reload before trying again. An AI agent can use one
 calendar connection at a time. Native tools become available once the managed
 voice workers support both operations.
+
+The AI agent editor shows its calendar card after these tools are attached.
+Its toggle disables that binding while preserving the AI agent's other tools.
+After publishing the disabled binding, re-attach it from Integrations with
+**Enable booking**.
 
 These are agent tools within Skysay's existing execution path; a generic
 external MCP client is not required. Their definitions are part of the
