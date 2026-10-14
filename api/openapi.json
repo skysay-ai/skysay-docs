@@ -1494,6 +1494,52 @@
             "description": "not_started or disabled when there is no recording yet, otherwise the latest recording's own status.",
             "type": "string"
           },
+          "refusal": {
+            "description": "Why the call was refused before it dialled; null on every other call. A call refused before dialling has `status` `policy_blocked` or `needs_review`. `stage` is the gate that refused it: `outbound_authorization` (the workspace capabilities: destination, channel, use-case profile, review signals, caps) or `outbound_policy` (the per-call policy: `purpose`, `user_authorization`, caller-number readiness, destination format). `message` is a sentence you can act on, e.g. naming a missing `user_authorization.reason`. POST /v1/policies/authorize-outbound asks the same two questions before you call.",
+            "properties": {
+              "decision": {
+                "enum": [
+                  "blocked",
+                  "needs_review"
+                ],
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "reason_codes": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "required_actions": {
+                "description": "For `outbound_policy`: what to add, e.g. `provide_user_authorization.reason`. Empty for `outbound_authorization`.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "stage": {
+                "enum": [
+                  "outbound_authorization",
+                  "outbound_policy"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "decision",
+              "reason_codes",
+              "required_actions",
+              "message"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
           "runtime_config": {
             "description": "Your own per-call overrides captured at call start (e.g. instructions, first_message, language). Never provider credentials.",
             "type": "object"
@@ -1550,6 +1596,7 @@
           "ended_reason",
           "answer_classification",
           "reason_detail",
+          "refusal",
           "created_at",
           "updated_at"
         ],
@@ -10521,7 +10568,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -11039,7 +11086,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text. Each call row carries failure: null until the finished call has been labelled, otherwise why it failed -- category (one closed code, empty when no failure was observed, which is not a proof the call went well), layer (telephony: it never became a conversation; media: the voice pipeline broke; agent: the AI agent or the customer's own systems failed), signals (every code observed, in precedence order), connected, and evidence_complete (whether the transcript and telemetry were complete; signals that rest on them are only derived when it is true). Labels are decided when the call ends and again as its evidence arrives; this read never decides one. failure_layer or failure_category narrows the page, calls_total and has_more to the labelled calls that match, and calls_failure_filter echoes the filter applied; a call named by call_id is still answered when it does not match.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -11105,6 +11152,50 @@
             "name": "before",
             "required": false,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only calls labelled with a failure in this layer. A value outside the set is a 400.",
+            "in": "query",
+            "name": "failure_layer",
+            "required": false,
+            "schema": {
+              "enum": [
+                "telephony",
+                "media",
+                "agent"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only calls whose primary failure label is this category. A value outside the set, or one outside failure_layer when both are given, is a 400.",
+            "in": "query",
+            "name": "failure_category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "telephony_inbound_rejected",
+                "telephony_invalid_number",
+                "telephony_carrier_rejected",
+                "telephony_busy",
+                "telephony_no_answer",
+                "telephony_non_human_answer",
+                "telephony_technical_failure",
+                "media_session_lost",
+                "media_engine_lost",
+                "media_response_stall",
+                "media_caller_speech_missed",
+                "media_agent_silent",
+                "media_stt_stall",
+                "media_model_failure",
+                "media_synthesis_failure",
+                "media_truncated_goodbye",
+                "agent_bad_handoff",
+                "agent_sms_send_failed",
+                "agent_tool_failure"
+              ],
               "type": "string"
             }
           }
@@ -11272,7 +11363,7 @@
     },
     "/v1/dashboard/campaigns": {
       "get": {
-        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). With `preview_agent_id` (an AI agent in the session workspace) the page also carries `agent_preview`: what that AI agent will say, rendered by the same preview the Contacts list detail serves (its DTO unchanged) for the first contact of `preview_list_id` by import order in the wizard's `preview_language` (a contact's own language still wins, as on the call), or state no_contact without a list and no_agent for an AI agent outside the workspace. The wizard sends one such request per AI agent selection its agent step shows. `agent_preview` is null when no AI agent is named. Fixed query budget; never a caller-selected tenant.",
+        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). With `preview_agent_id` (an AI agent in the session workspace) the page also carries `agent_preview`: what that AI agent will say, rendered by the same preview the Contacts list detail serves (its DTO unchanged) for the first contact of `preview_list_id` by import order in the wizard's `preview_language` (a contact's own language still wins, as on the call), or state no_contact without a list and no_agent for an AI agent outside the workspace. The wizard sends one such request per AI agent selection its agent step shows. `agent_preview` is null when no AI agent is named. The selected campaign's summary carries the latest run's failure_breakdown, over the calls its dispatcher placed: failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. Fixed query budget; never a caller-selected tenant.",
         "parameters": [
           {
             "in": "query",
@@ -14009,6 +14100,181 @@
           }
         },
         "summary": "Dry-run verify a customer phone server before assigning Number rules"
+      }
+    },
+    "/v1/policies/authorize-outbound": {
+      "post": {
+        "description": "Answers whether POST /v1/calls (or an SMS send) would be refused before dialling, without creating anything. For `channel` `outbound_voice` (the default) it asks both pre-dial questions a call meets, in the same order: first the workspace capabilities (destination country, channel, use-case profile, review signals, caps), then, only if those allow it, the per-call outbound policy (`purpose`, `user_authorization` with both `authorized_by` and `reason`, caller-number readiness, the destination format). `stage` says which question answered: `outbound_authorization` or `outbound_policy`. For any other channel (`sms`) only the capabilities question is asked. This is a preflight of those two gates, not a full admission: number rules, plan concurrency, maintenance windows and the wallet reservation are not evaluated; spend caps are checked only against the `amount_minor` you send, calling rules only when you send `project_id`, and caller-number readiness only when you send `from_number_id` (the call itself always needs one).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "amount_minor": {
+                    "description": "Estimated cost to check spend caps against; 0 skips them.",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "bulk": {
+                    "type": "boolean"
+                  },
+                  "campaign_id": {
+                    "type": "string"
+                  },
+                  "categories": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "channel": {
+                    "default": "outbound_voice",
+                    "description": "`outbound_voice` (the default) or `sms`; any value other than `outbound_voice` is judged as SMS.",
+                    "type": "string"
+                  },
+                  "from_number_id": {
+                    "description": "The caller number; it must belong to the organization (and to `project_id` when sent).",
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "description": "Alternatively, every field above except organization_id, channel, to, from_number_id and amount_minor, nested here.",
+                    "type": "object"
+                  },
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "policy": {
+                    "description": "The same `policy` object POST /v1/calls takes.",
+                    "type": "object"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  },
+                  "recipient_type": {
+                    "type": "string"
+                  },
+                  "relationship": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "description": "Destination in E.164. `phone_number` is accepted as the same field.",
+                    "type": "string"
+                  },
+                  "user_authorization": {
+                    "description": "Who approved the call and why. Both fields are required on every outbound call.",
+                    "properties": {
+                      "authorized_by": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "organization_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "capabilities_snapshot": {
+                      "type": "object"
+                    },
+                    "customer_reason": {
+                      "type": "string"
+                    },
+                    "decision": {
+                      "enum": [
+                        "allowed",
+                        "blocked",
+                        "needs_review"
+                      ],
+                      "type": "string"
+                    },
+                    "escalation_signals": {
+                      "description": "Every reason code the refusing gate gave.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "next_action": {
+                      "type": "string"
+                    },
+                    "policy": {
+                      "description": "The per-call policy evaluation; present whenever the voice policy question was asked.",
+                      "properties": {
+                        "allowed": {
+                          "type": "boolean"
+                        },
+                        "reasons": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "required_actions": {
+                          "description": "What to add or do. `provide_user_authorization.authorized_by` and `provide_user_authorization.reason` name a missing user_authorization field.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "risk_level": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "reason_code": {
+                      "description": "`authorized` when allowed; otherwise the refusing gate's first reason code.",
+                      "type": "string"
+                    },
+                    "stage": {
+                      "description": "Which gate gave the decision.",
+                      "enum": [
+                        "outbound_authorization",
+                        "outbound_policy"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "decision",
+                    "reason_code",
+                    "customer_reason",
+                    "next_action",
+                    "escalation_signals",
+                    "stage"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The decision the first refusing gate gave, or `allowed` when both allow."
+          },
+          "400": {
+            "description": "A malformed request, or a from_number_id that belongs to another organization or project."
+          },
+          "404": {
+            "description": "from_number_id does not exist."
+          }
+        },
+        "summary": "Preflight an outbound call or SMS against the pre-dial gates, persisting nothing"
       }
     },
     "/v1/policies/evaluate": {
