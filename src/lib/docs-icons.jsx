@@ -1,5 +1,7 @@
 import {
   AppWindow,
+  Codepen,
+  MultiBubble,
   BadgeCheck,
   Book,
   BookStack,
@@ -72,6 +74,8 @@ import {
 // This map only imports the ~44 icons actually used, so bundlers tree-shake
 // the other ~1600 iconoir-react exports instead of shipping the whole set.
 const ICONS = {
+  Codepen,
+  MultiBubble,
   // fumadocs-core's loader builds an invisible top-level "folder" node
   // wrapping the whole content/docs/ tree (the `isGlobalRoot` folder in
   // loader-CoSFINvo.js's `buildFolder`). That node is never rendered — the

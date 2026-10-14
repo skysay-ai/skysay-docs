@@ -1,0 +1,148 @@
+---
+title: Connect OpenAI Agents SDK to Skysay
+description: Give an OpenAI SDK agent scoped access to Skysay MCP, verify a real read, and prepare phone-number onboarding.
+icon: Codepen
+---
+
+Use OpenAI Agents SDK with hosted Skysay MCP to inspect a workspace and,
+when separately configured and approved, operate calls and SMS. Start with one
+read-only tool; no private repository or Twilio account is needed.
+
+## Prerequisites
+
+- Python 3.13 and uv; a Skysay workspace.
+- A workspace key with `account:read`, held in `SKYSAY_API_KEY` through your
+  local environment or secret manager. Never commit it or paste it into chat.
+- No OpenAI key is needed for the default transport probe. The optional
+  model-mediated mode needs your own securely configured `OPENAI_API_KEY`.
+
+[Create a scoped credential](/docs/quickstart#1-sign-in-and-choose-a-credential).
+[Get the public sample](https://github.com/skysay-ai/skysay-docs/tree/main/examples/agent-sdks).
+
+## Install the pinned example
+
+In the public sample's `examples/agent-sdks` directory:
+
+```bash
+uv venv --python 3.13.13
+uv pip sync --require-hashes requirements.lock
+uv run --no-sync python openai_agent.py
+```
+
+The sample pins `openai-agents==0.23.1` and `claude-agent-sdk==0.2.166`;
+its checked-in hash-locked `requirements.lock` pins the transitive MCP transport too. If copying only
+this OpenAI sample, install `openai-agents==0.23.1` in your own Python 3.13
+virtual environment. The combined sample installs both SDKs for reproducibility.
+
+## Connect and verify a tool result
+
+Save the following as `openai_agent.py`. The default run initializes MCP,
+limits the model-visible tools to `account_overview`, and calls that tool
+directly. It does not request model inference or print account contents.
+
+```python
+"""Inspect Skysay through OpenAI Agents SDK. Default mode makes no model call."""
+import argparse
+import asyncio
+import os
+from agents import Agent, Runner, set_tracing_disabled
+from agents.mcp import MCPServerStreamableHttp, create_static_tool_filter
+
+URL = 'https://api.skysay.ai/mcp/read-only'
+
+def connection_params():
+    return {'url': URL, 'headers': {'Authorization': f"Bearer {os.environ['SKYSAY_API_KEY']}"}, 'timeout': 15}
+
+async def main(ask_model=False):
+    set_tracing_disabled(True)  # Account/tool content must not enter hosted traces.
+    async with MCPServerStreamableHttp(name='skysay', params=connection_params(),
+            tool_filter=create_static_tool_filter(allowed_tool_names=['account_overview']),
+            max_retry_attempts=0) as server:
+        tools = await server.list_tools()
+        if [tool.name for tool in tools] != ['account_overview']:
+            raise RuntimeError('Expected the account_overview tool; check the endpoint and permissions.')
+        result = await server.call_tool('account_overview', {})
+        if result.is_error:
+            raise RuntimeError('Account read refused; check account:read and the workspace credential.')
+        print('Connected: account_overview succeeded. No phone action was performed.')
+        if ask_model:
+            agent = Agent(name='Workspace reader',
+                instructions='Use account_overview to confirm the workspace is accessible. Do not repeat private account details.',
+                mcp_servers=[server])
+            response = await Runner.run(agent, 'Confirm that my Skysay workspace is accessible.', max_turns=3)
+            print(response.final_output)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ask-model', action='store_true', help='Optional model request: requires OPENAI_API_KEY and may incur model charges.')
+    asyncio.run(main(parser.parse_args().ask_model))
+```
+
+Expected output:
+
+```text
+Connected: account_overview succeeded. No phone action was performed.
+```
+
+OpenAI tracing is disabled so workspace tool inputs and results are not sent
+to hosted traces. A successful read demonstrates this key's account access;
+it does not prove that a model has used the tool.
+
+## Optional: let an agent make the read
+
+Configure your own OpenAI API credential securely, then run:
+
+```bash
+uv run --no-sync python openai_agent.py --ask-model
+```
+
+This sends tool output to the model provider and may incur model charges.
+Review the provider's data policy and use a test workspace. Never run this
+against customer data merely to check installation.
+
+## Before calls or SMS
+
+A successful read is not an active phone number. In the workspace, choose a
+country and number type, inspect voice/SMS capabilities and prices, and complete
+any required identity, business and carrier-document review. Skysay handles
+carrier onboarding; you still provide the required information. Number activation
+is not instant in every market. See [regulated numbers](/docs/regulated-numbers)
+and [pricing](/pricing).
+
+Your SDK agent configures and operates Skysay. It is **not** automatically the
+voice model speaking to the person on the phone. Configure the voice agent's
+published flow before enabling real calls.
+
+Keep the initial read-only endpoint. Enabling the full MCP resource is a
+separate application change: use the least scopes for the selected tools, an
+explicit destination/action/cost confirmation, and a server-side approval flow
+before number purchases, calls or SMS. An SDK allowlist is not an authorization
+or spending boundary. [Quickstart](/docs/quickstart#before-any-billable-action)
+explains these boundaries; [MCP tools](/docs/tool-reference) gives exact names
+and arguments. This guide does not dial, text or purchase a number.
+
+## Troubleshooting
+
+- **401:** confirm the workspace key is active and present in the launching
+  process. Do not print the key while debugging.
+- **Tool error / missing scope:** the initial key needs `account:read`.
+  Connection success alone does not prove authorization to call the tool.
+- **405 in your browser:** MCP uses POST. Opening the endpoint as a web page
+  is not an initialization or tool-call test.
+- **Timeout:** check outbound HTTPS to `api.skysay.ai` and proxy configuration.
+  Do not disable TLS validation.
+- **Unexpected tools:** confirm the read-only URL and use a clean example
+  directory. Do not inherit unrelated MCP, shell or file tools.
+
+## What was verified
+
+The pinned client packages were exercised against the real Skysay HTTP handler
+in an isolated local workspace with disposable credentials. No production
+account, customer data, hosted model request, phone call, SMS or number purchase
+was used. Optional model-mediated runs below remain untested; they incur
+provider usage. This is transport/configuration acceptance, not a live-carrier
+or model-quality benchmark.
+
+## SDK reference
+
+Configuration checked on 14 October 2026 against the [official SDK MCP documentation](https://openai.github.io/openai-agents-python/mcp/). Recheck pinned versions before upgrading.
