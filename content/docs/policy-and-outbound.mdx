@@ -128,6 +128,49 @@ count toward your voice spend cap. It does count toward your call-count limits,
 because it was a submitted call. To clear it, cancel it with
 `POST /v1/calls/{call_id}/cancel`.
 
+### Why a call was refused before dialling
+
+A call is checked twice before it dials, in this order:
+
+1. **Workspace capabilities** (`outbound_authorization`): destination,
+   channel, use-case profile, review signals and caps.
+2. **The per-call policy** (`outbound_policy`): a non-empty `purpose`,
+   a `user_authorization` with **both** `authorized_by` (who approved the call)
+   and `reason` (why it is being made), a caller number that is ready to call
+   out, and a valid destination.
+
+A call refused at either check ends with `status: "policy_blocked"` (or
+`"needs_review"`) and is never dialled. Every read of it (the response to
+`POST /v1/calls`, `GET /v1/calls/{call_id}`, `GET /v1/calls` and the MCP call
+tools) carries a `refusal` object saying why:
+
+```json
+"refusal": {
+  "stage": "outbound_policy",
+  "decision": "blocked",
+  "reason_codes": ["authorization.required"],
+  "required_actions": ["provide_user_authorization.reason"],
+  "message": "user_authorization.reason is missing. Every outbound call needs user_authorization with authorized_by (who approved the call) and reason (why it is being made)."
+}
+```
+
+`refusal` is `null` on every call that was not refused before dialling. Fix
+what `message` names and place the call again; a refused call is never
+retried for you.
+
+### Check before you call
+
+`POST /v1/policies/authorize-outbound` (`policy:evaluate`), or the
+`authorize_outbound` MCP tool, asks the same two questions without creating
+anything. For a voice call it answers with the first check that refuses,
+naming it in `stage`. When both checks pass, it answers `allowed` with
+`stage: "outbound_authorization"` and the policy evaluation in `policy`.
+It is a preflight of those two checks, not a full admission: number rules,
+concurrency, maintenance windows and the wallet reservation are not checked.
+Spend caps are checked only against the `amount_minor` you send. Caller-number
+readiness is checked only when you send `from_number_id`; the call itself
+always needs one.
+
 ### Authorized application batches
 
 Any active workspace may run its own batches through the single-call API;
