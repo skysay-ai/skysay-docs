@@ -157,6 +157,26 @@ area code and state fields. Each number shows where it is, and once the list
 is a few minutes old the dialog offers **Refresh list**; buying the number you
 picked still works.
 
+## Numbers Skysay cannot carry yet
+
+A confirmed purchase (`POST /v1/number-requests` with
+`customer_purchase_confirmed`) is checked before it is saved: Skysay must be
+able to carry incoming calls for that market. When no capacity plan or inbound
+rate covers it, the request is refused with **409** and nothing is created or
+charged:
+
+```json
+{
+  "error": "inbound_coverage_missing",
+  "message": "Skysay cannot carry incoming calls for this number type yet, so it cannot be bought. Nothing was charged.",
+  "blocker": "carrier_rate_missing"
+}
+```
+
+`blocker` uses the same words the Numbers page shows after activation
+(`capacity_plan_unavailable`, `carrier_rate_missing`). Choose another market,
+or contact support.
+
 ## Where a number request waits
 
 A saved request is not yet an active phone number. **Phone numbers** shows
@@ -215,6 +235,20 @@ carrier again, however long the request has waited:
   and the request returns to `awaiting_verification`.
 - If someone else took the number meanwhile, nothing is charged and you are
   asked to choose another number.
+
+## Who a new number answers with
+
+A number starts with a number rule as soon as it is active, so it never
+answers by accident and never sits half-configured:
+
+- the AI agent you named in `agent_id` when you requested it, if it is still
+  active;
+- otherwise your workspace's only active AI agent;
+- otherwise nobody: the rule is set to do not answer until you choose.
+
+A named AI agent that has since been deleted or switched off is not replaced by
+a guess. A rule you set yourself before activation is kept. Change it any time
+with `PATCH /v1/phone-numbers/{number_id}/number-rules`.
 
 ## Inbound activation and outbound calling are separate
 
