@@ -654,6 +654,13 @@
           "begin_message": {
             "type": "string"
           },
+          "expected_tools": {
+            "description": "Optional previously read complete tools array, including read-only refs. With a tools replacement, a mismatch returns409 and writes nothing. Workspace editors and calendar attachment send it to avoid lost changes.",
+            "items": {
+              "$ref": "#/components/schemas/AgentTool"
+            },
+            "type": "array"
+          },
           "first_message": {
             "type": "string"
           },
@@ -937,6 +944,13 @@
             },
             "description": "Optional stt/llm/tts map to existing hosted-AI credential IDs (or null to use platform-managed selection). References are validated; secret upload is a separate write-only API.",
             "type": "object"
+          },
+          "expected_tools": {
+            "description": "Optional previously read complete tools array, including read-only refs. With a tools replacement, a mismatch returns409 and writes nothing. Workspace editors and calendar attachment send it to avoid lost changes.",
+            "items": {
+              "$ref": "#/components/schemas/AgentTool"
+            },
+            "type": "array"
           },
           "first_message": {
             "type": "string"
@@ -8814,6 +8828,83 @@
           }
         },
         "summary": "microsoft calendar OAuth start"
+      }
+    },
+    "/v1/calendars/{connection_id}/appointments/{appointment_id}/resolve": {
+      "post": {
+        "description": "agents:write; bound to the authenticated organization/project and connection. Only unconfirmed requests can change; submitting requests are refused. Inspect the provider account first. No provider request or booking retry is performed; the resolution is audited. Retrying the identical resolution is idempotent.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "appointment_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "organization_id": {
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "provider_checked": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "provider_id": {
+                    "description": "Required for booked; omit for verified not-created.",
+                    "maxLength": 1024,
+                    "type": "string"
+                  },
+                  "state": {
+                    "enum": [
+                      "booked",
+                      "not_created"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id",
+                  "provider_checked",
+                  "state"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Safe appointment state and booking_succeeded flag"
+          },
+          "400": {
+            "description": "Account verification or booking identity missing"
+          },
+          "404": {
+            "description": "Appointment or connection not in workspace/project"
+          },
+          "409": {
+            "description": "Appointment is submitting or already resolved differently"
+          }
+        },
+        "summary": "Record owner-verified outcome of an uncertain appointment"
       }
     },
     "/v1/calendars/{connection_id}/configure": {
