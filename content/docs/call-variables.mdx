@@ -225,6 +225,37 @@ menu is the one you meant, and it cannot see a company phone system that
 forwards the line elsewhere. And once a person answers, anything that person
 says is an ordinary conversation, even if they read a number back.
 
+#### What is kept after a keypad value is entered
+
+The platform holds a keypad value only so the call can key it. When the call
+ends it deletes the value from the call record: `call_context` (as stored and as
+`GET /v1/calls/{call_id}` returns it) no longer lists the field, and neither does
+the copy of your request the call was checked against. The Calls drawer and the
+timeline show the entry as **Entered {field}**, with no digits and no count.
+
+The transcript is masked at the source, in three stages:
+
+- **From the first key until a person answers**, every number the other side says
+  (digits in any script, and number words in the languages the platform has a
+  table for) is stored as `█`, whether or not it matches your value. The agent is
+  not given what the menu says in that time; it is told which keys the menu offers
+  and what each is for, without numbers. A menu in a language the platform has no
+  number words for is stored as "far end spoke, content withheld".
+- **Once a person answers**, the agent hears the call again, and any stretch of
+  two or more digits that is part of your value is stored as `█`, however the
+  digits are spaced or split across consecutive turns, and for the digits 0 to 9
+  spoken as words ("four one one one", "double four") in those languages. A pair
+  of digits that happens to occur in your value (such as `11`) is masked too.
+  Numbers such as "twenty four" are not read as digits.
+- **When the call ends** the whole transcript is masked once more, across adjacent
+  turns, before it is uploaded.
+
+The platform keeps no copy to retry with. A campaign retry reads the contact's own
+variables again. For a call you place through the API, send the value again with
+every retry: a retry without an **optional** keypad variable is placed, and a menu
+that asks for it ends the call; without a **required** one it is refused, as for
+any missing required variable.
+
 ### Caller lookup
 
 For inbound calls an agent can look the caller's number up in one of its
