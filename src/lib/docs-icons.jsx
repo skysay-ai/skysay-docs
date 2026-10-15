@@ -1,5 +1,6 @@
 import {
   AppWindow,
+  GraphUp,
   Codepen,
   MultiBubble,
   BadgeCheck,
@@ -74,6 +75,7 @@ import {
 // This map only imports the ~44 icons actually used, so bundlers tree-shake
 // the other ~1600 iconoir-react exports instead of shipping the whole set.
 const ICONS = {
+  GraphUp,
   Codepen,
   MultiBubble,
   // fumadocs-core's loader builds an invisible top-level "folder" node
