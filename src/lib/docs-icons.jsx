@@ -1,4 +1,5 @@
 import {
+  Triangle,
   AppWindow,
   Calendar,
   GraphUp,
@@ -79,6 +80,7 @@ import {
 // This map only imports the ~44 icons actually used, so bundlers tree-shake
 // the other ~1600 iconoir-react exports instead of shipping the whole set.
 const ICONS = {
+  Triangle,
   Calendar,
   GraphUp,
   NetworkLeft,
