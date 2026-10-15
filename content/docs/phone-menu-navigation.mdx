@@ -1,0 +1,130 @@
+---
+title: Phone menu navigation
+description: Let an AI agent answer automated phone menus and wait on hold on outbound calls - how to switch it on, what the Calls page shows, how these calls end, when they are retried, and what they cost.
+icon: PhoneOutcome
+---
+
+An outbound call to a company often reaches an automated menu ("press 2 for
+English") and then a hold queue, not a person. With **phone menu navigation**
+on, the AI agent listens to each menu, presses the key that fits the call's
+task, waits quietly on hold, and starts talking when a person picks up. It is
+off by default and set per agent.
+
+This page is the whole picture in one place. The reference for each part is in
+[Answer detection](/docs/answer-detection) (the setting, the menu hint and the
+languages), [Call variables](/docs/call-variables) (numbers the agent may type)
+and [Post-call results](/docs/post-call-results#why-a-call-ended) (the ending
+values).
+
+## Turn it on
+
+In the workspace, open the AI agent, then **Tools**, and tick **Navigate phone
+menus and wait on hold**. Two limits appear under it:
+
+| Setting | API field | Default | Range |
+| --- | --- | --- | --- |
+| **Max hold time** | `navigation.max_hold_seconds` | 10 minutes | 10 seconds to 60 minutes |
+| **Max time in menus** | `navigation.max_navigation_seconds` | 3 minutes | 10 seconds to 15 minutes |
+
+Through the API the same setting is the `navigation` section of
+`PATCH /v1/agents/{agent_id}/voice-stack`:
+
+```bash
+curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"navigation": {"enabled": true, "max_hold_seconds": 900}}'
+```
+
+The limits belong to the agent and are not changed per call. Time in menus and
+time on hold are counted separately across the whole call, and the call also
+ends at its overall maximum length. The setting applies when a call starts;
+saving never changes a call in progress. Navigation only applies to calls the
+agent places, not to calls it receives.
+
+## What the agent does
+
+- **In a menu** it listens, presses the key that fits the call's task and
+  listens again. While it is in a menu or a queue, silence, hold music or a
+  recorded "goodbye" never hangs the call up.
+- **On hold** it stays silent. Only the two limits or the call's maximum length
+  end the wait early.
+- **When someone answers** it checks that it is a person, then starts the
+  conversation.
+- **Numbers the menu asks for** (an order or booking number, an account number,
+  a PIN, a date of birth) are typed only if the call provides them as a
+  [keypad variable](/docs/call-variables). The agent never makes one up. In
+  transcripts, the timeline and logs a typed value shows as the variable's name
+  (`Entered {account_number}`), never as digits.
+- **Tell it what to expect.** If you know the menu, pass `navigation_hint` in
+  the call's `call_context` or as a campaign column (for example `Press 2 for
+  English, then 1 for billing.`). It is a hint, not a script: the agent still
+  answers the menu it actually hears.
+
+The agent answers with keys when the line can carry them. Skysay checks this
+per carrier line: a line whose key presses are not yet qualified refuses to
+send them, the timeline says **Keys not supported on this line**, and a menu
+that needs keys ends the call as **Menu had no matching option**. Menus you can
+answer by speaking, and holds, work on every line.
+
+## What you see in the workspace
+
+**Calls list.** A call that went through a menu gets one quiet chip in the
+Outcome column, for example **Menu → hold 6:40**. A call that stopped there
+also gets a short ending chip:
+
+| Chip | Meaning |
+| --- | --- |
+| **Hold limit** | nobody picked up within the max hold time, or the call reached its maximum length while it waited |
+| **No menu match** | the menu had no option that fits the call's task, or asked for a number the call did not carry |
+| **Menu time limit** | the agent used the time allowed for menus without reaching a queue or a person |
+| **Hung up on hold** | the other side hung up while the call was on hold |
+| **Answered by a machine** | the number answered with a recorded message only: no menu, no person |
+
+The **Failure reason** filter has the first three, under Telephony, with their
+full names (**Hold limit reached**, **Menu had no matching option**, **Time
+limit in phone menus reached**).
+
+**Call details.** The header splits the call's duration into **Menu**, **Hold**
+and **Conversation**, and says in one sentence how the call ended. The
+transcript shows, in order: each menu the agent detected, each key it pressed,
+a typed value as `Entered {name}`, the wait on hold, and the moment a person
+answered, before the conversation itself.
+
+## How these calls end
+
+These endings are reported on the call resource as `ended_reason` with a
+`reason_detail`. Campaigns retry them under the same per-outcome rules as other
+calls:
+
+| `ended_reason` | `reason_detail` | A campaign retries it |
+| --- | --- | --- |
+| `ivr_timeout` | `hold_limit` | yes, like **No answer**, when no person was reached earlier |
+| `ivr_timeout` | `deadline` | yes, like **No answer**, when no person was reached earlier |
+| `ivr_timeout` | `menu_no_path` | no |
+| `ivr_timeout` | `navigation_limit` | no |
+| `ivr_timeout` | `data_not_authorised` | no |
+| `remote_party_disconnected` | `during_hold` | yes, like **No answer**, when no person was reached earlier |
+| `no_human_after_answer` | `recorded_message_only` | under the existing machine-answer rule |
+
+`person_reached` on the call resource says whether a person was reached earlier
+in the call; it is `null` when the call did not report it, and a missing value
+never causes a retry. A call that ends this way is `completed` at the carrier:
+it connected, and the ending says why nothing came of it.
+
+## Cost
+
+Time in menus and on hold is billed at your normal call rate, as part of one
+call. There is no separate hold price, and the split in the call details is for
+reading, not for billing.
+
+## Limits worth knowing
+
+- A menu that changes its mind, forwards the line elsewhere or asks for
+  something unexpected is answered as heard; the agent ends the call at a menu
+  with no matching option rather than guess.
+- How well the agent understands a menu is measured language by language before
+  it is claimed (see [Answer detection](/docs/answer-detection)); a language that
+  works on keys can still have a menu the agent misreads.
+- Once a person answers, everything they say is an ordinary conversation, even
+  if they read a number back.
