@@ -8,13 +8,9 @@ import { verifyConnection, SUCCESS } from './verify-connection.mjs';
 
 const key = 'dummy-test-workspace-key';
 
-async function fixture(t, { missingTool = false, toolError = false } = {}) {
+async function fixture(t, { missingTool = false, toolError = false, rpcError = false } = {}) {
   const calls = [];
   const server = createServer(async (req, res) => {
-    if (req.headers.authorization !== `Bearer ${key}`) {
-      res.writeHead(401).end();
-      return;
-    }
     if (req.method !== 'POST') {
       res.writeHead(405).end();
       return;
@@ -23,6 +19,10 @@ async function fixture(t, { missingTool = false, toolError = false } = {}) {
     for await (const chunk of req) body += chunk;
     const message = JSON.parse(body);
     calls.push(message);
+    if (req.headers.authorization !== `Bearer ${key}`) {
+      res.writeHead(401).end();
+      return;
+    }
     if (message.id === undefined) { res.writeHead(202).end(); return; }
     let result;
     if (message.method === 'initialize') {
@@ -33,6 +33,11 @@ async function fixture(t, { missingTool = false, toolError = false } = {}) {
     } else if (message.method === 'tools/call') {
       assert.equal(message.params.name, 'account_overview');
       assert.deepEqual(message.params.arguments, {});
+      if (rpcError) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ jsonrpc: '2.0', id: message.id, error: { code: -32603, message: 'Test tool failure' } }));
+        return;
+      }
       result = { content: [{ type: 'text', text: 'Private test workspace details' }], isError: toolError };
     } else {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -56,7 +61,8 @@ test('pinned MCP adapter executes only the allowed read and discards private con
 test('invalid key fails without a tool invocation', async t => {
   const { url, calls } = await fixture(t);
   await assert.rejects(verifyConnection({ key: 'dummy-invalid-key', url }));
-  assert.equal(calls.length, 0);
+  assert.ok(calls.length > 0, 'fixture must observe the refused request');
+  assert.equal(calls.filter(c => c.method === 'tools/call').length, 0);
 });
 
 test('missing key is rejected before any connection', async () => {
@@ -99,6 +105,13 @@ test('model text alone is not proof of a tool result', async t => {
 
 test('model tool errors do not count as acceptance', async t => {
   const { url } = await fixture(t, { toolError: true });
+  const stub = model([{ type: 'tool-call', toolCallId: 'test-call', toolName: 'account_overview', input: '{}' }]);
+  await assert.rejects(verifyConnection({ key, url, model: stub }));
+});
+
+test('JSON-RPC tool errors fail both the direct and model-mediated paths', async t => {
+  const { url } = await fixture(t, { rpcError: true });
+  await assert.rejects(verifyConnection({ key, url }));
   const stub = model([{ type: 'tool-call', toolCallId: 'test-call', toolName: 'account_overview', input: '{}' }]);
   await assert.rejects(verifyConnection({ key, url, model: stub }));
 });
