@@ -20,4 +20,4 @@ The printed success means the MCP tool returned successfully, not that a
 phone line is activated. No account payload is printed or kept in graph state.
 API errors fail the graph; the executable prints only a generic error.
 
-Guide: https://skysay.ai/docs/langgraph (published only after its PR is approved).
+Guide: https://skysay.ai/docs/langgraph.
