@@ -175,7 +175,7 @@ workflow is published.
 
 An automated phone menu can ask for a number: a card, a PIN, a government ID, a
 date of birth, a reference. Declare that value with `keypad` and a class, and
-send it with the call like any other value:
+send it with the call like any other value (as text: a number is refused, because it would lose leading zeros):
 
 ```json
 "card": { "type": "string", "keypad": { "class": "card" } }
@@ -200,9 +200,13 @@ What a keypad variable is not:
   SMS templates, `navigation_hint` or other variables contain the value's digits
   is refused with `keypad_value_in_text`, naming the field and where, never the
   value. The check ignores spaces, punctuation and non-ASCII digits (`4111 1111`
-  and `４１１１` both match), and counts `*` and `#`. A value of three characters
-  or fewer is only refused where it stands alone as a whole number, so ordinary
-  text with a stray digit does not refuse the call.
+  and `４１１１` both match), counts `*` and `#`, and also reads each filled-in
+  line as it will be said or sent and all your other variables together, so a
+  value split between a greeting and a variable, or between two variables, is
+  found. A value of three characters or fewer is only refused where it stands
+  alone as a whole number, so ordinary text with a stray digit does not refuse
+  the call. It cannot catch a value you deliberately cut into pieces and spread
+  across unrelated texts, or digits written out as words.
 - **Not in your reads.** `GET /v1/calls/{call_id}`, the MCP call tools and the
   Calls drawer withhold it from `call_context` and the variables list while the
   call runs, and a call refused by policy never stores it. The drawer lists the
@@ -476,7 +480,7 @@ read to check it. Nothing is stored.
 | `PROTECTED_FIELD_WITHOUT_VERIFICATION` | A protected variable on an agent without a workflow: nothing could confirm the caller before it is said. |
 | `PROTECTED_FIELD_ON_LIVE_ENGINE` | A protected variable on a GPT-Live or Gemini Live agent, which cannot hold a value back. |
 | `REQUIRES_WITHOUT_PROTECTED`, `INVALID_REQUIRES` | `requires` on an unprotected variable, or not `confirmation` / `knowledge_match`. |
-| `INVALID_KEYPAD`, `KEYPAD_FIELD_NOT_STRING`, `KEYPAD_FIELD_PROTECTED` | `keypad` is not `{"class": ...}` with a known class, or is on a variable that is not a `string`, or on a `protected` one. |
+| `INVALID_KEYPAD`, `KEYPAD_FIELD_NOT_STRING`, `KEYPAD_FIELD_PROTECTED`, `KEYPAD_FIELD_RESERVED_NAME` | `keypad` is not `{"class": ...}` with a known class, or is on a variable that is not a `string`, on a `protected` one, or on one named `navigation_hint` (that name carries the [navigation hint](/docs/answer-detection#phone-menus-and-hold-queues)). |
 | `KEYPAD_FIELD_IN_TEXT` | A greeting, prompt, workflow line or SMS template names a keypad variable. |
 | `BEFORE_CONFIRMATION_WITHOUT_LOOKUP` | `before_confirmation` without a `caller_lookup`, in an agent's own variables. A workflow's variables may keep it without one; it only changes anything for a looked-up field. |
 | `VARIABLES_BELONG_TO_WORKFLOW` | The agent has a workflow: declare the variables on the workflow instead. |
