@@ -1,0 +1,117 @@
+---
+title: Connect n8n to Skysay
+description: Import a tested n8n workflow, store a scoped Skysay credential and verify your workspace before adding calls or SMS.
+icon: NetworkLeft
+---
+
+Connect n8n to Skysay with its built-in HTTP Request node. You can use the
+same REST API to orchestrate phone and SMS workflows after the destination,
+permissions, costs and action have been approved.
+
+Start with a manual, read-only workflow. It needs no community node, MCP
+adapter or language-model account. This guide uses **n8n 2.43.6** and HTTP
+Request node v4.2; UI labels can differ in other versions. This is an API
+workflow, not a native Skysay n8n integration or an AI voice engine.
+
+## What you need
+
+- An n8n instance you control and a Skysay workspace.
+- A Skysay API key with only `account:read` for the first test.
+- Network access from n8n to `https://api.skysay.ai`.
+
+[Create a scoped key](/docs/quickstart#1-sign-in-and-choose-a-credential).
+The key belongs to one workspace; no organization ID is copied into the example.
+
+## Import the workflow
+
+[Download verify-workspace.json](https://github.com/skysay-ai/skysay-docs/blob/main/examples/n8n/verify-workspace.json).
+Use n8n's workflow import command to import that JSON. It contains two nodes:
+
+```text
+Run manually → Read Skysay workspace
+```
+
+The workflow is inactive and has no schedule or webhook trigger. It sends one
+request when executed. A key is deliberately absent from the downloadable file.
+
+## Store the credential in n8n
+
+Open **Read Skysay workspace** and configure:
+
+| Setting | Value |
+| --- | --- |
+| Method | GET |
+| URL | `https://api.skysay.ai/v1/workspace-context` |
+| Authentication | Generic Credential Type |
+| Generic Auth Type | Header Auth |
+| Credential header name | `Authorization` |
+| Credential header value | `Bearer ` followed by your API key |
+| Timeout | 10000 ms |
+
+Create and select the Header Auth credential **inside n8n**. Do not paste the
+key into the URL, a Code node, the workflow JSON, a screenshot or a chat.
+Use n8n's credential store and restrict who can use it. Keep TLS verification
+on. There is no reason to select **Ignore SSL Issues**.
+
+When sharing a workflow, review its exported JSON. This sample has no credential
+value or credential reference; an export from your instance may contain IDs or
+names referencing credentials even though it omits the secrets themselves.
+
+## Execute and inspect the result
+
+Run the workflow manually. A successful request returns workspace context:
+an organization, a bounded project list and its pagination/truncation metadata.
+An empty project list is not an authentication failure. Do not assume one
+returned page is the entire project collection; see
+[bounded list pages](/docs/rest-endpoints#bounded-list-pages).
+
+The test proves the key can read this workspace. It does **not** buy or activate
+a number, connect a voice AI agent, place a call or send a message. A workflow
+success indicator is not evidence of any of those outcomes.
+
+The manual editor displays the returned data. Avoid sharing screenshots or
+execution payloads containing private workspace details. The sample disables
+successful/error/manual execution saving in its workflow settings; n8n hosting,
+logs, backups and instance-wide policies still need your review.
+
+## Add calls and SMS as separate approved actions
+
+Keep the first workflow read-only. For a later production workflow:
+
+1. Get a usable number with the needed calling/SMS capabilities and completed verification.
+2. Use a separate credential with only the scopes needed by the chosen action.
+3. Check policy, price and destination, and collect the person's explicit approval.
+4. Execute once; retain the returned call or message ID.
+5. Inspect delivery/call evidence and route blocked, review or failed outcomes to a person.
+
+An n8n IF node or model prompt is not authorization by itself. Your application
+must bind approval to the exact recipient, purpose, caller and SMS text or call
+task. Do not automatically redial or resend on an ambiguous network failure.
+Only retry with the documented idempotency behavior; do not invent an
+`Idempotency-Key` header for a route that does not document it.
+
+The [REST quickstart](/docs/quickstart-curl), [SMS guide](/docs/send-sms),
+[policy requirements](/docs/policy-and-outbound) and
+[webhook contract](/docs/webhooks) contain the action-specific details.
+No paid action is included in the downloadable workflow.
+
+## Troubleshooting
+
+- **No credential selected:** create Header Auth and explicitly select it after import.
+- **401:** check the `Bearer ` prefix, revoked keys and the intended API host.
+- **403:** check `account:read` and the workspace attached to the key.
+- **Timeout or network failure:** inspect n8n's network path. Keep TLS verification on.
+- **Paid action blocked:** inspect the returned reason, activation, wallet, scopes
+  and outbound policy. A successful workspace read does not clear these gates.
+
+## Tested scope and sources
+
+The workflow is executed in the pinned n8n runtime against a real local Skysay
+HTTP handler with a synthetic workspace and disposable credential. Missing or
+invalid credentials must fail; no hosted model, production key, call or SMS is
+used. n8n Cloud credentials and your own hosted instance still need verification.
+
+Official references checked 15 October 2026:
+[HTTP Request node](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.httprequest/),
+[HTTP Request credentials](https://docs.n8n.io/integrations/builtin/credentials/httprequest/)
+and [workflow import/export](https://docs.n8n.io/workflows/export-import/).

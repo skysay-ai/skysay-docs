@@ -1,6 +1,7 @@
 import {
   AppWindow,
   GraphUp,
+  NetworkLeft,
   Codepen,
   MultiBubble,
   BadgeCheck,
@@ -76,6 +77,7 @@ import {
 // the other ~1600 iconoir-react exports instead of shipping the whole set.
 const ICONS = {
   GraphUp,
+  NetworkLeft,
   Codepen,
   MultiBubble,
   // fumadocs-core's loader builds an invisible top-level "folder" node
