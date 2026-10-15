@@ -2,6 +2,8 @@ import {
   AppWindow,
   GraphUp,
   NetworkLeft,
+  PhonePlus,
+  PhoneIncome,
   Codepen,
   MultiBubble,
   BadgeCheck,
@@ -78,6 +80,8 @@ import {
 const ICONS = {
   GraphUp,
   NetworkLeft,
+  PhonePlus,
+  PhoneIncome,
   Codepen,
   MultiBubble,
   // fumadocs-core's loader builds an invisible top-level "folder" node
