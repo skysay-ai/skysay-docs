@@ -1,0 +1,91 @@
+---
+title: Import a number you own
+description: Connect a customer-owned DIDWW or DIDLogic number to Skysay.
+icon: PhoneOutcome
+---
+
+Use **Numbers → Import a number** for a number you already own at DIDWW or
+DIDLogic. You keep the number and its carrier account. This does not purchase
+a number, transfer ownership, or port it to Skysay.
+
+## DIDWW: connect with one API key
+
+Your DIDWW account and number must already be approved for the calls you want
+to make. DIDWW controls its verification, outbound permissions, balance and
+carrier restrictions. Connecting to Skysay does not bypass them.
+
+1. Sign in to [DIDWW](https://my.didww.com/). Open **APIs → DIDWW API 3 →
+   Create new API Key**. Give the integration a name such as Skysay, choose
+   **Create**, and copy the key. See the official
+   [API-key guide](https://doc.didww.com/api3/configuration.html).
+2. In Skysay, choose **DIDWW** and paste that production key. **List my
+   numbers** reads the account inventory. It makes no routing change. Search
+   accepts a complete number; use the page controls for larger accounts.
+3. Select one available number. Choose a published AI agent to connect
+   incoming calls, or choose to set up incoming later. The latter preserves
+   the current DIDWW route. Select **Connect outgoing calls** if wanted.
+4. Review the selected number, its current incoming route and the billing
+   explanation. Confirm the change. Skysay creates dedicated SIP trunks and
+   automatically configures credentials, destination and caller ID. You do
+   not enter a SIP username, password or host.
+5. Read the separate incoming and outgoing results. **Configured** means the
+   stored configuration was checked at setup time. It does not mean that a
+   call has completed or that carrier permission is continuously monitored.
+
+Connecting incoming calls replaces that number's existing DIDWW incoming
+route, including a trunk group if assigned. Do not edit the same carrier route
+while connecting it. Skysay checks it again before assignment and refuses a
+detected change. DIDWW does not provide an atomic conditional update for this
+operation, so concurrent edits cannot be guaranteed safe. Other numbers and
+unrelated trunks are left alone.
+
+The key grants carrier account API access; it is not a read-only credential.
+Skysay uses it during the setup request and does not retain it. Only the SIP
+credentials needed for this integration are stored, encrypted. Those
+credentials permit calls through your DIDWW account. Re-enter the API key for
+a later refresh, retry or additional direction.
+
+IP-restricted API keys need known Skysay API egress IPs. Contact support before
+connecting one; this first import flow does not supply fixed API egress IPs.
+Keep existing restrictions. The voice-server address and your laptop address
+are not substitutes for the API's egress address.
+
+## Billing and availability
+
+DIDWW bills your number rental and carrier traffic directly. Skysay charges
+its applicable AI and platform usage from your workspace balance; it does not
+add managed-number rental or another carrier traffic charge. Check
+**Billing** for the platform rates and usage. Calls still obey Skysay's trust,
+destination, caller-ID, balance and concurrency controls.
+
+Incoming and outgoing are connected separately. A number saved for later can
+remain pending, and a number with one configured direction cannot use an
+unconnected direction. This import does not connect SMS, even if DIDWW offers
+SMS on the number. The dedicated outgoing trunk permits only this caller ID
+and one concurrent call; DIDWW's existing account controls continue to apply.
+
+## Retry, change or disconnect
+
+Open the imported number and choose **Re-enter API key** to connect a deferred
+direction or review a setup change. The key must still access the same DID and
+the integration's recorded trunks. Skysay reads the current route and asks for
+fresh confirmation. Changing the local AI-agent rule alone cannot connect a
+deferred DIDWW route.
+
+If setup is interrupted, check the number before retrying. Skysay reconciles
+recorded resources rather than blindly creating duplicates. An ambiguous
+resource requires support. A failure in an added direction leaves a previously
+configured direction available when its configuration is unaffected.
+
+**Disconnect from Skysay** revokes this connection's runtime access. It does
+not delete the DID or its carrier trunks and does not restore the previous
+carrier route. Reroute the number at DIDWW if you want calls to arrive
+elsewhere. Reconnecting creates a fresh integration generation and rotates credentials
+on its dedicated incoming trunk. Old SIP credentials cannot start new calls.
+
+## DIDLogic
+
+Choose **DIDLogic**, enter its API token, select an owned number and confirm
+its type. Skysay checks the existing SIP setup before activation. The carrier
+continues billing its rental and carrier traffic directly. DIDLogic imports
+remain voice-only; carrier and platform usage controls still apply.

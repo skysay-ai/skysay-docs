@@ -437,6 +437,31 @@
         },
         "type": "object"
       },
+      "AgentNavigation": {
+        "additionalProperties": false,
+        "description": "Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call.",
+        "properties": {
+          "enabled": {
+            "description": "`true` turns phone-menu navigation and hold waiting on for this agent's outbound calls.",
+            "type": "boolean"
+          },
+          "max_hold_seconds": {
+            "default": 600,
+            "description": "The most time a call may spend waiting in a hold queue before it ends. When it runs out the call ends with `ended_reason` `ivr_timeout` and `reason_detail` `hold_limit`.",
+            "maximum": 3600,
+            "minimum": 10,
+            "type": "integer"
+          },
+          "max_navigation_seconds": {
+            "default": 180,
+            "description": "The most time a call may spend answering phone menus before it ends. When it runs out the call ends with `ended_reason` `ivr_timeout` and `reason_detail` `navigation_limit`.",
+            "maximum": 900,
+            "minimum": 10,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "AgentOpening": {
         "additionalProperties": false,
         "description": "Outbound opening policy shared across conversation engines. Only managed outbound telephone calls use this wait; inbound and browser tests retain their normal opening. Saved by voice-stack PATCH and frozen in each call publication. Empty object resets to callee-first with two seconds of observed silence. Speech is allowed to finish beyond this wait. The timer authorizes the opening request, not first audible sound; provider generation and network latency add time.",
@@ -646,7 +671,7 @@
         "type": "object"
       },
       "AgentUpdate": {
-        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: opening, turn_taking, voice_polish, answer_detection, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
+        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: opening, turn_taking, voice_polish, answer_detection, navigation, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
         "properties": {
           "audio_stream_url": {
             "type": "string"
@@ -860,6 +885,9 @@
           "model": {
             "type": "object"
           },
+          "navigation": {
+            "$ref": "#/components/schemas/AgentNavigation"
+          },
           "opening": {
             "$ref": "#/components/schemas/AgentOpening"
           },
@@ -987,6 +1015,9 @@
           },
           "model": {
             "$ref": "#/components/schemas/VoiceComponentSelection"
+          },
+          "navigation": {
+            "$ref": "#/components/schemas/AgentNavigation"
           },
           "opening": {
             "$ref": "#/components/schemas/AgentOpening"
@@ -1430,7 +1461,7 @@
             "type": "string"
           },
           "call_context": {
-            "description": "The small, non-secret JSON object you supplied at call creation.",
+            "description": "The small, non-secret JSON object you supplied at call creation, without any variable the agent declares as protected or as a keypad field.",
             "type": "object"
           },
           "country": {
@@ -1446,7 +1477,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. `ivr_timeout` is reserved for the platform ending a call that was waiting in a phone menu or a hold queue; `reason_detail` says why: `hold_limit` (the hold time ran out), `navigation_limit` (the time allowed in menus ran out), `deadline` (the call's overall maximum length was reached while waiting), `menu_no_path` (the menu offered no way to a person) or `data_not_authorised` (the menu asked for a value the call did not supply). No call ends this way yet. When the other party hangs up while a call is waiting in a menu or on hold, the reason stays `remote_party_disconnected` and `reason_detail` is `during_hold`; no call waits yet either. `no_human_after_answer` can carry `recorded_message_only` (a recording and nothing else answered) and `media_session_lost` can carry `navigation_detector_lost`. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1460,7 +1491,8 @@
               "agent_unresponsive",
               "caller_unresponsive",
               "browser_startup_failed",
-              "funding_exhausted"
+              "funding_exhausted",
+              "ivr_timeout"
             ],
             "type": "string"
           },
@@ -1512,15 +1544,23 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `insufficient_balance` and `renewal_unavailable` qualify only `funding_exhausted`: confirmed insufficient funds versus unavailable authorization, respectively. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `insufficient_balance` and `renewal_unavailable` qualify only `funding_exhausted`: confirmed insufficient funds versus unavailable authorization, respectively. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path` and `data_not_authorised` appear only with `ended_reason` `ivr_timeout`, `during_hold` only with `remote_party_disconnected`, `recorded_message_only` only with `no_human_after_answer` and `navigation_detector_lost` only with `media_session_lost`, as described on `ended_reason`. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
+              "data_not_authorised",
+              "deadline",
+              "during_hold",
+              "hold_limit",
               "hold_music",
               "insufficient_balance",
               "looping_recording",
+              "menu_no_path",
               "model_unresponsive",
+              "navigation_detector_lost",
+              "navigation_limit",
               "no_audio",
+              "recorded_message_only",
               "renewal_unavailable"
             ],
             "type": "string"
@@ -2248,11 +2288,19 @@
             "enum": [
               "",
               "caller_tune",
+              "data_not_authorised",
+              "deadline",
+              "during_hold",
+              "hold_limit",
               "hold_music",
               "insufficient_balance",
               "looping_recording",
+              "menu_no_path",
               "model_unresponsive",
+              "navigation_detector_lost",
+              "navigation_limit",
               "no_audio",
+              "recorded_message_only",
               "renewal_unavailable"
             ],
             "type": "string"
@@ -4122,7 +4170,7 @@
             "type": "string"
           },
           "call_context": {
-            "description": "Small bounded, non-secret facts valid at call start: at most 32 keys and 4 KB, lists of at most 16 items. Never put endpoint credentials, mutable case history, or a requested voice-stack override here. A conversation workflow read tool is served from this object: put its declared projection fields under case_snapshot, or as top-level keys; every declared field must be present and non-empty or the workflow takes its case-unavailable path.",
+            "description": "Small bounded, non-secret facts valid at call start: at most 32 keys and 4 KB, lists of at most 16 items. Never put endpoint credentials, mutable case history, or a requested voice-stack override here. A conversation workflow read tool is served from this object: put its declared projection fields under case_snapshot, or as top-level keys; every declared field must be present and non-empty or the workflow takes its case-unavailable path. `navigation_hint` is reserved: plain text of at most 500 characters telling the agent what the phone menu it will meet expects, for example \"Press 2 for English, then 1 for billing.\"; it reaches the agent as the built-in variable `call.navigation_hint`, and a longer or non-text hint refuses the call with `call_variables_invalid`. A variable you declared as a keypad field (`keypad` on the field, see PUT /v1/agents/{agent_id}/variables) is read from here too, but only to be keyed on a phone menu: it is never given to the agent as text, and a call whose texts name the field or carry its digits is refused.",
             "maxProperties": 32,
             "type": "object"
           },
@@ -5271,6 +5319,26 @@
             },
             "type": "object"
           },
+          "keypad": {
+            "additionalProperties": false,
+            "description": "The call may enter this value on a phone menu keypad. It is never given to the model or any prompt, only keyed through the keypad.",
+            "properties": {
+              "class": {
+                "enum": [
+                  "reference",
+                  "card",
+                  "pin",
+                  "government_id",
+                  "date_of_birth",
+                  "other"
+                ]
+              }
+            },
+            "required": [
+              "class"
+            ],
+            "type": "object"
+          },
           "max_items": {
             "maximum": 16,
             "minimum": 1,
@@ -6120,7 +6188,7 @@
                     "type": "string"
                   },
                   "test_values": {
-                    "description": "Values for the agent's declared variables, for this test call only. Built-ins (contact.*, call.*, campaign.*) are not sent. Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, agent_not_published, and field / where naming the variable or line (never a value).",
+                    "description": "Values for the agent's declared variables, for this test call only. Built-ins (contact.*, call.*, campaign.*) are not sent. Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, agent_not_published, keypad_value_not_dialable, keypad_value_in_text, and field / where naming the variable or line (never a value).",
                     "type": "object"
                   }
                 },
@@ -7781,7 +7849,7 @@
                     "type": "string"
                   },
                   "test_values": {
-                    "description": "Values for the workflow's declared variables, for this Chat test only, admitted exactly as a Talk test's are: a question that compares an answer with a value compares it with these (none supplied takes its mismatch route). Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, agent_not_published, and field / where naming the variable or line (never a value).",
+                    "description": "Values for the workflow's declared variables, for this Chat test only, admitted exactly as a Talk test's are: a question that compares an answer with a value compares it with these (none supplied takes its mismatch route). Refused like a call's values: 400 with reason one of call_variables_missing, call_variables_invalid, call_variables_over_budget, workflow_binding_failed, schema_pair_mismatch, per_call_text_on_workflow, agent_not_published, keypad_value_not_dialable, keypad_value_in_text, and field / where naming the variable or line (never a value).",
                     "type": "object"
                   }
                 },
@@ -8498,20 +8566,20 @@
             "description": "Bounded DID list with channels, voice-only capability, and already-imported flags"
           }
         },
-        "summary": "List the connected BYO SIP trunk carrier account's DIDs for the import picker (live read with a transient, never-stored API token)"
+        "summary": "List owned DIDLogic or DIDWW numbers using a transient customer API key; discovery never changes routing"
       }
     },
     "/v1/byo/sip-trunk/import": {
       "post": {
         "responses": {
           "201": {
-            "description": "Imported number, readiness result, and activation state"
+            "description": "Number with separate incoming/outgoing configuration results, or local disconnect result"
           },
           "400": {
             "description": "organization_id or project_id is missing or blank, a project_id this organization does not own, or a missing/unparseable e164"
           }
         },
-        "summary": "Import a carrier-owned DID as a voice-only number; activates only on passing live activation evidence, monthly fee stays with the carrier"
+        "summary": "Connect a selected customer-owned voice number after confirmation, or disconnect its local runtime access; carrier bills rental and traffic"
       }
     },
     "/v1/byo/sip-trunk/setup-checks": {
@@ -8521,7 +8589,7 @@
             "description": "Readiness steps plus the provider activation-evidence block"
           }
         },
-        "summary": "Run secret-redacted BYO SIP trunk readiness checks for one DID (trunk auth, caller ID, inbound destination, channel capacity)"
+        "summary": "Preview one DIDWW routing change and issue a scoped confirmation token, or check existing DIDLogic SIP readiness"
       }
     },
     "/v1/calendars/oauth/calcom/complete": {
@@ -11356,7 +11424,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection, navigation and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
