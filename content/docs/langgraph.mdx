@@ -1,0 +1,127 @@
+---
+title: Connect LangGraph to Skysay
+description: Run a scoped Skysay MCP tool inside a real LangGraph node, then plan phone and SMS actions with explicit approval.
+icon: GraphUp
+---
+
+Give your LangGraph application access to Skysay's phone-number, call and SMS
+capabilities through hosted MCP. Start by proving one authenticated read;
+then add only the tools your workflow needs.
+
+This first graph performs an **account read**, not a phone call. It has no
+model dependency or model charges. Your existing model can plan a task later;
+Skysay's configured voice AI agent or your audio integration speaks on a call.
+LangGraph orchestration is not itself a voice engine.
+
+## Before you start
+
+- Python 3.13 and uv.
+- A Skysay workspace and an API key with `account:read`.
+- Keep the key in a secret manager or the environment that launches Python.
+  Never paste it into a chat, committed file or command-line argument.
+
+[Create a scoped key](/docs/quickstart#1-sign-in-and-choose-a-credential).
+The first connection uses `https://api.skysay.ai/mcp/read-only`; its credentials
+are scoped to this resource. Moving to the full MCP resource is a separate
+permission/configuration change, not an edit to make casually.
+
+## Run the public example
+
+[Download the example directory](https://github.com/skysay-ai/skysay-docs/tree/main/examples/langgraph).
+In `examples/langgraph`, run:
+
+```bash
+uv venv --python 3.13.13
+uv pip sync --require-hashes requirements.lock
+uv run --no-sync python verify_connection.py
+```
+
+Set `SKYSAY_API_KEY` securely before the last command. The sample pins
+`langgraph==1.2.15` and `langchain-mcp-adapters==0.3.2`; the universal lock
+also pins transitive dependencies. These are tested versions, not a promise
+that all future releases behave identically.
+
+Expected output:
+
+```text
+Verified: LangGraph completed a scoped Skysay account read. No call or SMS sent.
+```
+
+The graph loads the read-only server's tools, selects exactly
+`account_overview`, invokes it and ends. Other discovered tools are not executed.
+It does not print account details or retain them in graph state. The entrypoint
+prints a generic failure if authentication, discovery or tool execution fails.
+
+## How the graph is wired
+
+```python
+from langgraph.graph import END, START, StateGraph
+
+builder = StateGraph(State)
+builder.add_node("verify_connection", verify_connection)
+builder.add_edge(START, "verify_connection")
+builder.add_edge("verify_connection", END)
+graph = builder.compile()
+```
+
+`State` and `verify_connection` are defined in the downloadable
+`verify_connection.py`, not built-in functions. Its MCP connection uses:
+
+```python
+client = MultiServerMCPClient({
+    "skysay": {
+        "transport": "streamable_http",
+        "url": "https://api.skysay.ai/mcp/read-only",
+        "headers": {"Authorization": f"Bearer {key}"},
+    }
+}, handle_tool_errors=False)
+```
+
+`key` comes from `SKYSAY_API_KEY`. The example's allowlist limits its tool
+invocations; the MCP resource and API-key scopes enforce access on the server.
+Do not turn on tracing or persist tool outputs without considering what account,
+message or call data they can contain.
+
+## Extend to a telephone workflow
+
+After connection verification, build a separate path with these stages:
+
+1. Collect the requested task, destination, caller number and intended outcome.
+2. Check number capabilities, activation, outbound policy and the price basis.
+3. Show the exact proposed call or SMS to the person authorizing it.
+4. Pause for approval; changing the recipient, message or purpose needs approval again.
+5. Execute the approved action once, retain its ID and inspect its result.
+
+A prompt telling a model to ask is not an enforcement boundary. Put the pause
+in application control flow, outside automatic tool selection. If you use
+LangGraph interrupts, configure a checkpointer and thread identity appropriate
+for your application; the minimal graph here does not implement that lifecycle.
+Do not persist credentials in checkpoint state.
+
+Use the [REST first-call guide](/docs/quickstart-curl),
+[policy and outbound requirements](/docs/policy-and-outbound),
+[SMS guide](/docs/send-sms) and [call results](/docs/read-call-evidence)
+for the actual action contracts. A key with `account:read` cannot place calls.
+A returned call ID does not mean the person answered or the task completed.
+
+## Troubleshooting
+
+- **401:** check the key, revocation and resource URL. A read-only-resource token
+  does not become a full-resource token by changing the URL.
+- **403:** verify the key has `account:read` in the intended workspace.
+- **Missing tool:** use the hosted read-only endpoint and the pinned versions;
+  do not silently switch to another tool or endpoint.
+- **Graph succeeds but no call happens:** expected. This example verifies access
+  only; no paid action node is present.
+
+## Verification and sources
+
+The sample is verified against a real local Skysay HTTP handler with an isolated
+workspace and a disposable scoped key, including authentication failures. No
+production workspace, hosted model, call or SMS is used. A local pass does not
+prove your hosted credentials, carrier activation or model behavior.
+
+Official references checked 15 October 2026:
+[LangChain MCP integration](https://docs.langchain.com/oss/python/langchain/mcp),
+[LangGraph Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api)
+and [MCP adapters](https://github.com/langchain-ai/langchain-mcp-adapters).
