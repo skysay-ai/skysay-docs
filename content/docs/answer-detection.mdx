@@ -279,3 +279,39 @@ A menu sometimes asks for a number the call knows: an account number, a date of
 birth. Declare that value as a [keypad variable](/docs/call-variables#keypad-variables):
 the agent can have it keyed on the menu, and it is never shown to the agent as
 text.
+
+### Languages
+
+To follow a menu or a queue the agent listens to the far end on its own
+speech-to-text connection for as long as the call is in a menu or on hold, using
+the transcribers Skysay supports. It uses at most **two connections at once**,
+chosen from your agent's selected languages:
+
+- An agent with one language always gets one connection, in any language Skysay
+  supports for calls.
+- An agent with several languages gets one connection when a single transcriber
+  can listen for the whole set at once, and otherwise one connection per
+  language, up to two.
+- If the set cannot be covered that way, `PATCH /v1/agents/{agent_id}/voice-stack`
+  with `navigation.enabled: true` (or any publish of an agent that already has it)
+  is refused with `400` and the error `navigation_languages_unsupported`. The
+  response lists the language codes that cannot be covered in `languages`, and
+  `reason` is `uncovered` (no supported transcriber hears that language) or
+  `too_many_sockets` (every language is covered, but not by two connections).
+  Remove a language, or turn navigation off. Nothing is switched on in silence.
+
+A menu can be in a different language from the call ("for English press 2").
+Keys work in every language. For a menu spoken in a language the agent does not
+speak, the agent answers with keys or not at all: it never improvises a spoken
+answer in a language it was not set up for.
+
+Numbers read out in words need a word list per language. Skysay has one for
+English, German, French, Spanish, Italian, Dutch, Portuguese, Russian, Estonian
+and Finnish; digits are recognised in every language. For any other language
+Skysay does not guess: it treats spoken numbers it cannot place as present, and
+holds back the words instead of risking a number you keyed in.
+
+How well the agent understands a menu is measured language by language on a
+synthetic corpus before it is claimed; a language that works on keys can still
+have a menu the agent misreads. Hold times and menu times are limited by the two
+settings above in every language.
