@@ -1,5 +1,5 @@
 ---
-title: Send SMS
+title: Send SMS from your AI agent
 description: Read SMS conversations and send policy-gated messages from your numbers.
 icon: ChatBubble
 ---
@@ -7,6 +7,65 @@ icon: ChatBubble
 Skysay exposes SMS as two scoped capabilities: reading conversation history
 and sending messages. Sending is gated separately from reading so a read-only
 agent can follow a thread without ever being able to send.
+
+## Send your first approved SMS
+
+Start with an active number whose carrier connection actually supports outgoing
+SMS, purchased funds and an approved outbound envelope. A number's country
+being listed is not evidence that SMS sending is enabled. The refusal cases
+below explain platform-wide and number-specific blocks.
+
+Use `sms:send` to send and `sms:read` if you need the returned body or message
+history. Your application should obtain explicit approval of the **exact
+recipient, sender, purpose and text** before sending. `user_authorization`
+records the real approver and reason; it does not obtain consent on its own.
+Do not let a model fill those values in as a way to bypass approval.
+
+The request goes to `POST https://api.skysay.ai/v1/messages`. Use the
+[authenticated curl helper](/docs/make-first-outbound-call#read-your-workspace)
+to keep the key out of source and command-line arguments. The helper, Bash and
+jq must be configured before this example.
+
+```bash
+: "${ORG_ID:?Use your authenticated workspace ID}"
+: "${PROJECT_ID:?Use your project in that workspace}"
+: "${FROM_NUMBER_ID:?Use an SMS-capable number ID}"
+: "${TO_PHONE:?Use the explicitly approved recipient}"
+: "${SMS_BODY:?Use the exact approved message text}"
+: "${SMS_PURPOSE:?Declare the actual purpose}"
+: "${APPROVED_BY:?Name the real approver}"
+: "${APPROVAL_REASON:?Record the actual authorization}"
+
+umask 077
+jq -n --arg org "$ORG_ID" --arg project "$PROJECT_ID" \
+  --arg from "$FROM_NUMBER_ID" --arg to "$TO_PHONE" \
+  --arg body "$SMS_BODY" --arg purpose "$SMS_PURPOSE" \
+  --arg approved_by "$APPROVED_BY" --arg reason "$APPROVAL_REASON" \
+  '{organization_id:$org,project_id:$project,from_phone_number_id:$from,
+    to_phone_number:$to,body:$body,purpose:$purpose,
+    user_authorization:{authorized_by:$approved_by,reason:$reason}}' \
+  > approved-message.json
+
+skysay_request -X POST https://api.skysay.ai/v1/messages \
+  -H 'Content-Type: application/json' --data-binary @approved-message.json
+```
+
+Keep the request file private. The examples deliberately contain no customer
+number or message. A returned message ID means a record exists, not that the
+recipient received it. Inspect status and delivery events; `live_blocked` is
+not queued for later sending. A policy refusal needs review, not automatic
+retries. An inbound SMS is stored and delivered as an event; AI agents do not
+reply to it automatically.
+
+Do not enable generic HTTP retries after an ambiguous send. This REST schema
+example does not advertise an idempotency header. Preserve the result ID and
+reconcile the existing message before a separately approved resend. If another
+interface documents an idempotency key, verify that interface's exact replay
+contract instead of assuming it applies here.
+
+The request fields are checked against the public schema. No SMS was sent in
+documentation validation; verify one controlled delivery using your own approved
+recipient before automating it.
 
 ## Read conversations
 
