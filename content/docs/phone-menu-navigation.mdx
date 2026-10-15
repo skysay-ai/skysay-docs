@@ -23,8 +23,8 @@ menus and wait on hold**. Two limits appear under it:
 
 | Setting | API field | Default | Range |
 | --- | --- | --- | --- |
-| **Max hold time** | `navigation.max_hold_seconds` | 10 minutes | 10 seconds to 60 minutes |
-| **Max time in menus** | `navigation.max_navigation_seconds` | 3 minutes | 10 seconds to 15 minutes |
+| **Max hold time** | `navigation.max_hold_seconds` | 10 minutes | 10 seconds up to 29 minutes |
+| **Max time in menus** | `navigation.max_navigation_seconds` | 3 minutes | 10 seconds up to 15 minutes |
 
 Through the API the same setting is the `navigation` section of
 `PATCH /v1/agents/{agent_id}/voice-stack`:
@@ -35,6 +35,8 @@ curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
   -H "Content-Type: application/json" \
   -d '{"navigation": {"enabled": true, "max_hold_seconds": 900}}'
 ```
+
+A hold or a menu cannot outlast the call that contains it, so neither limit can be longer than the agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds, 29 minutes). A longer limit is refused with `400`, and so is shortening the maximum call length below a limit you set.
 
 The limits belong to the agent and are not changed per call. Time in menus and
 time on hold are counted separately across the whole call, and the call also
