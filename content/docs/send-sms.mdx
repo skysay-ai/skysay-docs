@@ -57,11 +57,10 @@ not queued for later sending. A policy refusal needs review, not automatic
 retries. An inbound SMS is stored and delivered as an event; AI agents do not
 reply to it automatically.
 
-Do not enable generic HTTP retries after an ambiguous send. This REST schema
-example does not advertise an idempotency header. Preserve the result ID and
-reconcile the existing message before a separately approved resend. If another
-interface documents an idempotency key, verify that interface's exact replay
-contract instead of assuming it applies here.
+Do not enable generic HTTP retries after an ambiguous send. The `SmsMessage`
+request schema has no idempotency field, and this guide does not define a replay
+contract for REST sends. Preserve any returned message ID and reconcile with
+`sms:read` before a separately approved resend.
 
 The request fields are checked against the public schema. No SMS was sent in
 documentation validation; verify one controlled delivery using your own approved
