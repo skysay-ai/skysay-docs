@@ -431,5 +431,16 @@ The compiled contract enforces, server-side, on every turn:
   budgets fail closed with a spoken, localized farewell rather than an open
   line.
 
+A live call can lose the response to a workflow turn after the server has
+already committed it. Skysay keeps that turn's request identity and retries
+the same submission. A recovered response returns the original outcome;
+it does not choose another route or repeat the turn's staged actions. A later
+utterance is a new turn, even when the caller repeats the same words.
+
+If the response cannot be recovered within the bounded retry, the call ends
+through the workflow failure path. Recovery does not confirm that a question
+was heard: identity confirmation and protected-field access still depend on
+the workflow's confirmation rules.
+
 The workflow API — drafts, publishing, versions, runs, simulations, and phone
 pins — is part of the [REST reference](/docs/api-reference).
