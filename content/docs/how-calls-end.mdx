@@ -56,8 +56,19 @@ This protection depends on speech detection, not on recognizing a particular
 word such as "no"; recognized words can also cancel a Standard agent's close
 when the acoustic detector misses them. Missed speech may not cancel a
 hang-up, and noise mistaken for speech can cancel it unnecessarily. Even a
-spoken response to the goodbye can keep the conversation open until a fresh
-ending request or a safety limit. It cannot undo a goodbye already heard or reopen a call
+spoken response to the goodbye can cancel that ending attempt. On workspace
+calls, including browser tests, the cancelled attempt activates the existing
+silence recovery: normally, after 30 seconds of quiet the agent asks whether
+the caller is still there, then ends after a further 15 seconds without an
+answer. An already-running quiet interval can count toward that wait.
+Scripted workflow agents and calls that have used their three check-ins end
+after 45 seconds of quiet without another check-in. Each
+new caller turn receives a fresh quiet interval, including when a native
+engine delivers its caption after its reply. An active tool, transfer or
+other protected operation can postpone that check-in. The public homepage
+demo has its own session deadline instead of this silence recovery.
+
+Cancellation cannot undo a goodbye already heard or reopen a call
 after disconnection. Call-length, balance and operator limits still end the
 call even if the caller is speaking.
 
@@ -67,15 +78,18 @@ Every agent that has `end_call` enabled receives the same instruction from
 Skysay, added after your own prompt on every call:
 
 > To end the call, invoke end_call. *(One sentence on where the goodbye goes,
-> as described above for your engine.)* After your goodbye the conversation is
-> over: if the caller speaks again, answer at most once, briefly, then invoke
-> end_call. If you are calling a specific person and whoever answers says they
-> are not that person, apologise once, share nothing about the matter, and
-> invoke end_call. Never say goodbye and then keep the conversation going.
+> as described above for your engine.)* An end_call request is a revocable
+> proposal, not a completed hang-up. If it is refused or canceled, the call is
+> still open: listen and answer any caller continuation, then invoke end_call
+> again when the caller needs nothing else. Instructions to end only once mean
+> one completed hang-up, not one attempt; they never prohibit retrying a canceled
+> request. Do not repeat goodbyes while the caller is still telling you something.
+> If you are calling a specific person and whoever answers says they are not
+> that person, apologise once, share nothing about the matter, and invoke end_call.
 > Apart from the wrong person answering, invoke end_call only when the caller
-> has said goodbye or has confirmed they need nothing else; never end it
-> because you cannot help with their request, and never while they are still
-> telling you something.
+> has said goodbye or has confirmed they need nothing else; never end it because
+> you cannot help with their request, and never while they are still telling
+> you something.
 
 It is written in English for every language. The agent follows it in whatever
 language the conversation is in, and it never becomes part of what the caller
@@ -116,12 +130,12 @@ GPT-Live 1 it also reaches the backend model that decides when to call tools.
 
 ## When both sides go quiet
 
-> **Rolling out.** This rule is currently in observation: on every call,
-> Skysay records when it would have checked in and when it would have ended
-> the call, and it does not yet do either. Calls behave as they did before,
-> and `caller_unresponsive` does not appear yet. It will be switched on once
-> the observations show it never would have ended a call wrongly. This page
-> will say so when it is on.
+> **Rolling out.** Ordinary silence remains in observation unless enabled
+> for the deployment. A refused or cancelled hang-up on a workspace call
+> activates recovery for that call, so declining a hang-up cannot leave a
+> quiet line waiting indefinitely. If an operator has explicitly disabled
+> silence recovery, it stays disabled; the call-length and balance limits
+> remain in force. The public homepage demo uses its own session deadline.
 
 Sometimes the agent speaks, and then nothing more comes from either side. The
 caller may have put the phone down, walked away, or lost the connection in a
@@ -138,9 +152,12 @@ until the call reached its maximum length.
   agent says a short goodbye and the call ends.** It reports `ended_reason`
   `caller_unresponsive`.
 
-The clock only runs while the agent had the last word. If the caller spoke
-last, the agent owes them a reply, and a different safety rule watches that
-case. See
+Ordinarily the clock runs while the agent had the last word. After a
+cancelled hang-up, fresh caller words restart a full quiet interval even if
+no further model reply arrives. During continuous conversation those words
+keep postponing the check-in. Separately, if the caller spoke last and the
+agent owes a reply, the model-response safety rule can end an unresponsive
+engine earlier. See
 [When the conversation engine is lost](/docs/post-call-results#when-the-conversation-engine-is-lost).
 
 The clock also does not run in these cases:
