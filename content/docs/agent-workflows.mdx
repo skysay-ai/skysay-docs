@@ -12,6 +12,61 @@ server-validated runtime contract. The model phrases nothing on its own
 authority: it chooses between the routes you declared, and the server applies
 the transition.
 
+## Governed GPT-Live workflows
+
+<Callout type="info" title="Not available yet">
+Governed GPT-Live voice workflows are still in development. Selecting GPT-Live
+or saving a listener configuration does not enable them. The behavior below
+describes the configuration and delivery requirements for that feature.
+</Callout>
+
+The same workflow graph applies to a GPT-Live agent: a payment reminder,
+appointment confirmation, support flow or another authored conversation uses
+the same steps and confirmation rules. Business rules belong in the workflow.
+Languages belong in its language configuration; a payment template or a
+particular language does not select a different execution mode.
+
+A spoken workflow also needs an explicit **listener**: the speech recognizer
+that supplies caller input to the workflow. Select its model, the languages
+it must recognize, and whether to use platform credentials or a credential
+you own. Its language coverage must include every language the workflow can
+use. A catalog entry or saved credential alone does not establish that a
+listener is supported for governed calls.
+
+The published version pins that selection and its silence and interruption
+settings. Changing the draft or the agent does not change a running call's
+listener. Publish a new version to use changed settings. An existing version
+with no listener stays unconfigured; Skysay does not silently select one for
+it. Spoken starts require a configured, supported listener before reserving
+funds or starting a run. Text tests do not need a voice listener.
+
+### Exact lines and playback
+
+The workflow owns the words, allowed routes and protected-field rules.
+GPT-Live supplies the selected voice; its prompt cannot authorize a new route,
+rephrase an exact line or release a protected value. A required spoken line
+may be prepared as smaller approved segments, but those segments must
+preserve the line's words and order.
+
+Playback progress and interruption control when the workflow can accept an
+answer to a question. Generated text is not evidence that the question was
+played. Local playback completion is also not proof that the caller heard or
+understood it; identity confirmation still requires the caller's reply and
+the workflow's confirmation rule.
+
+| Scenario | Why controlled playback matters |
+| --- | --- |
+| Identity confirmation | A response cannot confirm a question that has not reached its playback boundary, and protected details stay withheld until confirmation succeeds. |
+| Payment reminder | Authored amounts and dates keep their wording and order; an interrupted line cannot be treated as fully delivered. |
+| Appointment or support routing | A question and its allowed answers stay attached to the same workflow turn, including when playback is interrupted or a response is recovered. |
+
+If required speech, listener capability or delivery evidence cannot be
+established, the workflow refuses or takes its failure path. It does not
+continue with an unverified line or an unrestricted model response. These
+rules apply across supported workflow languages, not only the languages used
+in a test call. See [voice behavior](/docs/voice-behavior) and
+[usage recovery](/docs/billing#a-call-has-ended-but-funds-are-still-reserved).
+
 ## The canvas
 
 Open any agent and choose **Workflow**. If the agent has no workflow yet you
