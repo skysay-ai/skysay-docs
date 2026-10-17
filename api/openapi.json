@@ -4147,6 +4147,304 @@
         ],
         "type": "object"
       },
+      "HeadlessAccount": {
+        "properties": {
+          "api_key": {
+            "description": "Returned once. Store only in the MCP client's credential field.",
+            "type": "string"
+          },
+          "area_code": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "email_usage": {
+            "type": "string"
+          },
+          "email_verified": {
+            "const": false
+          },
+          "identity_type": {
+            "const": "verified_phone"
+          },
+          "mcp": {
+            "properties": {
+              "header_name": {
+                "const": "Authorization"
+              },
+              "header_value": {
+                "description": "Secret bearer header; never put it in a public prompt or video.",
+                "type": "string"
+              },
+              "scopes": {
+                "items": {
+                  "enum": [
+                    "account:read",
+                    "agents:read",
+                    "agents:write",
+                    "calls:read",
+                    "calls:write",
+                    "numbers:read",
+                    "numbers:write",
+                    "coverage:read",
+                    "wallet:read",
+                    "wallet:write",
+                    "onboarding:read",
+                    "onboarding:write",
+                    "recordings:read",
+                    "sms:read",
+                    "sms:write"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "setup_credit": {
+            "properties": {
+              "amount_usd_minor": {
+                "const": 500
+              },
+              "currency": {
+                "const": "USD"
+              },
+              "first_owner_call_max_seconds": {
+                "const": 60
+              },
+              "recurring_payments_approved": {
+                "const": false
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessComplete": {
+        "properties": {
+          "headless_session": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "otp_code": {
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "headless_session",
+          "otp_code"
+        ],
+        "type": "object"
+      },
+      "HeadlessNumberChoice": {
+        "properties": {
+          "available_number_id": {
+            "description": "Canonical inventory row id for the requested country/city/area code. A cache is revalidated before fulfillment.",
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "available_number_id"
+        ],
+        "type": "object"
+      },
+      "HeadlessNumberResult": {
+        "properties": {
+          "capabilities_notice": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "number_request_id": {
+            "type": "string"
+          },
+          "recurring_payments_approved": {
+            "const": false
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessPayment": {
+        "properties": {
+          "amount_minor": {
+            "description": "Top-up in the wallet currency's minor units; current server top-up bounds apply.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "card_checkout",
+              "shared_payment_token"
+            ],
+            "type": "string"
+          },
+          "payment_approved": {
+            "description": "Must be true before an actual payment; optional while requesting an SPT challenge.",
+            "type": "boolean"
+          },
+          "request_challenge": {
+            "description": "For SPT, return 402 with server amount/currency/Stripe profile needed to request owner approval in Link. This is a JSON challenge, not an MPP endpoint.",
+            "type": "boolean"
+          },
+          "shared_payment_token": {
+            "description": "Granted spt_ token approved by the owner for this seller and amount. Omit when requesting the challenge. Never submit card numbers.",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "amount_minor",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "HeadlessPaymentResult": {
+        "description": "Card checkout returns the standard Stripe checkout URL/amount result. SPT returns pending or paid; only a signed matching webhook makes purchased wallet credit available.",
+        "properties": {
+          "amount_minor": {
+            "type": "integer"
+          },
+          "checkout_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "wallet_credit_timing": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessRenewalApproval": {
+        "properties": {
+          "renewal_approved": {
+            "const": true,
+            "description": "Separate owner approval of ongoing number fees after an approved Stripe payment. Setup credit alone never authorizes renewal."
+          }
+        },
+        "required": [
+          "renewal_approved"
+        ],
+        "type": "object"
+      },
+      "HeadlessSession": {
+        "properties": {
+          "area_code": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "const": 600
+          },
+          "headless_session": {
+            "description": "Secret, single-use signup capability. Never log or publish it.",
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessStart": {
+        "properties": {
+          "area_code": {
+            "maxLength": 6,
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "client_name": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "country": {
+            "description": "Full country name, such as United States or Estonia; selected against available local-number inventory.",
+            "maxLength": 80,
+            "type": "string"
+          },
+          "email": {
+            "description": "Unverified contact only. Never a login or recovery identifier; does not reserve or automatically link an email account.",
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "phone": {
+            "description": "Owner's real E.164 phone number. The owner receives a texted OTP.",
+            "maxLength": 16,
+            "type": "string"
+          },
+          "terms_accepted": {
+            "const": true,
+            "description": "Owner accepted Skysay terms, version 2026-08-20."
+          }
+        },
+        "required": [
+          "phone",
+          "email",
+          "country",
+          "client_name",
+          "terms_accepted"
+        ],
+        "type": "object"
+      },
       "InboundCallRoute": {
         "properties": {
           "from_phone_number": {
@@ -6291,6 +6589,273 @@
           }
         },
         "summary": "Dispatch a signed test event through the real delivery pipeline"
+      }
+    },
+    "/v1/agent/onboarding/headless/complete": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessAccount"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [],
+        "summary": "Verify phone ownership and create a new workspace",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": []
+      }
+    },
+    "/v1/agent/onboarding/headless/number": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessNumberChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessNumberResult"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Request the selected initial local number using bounded setup credit",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/agent/onboarding/headless/number/renewal-approval": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessRenewalApproval"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Separately approve ongoing setup-number fees after payment",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": [
+          "wallet:write",
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/agent/onboarding/headless/payments": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessPayment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessPaymentResult"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Approve an optional wallet top-up with a virtual card or granted shared payment token",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": [
+          "wallet:write"
+        ]
+      }
+    },
+    "/v1/agent/onboarding/headless/start": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessSession"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [],
+        "summary": "Start a fresh account with a texted verification code",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": []
       }
     },
     "/v1/agents": {
