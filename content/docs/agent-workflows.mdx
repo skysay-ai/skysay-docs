@@ -18,6 +18,10 @@ the transition.
 Governed GPT-Live voice workflows are still in development. Selecting GPT-Live
 or saving a listener configuration does not enable them. The behavior below
 describes the configuration and delivery requirements for that feature.
+The new spoken path also requires supported listener and speech-output sources
+on Standard/TTS agents; selecting that engine does not bypass this requirement.
+Spoken workflow calls remain unavailable until those sources are supported.
+Chat and text simulations remain available.
 </Callout>
 
 The same workflow graph applies to a GPT-Live agent: a payment reminder,
@@ -25,6 +29,12 @@ appointment confirmation, support flow or another authored conversation uses
 the same steps and confirmation rules. Business rules belong in the workflow.
 Languages belong in its language configuration; a payment template or a
 particular language does not select a different execution mode.
+
+The planned spoken path uses the call's configured language. It does not
+switch language from a recognizer hint or replace a missing translation with
+the source text. Publish a spoken version for each language the call needs.
+Automatic phone-menu navigation is not yet qualified for this governed path;
+an agent with that option enabled cannot start it.
 
 A spoken workflow also needs an explicit **listener**: the speech recognizer
 that supplies caller input to the workflow. Select its model, the languages
@@ -40,6 +50,13 @@ with no listener stays unconfigured; Skysay does not silently select one for
 it. Spoken starts require a configured, supported listener before reserving
 funds or starting a run. Text tests do not need a voice listener.
 
+The listener waits for the complete caller turn before the workflow chooses
+a route. A pause or a long reply does not turn an early “yes” into a decision
+before the caller can finish “but that is the wrong person.” If recognition
+cannot finish within its configured limits, the call ends through a controlled
+failure rather than acting on a truncated answer. A disconnected microphone
+does not count as a completed response.
+
 ### Exact lines and playback
 
 The workflow owns the words, allowed routes and protected-field rules.
@@ -47,6 +64,9 @@ GPT-Live supplies the selected voice; its prompt cannot authorize a new route,
 rephrase an exact line or release a protected value. A required spoken line
 may be prepared as smaller approved segments, but those segments must
 preserve the line's words and order.
+An oversized segment that cannot be separated at whitespace refuses before
+any part of the reply is spoken. This includes long unspaced text; it is not
+silently shortened or rewritten.
 
 Playback progress and interruption control when the workflow can accept an
 answer to a question. Generated text is not evidence that the question was
@@ -236,11 +256,14 @@ tools, and workflow:
 - **Simulations** — repeatable synthetic personas with expected outcomes,
   controlled tool mocks, pass rates, and step traces grouped by conversational
   turn.
-- **Phone** — a controlled test call on an attached, eligible number. You arm
-  a short-lived pin for one declared caller number and one attached number;
-  while it is armed, calls from that caller run the pinned draft, and every
-  other caller continues to reach the published workflow. Pins expire on a
-  timer and after a bounded number of matches.
+- **Phone** — a controlled test call on an attached, eligible number. Arm a
+  short-lived pin for one declared caller number and one attached number.
+  Spoken workflow calls require a published version with prepared lines and
+  qualified speech sources. Draft pins can still be armed, but a matching
+  spoken call is refused before funding; publish the workflow and arm a
+  published pin to test it. The refusal does not start an ordinary call or
+  consume a match. Other callers and numbers follow their usual routing.
+  Pins expire on a timer and after a bounded number of matches.
 
 Draft tests can never execute unapproved mutation tools and never publish
 anything implicitly. Runs record the exact pinned contract, each step, the
@@ -483,8 +506,8 @@ The compiled contract enforces, server-side, on every turn:
 - per-step visit counts, a total turn budget, and a per-turn timeout are hard
   limits;
 - unknown routes, malformed decisions, missing capabilities, and exhausted
-  budgets fail closed with a spoken, localized farewell rather than an open
-  line.
+  budgets end the workflow through its controlled failure path. The governed
+  voice path does not invent a farewell outside the authored workflow.
 
 A live call can lose the response to a workflow turn after the server has
 already committed it. During the live session, Skysay keeps that turn's
