@@ -26,6 +26,7 @@ import {
   DatabaseSearch,
   DatabaseTag,
   DataTransferBoth,
+  Dialpad,
   DocMagnifyingGlass,
   Download,
   FastArrowRight,
@@ -124,6 +125,7 @@ const ICONS = {
   // --- Guides ---
   Link,
   PhoneOutcome,
+  Dialpad,
   Timer,
   ChatLines,
   Translate,
