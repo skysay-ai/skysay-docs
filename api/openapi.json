@@ -5972,9 +5972,106 @@
         },
         "type": "object"
       },
+      "WorkflowVoiceInput": {
+        "additionalProperties": false,
+        "description": "Explicit workflow listener selection, independent of the AI agent's conversation engine. Null means no spoken listener is selected. Publication validates the selected model and language set and freezes its construction; this setting does not qualify or enable an unavailable voice engine.",
+        "properties": {
+          "interruption_min_duration_ms": {
+            "description": "Minimum detected caller speech duration for interrupting workflow output.",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "listener": {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "not": {
+                  "required": [
+                    "credential_id"
+                  ]
+                },
+                "properties": {
+                  "credential_source": {
+                    "enum": [
+                      "platform_managed"
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "credential_source": {
+                    "enum": [
+                      "customer_byok"
+                    ]
+                  }
+                },
+                "required": [
+                  "credential_id"
+                ]
+              }
+            ],
+            "properties": {
+              "credential_id": {
+                "description": "Required only for customer_byok. Must name an active, customer-owned STT credential for this workspace, project and selected provider.",
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                "type": "string"
+              },
+              "credential_source": {
+                "description": "Explicit listener credential choice; never inherited from the AI agent's transcriber.",
+                "enum": [
+                  "platform_managed",
+                  "customer_byok"
+                ],
+                "type": "string"
+              },
+              "languages": {
+                "items": {
+                  "maxLength": 64,
+                  "pattern": "^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "model": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$",
+                "type": "string"
+              },
+              "registry_name": {
+                "pattern": "^[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "registry_name",
+              "model",
+              "languages",
+              "credential_source"
+            ],
+            "type": "object"
+          },
+          "silence_hold_ms": {
+            "description": "Additional silence after the physical speech endpoint before a workflow caller turn is submitted.",
+            "maximum": 3000,
+            "minimum": 300,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "listener",
+          "silence_hold_ms",
+          "interruption_min_duration_ms"
+        ],
+        "type": "object"
+      },
       "WorkflowVoiceInputDraft": {
         "additionalProperties": false,
-        "description": "Bounded editable caller-speech settings, including unfinished choices. All fields are optional; an empty object keeps caller speech enabled but incomplete. Read responses omit malformed, unknown and oversized fields without repairing the stored draft. The validation report describes the stored draft; publication still requires the complete strict WorkflowVoiceInput contract.",
+        "description": "Bounded editable caller-speech settings, including unfinished choices. All fields are optional; an empty object keeps caller speech enabled but incomplete. Read responses omit malformed, unknown and oversized fields without repairing the stored draft. The validation report describes the stored draft; the publish operation's x-draft-publication-requirements declares the strict WorkflowVoiceInput contract.",
         "properties": {
           "interruption_min_duration_ms": {
             "anyOf": [
@@ -8231,6 +8328,19 @@
           }
         },
         "summary": "Publish the current draft as a new immutable workflow version",
+        "x-draft-publication-requirements": {
+          "voice_input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowVoiceInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The stored draft's voice_input must be null or satisfy WorkflowVoiceInput. This validates the stored draft; voice_input is not sent in this publish request."
+          }
+        },
         "x-required-scopes": [
           "agents:write"
         ]
