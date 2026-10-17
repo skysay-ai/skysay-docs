@@ -279,6 +279,37 @@ The **Hang up** button on a live call's detail in the **Calls** page sends this
 same request after a confirm step; see
 [End a live call from Calls](/docs/read-call-evidence#end-a-live-call-from-calls).
 
+## What happened on the call
+
+Every call that has finished carries one `disposition`: on `GET /v1/calls/{call_id}`,
+on each item of `GET /v1/call-results`, and in the `call.completed` and
+`call.failed` webhooks. All three read the same facts the same way, so they
+never disagree. It is `null` while the call is queued, live or held for review.
+
+| Value | Meaning |
+| --- | --- |
+| `connected_completed` | a conversation happened and ended normally |
+| `connected_wrong_party` | someone answered, but not the person you meant to reach |
+| `connected_callback_requested` | the person asked to be called back |
+| `connected_refused` | the person declined |
+| `voicemail` | the AI agent reached a mailbox (declared by the AI agent) |
+| `no_answer` | the line rang and nobody answered |
+| `busy` | the line was busy |
+| `invalid_number` | the network said the number does not exist |
+| `carrier_rejected` | the network refused the call. Never reported as `no_answer` |
+| `do_not_call` | the number is on your do-not-call register, or the person asked not to be contacted |
+| `blocked` | Skysay refused the call before the line rang: workspace policy, capabilities or a closed calling window |
+| `cancelled` | the call was cancelled before it connected |
+| `failed_technical` | a fault on the platform or trunk side |
+
+A conversation always outranks how the line ended afterwards: if media ran, or
+the AI agent declared an outcome, a later line failure does not turn the call
+into a technical failure. A webhook carries the disposition as it was when the
+call ended; the call itself is the current read. Campaigns use the same
+vocabulary for their attempts, with one difference: a call refused because of
+the campaign itself (paused, outside its calling window) is deferred instead of
+counted as an outcome of the person.
+
 ## Why a call ended
 
 A completed call carries `ended_reason` on the call resource and in its terminal webhook:
@@ -654,10 +685,44 @@ string enums, and no additional properties.
 }
 ```
 
-Every configuration edit creates an immutable version for future calls. After a
-completed call has a transcript, a separate worker may produce a result. Read
-it through `GET /v1/calls/{call_id}/post-call-extraction`; its status is one of
+The easiest place to design the schema is the AI agent's own editor: open the
+AI agent and choose **Post-call results**. Add fields with a name, a type
+(text, number, whole number, yes/no or date), whether it is required, the
+instruction the extractor reads, and for text fields an optional list of allowed
+values; reorder or remove them, or switch to **Advanced (JSON)** to edit the
+schema directly. The section shows the active version and when it was
+published, earlier versions, the latest results for that AI agent (field values
+only, never transcript text) and the webhook events that carry them. It needs no
+Connection.
+
+Start from a template if you like: blank, lead qualification, payment reminder,
+appointment confirmation, support triage, customer retention and a collections
+outcome. `GET /v1/post-call-extraction/templates` returns the same set. They are
+editable starting points, not a list of supported uses, and every allowed-values
+list includes an explicit "unknown" or "not stated" value, so a fact the caller
+never mentioned is never recorded as a false business answer.
+
+Rules, identical in the editor and the API:
+
+- A date is `{"type": "string", "format": "date"}`; results are `YYYY-MM-DD`
+  calendar days.
+- `enum` is allowed on text fields only, and not together with `format`.
+- Any field may come back `null`: it means the call did not say.
+- Field order is kept (`x-property-order`).
+- Send `expected_schema_version` with the version you edited. If someone
+  published in the meantime, the API answers `409` instead of overwriting their
+  version.
+
+Every publish creates a new, immutable version, numbered after the highest ever
+published, and only calls completed after it use it. After a completed call has
+a transcript, a separate worker may produce a result, delivered as
+`call.extraction.ready` or `call.extraction.failed`. Read it through
+`GET /v1/calls/{call_id}/post-call-extraction`; its status is one of
 `not_configured`, `pending`, `running`, `ready`, or `failed`.
+
+The MCP server has the same operations: `get_agent_post_call_extraction`,
+`set_agent_post_call_extraction`, `list_post_call_extraction_templates` and
+`get_call_post_call_extraction`.
 
 <Callout type="warn" title="Advisory, not an action">
   Extraction never changes a call, policy decision, wallet, customer record, or
