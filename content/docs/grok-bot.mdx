@@ -12,28 +12,49 @@ icon: Sparks
   style={{ display: 'block', width: '100%', maxWidth: '480px', height: 'auto', marginInline: 'auto' }}
 />
 
-## Option 1: Let Grok Bot prepare the setup
+## Option 1: Let Grok Bot set up a new account
 
-Paste this into a fresh Grok Bot:
+<Callout type="warn" title="Release acceptance pending">
+This new-account flow is being prepared for the matching backend release. Do not
+use it until the headless endpoints are enabled. The manual OAuth connection
+below remains available. A successful local backend test does not certify a new
+connection in every Grok Bot version.
+</Callout>
+
+Paste this into a fresh Grok Bot that has no authorized Skysay connection:
 
 ```text
-Read https://skysay.ai/docs/grok-bot and connect yourself to Skysay's hosted MCP
-server at https://api.skysay.ai/mcp using OAuth. If Skysay is already connected,
-use that connection. Otherwise show me the sign-in link and wait while I
-approve the workspace consent. If you cannot add the connection, stop and
-tell me what I need to configure; do not claim you are connected.
+Read https://skysay.ai/docs/grok-bot and set up a new Skysay account for me.
+Ask for my phone number, email, full country name, and optional city or area
+code. Confirm that I accept Skysay's terms before starting. Use the headless
+signup API with client_name "grok", then ask me for the texted verification code.
+Never log my code, signup session, API key, payment token or card details.
 
-When connected:
-1. Run account_overview and tell me my wallet balance and what numbers I have.
-2. Ask which country I want my number in. Run get_coverage and get_number_catalog
-   using the full country name, such as "Argentina", not "AR". Show number types,
-   inbound capability, carrier-review requirements, setup and monthly prices.
-   Use a small catalog limit and report any truncation instead of implying completeness.
-   Outside the United States, Canada, United Kingdom and Mexico, do not promise
-   outbound calls or SMS before carrier review.
-3. Prepare the steps to obtain an active number. Before any order, call or SMS, show the exact
-   sender, recipient, task or message, and expected costs, then wait for my
-   approval. Do not order a number, call anyone or send SMS during this read check.
+Start with the single $5 setup credit and do not pay for anything without my
+separate approval. Show the selected number's setup and monthly prices and
+carrier requirements. Request a matching local number only when its initial
+cost leaves enough setup credit for the test call; otherwise show alternatives
+and ask before any payment. A number request is not an active number. Wait for
+activation and verify outbound capability before calling.
+
+Store the returned key only in a secure custom MCP connection credential field
+for https://api.skysay.ai/mcp. Prove this NEW connection with account_overview.
+If this Grok version cannot add a new connector securely, stop and tell me what
+must be configured. Do not reuse another account-wide connection as proof.
+
+Create and publish a suitable hosted voice agent using the supported metered
+catalog. After I approve the caller number, destination and task, place one
+setup test call to the phone I verified, for at most 60 seconds. Read the final
+call result; do not claim an answered or completed call from a call ID alone.
+Outside the United States, Canada, United Kingdom and Mexico, outbound calls
+and SMS need carrier review and depend on number type. Do not promise them.
+
+If I later approve payment, use the documented Stripe hosted checkout for a
+Link virtual card, or request the server's amount/currency/seller profile and
+use an owner-approved Link shared payment token. Never send a card number to
+the Skysay API. An uncertain payment must be retried with the same key and
+credential. Check the wallet after its signed Stripe webhook. The trial does
+not approve ongoing number fees or paid call overage.
 ```
 
 Connect Grok Bot to hosted Skysay MCP to check coverage, request a number,
@@ -51,61 +72,81 @@ Setting up a different assistant? See [Connect an MCP client](/docs/install-conn
 
 ## Prerequisites
 
-- Grok Bot with a connected Skysay MCP server, or a custom remote MCP
-  connection that supports OAuth or a securely stored bearer credential.
-- A [Skysay workspace](https://skysay.ai) and permission to connect it.
-- Purchased funds for telephone calls, SMS and numbers. The welcome credit
-  covers authenticated browser tests only. See [Billing](/docs/billing).
+- Grok Bot with a custom remote MCP connection that supports OAuth or a securely
+  stored bearer credential. New-account setup must establish a genuinely new connection.
+- For manual connection, a [Skysay workspace](https://skysay.ai) and permission to connect it.
+- The headless flow requires a real phone that can receive a texted OTP and a new
+  verified phone. The email is unverified contact data, is not unique, and cannot
+  sign in, recover the workspace or link an existing email account. The single $5 grant
+  can cover an eligible initial number and one hosted test call to the verified
+  owner, within its cap. Other PSTN calls, SMS and renewals require approved
+  purchased funds. A requested country may have no number affordable within the
+  cap. See [Billing](/docs/billing).
 
 Connecting a server does not activate a number or authorize spending. Start
 with a successful read, then enable only the actions you need.
 
 ## What Grok Bot does
 
-<Steps>
-<Step>
+1. **Start phone verification.** Call `POST /v1/agent/onboarding/headless/start`
+   with `phone`, `email`, `country`, `client_name: "grok"`, `terms_accepted: true`
+   and optional `city`/`area_code`. Inventory is checked before a text is sent.
+   A `409` includes bounded country alternatives when matching inventory is
+   unavailable. Existing identities must use normal sign-in; SMS never takes
+   over an existing account.
+2. **Ask for the code.** Call `POST /v1/agent/onboarding/headless/complete` with
+   `headless_session` and the six-digit `otp_code`. Sessions last ten minutes,
+   allow five guesses and complete once. The response includes the workspace,
+   project, one-time API key, MCP connection fields and the bounded setup-credit
+   terms. Phone verification owns the workspace; email is unverified contact only.
+   Email login cannot inherit this workspace. Future dashboard linking would
+   require proof of both identities and explicit consent; it is not available
+   through this setup flow.
+3. **Connect and prove access.** Add the returned bearer key using the client's
+   secure credential controls and run `account_overview`. The endpoint is
+   Streamable HTTP. Returned connection details do not prove Grok installed or
+   authenticated the connection. Never paste the key into a public prompt.
+4. **Choose and request the number.** Read the canonical number catalog and exact
+   inventory for the requested country/location. Submit its opaque inventory
+   row ID as `available_number_id` to
+   `POST /v1/agent/onboarding/headless/number`. The ordinary price, identity,
+   carrier, routing and capacity gates still apply. Poll the returned request
+   until the number is active; a pending request is not a usable line. More
+   expensive numbers require separate approval and the normal paid order path.
+5. **Approve and check one owner test.** Configure and publish a supported
+   metered hosted voice agent, verify the number's outbound readiness and ask
+   the owner to approve the task. Use `create_outbound_call` with a stable
+   idempotency key and the verified owner's phone as the destination. Eligible
+   setup calls have a 60-second ceiling and use the remaining promotional
+   credit. Other destinations cannot spend it. The trial does not charge a
+   saved card or turn a cost overrun into customer debt. Check `get_call` and,
+   when available, the transcript before reporting what happened.
 
-**Connect and prove the read.** The hosted endpoint uses Streamable HTTP and
-supports OAuth with PKCE. Review the workspace and permissions on the Skysay
-consent screen. A successful `account_overview` result proves workspace access;
-a saved connection alone does not. This tool reads your balance, numbers and
-recent activity without changing them.
+### Optional payment after the free start
 
-</Step>
-<Step>
+Use `POST /v1/agent/onboarding/headless/payments` with an owner-approved amount
+in the wallet currency, a stable `idempotency_key` and `payment_approved: true`.
 
-**Check your country.** `get_coverage` and `get_number_catalog` need
-`coverage:read` on the full MCP resource. Use full country names. Read the
-specific number type's channels, registration requirements and quoted costs;
-country coverage alone is not a promise of outbound voice or two-way SMS.
+- **Link virtual card:** select `method: "card_checkout"`. The returned Stripe
+  hosted checkout accepts a virtual card through its normal form. Stripe and
+  the issuer still validate the payment and may require further approval.
+  Card numbers never go through Skysay's API.
+- **Shared payment token:** select `method: "shared_payment_token"` and first
+  set `request_challenge: true`. The `402` response supplies the current amount,
+  currency and `stripe_profile_id`. Request an SPT for those exact values using
+  Link CLI's `spend-request create --credential-type shared_payment_token
+  --network-id <stripe_profile_id> --request-approval`, then retry with
+  `shared_payment_token`. This endpoint uses a JSON challenge, not the MPP wire
+  protocol; do not substitute `link-cli mpp pay`.
 
-</Step>
-<Step>
+A synchronous success is not wallet credit. Wait for the signed Stripe webhook
+and check the wallet. On an uncertain result, reuse the same payment key and
+credential instead of approving another charge. Neither top-up nor setup credit
+alone opts a trial number into renewal: after a successful approved payment,
+use `POST /v1/agent/onboarding/headless/number/renewal-approval` with
+`renewal_approved: true` only after the owner separately approves ongoing fees.
 
-**Request a number after approval.** `request_number` creates a managed number
-request. Live ordering needs operator approval. Activation can require identity
-or business documents, payment, routing and carrier approval. Wait for an active
-number with the required capabilities before attempting a call.
-
-</Step>
-<Step>
-
-**Prepare and approve one call or message.** For a call, choose a configured,
-published hosted voice AI agent with the intended language and voice, then check
-the caller number, destination, workspace capabilities and price. Grok Bot uses
-`create_outbound_call` after your approval. For SMS, it uses `send_sms` only when
-the selected number supports sending and outbound messaging is enabled.
-
-</Step>
-<Step>
-
-**Read the actual result.** `get_call` reports call status. With
-`recordings:read` and the relevant settings, `get_call_transcript` retrieves the
-transcript. A returned call ID is not proof of an answered call or a completed
-booking. Inspect the result before reporting success.
-
-</Step>
-</Steps>
+Exact schemas and errors are in [API reference](/docs/api-reference).
 
 ## Option 2: Configure the connection yourself
 
