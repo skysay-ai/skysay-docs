@@ -122,15 +122,18 @@ nothing.
 ### Typed and spoken values
 
 Most menus take a number on the keypad. Typed values work on every supported
-engine, everywhere keys are accepted. Some menus accept a number only by voice
+engine, everywhere keys are accepted, except on agents whose languages include
+Polish (see [Languages](#languages)). Some menus accept a number only by voice
 ("say your account number"). The platform then speaks the digits itself, in the
 agent's own voice, without the model.
 
 - **Spoken values** (a stored value said aloud to a prompt that asks for it to be
-  spoken) are supported on Cascade agents only, workflow agents included. With an
-  Azure voice, digits are spoken in English, German, French, Spanish, Italian,
-  Dutch, Portuguese, Russian, Estonian and Finnish. With an ElevenLabs voice,
-  spoken values are English only for now.
+  spoken) are supported on Cascade agents only, workflow agents included, and
+  only with these voices: Azure AI Speech in English, German, French, Spanish,
+  Italian, Dutch, Portuguese and Russian; Gemini TTS in English, German, French,
+  Spanish, Italian, Dutch and Russian; ElevenLabs Flash v2.5 in English. With any
+  other voice or language, the value is entered on the keypad only, and a
+  question that can be answered by speech alone ends the call.
 - **On Gemini Live,** a prompt that takes speech only ends the call as
   **data not authorised** (`ended_reason` `ivr_timeout`, `reason_detail`
   `data_not_authorised`) before the value is read. Prompts that take keys, take
@@ -138,17 +141,26 @@ agent's own voice, without the model.
 
 ## Languages
 
-The agent follows menus in the call's languages. The languages supported at
-release: `<LANGUAGES: filled at release>`.
+Phone menu navigation works in English, German, French, Spanish, Italian, Dutch,
+Portuguese, Russian and Polish. Estonian and Finnish are not supported. An agent
+whose languages are all unsupported cannot turn navigation on (the API answers
+400 `navigation_languages_unsupported` with reason `unreleased`). An agent with at
+least one supported language can, and its menus in other languages are not
+navigated.
+
+Agents whose languages include Polish navigate Polish menus, but cannot enter
+keypad values yet (`value_language_unsupported`). That applies to the whole
+agent: a typed value is not entered on any call of an agent that has Polish
+among its languages, and the menus are still navigated.
 
 To listen to the far end the agent uses at most two speech-to-text connections,
 chosen from the transcribers Skysay supports for the agent's selected languages.
 If the agent's languages cannot be covered that way, switching navigation on is
 refused with 400 `navigation_languages_unsupported`; the response lists the
-language codes that cannot be covered in `languages`, and `reason` is
-`uncovered` (no supported transcriber hears that language) or `too_many_sockets`
-(every language is covered, but not by two connections). Remove a language or
-turn navigation off. Details are in [Answer detection](/docs/answer-detection).
+language codes concerned in `languages`, and `reason` is `uncovered` (no
+supported transcriber hears that language), `too_many_sockets` (every language is
+covered, but not by two connections) or `unreleased` (see above). Remove a
+language, add a supported one, or turn navigation off. Details are in [Answer detection](/docs/answer-detection).
 
 ## Lines that carry keys
 
