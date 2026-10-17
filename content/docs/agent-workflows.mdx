@@ -43,6 +43,11 @@ you own. Its language coverage must include every language the workflow can
 use. A catalog entry or saved credential alone does not establish that a
 listener is supported for governed calls.
 
+Unfinished listener choices stay in your draft when you save and reload.
+Validation shows what still needs completing before publication; **Edit voice
+input** takes you to those settings. Building or editing a workflow with AI
+does not choose or replace its listener. Select the listener yourself.
+
 The published version pins that selection and its silence and interruption
 settings. Changing the draft or the agent does not change a running call's
 listener. Publish a new version to use changed settings. An existing version
@@ -227,6 +232,14 @@ what it intended to change. The draft comes back whole -- its `variables`
 left out, and the draft's `validation` says why), each identity step's `matches` and every Send SMS step
 -- so a client that reads, edits and writes the draft back keeps them. It is a pure read: no AI or provider call, compile,
 repair, lazy creation, or other mutation occurs.
+
+The editable `voice_input` also retains incomplete choices, such as a missing
+model, language set or key selection. Unknown, malformed or oversized listener
+fields are omitted from responses, while `validation` still describes the
+stored draft. An empty object means caller speech is enabled but incomplete;
+`null` means it is disabled. Publication requires the complete valid selection.
+The publish operation's `x-draft-publication-requirements.voice_input` names `WorkflowVoiceInput` as the strict contract for a non-null stored selection.
+A stored non-null `voice_input` that is not an object is returned as `{}`, keeping caller speech enabled but incomplete; publication refuses until you complete the settings or explicitly turn caller speech off.
 
 `workflow_state: "not_created"` is the explicit response for an existing agent
 that has no draft. Create a workflow only with the write endpoint; the read
