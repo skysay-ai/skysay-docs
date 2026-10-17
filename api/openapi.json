@@ -439,7 +439,7 @@
       },
       "AgentNavigation": {
         "additionalProperties": false,
-        "description": "Not yet available. Sending `enabled: true` is refused with 400 `navigation_not_available` (\"Phone menu navigation is not available yet.\"), on create, update and publish alike; `enabled: false`, an empty object or leaving the section out stay accepted. What follows describes the setting for when it is released. Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Supported on the cascade engine and on Gemini Live; GPT-Live agents cannot use it at this release. Spoken workflow calls additionally require separately qualified governed navigation, which is unavailable in this build. Sending `enabled: true` for an agent on GPT-Live, or switching an agent that has it on to GPT-Live, is refused with 400 `navigation_engine_not_supported` (the response names the `engine` and lists `supported_engines`), on create, update, the voice-stack PATCH and publish alike; a call that still carries the setting for such an engine runs without navigation. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. A limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call. The line is transcribed with at most two speech-to-text connections chosen from the transcribers Skysay supports for the agent's selected languages. Saving is refused with 400 `navigation_languages_unsupported` when no supported transcriber covers one of those languages (`reason` `uncovered`) or when covering the whole set would need a third connection (`reason` `too_many_sockets`); the response `languages` lists the language codes that cannot be covered. Remove them from the agent or turn navigation off.",
+        "description": "Not yet available. Sending `enabled: true` is refused with 400 `navigation_not_available` (\"Phone menu navigation is not available yet.\"), on create, update and publish alike; `enabled: false`, an empty object or leaving the section out stay accepted. What follows describes the setting for when it is released. Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Supported on the cascade engine (workflow agents included) and on Gemini Live; GPT-Live agents cannot use it at this release. Sending `enabled: true` for an agent on GPT-Live, or switching an agent that has it on to GPT-Live, is refused with 400 `navigation_engine_not_supported` (the response names the `engine` and lists `supported_engines`), on create, update, the voice-stack PATCH and publish alike; a call that still carries the setting for such an engine runs without navigation. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. A limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call. The line is transcribed with at most two speech-to-text connections chosen from the transcribers Skysay supports for the agent's selected languages. Saving is refused with 400 `navigation_languages_unsupported` when no supported transcriber covers one of those languages (`reason` `uncovered`) or when covering the whole set would need a third connection (`reason` `too_many_sockets`); the response `languages` lists the language codes that cannot be covered. Remove them from the agent or turn navigation off.",
         "properties": {
           "enabled": {
             "description": "Not yet available: `true` is refused with 400 `navigation_not_available`. Once released, `true` turns phone-menu navigation and hold waiting on for this agent's outbound calls. Refused with 400 `navigation_engine_not_supported` for an agent on GPT-Live.",
@@ -1101,18 +1101,6 @@
                 "type": "string"
               },
               "draft": {
-                "properties": {
-                  "voice_input": {
-                    "anyOf": [
-                      {
-                        "$ref": "#/components/schemas/WorkflowVoiceInput"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
                 "type": "object"
               },
               "layout": {
@@ -5972,103 +5960,6 @@
         },
         "type": "object"
       },
-      "WorkflowVoiceInput": {
-        "additionalProperties": false,
-        "description": "Explicit workflow listener selection, independent of the AI agent's conversation engine. Null means no spoken listener is selected. Publication validates the selected model and language set and freezes its construction; this setting does not qualify or enable an unavailable voice engine.",
-        "properties": {
-          "interruption_min_duration_ms": {
-            "description": "Minimum detected caller speech duration for interrupting workflow output.",
-            "maximum": 1000,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "listener": {
-            "additionalProperties": false,
-            "oneOf": [
-              {
-                "not": {
-                  "required": [
-                    "credential_id"
-                  ]
-                },
-                "properties": {
-                  "credential_source": {
-                    "enum": [
-                      "platform_managed"
-                    ]
-                  }
-                }
-              },
-              {
-                "properties": {
-                  "credential_source": {
-                    "enum": [
-                      "customer_byok"
-                    ]
-                  }
-                },
-                "required": [
-                  "credential_id"
-                ]
-              }
-            ],
-            "properties": {
-              "credential_id": {
-                "description": "Required only for customer_byok. Must name an active, customer-owned STT credential for this workspace, project and selected provider.",
-                "maxLength": 128,
-                "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                "type": "string"
-              },
-              "credential_source": {
-                "description": "Explicit listener credential choice; never inherited from the AI agent's transcriber.",
-                "enum": [
-                  "platform_managed",
-                  "customer_byok"
-                ],
-                "type": "string"
-              },
-              "languages": {
-                "items": {
-                  "maxLength": 64,
-                  "pattern": "^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$",
-                  "type": "string"
-                },
-                "maxItems": 32,
-                "minItems": 1,
-                "type": "array",
-                "uniqueItems": true
-              },
-              "model": {
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$",
-                "type": "string"
-              },
-              "registry_name": {
-                "pattern": "^[a-z][a-z0-9_]{0,63}$",
-                "type": "string"
-              }
-            },
-            "required": [
-              "registry_name",
-              "model",
-              "languages",
-              "credential_source"
-            ],
-            "type": "object"
-          },
-          "silence_hold_ms": {
-            "description": "Additional silence after the physical speech endpoint before a workflow caller turn is submitted.",
-            "maximum": 3000,
-            "minimum": 300,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "listener",
-          "silence_hold_ms",
-          "interruption_min_duration_ms"
-        ],
-        "type": "object"
-      },
       "WorkspaceContext": {
         "properties": {
           "organization": {
@@ -7956,16 +7847,6 @@
                             "type": "null"
                           }
                         ]
-                      },
-                      "voice_input": {
-                        "anyOf": [
-                          {
-                            "$ref": "#/components/schemas/WorkflowVoiceInput"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
                       }
                     },
                     "type": "object"
@@ -8123,7 +8004,7 @@
         ]
       },
       "post": {
-        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is bound to the selected workflow instead of the agent's normal configuration. Spoken calls require a rendered published version and a qualified listener/output source. Draft pins are currently refused before funding; arming one does not enable spoken execution. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
+        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is answered by a fresh run of the pinned draft or published workflow instead of the agent's normal configuration. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
         "parameters": [
           {
             "in": "path",
@@ -8149,7 +8030,6 @@
                   },
                   "pinned_source": {
                     "default": "draft",
-                    "description": "Use published for spoken calls. Draft pins remain armable but spoken admission refuses until reviewed preparation is available.",
                     "enum": [
                       "draft",
                       "published"
