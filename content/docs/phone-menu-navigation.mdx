@@ -81,7 +81,9 @@ It has four jobs, and nothing else changes while it is in a menu or a queue:
 - **Declining callback offers.** When a menu offers to call you back instead of
   holding, the agent declines it automatically, by key or by voice. Silence never
   accepts a callback either. If the offer has an option to stay in the queue, it
-  takes that one.
+  takes that one. On Gemini Live, a callback offer that can only be answered by
+  speech gets no spoken decline: the callback is never taken, and the call stays
+  in the queue.
 - **Giving up on a menu.** When no option fits the call's task, the menu asks
   for something the call does not carry, or the key presses change nothing, it
   ends the call instead of guessing. The call ends as **Menu had no matching
@@ -124,14 +126,15 @@ engine, everywhere keys are accepted. Some menus accept a number only by voice
 ("say your account number"). The platform then speaks the digits itself, in the
 agent's own voice, without the model.
 
-- **Spoken values work on Cascade agents only at release**, workflow agents
-  included. With an Azure voice, digits are spoken in English, German, French,
-  Spanish, Italian, Dutch, Portuguese, Russian, Estonian and Finnish. With an
-  ElevenLabs voice, spoken values are English only for now.
-- **On Gemini Live, a number prompt that accepts speech only ends the call** as
+- **Spoken values** (a stored value said aloud to a prompt that asks for it to be
+  spoken) are supported on Cascade agents only, workflow agents included. With an
+  Azure voice, digits are spoken in English, German, French, Spanish, Italian,
+  Dutch, Portuguese, Russian, Estonian and Finnish. With an ElevenLabs voice,
+  spoken values are English only for now.
+- **On Gemini Live,** a prompt that takes speech only ends the call as
   **data not authorised** (`ended_reason` `ivr_timeout`, `reason_detail`
-  `data_not_authorised`). Typed keys work on Gemini Live everywhere keys are
-  accepted.
+  `data_not_authorised`) before the value is read. Prompts that take keys, take
+  either, or don't say how to answer still get the value as keypad tones.
 
 ## Languages
 
