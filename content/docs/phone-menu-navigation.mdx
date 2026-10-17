@@ -43,7 +43,9 @@ menus and wait on hold**. Two limits appear under it:
 | **Max time in menus** | `navigation.max_navigation_seconds` | 180 seconds (3 minutes) | 10 seconds up to 15 minutes |
 
 Time in menus and time on hold have separate limits: a long hold never uses up
-the time allowed for menus, and the other way round.
+the time allowed for menus, and the other way round. The API schema allows up to
+3600 seconds for hold and 900 seconds for menus, but a hold or a menu cannot
+outlast the call, so the 29-minute call maximum caps both.
 
 Through the API the same setting is the `navigation` section of
 `PATCH /v1/agents/{agent_id}/voice-stack`:
@@ -179,8 +181,8 @@ Navigation is not left to prompt instructions. It rests on these parts.
 - **Separate time limits for menus and holds.** A long queue cannot use up the
   time allowed for menus, and the other way round, and the whole call is still
   capped at 29 minutes.
-- **Tested before every release.** Every release is tested against about 50 call
-  scenarios on every engine.
+- **Tested before every release.** Every release is tested against about 40
+  call scenarios, on each supported engine where the scenario applies.
 
 ## What you see in the workspace
 
@@ -222,11 +224,20 @@ same per-outcome rules as other calls (see [Campaigns](/docs/campaigns)):
 | `ivr_timeout` | `navigation_limit` | `connected_completed` | no, terminal |
 | `ivr_timeout` | `data_not_authorised` | `connected_completed` | no, terminal |
 | `no_human_after_answer` | `recorded_message_only` | `no_answer` | yes, like any other machine answer |
+| `media_session_lost` | `navigation_detector_lost` | `connected_completed` | no, terminal |
 
 The retried endings are the ones another attempt can change: the hold queue was
 too long, the call ran out of time, or the other side hung up before a person
 came on. The terminal ones are dead ends: the same menu will be there next time.
 A line that only plays a recorded message shows as **Answered by a machine**.
+
+`media_session_lost` with `navigation_detector_lost` is not a limit or a menu
+outcome: it means the call could no longer follow the line, because none of the
+sources that listen to the far end delivered anything for 30 seconds, so the
+platform ended the call. The Calls list files it under the media failures as
+**Media session lost**. It has no campaign rule of its own: the call connected,
+so it takes `connected_completed` unless the agent or its workflow declared
+another outcome, and a campaign does not retry it.
 
 `person_reached` on the call resource says whether a person was reached earlier
 in the call; it is `null` when the call did not report it, and a missing value
