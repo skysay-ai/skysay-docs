@@ -37,6 +37,45 @@ Manage and revoke connections from **Connected apps** on the [API keys](https://
 Revocation invalidates the connection's tokens. Existing API keys continue to
 work independently and must be revoked separately.
 
+### Phone-verified signup and existing phone owners
+
+<Callout type="warn" title="Matching backend release required">
+Phone signup during OAuth is prepared for the matching self-setup backend
+release. Local verification does not certify every client version or a public
+marketplace listing. Do not rely on this path until that backend is enabled.
+</Callout>
+
+A supported OAuth client opens Skysay's authorization page. There you can create
+a workspace by verifying your phone, or verify the phone already bound to a
+headless-created workspace. You do not need an arbitrary HTTP tool, a manually
+created workspace or a custom Authorization header for this route. After phone
+verification, review the client, workspace and exact permissions, then choose
+**Allow access** or **Deny**. Verification alone grants no MCP access. Skysay
+returns to the originating registered client using its existing PKCE flow.
+
+The phone owns this identity. Contact email remains unverified contact data:
+it cannot sign in, recover the workspace, reserve an email-login identity or
+link another email account. OAuth sign-in with that phone returns to its existing
+workspace and does not create another $5 grant. If another account is already
+signed in, sign out before verifying the phone-owned account. Skysay does not
+silently replace that account or merge its workspace. Linking to a verified
+email identity later would require both proofs and explicit consent; that
+linking feature is not included here.
+
+Phone verification is bound to one browser and one pending connection request.
+An expired, used, cancelled or mismatched challenge cannot be exchanged into a
+session. Cancelling after requesting a code invalidates that challenge and
+returns an access-denied result; before requesting a code, cancellation simply
+leaves signup. If the connection expires, restart from your client.
+
+This generic authorization contract does not guarantee that every AI client
+supports adding a custom connection or installing it automatically. It does not
+change directory listings or listed permissions. The current public Claude
+listing remains read-only. Calling requires an allowed full connection with
+calling consent, independently of marketplace approval. Signup and connection
+also do not authorize paid top-ups, recurring charges, number purchases or calls
+beyond the [bounded setup policy](/docs/billing).
+
 ### OAuth client configuration
 
 | Setting | Value |

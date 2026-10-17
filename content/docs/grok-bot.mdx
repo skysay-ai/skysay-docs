@@ -16,28 +16,40 @@ icon: Sparks
 
 <Callout type="warn" title="Release acceptance pending">
 This new-account flow is being prepared for the matching backend release. Do not
-use it until the headless endpoints are enabled. The manual OAuth connection
-below remains available for existing dashboard accounts. A successful local backend test does not certify a new
+use it until the matching OAuth signup and setup-credit backend is released.
+The OAuth connection below remains available for existing dashboard accounts. A successful local backend test does not certify a new
 connection in every Grok Bot version.
 </Callout>
 
-The headless REST API is client-neutral; Grok is the first acceptance client.
-A new phone-owned account receives a bearer API key, not a dashboard sign-in or
-an OAuth-consent session. Clients must be able to call the REST endpoints and
-securely configure that bearer credential for MCP. Existing OAuth-only
-ChatGPT/Claude connectors cannot turn this into in-chat signup automatically;
-this flow provides no fresh OAuth handoff for the phone-owned account. It does
-not add MCP tools, approve directory listings or guarantee automatic connector
-installation. The contact email never links the account to an email login.
+Skysay setup is client-neutral. Grok, ChatGPT and Claude are reference clients,
+with different connection interfaces. The matching backend release adds signup
+inside Skysay's OAuth authorization page: start **Connect Skysay** in a supported
+OAuth MCP client, verify your phone in the browser, review the workspace and
+permissions, and return to that client. No arbitrary HTTP tool, bearer-header
+configuration or pre-created workspace is needed for this OAuth route. A
+phone-owned account created through the REST flow below can verify the same
+phone during OAuth and connect the **same workspace**, without another credit
+grant. If another account is already signed in, sign out before verifying the
+phone-owned account; Skysay does not merge their workspaces.
+
+The REST alternative returns a bearer key for clients that can securely store
+it. Neither path guarantees automatic connector installation, adds listed MCP
+tools or grants directory approval. The current public Claude listing remains
+read-only; calling requires a separately supported full connection and explicit
+scope consent. Contact email is never an account-linking proof. See
+[OAuth signup and existing phone owners](/docs/mcp#phone-verified-signup-and-existing-phone-owners).
 
 Paste this into a fresh Grok Bot that has no authorized Skysay connection:
 
 ```text
 Read https://skysay.ai/docs/grok-bot and set up a new Skysay account for me.
-Ask for my phone number, email, full country name, and optional city or area
-code. Confirm that I accept Skysay's terms before starting. Use the headless
-signup API with client_name "grok", then ask me for the texted verification code.
-Never log my code, signup session, API key, payment token or card details.
+Start a NEW Skysay remote MCP connection at https://api.skysay.ai/mcp using
+its normal OAuth sign-in. Let me enter my phone, contact email, full country
+name and texted code in Skysay's authorization page, accept the terms, and
+explicitly consent to the workspace and permissions before returning here.
+Do not ask me to paste the code or credentials into chat. If I already created
+a phone-owned Skysay workspace, use the same verified phone to reconnect it.
+Never log my code, session, API key, payment token or card details.
 
 Start with the single $5 setup credit and do not pay for anything without my
 separate approval. Show the selected number's setup and monthly prices and
@@ -46,10 +58,15 @@ cost leaves enough setup credit for the test call; otherwise show alternatives
 and ask before any payment. A number request is not an active number. Wait for
 activation and verify outbound capability before calling.
 
-Store the returned key only in a secure custom MCP connection credential field
-for https://api.skysay.ai/mcp. Prove this NEW connection with account_overview.
-If this Grok version cannot add a new connector securely, stop and tell me what
-must be configured. Do not reuse another account-wide connection as proof.
+Prove this NEW OAuth connection with account_overview. Use the existing MCP
+request_number tool after I approve the catalog prices, with
+customer_purchase_confirmed true, for an eligible first local number in my
+signup country. The shared service selects matching cached inventory and
+applies the same bounded grant. Do not require arbitrary HTTP tools or custom
+bearer headers for OAuth signup. If this Grok version cannot add an OAuth MCP
+connection, stop and explain the missing client capability. A REST signup and
+secure bearer credential is an alternative only when this client explicitly
+supports both. Do not reuse another account-wide connection as new-user proof.
 
 Create and publish a suitable hosted voice agent using the supported metered
 catalog. After I approve the caller number, destination and task, place one
@@ -84,9 +101,11 @@ Setting up a different assistant? See [Connect an MCP client](/docs/install-conn
 - For headless setup, a client that can call the REST endpoints and securely
   store a bearer credential for remote MCP. New-account setup must establish
   a genuinely new connection; client support must be checked.
-- For manual OAuth connection, an existing [Skysay dashboard account](https://skysay.ai)
-  and permission to connect its workspace. Phone-only signup does not provide
-  that dashboard authentication.
+- For OAuth connection, a client that supports Skysay's remote MCP authorization
+  flow and permission to connect the workspace. With the matching phone-signup
+  release, create a phone-owned workspace during authorization or verify the
+  phone of an existing headless account. Existing dashboard accounts can use
+  their existing sign-in method.
 - The headless flow requires a real phone that can receive a texted OTP and a new
   verified phone. The email is unverified contact data, is not unique, and cannot
   sign in, recover the workspace or link an existing email account. The single $5 grant
@@ -99,6 +118,21 @@ Connecting a server does not activate a number or authorize spending. Start
 with a successful read, then enable only the actions you need.
 
 ## What Grok Bot does
+
+For the supported OAuth route, Grok starts a normal remote MCP connection.
+You verify your phone and consent in Skysay, return to Grok, and prove access
+with `account_overview`. Read `get_number_catalog` for the selected country,
+then use `request_number` with the workspace project, country, local number
+type and `customer_purchase_confirmed: true` after approving the prices.
+An eligible first request uses matching cached inventory and the same $5 grant;
+it still passes the ordinary carrier, verification, price and activation gates.
+No API key or separate REST signup is needed. Calling tools must be available
+on that connection with the required consented scopes.
+
+### REST alternative for capable clients
+
+Use this only when the client can make arbitrary HTTP requests and securely
+configure bearer credentials. It is not required by OAuth connectors.
 
 1. **Start phone verification.** Call `POST /v1/agent/onboarding/headless/start`
    with `phone`, `email`, `country`, `client_name: "grok"`, `terms_accepted: true`
