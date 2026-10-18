@@ -61,13 +61,25 @@ Expired or used connection requests must be restarted from the client.
 The single $5 welcome credit has no expiry and applies only to authenticated
 metered browser testing in Skysay. Number setup/rental, PSTN and SMS require
 purchased funds and ordinary readiness and metering. Optional approved funding
-is available without a phone identity through the existing wallet-scoped
-payment endpoint; its historical headless URL does not enable signup.
+is available without a phone identity through `create_wallet_topup` with
+explicit `wallet:write` consent. The permission is offered unticked and approves
+no purchase. Each payment still needs approval of the exact amount, wallet
+currency and purpose. The tool returns a direct Stripe hosted-checkout URL, or
+accepts an owner-approved shared payment token from a compatible host/wallet.
+It uses the same billing service as the retained payment API; the historical
+headless URL does not enable signup. See [payment paths and limits](/docs/billing#adding-funds-through-mcp).
 
 Client connection support and directory permissions remain separate. The
 public Claude listing remains read-only; calling requires a separately allowed
 full connection with consented calling scopes. OAuth does not itself approve
 payments, number purchases or billable calls. See [Billing](/docs/billing).
+
+`create_wallet_topup` is absent from the public read-only connector. MCP tool
+availability does not establish native payment support in ChatGPT, Claude,
+Codex or Grok. This server returns ordinary tool results and does not negotiate
+or send MCP elicitation requests. A checkout link opens Stripe in a browser;
+JSON seller/approval metadata is not a native payment card. Actual entirely
+in-chat and default-card merchant acceptance remain unproven.
 
 ### OAuth client configuration
 

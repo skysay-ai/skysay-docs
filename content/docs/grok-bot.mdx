@@ -52,12 +52,18 @@ I approve the displayed prices and wait for activation and channel readiness.
 Outside the United States, Canada, United Kingdom and Mexico, outbound calls
 and SMS require carrier review and depend on number type. Do not promise them.
 
-If I approve a top-up, open Skysay Billing → Add funds for hosted Stripe
-checkout, or use an
-owner-approved Link shared payment token where the client and seller support
-it. Never send card numbers to Skysay. Retry an uncertain payment with the same
-key and credential; check purchased wallet funds after the signed webhook.
-Do not claim actual Link/default virtual-card acceptance from sandbox proof.
+For a top-up, read my wallet currency with account_overview, show the exact
+amount, currency and purpose, and ask for my approval. With my separately
+consented wallet:write permission, use create_wallet_topup. For card_checkout,
+give me the direct Stripe checkout URL; do not require a Skysay dashboard
+visit. If this client has a compatible wallet, it may obtain a seller-bound
+shared payment token after my approval and submit it instead. Never collect
+card numbers, CVC, passwords or OTPs in chat. Permission consent approves no
+purchase. Explain any unavailable tool, host-wallet or seller configuration.
+Retry an uncertain payment with the same idempotency key and parameters;
+check purchased wallet funds after the signed webhook. A JSON approval
+challenge is not native checkout. Do not claim entirely-in-chat or default-card
+acceptance from a tool result, local fixture or Stripe sandbox proof.
 Only place a real call after I approve its caller, recipient, task and cost.
 Read the terminal result; a call ID alone is not an answered or completed call.
 Never log my code, session, API key, payment token or card details.
@@ -99,13 +105,17 @@ A client with secure API-key support may alternatively connect an existing
 workspace with a scoped key. This is not a headless signup route and is not
 required for OAuth clients. Do not paste keys into chat.
 
-Optional top-ups use the existing authenticated
-`POST /v1/agent/onboarding/headless/payments` billing endpoint with
-`wallet:write`, despite its retained historical URL. Email/social workspaces
-need no phone identity. Hosted checkout supports issuer-approved cards;
-shared-token use additionally requires a configured seller profile and a
-capable client. Only a signed, matching Stripe webhook adds purchased funds.
-Actual Link/default-card merchant acceptance remains pending external proof.
+Optional top-ups use `create_wallet_topup` with separately consented
+`wallet:write`. It calls the same billing service as the retained
+`POST /v1/agent/onboarding/headless/payments` API; email/social workspaces need
+no phone identity. The owner approves the exact amount, wallet currency and
+purchase purpose. Hosted checkout returns a direct Stripe URL, where the owner
+completes payment. A compatible wallet may instead supply an owner-approved
+shared payment token; that path also needs a configured Stripe seller profile.
+Only a signed, matching webhook adds purchased funds. See
+[MCP payments and their limits](/docs/billing#adding-funds-through-mcp).
+Actual native-client, Link/default-card and merchant acceptance remain pending
+external proof. Ordinary **Billing → Add funds** remains available separately.
 
 Numbers are offered in **100+ countries**, subject to current availability,
 number type, documents and carrier review. A listed country does not mean all

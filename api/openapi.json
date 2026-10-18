@@ -4148,13 +4148,20 @@
         "type": "object"
       },
       "HeadlessPayment": {
+        "additionalProperties": false,
         "properties": {
           "amount_minor": {
             "description": "Top-up in the wallet currency's minor units; current server top-up bounds apply.",
             "minimum": 1,
             "type": "integer"
           },
+          "currency": {
+            "description": "Exact owner-approved currency; must match the workspace wallet reported by account_overview.",
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          },
           "idempotency_key": {
+            "description": "Opaque key unique to this purchase. Retry the same key and parameters after uncertain outcomes; never include payment credentials.",
             "maxLength": 128,
             "minLength": 1,
             "type": "string"
@@ -4167,11 +4174,11 @@
             "type": "string"
           },
           "payment_approved": {
-            "description": "Must be true before an actual payment; optional while requesting an SPT challenge.",
+            "description": "True only after the owner explicitly approves this amount and currency for purchased Skysay calling credit. Scope consent is not purchase approval. Optional while requesting SPT approval metadata.",
             "type": "boolean"
           },
           "request_challenge": {
-            "description": "For SPT, return 402 with server amount/currency/Stripe profile needed to request owner approval in Link. This is a JSON challenge, not an MPP endpoint.",
+            "description": "For SPT, return 402 with amount/currency/Stripe seller profile for a compatible wallet to request owner approval. This is JSON metadata, not MPP, native checkout or MCP elicitation.",
             "type": "boolean"
           },
           "shared_payment_token": {
@@ -4183,6 +4190,7 @@
         "required": [
           "method",
           "amount_minor",
+          "currency",
           "idempotency_key"
         ],
         "type": "object"
