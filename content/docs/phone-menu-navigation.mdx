@@ -102,6 +102,12 @@ field `navigation.enabled`. An older client sent `{}` to mean off; it is refused
 rather than guessed at. The section is replaced whole: a limit you leave out
 goes back to its default, so send every limit you want to keep.
 
+You can send back the `navigation` section that
+`GET /v1/agents/{agent_id}/voice-stack` returned, as it is: the read-only fields
+`effective`, `eligible` and `ineligible_reason` are accepted and ignored on
+write (see [Read what an AI agent will do](#read-what-an-ai-agent-will-do)).
+Any other unknown field is refused with `400`.
+
 While navigation is on, by your choice or by default, neither limit can be
 longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`,
 1740 seconds = 29 minutes unless you shorten it), because a hold or a menu
@@ -403,10 +409,13 @@ in the call details is for reading, not for billing.
 
 Waiting still costs call time. With the default limits, one call can spend up
 to 180 seconds in menus and 600 seconds on hold before it ends, and all of it
-is billed. A campaign retries a call that ended on `hold_limit`,
-`deadline` or `during_hold` when no person was reached earlier (see
-[How these calls end](#how-these-calls-end)), so one contact can be billed for
-several long waits. Lower **Max hold time**, or turn navigation off for the AI
+is billed. When no person was reached earlier in the call, a campaign retries
+three endings: `ivr_timeout` with `hold_limit` (the hold limit ran out) or
+`deadline` (the call reached its maximum length), and
+`remote_party_disconnected` with `during_hold`. So one contact can be billed
+for several long waits. `ivr_timeout` with `navigation_limit` (the menu limit
+ran out), `menu_no_path` or `data_not_authorised` is final and is not retried
+(see [How these calls end](#how-these-calls-end)). Lower **Max hold time**, or turn navigation off for the AI
 agent a campaign uses, if that matters more than reaching a person.
 
 ## Limits worth knowing
