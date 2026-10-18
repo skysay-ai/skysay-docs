@@ -11,9 +11,10 @@ task (or answers a menu that asks you to speak), waits quietly on hold, and
 starts talking when a person picks up. It is on by default for every AI agent,
 and you turn it off per AI agent.
 
-It works on **outbound calls only**: the calls your AI agent places, campaign
-calls, and the phone test in the agent editor. Inbound calls, browser tests,
-[Simulations Lab](/docs/simulations-lab), chat and SMS never navigate.
+It works on **outbound calls only**: the calls your AI agent places and
+campaign calls. Inbound calls, including the phone test in the agent editor
+(you dial in to it), browser tests, [Simulations Lab](/docs/simulations-lab),
+chat and SMS never navigate.
 
 **A call can last at most 29 minutes, including time in menus and on hold. If nobody answers by then, the call ends as “Hold limit reached”** (`ended_reason` `ivr_timeout`, `reason_detail` `deadline`). No setting raises this limit.
 
@@ -266,11 +267,17 @@ agent's own voice, without the model.
 
 Phone menu navigation works in English, German, French, Spanish, Italian, Dutch,
 Portuguese, Russian and Polish. Estonian and Finnish are not supported yet.
-Nothing is refused because of an AI agent's languages. An AI agent with at least
-one supported language navigates, and its menus in other languages are not
-navigated. An AI agent whose languages are all unsupported keeps its setting,
-its calls run without navigation (`ineligible_reason` `languages_unreleased`),
-and it starts navigating by itself when one of its languages is supported.
+Nothing is refused because of an AI agent's languages. An AI agent's calls
+navigate only when both of these hold:
+
+- at least one of its languages is supported, and
+- the transcribers Skysay supports can listen to all of its languages with at
+  most two connections (see below).
+
+Its menus in unsupported languages are not navigated. An AI agent whose
+languages are all unsupported keeps its setting, its calls run without
+navigation (`ineligible_reason` `languages_unreleased`), and it starts
+navigating by itself when one of its languages is supported.
 
 Agents whose languages include Polish navigate Polish menus, but cannot enter
 keypad values yet (`value_language_unsupported`). That applies to the whole
