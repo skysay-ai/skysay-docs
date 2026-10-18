@@ -296,6 +296,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
 | `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) — or, with an empty `reason_detail`, the agent's opening could not be produced and never reached the caller ([details](/docs/voice-behavior#when-the-opening-never-reaches-the-caller)) |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
+| `ivr_timeout` | reserved for a call that was waiting in a phone menu or a hold queue when a limit ran out; `reason_detail` says which limit. No call ends this way yet |
 
 The workspace Calls detail explains funding-related endings. Read the full
 ending-reason vocabulary from the call resource or the `call.completed` webhook.
@@ -317,6 +318,10 @@ and it qualifies one of the two, which you can tell from its value:
 | `model_unresponsive` | `ended_reason` `agent_unresponsive` | the agent stopped answering: see below |
 | `insufficient_balance` | `ended_reason` `funding_exhausted` | the latest renewal confirmed insufficient eligible credit |
 | `renewal_unavailable` | `ended_reason` `funding_exhausted` | additional funded time was not confirmed by the deadline |
+| `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path`, `data_not_authorised` | `ended_reason` `ivr_timeout` | the time allowed on hold, the time allowed in menus, or the call's overall maximum length ran out while the call was waiting; or the menu offered no way to a person; or it asked for a value the call did not supply. No call ends this way yet |
+| `during_hold` | `ended_reason` `remote_party_disconnected` | the other party hung up while the call was waiting in a menu or on hold. No call waits yet |
+| `recorded_message_only` | `ended_reason` `no_human_after_answer` | a recording and nothing else answered: no menu, no person |
+| `navigation_detector_lost` | `ended_reason` `media_session_lost` | the listening a waiting call depends on stopped delivering |
 
 It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` is the
 ending that goes with the `non_human_audio` classification, and only an agent set to `end_call`
