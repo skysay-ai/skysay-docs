@@ -439,10 +439,10 @@
       },
       "AgentNavigation": {
         "additionalProperties": false,
-        "description": "Not yet available. Sending `enabled: true` is refused with 400 `navigation_not_available` (\"Phone menu navigation is not available yet.\"), on create, update and publish alike; `enabled: false`, an empty object or leaving the section out stay accepted. What follows describes the setting for when it is released. Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call.",
+        "description": "Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Supported on the cascade engine (workflow agents included) and on Gemini Live; GPT-Live agents cannot use it at this release. Sending `enabled: true` for an agent on GPT-Live, or switching an agent that has it on to GPT-Live, is refused with 400 `navigation_engine_not_supported` (the response names the `engine` and lists `supported_engines`), on create, update, the voice-stack PATCH and publish alike; a call that still carries the setting for such an engine runs without navigation. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. A limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call. The line is transcribed with at most two speech-to-text connections chosen from the transcribers Skysay supports for the agent's selected languages. Saving is refused with 400 `navigation_languages_unsupported` when no supported transcriber covers one of those languages (`reason` `uncovered`), when covering the whole set would need a third connection (`reason` `too_many_sockets`), or when navigation is released in none of the agent's languages (`reason` `unreleased`: it is released in English, German, French, Spanish, Italian, Dutch, Portuguese, Russian and Polish, so an agent with at least one of them is accepted, and its menus in any other language are not navigated, while an agent set only to others, such as Estonian or Finnish, is refused); the response `languages` lists the language codes concerned (the ones that cannot be covered, or, for `unreleased`, all of the agent's languages). Remove them from the agent, add a supported language, or turn navigation off.",
         "properties": {
           "enabled": {
-            "description": "Not yet available: `true` is refused with 400 `navigation_not_available`. Once released, `true` turns phone-menu navigation and hold waiting on for this agent's outbound calls.",
+            "description": "`true` turns phone-menu navigation and hold waiting on for this agent's outbound calls. Refused with 400 `navigation_engine_not_supported` for an agent on GPT-Live.",
             "type": "boolean"
           },
           "max_hold_seconds": {
@@ -1477,7 +1477,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. `ivr_timeout` is reserved for the platform ending a call that was waiting in a phone menu or a hold queue; `reason_detail` says why: `hold_limit` (the hold time ran out), `navigation_limit` (the time allowed in menus ran out), `deadline` (the call's overall maximum length was reached while waiting), `menu_no_path` (the menu offered no way to a person) or `data_not_authorised` (the menu asked for a value the call did not supply). No call ends this way yet. When the other party hangs up while a call is waiting in a menu or on hold, the reason stays `remote_party_disconnected` and `reason_detail` is `during_hold`; no call waits yet either. `no_human_after_answer` can carry `recorded_message_only` (a recording and nothing else answered) and `media_session_lost` can carry `navigation_detector_lost`. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. `ivr_timeout` is the platform ending a call that was waiting in a phone menu or a hold queue (phone menu navigation); `reason_detail` says why: `hold_limit` (the hold time ran out), `navigation_limit` (the time allowed in menus ran out), `deadline` (the call's overall maximum length was reached while waiting), `menu_no_path` (the menu offered no way to a person) or `data_not_authorised` (the menu asked for a value the call did not supply or may not give). When the other party hangs up while a call is waiting in a menu or on hold, the reason stays `remote_party_disconnected` and `reason_detail` is `during_hold`. `no_human_after_answer` can carry `recorded_message_only` (a recording and nothing else answered) and `media_session_lost` can carry `navigation_detector_lost`. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -1775,6 +1775,331 @@
           "organization_id",
           "project_id",
           "source_path"
+        ],
+        "type": "object"
+      },
+      "CallClosingEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "capture_finished": {
+            "type": "boolean"
+          },
+          "completeness": {
+            "enum": [
+              "complete",
+              "partial",
+              "unavailable",
+              "not_applicable"
+            ]
+          },
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "accepted": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "already_finished": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "failed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "joined": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "media_ended": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_changed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_commit": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider_close_sent": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reclaimed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "refused": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "request": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "dropped": {
+            "additionalProperties": false,
+            "properties": {
+              "accepted": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "already_finished": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "failed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "joined": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "media_ended": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_changed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_commit": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider_close_sent": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reclaimed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "refused": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "request": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "ending_reason": {
+            "enum": [
+              "",
+              "hangup_requested",
+              "remote_party_disconnected",
+              "agent_completed",
+              "max_call_duration_reached",
+              "no_caller_speech_after_answer",
+              "media_session_lost",
+              "no_human_after_answer",
+              "model_session_lost",
+              "agent_unresponsive",
+              "caller_unresponsive",
+              "browser_startup_failed",
+              "funding_exhausted",
+              "ivr_timeout"
+            ]
+          },
+          "final_state": {
+            "enum": [
+              "ended",
+              "not_recorded"
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CallClosingReceipt"
+            },
+            "maxItems": 200,
+            "type": "array"
+          },
+          "limit": {
+            "const": 200
+          },
+          "reason": {
+            "enum": [
+              "",
+              "not_recorded",
+              "processing",
+              "recording_deleted",
+              "malformed",
+              "conflict"
+            ]
+          },
+          "returned": {
+            "maximum": 200,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "completeness",
+          "reason",
+          "counts",
+          "dropped",
+          "items",
+          "capture_finished",
+          "final_state",
+          "returned",
+          "limit"
+        ],
+        "type": "object"
+      },
+      "CallClosingReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "ending_reason": {
+            "enum": [
+              "",
+              "hangup_requested",
+              "remote_party_disconnected",
+              "agent_completed",
+              "max_call_duration_reached",
+              "no_caller_speech_after_answer",
+              "media_session_lost",
+              "no_human_after_answer",
+              "model_session_lost",
+              "agent_unresponsive",
+              "caller_unresponsive",
+              "browser_startup_failed",
+              "funding_exhausted",
+              "ivr_timeout"
+            ]
+          },
+          "event_id": {
+            "maxLength": 96,
+            "type": "string"
+          },
+          "kind": {
+            "const": "closing"
+          },
+          "offset_ms": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "offset_precision": {
+            "enum": [
+              "exact",
+              "unavailable"
+            ]
+          },
+          "outcome_not_recorded": {
+            "type": "boolean"
+          },
+          "outside_recording_range": {
+            "type": "boolean"
+          },
+          "owner": {
+            "enum": [
+              "model",
+              "platform",
+              "remote",
+              "transport"
+            ]
+          },
+          "proposal_id": {
+            "maxLength": 96,
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "",
+              "already_finished",
+              "caller_speech",
+              "guard",
+              "interrupted",
+              "media_disconnect",
+              "navigation",
+              "platform_rule",
+              "runtime_error",
+              "transfer"
+            ]
+          },
+          "request_id": {
+            "maxLength": 96,
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "call_lifecycle",
+              "close_owner",
+              "native_provider",
+              "participant",
+              "room"
+            ]
+          },
+          "stage": {
+            "enum": [
+              "accepted",
+              "already_finished",
+              "call_ended",
+              "failed",
+              "joined",
+              "media_ended",
+              "owner_changed",
+              "owner_commit",
+              "provider_close_sent",
+              "reclaimed",
+              "refused",
+              "request"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "stage",
+          "sequence",
+          "offset_ms",
+          "offset_precision",
+          "event_id",
+          "source",
+          "owner",
+          "reason",
+          "request_id",
+          "proposal_id",
+          "outside_recording_range",
+          "outcome_not_recorded"
         ],
         "type": "object"
       },
@@ -3822,6 +4147,82 @@
         ],
         "type": "object"
       },
+      "HeadlessPayment": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_minor": {
+            "description": "Top-up in the wallet currency's minor units; current server top-up bounds apply.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "currency": {
+            "description": "Exact owner-approved currency; must match the workspace wallet reported by account_overview.",
+            "pattern": "^[A-Z]{3}$",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Opaque key unique to this purchase. Retry the same key and parameters after uncertain outcomes; never include payment credentials.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "card_checkout",
+              "shared_payment_token"
+            ],
+            "type": "string"
+          },
+          "payment_approved": {
+            "description": "True only after the owner explicitly approves this amount and currency for purchased Skysay calling credit. Scope consent is not purchase approval. Optional while requesting SPT approval metadata.",
+            "type": "boolean"
+          },
+          "request_challenge": {
+            "description": "For SPT, return 402 with amount/currency/Stripe seller profile for a compatible wallet to request owner approval. This is JSON metadata, not MPP, native checkout or MCP elicitation.",
+            "type": "boolean"
+          },
+          "shared_payment_token": {
+            "description": "Granted spt_ token approved by the owner for this seller and amount. Omit when requesting the challenge. Never submit card numbers.",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "amount_minor",
+          "currency",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "HeadlessPaymentResult": {
+        "description": "Card checkout returns the standard Stripe checkout URL/amount result. SPT returns pending or paid; only a signed matching webhook makes purchased wallet credit available.",
+        "properties": {
+          "amount_minor": {
+            "type": "integer"
+          },
+          "checkout_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "wallet_credit_timing": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "InboundCallRoute": {
         "properties": {
           "from_phone_number": {
@@ -5762,7 +6163,7 @@
     },
     "/v1/agent-catalog": {
       "get": {
-        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). The payload also includes conversation_engines: cascade (default STT/LLM/TTS) and gpt_live (GPT-Live-1 voices and Responses backends). Every engine row carries has_language_axis: true for cascade, false for a voice-to-voice engine that has no separate transcriber, LLM or TTS and therefore no language set, no per-language profile overrides and no Follow the caller. Read that flag rather than matching on the engine id: agent create and the voice-stack PATCH refuse languages / language_profiles / follow_caller for an engine whose row says false. A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by Skysay; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; Skysay does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. Each tts entry also lists default_languages: the languages in `languages` where the voice may be chosen WITHOUT the owner choosing it (for example as the pre-selected voice of a new agent). A voice can run a language without being its default -- ElevenLabs eleven_v3 runs English but lists only Estonian -- and a client that pre-selects voices should respect it. This catalog does not authorize a provider credential or disclose provider secrets.",
+        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). The payload also includes conversation_engines: cascade (default STT/LLM/TTS) and gpt_live (GPT-Live-1 voices and Responses backends). Every engine row carries has_language_axis: true for cascade, false for a voice-to-voice engine that has no separate transcriber, LLM or TTS and therefore no language set, no per-language profile overrides and no Follow the caller. Read that flag rather than matching on the engine id: agent create and the voice-stack PATCH refuse languages / language_profiles / follow_caller for an engine whose row says false. Every engine row also carries supports_navigation: false for an engine whose agents cannot use phone menu navigation (GPT-Live at this release; cascade and Gemini Live say true): turning `navigation.enabled` on for such an agent, or switching a navigating agent to that engine, is refused with 400 `navigation_engine_not_supported`. A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by Skysay; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; Skysay does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. Each tts entry also lists default_languages: the languages in `languages` where the voice may be chosen WITHOUT the owner choosing it (for example as the pre-selected voice of a new agent). A voice can run a language without being its default -- ElevenLabs eleven_v3 runs English but lists only Estonian -- and a client that pre-selects voices should respect it. This catalog does not authorize a provider credential or disclose provider secrets.",
         "parameters": [
           {
             "in": "query",
@@ -5966,6 +6367,60 @@
           }
         },
         "summary": "Dispatch a signed test event through the real delivery pipeline"
+      }
+    },
+    "/v1/agent/onboarding/headless/payments": {
+      "post": {
+        "description": "Bound to the authenticated workspace. Available to email/social customers without a phone identity. Owner approval is required before payment. Only a signed matching Stripe webhook creates purchased funds. Browser welcome credit cannot fund numbers, PSTN or SMS. The existing URL is retained for pending-payment retries; it does not provide headless signup.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessPayment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessPaymentResult"
+                }
+              }
+            },
+            "description": "Payment result; pending is not wallet credit"
+          },
+          "400": {
+            "description": "Invalid input or payment approval missing"
+          },
+          "401": {
+            "description": "Workspace authentication required"
+          },
+          "402": {
+            "description": "Owner approval challenge"
+          },
+          "409": {
+            "description": "Conflicting or uncertain payment retry"
+          },
+          "503": {
+            "description": "Payment method unavailable"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Approve a wallet top-up with hosted checkout or a shared payment token",
+        "tags": [
+          "Billing"
+        ],
+        "x-required-scopes": [
+          "wallet:write"
+        ]
       }
     },
     "/v1/agents": {
@@ -9685,9 +10140,21 @@
     },
     "/v1/calls/{call_id}/observability": {
       "get": {
-        "description": "Bound to the authenticated workspace call before owner checks. Includes a safe appointment projection (id, UTC interval, timezone and state: submitting, booked, unavailable, unconfirmed or not_created); credentials, provider identities and reconciliation leases are excluded.",
+        "description": "Bound to the authenticated workspace call before owner checks. Includes a safe appointment projection (id, UTC interval, timezone and state: submitting, booked, unavailable, unconfirmed or not_created); credentials, provider identities and reconciliation leases are excluded. closing_evidence contains bounded post-call close-owner receipts and an independent canonical ending. A tool result, accepted request, owner commit or provider close command is not proof of disconnection. Missing historical receipts stay unavailable. The existing paginated transcript API remains a stream of turns and uncaptioned caller moments; closing/tool receipts are obtained here. No live receipt transport is provided.",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "closing_evidence": {
+                      "$ref": "#/components/schemas/CallClosingEvidence"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Call observability bundle"
           }
         },
@@ -11950,7 +12417,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text. Each call row carries failure: null until the finished call has been labelled, otherwise why it failed -- category (one closed code, empty when no failure was observed, which is not a proof the call went well), layer (telephony: it never became a conversation; media: the voice pipeline broke; agent: the AI agent or the customer's own systems failed), signals (every code observed, in precedence order), connected, and evidence_complete (whether the transcript and telemetry were complete; signals that rest on them are only derived when it is true). Labels are decided when the call ends and again as its evidence arrives; this read never decides one. failure_layer or failure_category narrows the page, calls_total and has_more to the labelled calls that match, and calls_failure_filter echoes the filter applied; a call named by call_id is still answered when it does not match.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished, the language switches it made and, on a call that navigated automated phone menus, the menus it heard, the keys it pressed (a value it typed is named by its call variable and never shown as digits), the waits on hold and the moment a person answered, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Every call row carries `navigation`: null unless the call recorded a phone-menu moment, else {menu_ms, hold_ms, person_at_ms, conversation_ms}, how the call's time split into time in menus, time on hold (a hold with no recorded end runs to the end of the call), the offset at which a person first answered (null when none did) and the time that followed. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text. Each call row carries failure: null until the finished call has been labelled, otherwise why it failed -- category (one closed code, empty when no failure was observed, which is not a proof the call went well), layer (telephony: it never became a conversation; media: the voice pipeline broke; agent: the AI agent or the customer's own systems failed), signals (every code observed, in precedence order), connected, and evidence_complete (whether the transcript and telemetry were complete; signals that rest on them are only derived when it is true). Labels are decided when the call ends and again as its evidence arrives; this read never decides one. failure_layer or failure_category narrows the page, calls_total and has_more to the labelled calls that match, and calls_failure_filter echoes the filter applied; a call named by call_id is still answered when it does not match.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -12046,6 +12513,9 @@
                 "telephony_busy",
                 "telephony_no_answer",
                 "telephony_non_human_answer",
+                "telephony_hold_limit",
+                "telephony_menu_no_path",
+                "telephony_menu_time_limit",
                 "telephony_technical_failure",
                 "media_session_lost",
                 "media_engine_lost",
