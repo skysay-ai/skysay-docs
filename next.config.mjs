@@ -84,6 +84,9 @@ const nextConfig = {
   },
   async rewrites() {
     return [
+      // Production ingress strips /docs-assets. Keep the same public-image
+      // URL working when this app is served directly for local verification.
+      { source: "/docs-assets/images/:path*", destination: "/images/:path*" },
       // Per-page agent-readable markdown: /docs/quickstart.md and
       // /blog/launch.md serve the raw processed markdown.
       { source: "/docs/:path*.md", destination: "/raw/docs/:path*" },

@@ -1,0 +1,129 @@
+---
+title: Make your first outbound call with an AI agent
+description: Check your number, permissions and approval, place one idempotent call, then inspect the actual result.
+icon: PhonePlus
+---
+
+Make one approved telephone call through Skysay's REST API. Your application
+or MCP client initiates the action; the selected hosted voice AI agent or
+external audio integration carries the conversation.
+
+This guide starts with an **existing, configured AI agent and active number**.
+For an empty workspace, follow the [full REST quickstart](/docs/quickstart-curl)
+first. A successful browser demo does not prove your number can call out.
+
+## Check readiness before calling
+
+Use a destination you own or a person who has explicitly agreed to this test.
+Check the number's outbound capability, completed verification, country
+permissions, purchased wallet funds and the AI agent's published voice setup.
+Browser welcome credit does not fund telephone calls.
+
+Your test credential needs `account:read`, `agents:read`, `numbers:read`,
+`onboarding:read`, `policy:evaluate`, `calls:write` and `calls:read` for the
+checks and action below. Add `recordings:read` only if you need recordings or
+transcripts. Start from [authentication](/docs/authentication) and
+[workspace capabilities](/docs/policy-and-outbound#your-workspace-capabilities).
+A read-only MCP-resource credential cannot perform the write.
+
+Before executing, show the caller number, destination, purpose, proposed task
+and price basis to the approving person. Record **who approved it and why**.
+The `user_authorization` fields record that decision; filling them with a
+placeholder is not obtaining consent. Identify an AI caller and handle recording
+notices according to your actual use case and applicable requirements.
+
+## Read your workspace
+
+The examples use Bash, curl and jq. Set `SKYSAY_API_KEY` securely in your shell
+without putting its literal value into history, and run without shell tracing.
+This helper supplies the authorization header on curl's stdin, rather than in
+its command-line arguments. Request bodies use files so they do not compete
+for that stdin.
+
+```bash
+skysay_request() {
+  printf 'header = "Authorization: Bearer %s"\n' "$SKYSAY_API_KEY" |
+    curl --silent --show-error --fail-with-body --config - "$@"
+}
+
+skysay_request https://api.skysay.ai/v1/workspace-context
+```
+
+Use the organization and project belonging to this key. Do not select another
+workspace's identifiers or assume a bounded project list is complete.
+Read the AI agent and number back with their respective read scopes. The
+[quickstart's pre-call checks](/docs/quickstart-curl#7-place-an-outbound-call)
+show the capability and number endpoints.
+
+## Prepare exactly one request
+
+Set these variables from the actual approved test, not from a customer record
+or a value invented by an AI assistant:
+
+```bash
+: "${ORG_ID:?Use your authenticated workspace ID}"
+: "${PROJECT_ID:?Use a project in that workspace}"
+: "${AGENT_ID:?Use your configured AI agent ID}"
+: "${FROM_NUMBER_ID:?Use your active outbound caller number ID}"
+: "${TO_PHONE:?Use the approved recipient in E.164 format}"
+: "${APPROVED_BY:?Name the real person who authorized this action}"
+: "${APPROVAL_REASON:?Record why this exact call is authorized}"
+: "${CALL_PURPOSE:?Declare the real purpose}"
+
+umask 077
+jq -n --arg org "$ORG_ID" --arg project "$PROJECT_ID" \
+  --arg agent "$AGENT_ID" --arg from "$FROM_NUMBER_ID" \
+  --arg to "$TO_PHONE" --arg purpose "$CALL_PURPOSE" \
+  --arg approved_by "$APPROVED_BY" --arg reason "$APPROVAL_REASON" \
+  '{organization_id:$org, project_id:$project, agent_id:$agent,
+    from_phone_number_id:$from, to_phone_number:$to, purpose:$purpose,
+    user_authorization:{authorized_by:$approved_by,reason:$reason}}' \
+  > approved-call.json
+```
+
+Keep the file private: it contains a recipient and authorization information.
+The example deliberately has no real phone number or customer details.
+The selected AI agent's saved configuration supplies its speech stack and
+instructions; an MCP planning model does not speak on the line automatically.
+
+## Place it once and read the result
+
+Choose one unique request identifier for this approved action. Keep that same
+identifier **and the same body** for any retry of an ambiguous response.
+A new action needs a new identifier. Changing a recipient or purpose needs fresh
+approval and a new request, not reuse of the old key.
+
+```bash
+: "${CALL_REQUEST_ID:?Set one unique ID for this approved action}"
+
+skysay_request -X POST https://api.skysay.ai/v1/calls \
+  -H 'Content-Type: application/json' \
+  -H "Idempotency-Key: $CALL_REQUEST_ID" \
+  --data-binary @approved-call.json
+```
+
+A returned ID identifies a call record, **not proof that somebody answered**.
+Inspect its status. `policy_blocked` and `live_blocked` do not mean a number was
+dialled; `needs_review` is a hold, not permission to retry until it gets through.
+A malformed or unrunnable AI-agent configuration can be refused before a record
+or wallet reservation exists. Reusing an idempotency key with a different body
+returns `409`. See [why calls fail](/docs/why-calls-fail).
+
+Read the returned ID with `GET /v1/calls/{call_id}` and inspect
+[call evidence](/docs/read-call-evidence). Verify the recipient's observed result,
+terminal status, timing and cost. Transcript and recording availability depends
+on settings and scopes. A completed call does not by itself prove a booking or
+other business action completed.
+
+## Automate only after the controlled test
+
+In LangGraph, n8n or another application, keep approval outside automatic tool
+selection. Persist the approved action, its idempotency key and returned call ID
+with suitable access controls. On an uncertain network response, inspect the
+existing action or retry the identical idempotent request; do not generate a fresh
+key and risk dialling twice. Never redial a policy refusal automatically.
+
+The guide's routes and request fields are checked against the public API
+snapshot. No real call is placed while validating this documentation. Your
+controlled carrier-call test, recording notices and hosted configuration still
+need verification before rollout.
