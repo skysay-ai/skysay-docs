@@ -439,10 +439,10 @@
       },
       "AgentNavigation": {
         "additionalProperties": false,
-        "description": "Not yet available. Sending `enabled: true` is refused with 400 `navigation_not_available` (\"Phone menu navigation is not available yet.\"), on create, update and publish alike; `enabled: false`, an empty object or leaving the section out stay accepted. What follows describes the setting for when it is released. Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Supported on the cascade engine (workflow agents included) and on Gemini Live; GPT-Live agents cannot use it at this release. Sending `enabled: true` for an agent on GPT-Live, or switching an agent that has it on to GPT-Live, is refused with 400 `navigation_engine_not_supported` (the response names the `engine` and lists `supported_engines`), on create, update, the voice-stack PATCH and publish alike; a call that still carries the setting for such an engine runs without navigation. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. A limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call. The line is transcribed with at most two speech-to-text connections chosen from the transcribers Skysay supports for the agent's selected languages. Saving is refused with 400 `navigation_languages_unsupported` when no supported transcriber covers one of those languages (`reason` `uncovered`) or when covering the whole set would need a third connection (`reason` `too_many_sockets`); the response `languages` lists the language codes that cannot be covered. Remove them from the agent or turn navigation off.",
+        "description": "Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Supported on the cascade engine (workflow agents included) and on Gemini Live; GPT-Live agents cannot use it at this release. Sending `enabled: true` for an agent on GPT-Live, or switching an agent that has it on to GPT-Live, is refused with 400 `navigation_engine_not_supported` (the response names the `engine` and lists `supported_engines`), on create, update, the voice-stack PATCH and publish alike; a call that still carries the setting for such an engine runs without navigation. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. A limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call. The line is transcribed with at most two speech-to-text connections chosen from the transcribers Skysay supports for the agent's selected languages. Saving is refused with 400 `navigation_languages_unsupported` when no supported transcriber covers one of those languages (`reason` `uncovered`), when covering the whole set would need a third connection (`reason` `too_many_sockets`), or when navigation is released in none of the agent's languages (`reason` `unreleased`: it is released in English, German, French, Spanish, Italian, Dutch, Portuguese, Russian and Polish, so an agent with at least one of them is accepted, and its menus in any other language are not navigated, while an agent set only to others, such as Estonian or Finnish, is refused); the response `languages` lists the language codes concerned (the ones that cannot be covered, or, for `unreleased`, all of the agent's languages). Remove them from the agent, add a supported language, or turn navigation off.",
         "properties": {
           "enabled": {
-            "description": "Not yet available: `true` is refused with 400 `navigation_not_available`. Once released, `true` turns phone-menu navigation and hold waiting on for this agent's outbound calls. Refused with 400 `navigation_engine_not_supported` for an agent on GPT-Live.",
+            "description": "`true` turns phone-menu navigation and hold waiting on for this agent's outbound calls. Refused with 400 `navigation_engine_not_supported` for an agent on GPT-Live.",
             "type": "boolean"
           },
           "max_hold_seconds": {
@@ -1477,7 +1477,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. `ivr_timeout` is reserved for the platform ending a call that was waiting in a phone menu or a hold queue; `reason_detail` says why: `hold_limit` (the hold time ran out), `navigation_limit` (the time allowed in menus ran out), `deadline` (the call's overall maximum length was reached while waiting), `menu_no_path` (the menu offered no way to a person) or `data_not_authorised` (the menu asked for a value the call did not supply). No call ends this way yet. When the other party hangs up while a call is waiting in a menu or on hold, the reason stays `remote_party_disconnected` and `reason_detail` is `during_hold`; no call waits yet either. `no_human_after_answer` can carry `recorded_message_only` (a recording and nothing else answered) and `media_session_lost` can carry `navigation_detector_lost`. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit, `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last two name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- and `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all three, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. `ivr_timeout` is the platform ending a call that was waiting in a phone menu or a hold queue (phone menu navigation); `reason_detail` says why: `hold_limit` (the hold time ran out), `navigation_limit` (the time allowed in menus ran out), `deadline` (the call's overall maximum length was reached while waiting), `menu_no_path` (the menu offered no way to a person) or `data_not_authorised` (the menu asked for a value the call did not supply or may not give). When the other party hangs up while a call is waiting in a menu or on hold, the reason stays `remote_party_disconnected` and `reason_detail` is `during_hold`. `no_human_after_answer` can carry `recorded_message_only` (a recording and nothing else answered) and `media_session_lost` can carry `navigation_detector_lost`. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -4147,6 +4147,74 @@
         ],
         "type": "object"
       },
+      "HeadlessPayment": {
+        "properties": {
+          "amount_minor": {
+            "description": "Top-up in the wallet currency's minor units; current server top-up bounds apply.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "card_checkout",
+              "shared_payment_token"
+            ],
+            "type": "string"
+          },
+          "payment_approved": {
+            "description": "Must be true before an actual payment; optional while requesting an SPT challenge.",
+            "type": "boolean"
+          },
+          "request_challenge": {
+            "description": "For SPT, return 402 with server amount/currency/Stripe profile needed to request owner approval in Link. This is a JSON challenge, not an MPP endpoint.",
+            "type": "boolean"
+          },
+          "shared_payment_token": {
+            "description": "Granted spt_ token approved by the owner for this seller and amount. Omit when requesting the challenge. Never submit card numbers.",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "amount_minor",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "HeadlessPaymentResult": {
+        "description": "Card checkout returns the standard Stripe checkout URL/amount result. SPT returns pending or paid; only a signed matching webhook makes purchased wallet credit available.",
+        "properties": {
+          "amount_minor": {
+            "type": "integer"
+          },
+          "checkout_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "wallet_credit_timing": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "InboundCallRoute": {
         "properties": {
           "from_phone_number": {
@@ -6291,6 +6359,60 @@
           }
         },
         "summary": "Dispatch a signed test event through the real delivery pipeline"
+      }
+    },
+    "/v1/agent/onboarding/headless/payments": {
+      "post": {
+        "description": "Bound to the authenticated workspace. Available to email/social customers without a phone identity. Owner approval is required before payment. Only a signed matching Stripe webhook creates purchased funds. Browser welcome credit cannot fund numbers, PSTN or SMS. The existing URL is retained for pending-payment retries; it does not provide headless signup.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessPayment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessPaymentResult"
+                }
+              }
+            },
+            "description": "Payment result; pending is not wallet credit"
+          },
+          "400": {
+            "description": "Invalid input or payment approval missing"
+          },
+          "401": {
+            "description": "Workspace authentication required"
+          },
+          "402": {
+            "description": "Owner approval challenge"
+          },
+          "409": {
+            "description": "Conflicting or uncertain payment retry"
+          },
+          "503": {
+            "description": "Payment method unavailable"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Approve a wallet top-up with hosted checkout or a shared payment token",
+        "tags": [
+          "Billing"
+        ],
+        "x-required-scopes": [
+          "wallet:write"
+        ]
       }
     },
     "/v1/agents": {
