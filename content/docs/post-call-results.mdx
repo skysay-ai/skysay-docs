@@ -328,6 +328,25 @@ ending that goes with the `non_human_audio` classification, and only an agent se
 ends a call that way. See [Answer detection](/docs/answer-detection) for the whole set, for the
 two situations that end a call, and for the per-agent setting.
 
+### A wait that ran out after a conversation
+
+The call resource also carries `person_reached`: `true` when a person was reached earlier in the
+call, `false` when nobody was, and `null` when the call did not report it (a call that completed
+before the field shipped, an agent that does not handle phone menus, and any ending the platform
+did not decide). It matters for the three endings that mean "the call waited and nobody came":
+`ivr_timeout` with `hold_limit` or `deadline`, and `remote_party_disconnected` with `during_hold`.
+
+| `person_reached` | campaign disposition | pick-up and talk time |
+| --- | --- | --- |
+| `false` | `no_answer`: the contact is dialled again | the call is not a pick-up and its recording is not talk time |
+| `true` | `connected_completed`: terminal, the contact is not dialled again | the call is a pick-up and its recording is talk time |
+| `null` | `connected_completed`: missing information never starts a redial | excluded, as it was before the field existed |
+
+A conversation followed by a transfer into a queue that ran out of time has reached its contact, so
+it is neither redialled nor discounted. `ivr_timeout` with `navigation_limit`, `menu_no_path` or
+`data_not_authorised` is terminal whatever `person_reached` says, and `no_human_after_answer` is never
+a pick-up. The same field is in the `call.completed` webhook, and the terminal `call.ended` event's `details` carries it as a boolean when the platform reported one.
+
 ### When the media session is lost
 
 `media_session_lost` is the one reason that names something nobody chose. It
