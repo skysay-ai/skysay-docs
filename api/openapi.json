@@ -439,10 +439,10 @@
       },
       "AgentNavigation": {
         "additionalProperties": false,
-        "description": "Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call. The line is transcribed with at most two speech-to-text connections chosen from the transcribers Skysay supports for the agent's selected languages. Saving is refused with 400 `navigation_languages_unsupported` when no supported transcriber covers one of those languages (`reason` `uncovered`) or when covering the whole set would need a third connection (`reason` `too_many_sockets`); the response `languages` lists the language codes that cannot be covered. Remove them from the agent or turn navigation off.",
+        "description": "Whether the AI agent may answer an automated phone menu and wait in a hold queue on an outbound call, and for how long. Supported on the cascade engine (workflow agents included) and on Gemini Live; GPT-Live agents cannot use it at this release. Sending `enabled: true` for an agent on GPT-Live, or switching an agent that has it on to GPT-Live, is refused with 400 `navigation_engine_not_supported` (the response names the `engine` and lists `supported_engines`), on create, update, the voice-stack PATCH and publish alike; a call that still carries the setting for such an engine runs without navigation. Off unless you send `enabled: true`: an agent that never sets this behaves exactly as before, and sending `enabled: false` (or an empty object) removes the section. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. A limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set. The response carries the resolved values (all three keys) when navigation is on, and no `navigation` key when it is off. Applied when a call starts; saving never changes an in-progress call. The line is transcribed with at most two speech-to-text connections chosen from the transcribers Skysay supports for the agent's selected languages. Saving is refused with 400 `navigation_languages_unsupported` when no supported transcriber covers one of those languages (`reason` `uncovered`), when covering the whole set would need a third connection (`reason` `too_many_sockets`), or when navigation is released in none of the agent's languages (`reason` `unreleased`: it is released in English, German, French, Spanish, Italian, Dutch, Portuguese, Russian and Polish, so an agent with at least one of them is accepted, and its menus in any other language are not navigated, while an agent set only to others, such as Estonian or Finnish, is refused); the response `languages` lists the language codes concerned (the ones that cannot be covered, or, for `unreleased`, all of the agent's languages). Remove them from the agent, add a supported language, or turn navigation off.",
         "properties": {
           "enabled": {
-            "description": "`true` turns phone-menu navigation and hold waiting on for this agent's outbound calls.",
+            "description": "`true` turns phone-menu navigation and hold waiting on for this agent's outbound calls. Refused with 400 `navigation_engine_not_supported` for an agent on GPT-Live.",
             "type": "boolean"
           },
           "max_hold_seconds": {
@@ -1526,6 +1526,13 @@
           "organization_id": {
             "type": "string"
           },
+          "person_reached": {
+            "description": "Whether a person was reached earlier in the call, as the platform's phone-menu and hold handling reported it with the ending: `true` when someone was spoken to before the call ended (a conversation, then a transfer into a queue that ran out of time), `false` when nobody was reached, and null when the call did not report it (a call that completed before this field shipped, one whose agent does not navigate phone menus, and one that ended another way). It is what separates a wait that ran out after a conversation from one that never reached anyone: `ivr_timeout` with `hold_limit` or `deadline`, and `remote_party_disconnected` with `during_hold`, are retried by a campaign only when this is `false`, and the recording of such a call counts as talk time (and the call as a pick-up) only when it is `true`.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "project_id": {
             "type": "string"
           },
@@ -1734,6 +1741,7 @@
           "ended_reason",
           "answer_classification",
           "reason_detail",
+          "person_reached",
           "refusal",
           "created_at",
           "updated_at"
@@ -1767,6 +1775,331 @@
           "organization_id",
           "project_id",
           "source_path"
+        ],
+        "type": "object"
+      },
+      "CallClosingEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "capture_finished": {
+            "type": "boolean"
+          },
+          "completeness": {
+            "enum": [
+              "complete",
+              "partial",
+              "unavailable",
+              "not_applicable"
+            ]
+          },
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "accepted": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "already_finished": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "failed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "joined": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "media_ended": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_changed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_commit": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider_close_sent": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reclaimed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "refused": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "request": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "dropped": {
+            "additionalProperties": false,
+            "properties": {
+              "accepted": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "already_finished": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "failed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "joined": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "media_ended": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_changed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "owner_commit": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider_close_sent": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reclaimed": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "refused": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "request": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "ending_reason": {
+            "enum": [
+              "",
+              "hangup_requested",
+              "remote_party_disconnected",
+              "agent_completed",
+              "max_call_duration_reached",
+              "no_caller_speech_after_answer",
+              "media_session_lost",
+              "no_human_after_answer",
+              "model_session_lost",
+              "agent_unresponsive",
+              "caller_unresponsive",
+              "browser_startup_failed",
+              "funding_exhausted",
+              "ivr_timeout"
+            ]
+          },
+          "final_state": {
+            "enum": [
+              "ended",
+              "not_recorded"
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CallClosingReceipt"
+            },
+            "maxItems": 200,
+            "type": "array"
+          },
+          "limit": {
+            "const": 200
+          },
+          "reason": {
+            "enum": [
+              "",
+              "not_recorded",
+              "processing",
+              "recording_deleted",
+              "malformed",
+              "conflict"
+            ]
+          },
+          "returned": {
+            "maximum": 200,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "completeness",
+          "reason",
+          "counts",
+          "dropped",
+          "items",
+          "capture_finished",
+          "final_state",
+          "returned",
+          "limit"
+        ],
+        "type": "object"
+      },
+      "CallClosingReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "ending_reason": {
+            "enum": [
+              "",
+              "hangup_requested",
+              "remote_party_disconnected",
+              "agent_completed",
+              "max_call_duration_reached",
+              "no_caller_speech_after_answer",
+              "media_session_lost",
+              "no_human_after_answer",
+              "model_session_lost",
+              "agent_unresponsive",
+              "caller_unresponsive",
+              "browser_startup_failed",
+              "funding_exhausted",
+              "ivr_timeout"
+            ]
+          },
+          "event_id": {
+            "maxLength": 96,
+            "type": "string"
+          },
+          "kind": {
+            "const": "closing"
+          },
+          "offset_ms": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "offset_precision": {
+            "enum": [
+              "exact",
+              "unavailable"
+            ]
+          },
+          "outcome_not_recorded": {
+            "type": "boolean"
+          },
+          "outside_recording_range": {
+            "type": "boolean"
+          },
+          "owner": {
+            "enum": [
+              "model",
+              "platform",
+              "remote",
+              "transport"
+            ]
+          },
+          "proposal_id": {
+            "maxLength": 96,
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "",
+              "already_finished",
+              "caller_speech",
+              "guard",
+              "interrupted",
+              "media_disconnect",
+              "navigation",
+              "platform_rule",
+              "runtime_error",
+              "transfer"
+            ]
+          },
+          "request_id": {
+            "maxLength": 96,
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "call_lifecycle",
+              "close_owner",
+              "native_provider",
+              "participant",
+              "room"
+            ]
+          },
+          "stage": {
+            "enum": [
+              "accepted",
+              "already_finished",
+              "call_ended",
+              "failed",
+              "joined",
+              "media_ended",
+              "owner_changed",
+              "owner_commit",
+              "provider_close_sent",
+              "reclaimed",
+              "refused",
+              "request"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "stage",
+          "sequence",
+          "offset_ms",
+          "offset_precision",
+          "event_id",
+          "source",
+          "owner",
+          "reason",
+          "request_id",
+          "proposal_id",
+          "outside_recording_range",
+          "outcome_not_recorded"
         ],
         "type": "object"
       },
@@ -3814,6 +4147,304 @@
         ],
         "type": "object"
       },
+      "HeadlessAccount": {
+        "properties": {
+          "api_key": {
+            "description": "Returned once. Store only in the MCP client's credential field.",
+            "type": "string"
+          },
+          "area_code": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "email_usage": {
+            "type": "string"
+          },
+          "email_verified": {
+            "const": false
+          },
+          "identity_type": {
+            "const": "verified_phone"
+          },
+          "mcp": {
+            "properties": {
+              "header_name": {
+                "const": "Authorization"
+              },
+              "header_value": {
+                "description": "Secret bearer header; never put it in a public prompt or video.",
+                "type": "string"
+              },
+              "scopes": {
+                "items": {
+                  "enum": [
+                    "account:read",
+                    "agents:read",
+                    "agents:write",
+                    "calls:read",
+                    "calls:write",
+                    "numbers:read",
+                    "numbers:write",
+                    "coverage:read",
+                    "wallet:read",
+                    "wallet:write",
+                    "onboarding:read",
+                    "onboarding:write",
+                    "recordings:read",
+                    "sms:read",
+                    "sms:write"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "setup_credit": {
+            "properties": {
+              "amount_usd_minor": {
+                "const": 500
+              },
+              "currency": {
+                "const": "USD"
+              },
+              "first_owner_call_max_seconds": {
+                "const": 60
+              },
+              "recurring_payments_approved": {
+                "const": false
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessComplete": {
+        "properties": {
+          "headless_session": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "otp_code": {
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "headless_session",
+          "otp_code"
+        ],
+        "type": "object"
+      },
+      "HeadlessNumberChoice": {
+        "properties": {
+          "available_number_id": {
+            "description": "Canonical inventory row id for the requested country/city/area code. A cache is revalidated before fulfillment.",
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "available_number_id"
+        ],
+        "type": "object"
+      },
+      "HeadlessNumberResult": {
+        "properties": {
+          "capabilities_notice": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "number_request_id": {
+            "type": "string"
+          },
+          "recurring_payments_approved": {
+            "const": false
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessPayment": {
+        "properties": {
+          "amount_minor": {
+            "description": "Top-up in the wallet currency's minor units; current server top-up bounds apply.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "card_checkout",
+              "shared_payment_token"
+            ],
+            "type": "string"
+          },
+          "payment_approved": {
+            "description": "Must be true before an actual payment; optional while requesting an SPT challenge.",
+            "type": "boolean"
+          },
+          "request_challenge": {
+            "description": "For SPT, return 402 with server amount/currency/Stripe profile needed to request owner approval in Link. This is a JSON challenge, not an MPP endpoint.",
+            "type": "boolean"
+          },
+          "shared_payment_token": {
+            "description": "Granted spt_ token approved by the owner for this seller and amount. Omit when requesting the challenge. Never submit card numbers.",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "amount_minor",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
+      "HeadlessPaymentResult": {
+        "description": "Card checkout returns the standard Stripe checkout URL/amount result. SPT returns pending or paid; only a signed matching webhook makes purchased wallet credit available.",
+        "properties": {
+          "amount_minor": {
+            "type": "integer"
+          },
+          "checkout_url": {
+            "format": "uri",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "wallet_credit_timing": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessRenewalApproval": {
+        "properties": {
+          "renewal_approved": {
+            "const": true,
+            "description": "Separate owner approval of ongoing number fees after an approved Stripe payment. Setup credit alone never authorizes renewal."
+          }
+        },
+        "required": [
+          "renewal_approved"
+        ],
+        "type": "object"
+      },
+      "HeadlessSession": {
+        "properties": {
+          "area_code": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "const": 600
+          },
+          "headless_session": {
+            "description": "Secret, single-use signup capability. Never log or publish it.",
+            "type": "string"
+          },
+          "next_action": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HeadlessStart": {
+        "properties": {
+          "area_code": {
+            "maxLength": 6,
+            "type": "string"
+          },
+          "city": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "client_name": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "country": {
+            "description": "Full country name, such as United States or Estonia; selected against available local-number inventory.",
+            "maxLength": 80,
+            "type": "string"
+          },
+          "email": {
+            "description": "Unverified contact only. Never a login or recovery identifier; does not reserve or automatically link an email account.",
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "phone": {
+            "description": "Owner's real E.164 phone number. The owner receives a texted OTP.",
+            "maxLength": 16,
+            "type": "string"
+          },
+          "terms_accepted": {
+            "const": true,
+            "description": "Owner accepted Skysay terms, version 2026-08-20."
+          }
+        },
+        "required": [
+          "phone",
+          "email",
+          "country",
+          "client_name",
+          "terms_accepted"
+        ],
+        "type": "object"
+      },
       "InboundCallRoute": {
         "properties": {
           "from_phone_number": {
@@ -5754,7 +6385,7 @@
     },
     "/v1/agent-catalog": {
       "get": {
-        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). The payload also includes conversation_engines: cascade (default STT/LLM/TTS) and gpt_live (GPT-Live-1 voices and Responses backends). Every engine row carries has_language_axis: true for cascade, false for a voice-to-voice engine that has no separate transcriber, LLM or TTS and therefore no language set, no per-language profile overrides and no Follow the caller. Read that flag rather than matching on the engine id: agent create and the voice-stack PATCH refuse languages / language_profiles / follow_caller for an engine whose row says false. A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by Skysay; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; Skysay does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. Each tts entry also lists default_languages: the languages in `languages` where the voice may be chosen WITHOUT the owner choosing it (for example as the pre-selected voice of a new agent). A voice can run a language without being its default -- ElevenLabs eleven_v3 runs English but lists only Estonian -- and a client that pre-selects voices should respect it. This catalog does not authorize a provider credential or disclose provider secrets.",
+        "description": "Pass metered_only=true to receive only the launch-supported hosted components with a runtime adapter, native meter, pinned retail rate, and safe credential contract (validated BYOK where supported or an explicit platform-managed provider contract). The payload also includes conversation_engines: cascade (default STT/LLM/TTS) and gpt_live (GPT-Live-1 voices and Responses backends). Every engine row carries has_language_axis: true for cascade, false for a voice-to-voice engine that has no separate transcriber, LLM or TTS and therefore no language set, no per-language profile overrides and no Follow the caller. Read that flag rather than matching on the engine id: agent create and the voice-stack PATCH refuse languages / language_profiles / follow_caller for an engine whose row says false. Every engine row also carries supports_navigation: false for an engine whose agents cannot use phone menu navigation (GPT-Live at this release; cascade and Gemini Live say true): turning `navigation.enabled` on for such an agent, or switching a navigating agent to that engine, is refused with 400 `navigation_engine_not_supported`. A TTS row uses either immutable worker-approved voices or bounded provider-directory voices already ingested by Skysay; the catalog never fetches a provider during a read. Voice metadata and tags are provider-supplied and carry provenance; Skysay does not infer age, accent, or personality. When a provider supplies no per-voice language list, the row inherits only its qualified TTS model languages. voice_count and voices_truncated say when a provider inventory is partial. A resolved agent preserves its exact selected voice in its voice-stack response even outside a bounded catalog slice. Every TTS row carries `delivery_control`: `voice_settings`, `instruction` or `speed` when a `voice_polish.delivery` profile changes that engine's audio, or `unsupported` when the engine accepts and stores a profile without changing its audio (Fish Audio and Azure neural voices today); and `delivery_profiles`, the exact value each of the four profiles resolves to on that engine (a settings object such as stability/similarity_boost/style/speed, a speaking rate, or an instruction sentence), empty for `unsupported`. Both are read from the same packaged delivery table the call runtime and the voice preview use, so a client can state what a profile changes for a voice without a provider list of its own. Each tts entry also lists default_languages: the languages in `languages` where the voice may be chosen WITHOUT the owner choosing it (for example as the pre-selected voice of a new agent). A voice can run a language without being its default -- ElevenLabs eleven_v3 runs English but lists only Estonian -- and a client that pre-selects voices should respect it. This catalog does not authorize a provider credential or disclose provider secrets.",
         "parameters": [
           {
             "in": "query",
@@ -5958,6 +6589,273 @@
           }
         },
         "summary": "Dispatch a signed test event through the real delivery pipeline"
+      }
+    },
+    "/v1/agent/onboarding/headless/complete": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessAccount"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [],
+        "summary": "Verify phone ownership and create a new workspace",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": []
+      }
+    },
+    "/v1/agent/onboarding/headless/number": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessNumberChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessNumberResult"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Request the selected initial local number using bounded setup credit",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/agent/onboarding/headless/number/renewal-approval": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessRenewalApproval"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Separately approve ongoing setup-number fees after payment",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": [
+          "wallet:write",
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/agent/onboarding/headless/payments": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessPayment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessPaymentResult"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyBearer": []
+          }
+        ],
+        "summary": "Approve an optional wallet top-up with a virtual card or granted shared payment token",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": [
+          "wallet:write"
+        ]
+      }
+    },
+    "/v1/agent/onboarding/headless/start": {
+      "post": {
+        "description": "Bound to the authenticated workspace on authenticated commands. Signup sessions expire after ten minutes and permit at most five guesses. One account per verified phone. Contact email is unverified and not unique; email login cannot inherit this workspace. Explicit linking with both proofs is not provided. The same $5 total welcome grant may cover eligible initial number costs and one 60-second hosted PSTN test to the verified owner; prices and carrier capability gates still apply. No paid overage or automatic renewal is authorized by the trial. Active local numbers support inbound calling; outbound and SMS depend on number type and carrier review, including review outside the United States, Canada, United Kingdom and Mexico. A number request is not an active number or a completed call. A returned connector configuration is not proof the client connected.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadlessStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadlessSession"
+                }
+              }
+            },
+            "description": "Command result"
+          },
+          "400": {
+            "description": "Invalid input, incompatible inventory or payment"
+          },
+          "401": {
+            "description": "Invalid, expired or consumed session/credential"
+          },
+          "402": {
+            "description": "Payment approval details or insufficient eligible funds"
+          },
+          "409": {
+            "description": "Existing identity, unavailable inventory with bounded alternatives, or conflicting/uncertain payment retry"
+          },
+          "429": {
+            "description": "Persistent signup send/guess budget exceeded"
+          },
+          "503": {
+            "description": "Phone verification or payment dependency not configured/available"
+          }
+        },
+        "security": [],
+        "summary": "Start a fresh account with a texted verification code",
+        "tags": [
+          "Headless onboarding"
+        ],
+        "x-required-scopes": []
       }
     },
     "/v1/agents": {
@@ -8566,20 +9464,20 @@
             "description": "Bounded DID list with channels, voice-only capability, and already-imported flags"
           }
         },
-        "summary": "List the connected BYO SIP trunk carrier account's DIDs for the import picker (live read with a transient, never-stored API token)"
+        "summary": "List owned DIDLogic or DIDWW numbers using a transient customer API key; discovery never changes routing"
       }
     },
     "/v1/byo/sip-trunk/import": {
       "post": {
         "responses": {
           "201": {
-            "description": "Imported number, readiness result, and activation state"
+            "description": "Number with separate incoming/outgoing configuration results, or local disconnect result"
           },
           "400": {
             "description": "organization_id or project_id is missing or blank, a project_id this organization does not own, or a missing/unparseable e164"
           }
         },
-        "summary": "Import a carrier-owned DID as a voice-only number; activates only on passing live activation evidence, monthly fee stays with the carrier"
+        "summary": "Connect a selected customer-owned voice number after confirmation, or disconnect its local runtime access; carrier bills rental and traffic"
       }
     },
     "/v1/byo/sip-trunk/setup-checks": {
@@ -8589,7 +9487,7 @@
             "description": "Readiness steps plus the provider activation-evidence block"
           }
         },
-        "summary": "Run secret-redacted BYO SIP trunk readiness checks for one DID (trunk auth, caller ID, inbound destination, channel capacity)"
+        "summary": "Preview one DIDWW routing change and issue a scoped confirmation token, or check existing DIDLogic SIP readiness"
       }
     },
     "/v1/calendars/oauth/calcom/complete": {
@@ -9677,9 +10575,21 @@
     },
     "/v1/calls/{call_id}/observability": {
       "get": {
-        "description": "Bound to the authenticated workspace call before owner checks. Includes a safe appointment projection (id, UTC interval, timezone and state: submitting, booked, unavailable, unconfirmed or not_created); credentials, provider identities and reconciliation leases are excluded.",
+        "description": "Bound to the authenticated workspace call before owner checks. Includes a safe appointment projection (id, UTC interval, timezone and state: submitting, booked, unavailable, unconfirmed or not_created); credentials, provider identities and reconciliation leases are excluded. closing_evidence contains bounded post-call close-owner receipts and an independent canonical ending. A tool result, accepted request, owner commit or provider close command is not proof of disconnection. Missing historical receipts stay unavailable. The existing paginated transcript API remains a stream of turns and uncaptioned caller moments; closing/tool receipts are obtained here. No live receipt transport is provided.",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "closing_evidence": {
+                      "$ref": "#/components/schemas/CallClosingEvidence"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Call observability bundle"
           }
         },
@@ -11942,7 +12852,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished and the language switches it made, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text. Each call row carries failure: null until the finished call has been labelled, otherwise why it failed -- category (one closed code, empty when no failure was observed, which is not a proof the call went well), layer (telephony: it never became a conversation; media: the voice pipeline broke; agent: the AI agent or the customer's own systems failed), signals (every code observed, in precedence order), connected, and evidence_complete (whether the transcript and telemetry were complete; signals that rest on them are only derived when it is true). Labels are decided when the call ends and again as its evidence arrives; this read never decides one. failure_layer or failure_category narrows the page, calls_total and has_more to the labelled calls that match, and calls_failure_filter echoes the filter applied; a call named by call_id is still answered when it does not match.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished, the language switches it made and, on a call that navigated automated phone menus, the menus it heard, the keys it pressed (a value it typed is named by its call variable and never shown as digits), the waits on hold and the moment a person answered, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Every call row carries `navigation`: null unless the call recorded a phone-menu moment, else {menu_ms, hold_ms, person_at_ms, conversation_ms}, how the call's time split into time in menus, time on hold (a hold with no recorded end runs to the end of the call), the offset at which a person first answered (null when none did) and the time that followed. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text. Each call row carries failure: null until the finished call has been labelled, otherwise why it failed -- category (one closed code, empty when no failure was observed, which is not a proof the call went well), layer (telephony: it never became a conversation; media: the voice pipeline broke; agent: the AI agent or the customer's own systems failed), signals (every code observed, in precedence order), connected, and evidence_complete (whether the transcript and telemetry were complete; signals that rest on them are only derived when it is true). Labels are decided when the call ends and again as its evidence arrives; this read never decides one. failure_layer or failure_category narrows the page, calls_total and has_more to the labelled calls that match, and calls_failure_filter echoes the filter applied; a call named by call_id is still answered when it does not match.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -12038,6 +12948,9 @@
                 "telephony_busy",
                 "telephony_no_answer",
                 "telephony_non_human_answer",
+                "telephony_hold_limit",
+                "telephony_menu_no_path",
+                "telephony_menu_time_limit",
                 "telephony_technical_failure",
                 "media_session_lost",
                 "media_engine_lost",
