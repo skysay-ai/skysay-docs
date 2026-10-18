@@ -13,6 +13,7 @@ agent needs.
 | Scope | Grants |
 | --- | --- |
 | `account:read` | The key's own workspace context and workspace overview — wallet, agents, numbers, calls, SMS, usage. |
+| `wallet:write` | Initiate owner-approved purchased-wallet top-ups with `create_wallet_topup` on full MCP. OAuth consent does not approve a payment or grant REST billing/settings access. |
 | `coverage:read` | Coverage, number catalog, agent catalog, requirements. |
 | `agents:read` | Read agents, the public agent catalog, and safe configuration such as voice stacks and workflow drafts. |
 | `agents:write` | Create and configure agents; set voice stacks. |
@@ -41,11 +42,21 @@ A prefix scope covers every leaf under it. `sms:*` grants both `sms:read` and
 `sms:send`; grant the leaf for least privilege, the prefix when the whole group
 is genuinely needed.
 
-## Control-plane scopes are off-limits
+## API keys and OAuth grants
 
-Agent keys never carry `api_keys:write`, `wallet:write`, `operator:*`,
-`worker_jobs:write`, or `provider_mutations:*`. Requested scopes are clamped
-server-side to what the minting credential holds, so a key cannot self-escalate.
+A delegated agent key cannot self-grant billing or control-plane permissions.
+Requested API-key scopes are clamped server-side to what the minting credential
+holds; workspace keys exclude `operator:*`, `worker_jobs:read`,
+`worker_jobs:write` and `provider_mutations:*`.
+An authorized workspace API key can carry `wallet:write`, so keep its billing
+access out of a delegated key unless needed.
+
+OAuth grants are separate from API-key delegation. A full MCP connection can
+receive optional `wallet:write` through explicit consent; it is offered unticked
+when neither requested nor already granted. That OAuth token works only on MCP,
+not REST billing or settings routes. Each top-up still needs separate owner
+approval of the exact amount, currency and purpose. The read-only connector
+cannot receive this payment permission. See [OAuth permissions](/docs/mcp#permissions-consent-and-reconnecting).
 
 ## Fail-closed
 
