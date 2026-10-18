@@ -1,0 +1,101 @@
+---
+title: Receive incoming calls with your AI agent
+description: Assign an active number, verify the voice path and connect signed call events to your application.
+icon: PhoneIncome
+---
+
+Give an existing AI agent an incoming telephone line through Skysay. You need
+both a number that receives calls and a configured voice path. Connecting an
+MCP client alone does not make that client a realtime voice agent.
+
+## Choose where the conversation runs
+
+| Mode | Who runs the voice conversation? |
+| --- | --- |
+| Hosted voice AI agent | Skysay runs the AI agent's configured conversation engine and workflow. |
+| External text | Your service supplies text replies through the documented integration; Skysay provides the voice pipeline. |
+| External audio | Your service handles the realtime audio connection and its voice behavior. |
+
+Follow [wire an AI agent](/docs/wire-an-agent) for the exact supported mode and
+transport. A LangGraph planner that can call an MCP tool is not automatically
+an audio-stream consumer. Do not point a carrier number at an ordinary chat
+webhook and expect a spoken conversation.
+
+## Prepare the number and AI agent
+
+Choose an available number type with incoming-call capability in the required
+country. Complete its verification and activation. **100+ countries covered**
+does not mean every number type in every country supports voice and SMS.
+Check the selected number's actual capability and pricing.
+
+For a hosted AI agent, configure and test its voice, language, first message,
+instructions and any workflow/tools before routing live calls to it. For an
+external integration, test its authentication, connection lifecycle and supported
+audio/text contract. Keep customer secrets out of prompts and call context.
+
+Use the [browser test](/docs/trial-calls) first. It proves the browser media
+path for that configuration, not the carrier leg or number routing.
+
+## Route your number
+
+In the workspace, open the number's routing controls and choose the AI agent
+that should answer. Review Number rules and any time-based routing, default or
+fallback behavior. The controls are also available from the AI agent's Phone
+section; [number routing](/docs/wire-an-agent#3-point-a-number-at-it) describes
+how assignment works.
+
+Confirm you are changing a number in the intended workspace and understand
+what its current callers will reach. Do not replace a working business line's
+route as an exploratory test. Use an isolated test number first.
+
+A stopped or unready AI agent cannot answer normally just because it is assigned
+to a number. If routing fails, inspect the workspace's readiness message rather
+than repeatedly changing carrier settings.
+
+## Prove one incoming call
+
+Call the test number from a phone you control, with any required notices and
+recording consent configured. Telephone and AI usage can be charged.
+
+Check these separately:
+
+1. The correct number and AI agent received the call.
+2. The caller heard the intended first message and could exchange turns.
+3. The intended language, interruption and escalation behavior worked.
+4. The call ended as expected and produced the available call evidence and cost.
+5. Any promised external action actually occurred in its destination system.
+
+A webhook arriving or a call appearing in the workspace is not proof of two-way
+audio. A browser conversation is not proof of an incoming carrier call. Keep
+these acceptance results distinct.
+
+## Send events to your application
+
+Register a project-scoped webhook endpoint if your app needs to react to call
+completion, failure or transcript readiness. Follow
+[webhook registration and verification](/docs/webhooks) rather than inventing a
+callback format. Registration requires `agents:write`; reading call results uses
+`calls:read`, with `recordings:read` for recording/transcript content.
+
+A webhook endpoint reports events; it does not become the speech engine unless
+you separately configure a supported external-agent integration. Webhook
+registration creates a companion external-audio agent, so assign only the AI
+agent you intended to use.
+
+Verify the signature and timestamp over the raw request body, reject invalid
+or stale deliveries, acknowledge promptly, and process work asynchronously.
+Handle repeated deliveries idempotently and events that arrive out of order.
+Do not log a signing secret, raw customer transcript or phone number in public
+monitoring output. See the [signed delivery example](/docs/webhooks).
+
+## If the call does not reach the AI agent
+
+Check activation, inbound capability, the selected route and Number rules,
+AI-agent readiness and the external service's connectivity if applicable.
+Inspect the call's recorded reason in [call evidence](/docs/read-call-evidence).
+Escalate carrier-route problems with the call ID through a private support
+channel; do not publish customer numbers or recordings.
+
+This documentation is checked against the public routing, voice-mode and webhook
+contracts. No carrier test call is run as part of this docs PR; complete the
+controlled phone test above with your own configuration before relying on it.
