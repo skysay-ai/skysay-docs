@@ -1,0 +1,100 @@
+---
+title: What runs on calls
+description: The agent page shows which tools, knowledge bases and calendar tools an AI agent is offered on each engine and kind of call, and the reason when one is not.
+icon: TaskList
+---
+
+An AI agent can have tools (webhooks, integration actions, built-ins such as
+**Send an SMS** or **Transfer to a person**), a knowledge base it searches,
+calendar tools that check availability and book appointments, and phone menu
+navigation. Not every one of them runs on every call. The agent page says
+which do, so nothing is silently left out.
+
+Nothing on this page switches anything on. A knowledge base or a calendar
+reaches an AI agent only when you attach it to that AI agent.
+
+## Where to find it
+
+Open the AI agent in the workspace and choose **Tools**. Below the tool
+settings, **What runs on calls** has one row for each tool the AI agent has,
+plus its knowledge base search, its calendar tools and phone menu navigation,
+and one column for each kind of call:
+
+| Column | Which calls |
+| --- | --- |
+| **Inbound calls** | Calls to a number that answers with this AI agent |
+| **Outbound calls** | Calls the AI agent places, campaign calls included |
+| **Browser test** | The test panel on the agent page |
+| **Homepage demo** | Only in the workspace whose AI agents appear in the Skysay homepage demo |
+
+A cell reads **Runs** when the AI agent is offered that item on such a call.
+Otherwise it names the reason, and the **?** next to it explains it (Tab reaches
+it, Enter opens it, Escape closes it). The **Knowledge** section shows the same
+answer for the knowledge base search, under the attached bases.
+
+The page describes the AI agent as last saved. Each row also says when the
+answer is the same on every engine.
+
+## Engines
+
+The answers are shown for the engine selected in the editor. Choose another
+engine and the panel shows that engine's answers before you save.
+
+Tools, knowledge bases and calendar tools reach Cascade, Gemini Live and
+GPT-Live the same way. Two things differ by engine today:
+
+- **Workflows.** GPT-Live and Gemini Live cannot run a workflow call yet, so an
+  AI agent with a published workflow on one of them has its outbound calls
+  refused before they start (**Engine can't run workflows**).
+- **Phone menu navigation.** GPT-Live does not navigate phone menus yet
+  (**Engine not supported**); see [Phone menu navigation](/docs/phone-menu-navigation).
+
+## AI agents with a workflow
+
+Outbound calls of an AI agent with a published
+[workflow](/docs/agent-workflows) run the workflow, and a workflow call does
+not offer the AI agent's own tools, knowledge bases or calendar tools yet. The
+panel shows **Not in workflows yet** for them on outbound calls. Phone menu
+navigation still runs on those calls.
+
+Inbound calls run without the workflow unless you armed a workflow phone test,
+and so does the browser test on the agent page; the panel shows what runs on
+them. The homepage demo does not run an AI agent that has a published workflow.
+
+## Reasons
+
+| Shown as | Code | Meaning |
+| --- | --- | --- |
+| Not in workflows yet | `workflow_call` | These calls run the published workflow, which does not offer the AI agent's tools, knowledge bases or calendar tools yet. |
+| Engine can't run workflows | `engine_cannot_run_workflows` | These calls run the published workflow and the engine cannot run workflow calls yet, so they are refused before they start. |
+| Not on the demo | `homepage_demo_refuses_workflows` | The homepage demo does not run an AI agent with a published workflow. |
+| Too many tools | `tool_budget` | A call holds at most 32 tool names, counting the built-ins and the knowledge base search. Until the tools fit, calls are refused, or run without an added built-in (Save a callback) or without phone menu navigation. |
+| Invalid tool name | `tool_contract_unsafe` | Every tool name must be at most 32 lowercase letters, digits and underscores, starting with a letter. Until then, calls are refused. |
+| Can't be offered | `not_buildable` | The voice service cannot offer this entry (an unknown type, a repeated or reserved name, or a missing schema). Calls leave it out and record a `configured_tool_omitted` event. |
+| No SMS template | `sms_templates_missing` | SMS is set to templates only and the AI agent has no SMS template. |
+| Integration off | `integration_unavailable` | The integration action, or its integration, is switched off in this project. |
+| Calendar not connected | `calendar_connection_inactive` | The calendar the tools use is not connected and active. Reconnect it under **Integrations**. |
+| Not available yet | `calendar_fleet_not_ready` | Calendar tools are offered once every running voice server supports them. |
+| No ready document | `knowledge_not_ready` | None of the attached knowledge bases has a processed document yet. |
+| Needs a phone call | `needs_phone_caller` | The tool acts on the caller's phone number (a text, a transfer, a callback or the call's outcome), and this kind of call has none. |
+| Test calendar only | `calendar_test_writes_off` | A browser test books only on a calendar connection marked as a test calendar with test bookings allowed. Checking availability still works. |
+| Outbound only | `outbound_only` | Phone menu navigation is used only on calls the AI agent places. |
+
+Phone menu navigation can also show the reasons its own setting explains, such
+as **Engine not supported** or **Language not supported**; see
+[Phone menu navigation](/docs/phone-menu-navigation).
+
+## What it does not check
+
+The panel says what an AI agent is offered, not what a given call does. Every
+call still checks that the workspace and the AI agent are not suspended, the
+balance, permission to call the number, the carrier's SMS support and each
+tool's own service, and its result is in the call's timeline. A booking still
+reads the details back and waits for the caller's clear yes; see
+[Calendar booking](/docs/calendar-booking).
+
+## For API clients
+
+The page reads `capabilities` from the agent editor's workspace read,
+`GET /v1/dashboard/agent-config`; the [OpenAPI reference](/docs/openapi)
+describes its fields and every reason code.
