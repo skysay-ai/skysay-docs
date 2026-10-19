@@ -347,6 +347,69 @@ agent moved to and why. Both sit inline with the turns, so you can see that the
 agent looked something up before it answered, or that it changed language after
 the caller did.
 
+### Closing requests are not disconnections
+
+For `end_call`, a successful tool row means the handler ran successfully. It
+can request a close that is still revocable. It does **not** mean the other
+person was disconnected, and the tool's duration is not hangup latency.
+
+Calls shows separate closing receipts when the worker captured them:
+
+- **Closing request accepted**: the existing close owner accepted a pending
+  proposal. Another invocation can join that proposal; both requests remain
+  visible.
+- **Request canceled — caller speech detected**: the owner observed caller
+  speech and withdrew that proposal. This does not certify what the person
+  meant or that the model understood a new question.
+- **Closing committed — disconnect requested**: the owner passed its
+  non-reclaimable boundary. This is still distinct from media disconnection.
+- **Provider close command submitted**: the native adapter handed a close
+  command to its socket writer. Submission alone does not prove delivery or
+  an ended call.
+- **Call ended**: an independent canonical call-lifecycle ending. It is not
+  linked to a prior request unless that relationship was recorded. The actual
+  ending reason remains separate, including a remote hangup or platform limit.
+
+Expand **Closing details** for the safe reason, source and call-scoped request
+and proposal IDs. A shared tool reference identifies the tool definition;
+it does not identify one execution. Repeated requests are kept, not collapsed
+by tool name.
+
+Older recordings without owner receipts say **Tool succeeded — closing outcome
+not recorded** or **Tool returned error — reason not recorded**. The latter
+cannot distinguish a refusal from a runtime error. Skysay does not reconstruct
+cancellation, acceptance or a reason from nearby speech or a model farewell.
+
+This evidence arrives **after the call**, through recording import. A known
+queued or running import reads **Closing details processing**. Missing import
+state stays unavailable. A request without a retained disposition reads
+**Closing outcome not recorded**, rather than remaining pending forever.
+
+The dedicated closing section is bounded separately from verbose worker logs:
+at most 200 displayed receipt moments and 64 KiB at import, keeping a bounded
+head and tail plus a fixed final-commit/terminal summary. Source-observed counts
+can exceed the retained list; partial detail and drops stay explicit. Import
+retries replace the validated source summary rather than adding its counters.
+Deleting the recording deletes its closing receipts. An independently retained
+canonical call ending can remain.
+
+Offsets use the recording clock only when known. Missing clocks read **Time
+unavailable** after timed items; they are not invented from wall time. A receipt
+outside the recording retains its offset and is labeled accordingly, without a
+seek control. No latency is calculated across different clocks.
+
+`GET /v1/calls/{call_id}/observability` returns the same bounded
+`closing_evidence`: `completeness`, `reason`, `capture_finished`, `counts`,
+`dropped`, `items`, `returned`, `limit`, `ending_reason`, and `final_state`.
+Each item carries its stage, safe source/owner/reason, request/proposal identity,
+and nullable recording offset. The Calls aggregate interleaves those receipts
+with its existing transcript timeline. The paginated transcript endpoint keeps
+its existing turn/uncaptioned-speech stream; it does not acquire closing rows
+or a new cursor format. There is no separate closing endpoint or live stream.
+
+These receipts describe existing voice closing decisions. They add no hangup
+policy, payment rule or setting, and do not give SMS a call-closing behavior.
+
 ### What is recorded, and what is not
 
 The rows are built from a fixed set of typed fields. **Nothing the model or the
