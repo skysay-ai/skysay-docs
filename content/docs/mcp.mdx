@@ -6,9 +6,8 @@ icon: Server
 
 Skysay speaks **MCP** (Model Context Protocol). An MCP-capable client points
 at the hosted endpoint, connects with OAuth or a scoped API key, and the Skysay tools appear in
-`tools/list` — ready to call. This is the universal path; the
-[OpenClaw connector](/docs/install-connector) and the
-[REST API](/docs/rest-endpoints) are convenience wrappers around the same tools.
+`tools/list` — ready to call. The [client setup recipes](/docs/install-connector) configure this endpoint;
+the [REST API](/docs/rest-endpoints) exposes the same capabilities.
 
 ## The endpoint
 
@@ -37,6 +36,44 @@ its organization ID.
 Manage and revoke connections from **Connected apps** on the [API keys](https://skysay.ai/api-keys) page in the Skysay workspace.
 Revocation invalidates the connection's tokens. Existing API keys continue to
 work independently and must be revoked separately.
+
+### Verified email signup during OAuth
+
+A supported MCP client opens Skysay's existing verified email OTP or supported
+social sign-in. Complete verification in the browser, then review the client,
+workspace and permissions and choose **Allow access** or **Deny**. Verification
+alone grants no MCP access. PKCE returns to the originating registered client.
+No arbitrary HTTP tool, custom bearer header or API key is needed for signup.
+Reconnecting uses the same workspace without another welcome grant.
+
+Unverified contact email never grants access to a stored phone identity or
+links its workspace. Existing phone-owned API keys remain valid until revoked,
+but phone browser sign-in is deferred with SMS signup. Cross-account linking
+is not provided. Use your verified email/social account's own workspace.
+Expired or used connection requests must be restarted from the client.
+
+The single $5 welcome credit has no expiry and applies only to authenticated
+metered browser testing in Skysay. Number setup/rental, PSTN and SMS require
+purchased funds and ordinary readiness and metering. Optional approved funding
+is available without a phone identity through `create_wallet_topup` with
+explicit `wallet:write` consent. The permission is offered unticked and approves
+no purchase. Each payment still needs approval of the exact amount, wallet
+currency and purpose. The tool returns a direct Stripe hosted-checkout URL, or
+accepts an owner-approved shared payment token from a compatible host/wallet.
+It uses the same billing service as the retained payment API; the historical
+headless URL does not enable signup. See [payment paths and limits](/docs/billing#adding-funds-through-mcp).
+
+Client connection support and directory permissions remain separate. The
+public Claude listing remains read-only; calling requires a separately allowed
+full connection with consented calling scopes. OAuth does not itself approve
+payments, number purchases or billable calls. See [Billing](/docs/billing).
+
+`create_wallet_topup` is absent from the public read-only connector. MCP tool
+availability does not establish native payment support in ChatGPT, Claude,
+Codex or Grok. This server returns ordinary tool results and does not negotiate
+or send MCP elicitation requests. A checkout link opens Stripe in a browser;
+JSON seller/approval metadata is not a native payment card. Actual entirely
+in-chat and default-card merchant acceptance remain unproven.
 
 ### OAuth client configuration
 
@@ -67,6 +104,44 @@ consent returns a `403` scope challenge. Only the scopes advertised by the
 authorization server can be granted through OAuth; the API-key catalogue is
 broader. Skysay does not currently provide OpenID Connect UserInfo or the
 `openid` and `email` scopes for ChatGPT Enterprise workspace-domain restrictions.
+
+### Permissions, consent and reconnecting
+
+The resource discovery document lists **every** scope an OAuth client can be
+granted in `scopes_supported`, including `calls:write` (place calls). A client
+may ask for any of them; if it asks for nothing, it gets the read set.
+
+The consent screen shows each permission as a checkbox. What is ticked when you
+press **Allow access** is exactly what the app gets:
+
+- what the app asked for starts ticked;
+- what you already allowed it starts ticked, under **Already allowed**;
+- **Place calls** is offered unticked under **You can also allow** when the app
+  did not ask for it, so an assistant that never completes a scope step-up can
+  still be allowed to place calls.
+- **Add purchased funds** (`wallet:write`) is also offered unticked on a full
+  connection when neither requested nor already allowed. It enables
+  `create_wallet_topup`; it approves no payment. Each purchase needs separate
+  owner approval of the exact amount, currency and purpose. It is unavailable
+  on the read-only connector; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
+
+Connecting the same app again never takes a permission away on its own: approval
+keeps everything already allowed and adds what was asked for, so tokens issued
+earlier keep working. A permission is removed only when you untick it (or
+disconnect the app under **Connected apps**).
+
+When a tool needs a permission the connection lacks, the `403` scope challenge
+names it in `WWW-Authenticate` and in the body:
+
+```json
+{
+  "error": "InsufficientMcpScope",
+  "message": "additional consent is required for this tool: calls:write",
+  "missing_scopes": ["calls:write"]
+}
+```
+
+Reconnect and tick the named permission.
 
 ## Read-only connector for Claude
 
@@ -101,24 +176,17 @@ will not create sample data or provision numbers to fill them.
 
 ## Connect from the workspace
 
-You do not have to assemble the configuration by hand. The
-**[API keys](https://skysay.ai/api-keys)** page in the workspace carries a
-**Connect an AI assistant** card: create a key with only the scopes the
-assistant should have, then copy the ready-made server entry it shows and paste
-it into the assistant's MCP settings, replacing the placeholder with that key.
+The workspace's **[API keys](https://skysay.ai/api-keys)** page creates scoped
+keys. Its server entry is connection information, not a universal client
+configuration. Use the [Claude Code recipe](/docs/claude-code) or
+[Codex recipe](/docs/codex) for the required transport and credential fields;
+other clients have their own setup and OAuth support. Do not paste a key
+value into client configuration; use the recipe's environment-variable
+reference or its OAuth flow.
 
-```json
-{
-  "url": "https://api.skysay.ai/mcp",
-  "headers": {
-    "Authorization": "Bearer sky_YOUR_KEY"
-  }
-}
-```
-
-Use this canonical API URL for every new connection. The assistant can do
-exactly what the key allows and nothing more, and revoking the key disconnects
-it.
+Use `https://api.skysay.ai/mcp` for the full resource, or
+`https://api.skysay.ai/mcp/read-only` for five read tools and no writes. API keys
+and OAuth grants are independent. Revoking one does not revoke the other.
 
 ## Results, errors and tool metadata
 
@@ -171,9 +239,11 @@ are refused before tools run.
 
 ### Bounded results and paging
 
-`account_overview`, `list_agents`, `list_calls` and `list_numbers` grow with
-your workspace, so each answers with at most **25,000 characters** of result
-text, however large the workspace is.
+`account_overview`, `list_agents`, `list_calls`, `list_numbers`,
+`list_contact_lists` and `list_contacts` grow with your workspace, so each
+answers with at most **25,000 characters** of result text, however large the
+workspace is. `list_contact_lists` takes `limit` 1 to 50 (default 20) and
+`list_contacts` 1 to 100 (default 25); both page with `cursor` the same way.
 
 The three list tools return one newest-first page:
 

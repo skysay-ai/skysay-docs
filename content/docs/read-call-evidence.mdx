@@ -9,6 +9,17 @@ reads available evidence with the call and recording tools. Failed calls and
 offline synthetic fixtures need not have real audio; check recording state
 rather than assuming every call has a recording.
 
+## A completed call with no recording
+
+A completed call can have no recording and no transcript because no audio was
+captured on the line. Most often the person on the other end hung up before
+the greeting finished. The Calls page says so on that call: "The caller hung
+up before the greeting finished" on an inbound call, "The called person hung
+up…" on an outbound call, "The tester left before the greeting finished" on a
+browser test, and "No audio was captured on this call" when nothing was
+captured for another reason. A completed call with no recorded reason shows
+"No recording for this call." The call's ending and billing are unaffected.
+
 ## The evidence tools
 
 ```text
@@ -124,6 +135,15 @@ text; its missing-caption markers remain visible.
 
 ## What a recording contains
 
+The transcript does not have to alternate between caller and AI agent. On the
+standard STT/LLM/TTS pipeline, consecutive recorded agent replies remain separate
+entries even when the caller has not spoken between them. For example, a short
+acknowledgement followed by the answer should show both replies. An interrupted
+reply can contain text that was not heard in full; check its playback evidence
+and the recording. Text prepared for speech that never played is not proof the
+caller heard it. This applies to newly recorded calls, not a repair of old
+transcripts.
+
 A `recording` is the call's audio metadata plus:
 
 - **Waveform peaks** — about 200 loudness values across the whole call, for
@@ -238,6 +258,15 @@ button only when its text can be matched safely to its own recorded audio.
 Gemini's late captions can therefore leave a turn without a clip even when the
 full-call waveform correctly shows purple person audio.
 
+Calls recorded before this change keep the timing they had, with one
+exception: on some of them, the caller's turns had no measured start and end,
+and Skysay went back to those calls after they ended and located each turn's
+words on the caller's side of the recording. A turn whose words could be placed
+with high confidence now has a measured start and end, so it is coloured and
+sits at the moment it was spoken; a turn that could not be placed stays grey.
+Where a turn's own clip turned out to hold other audio, that turn no longer
+offers turn-by-turn playback.
+
 The player reads only the start of the file when a call opens, so its length is
 known before you press play. From the press until audio actually plays it shows
 a loading state, and if the recording cannot be loaded it says so and offers
@@ -296,7 +325,8 @@ ended reason.
 
 Between the transcript turns, the Calls workspace shows each tool the agent
 finished and each language switch it made, in the order they happened on the
-call.
+call. The caller's own turns always stay in the order they were spoken, even on
+a call where only some of them have a measured start.
 
 A tool row shows the tool's name, whether it succeeded or failed, how long it
 took, and its offset into the call. A language switch shows the language the

@@ -1,0 +1,273 @@
+---
+title: Connect Grok Bot to Skysay
+description: Give Grok Bot a phone number in 100+ countries. Check coverage, connect hosted Skysay MCP, and approve calls and SMS separately.
+icon: Sparks
+---
+
+<img
+  src="/docs-assets/images/docs/grok-bot-hero.png"
+  alt="Grok Bot holding a Skysay phone beside a world map marked 100+ countries"
+  width="1600"
+  height="900"
+  style={{ display: 'block', width: '100%', maxWidth: '480px', height: 'auto', marginInline: 'auto' }}
+/>
+
+## Start with the Skysay Caller template
+
+[Open the Skysay Caller template](https://x.ai/bot/_UO6crmwQ8v1CHurN4rDQ)
+to give Grok a starting point for calls, incoming answering and SMS. Review the
+template description and third-party terms, then add it in the **Grok Bot app**.
+
+The template includes setup instructions, not a connected Skysay account,
+credentials, phone number or funds. In the template Bot, ask it to connect
+**your own workspace** using Option 1 or Option 2 below. A new Bot may inherit
+an existing account-wide connection, which
+does not prove a fresh signup. Phone calls, number costs and SMS require
+purchased funds and separate approval. The [$5 browser-testing credit](/docs/billing#your-browser-testing-credit)
+does not cover phone service. Availability depends on the number's channels
+and carrier requirements. This public template is not a marketplace listing.
+
+## Option 1: Let Grok Bot set up a new account
+
+Start **Connect Skysay** in an ordinary OAuth-capable MCP client. Sign up or
+sign in using Skysay's existing verified email code or supported Google/GitHub
+sign-in, review the client, workspace and permissions, and explicitly consent.
+Skysay returns you to the originating client through PKCE. No arbitrary HTTP
+tool, custom bearer header or pre-created workspace is needed for this route.
+
+Paste this into a fresh Grok Bot that has no authorized Skysay connection:
+
+```text
+Read https://skysay.ai/docs/grok-bot and help me connect a new Skysay account.
+Start a NEW remote MCP connection at https://api.skysay.ai/mcp using normal
+OAuth. Let me sign up/sign in with verified email or a supported social
+account in Skysay's browser page, then explicitly consent to the correct
+client, workspace and permissions before returning here. Do not ask for my
+email code or credentials in chat. If this client cannot add an OAuth MCP
+connection, explain that limitation. Do not reuse an existing account-wide
+connection as proof of new-user signup.
+
+Prove this connection with account_overview. The single $5 welcome credit
+has no expiry and is ONLY for authenticated metered browser testing in the
+Skysay workspace. It cannot buy a number or pay for real telephone calls or
+SMS. Help me configure a supported voice AI agent and test it in the browser.
+
+Ask for my full country name and optional city/area code. Check live coverage,
+number catalog prices, number type and carrier restrictions. Show setup and
+monthly fees. Before any number purchase, telephone call or SMS, show the
+expected cost and ask for my approval and purchased funding. A pending number
+request does not prove purchase or activation; check each state separately.
+Use normal request_number after
+I approve the displayed prices and wait for activation and channel readiness.
+Outside the United States, Canada, United Kingdom and Mexico, outbound calls
+and SMS require carrier review and depend on number type. Do not promise them.
+
+For a top-up, read my wallet currency with account_overview, show the exact
+amount, currency and purpose, and ask for my approval. With my separately
+consented wallet:write permission, use create_wallet_topup. For card_checkout,
+give me the direct Stripe checkout URL; do not require a Skysay dashboard
+visit. If this client has a compatible wallet, it may obtain a seller-bound
+shared payment token after my approval and submit it instead. Never collect
+card numbers, CVC, passwords or OTPs in chat. Permission consent approves no
+purchase. Explain any unavailable tool, host-wallet or seller configuration.
+Retry an uncertain payment with the same idempotency key and parameters;
+check purchased wallet funds after the signed webhook. A JSON approval
+challenge is not native checkout. Do not claim entirely-in-chat or default-card
+acceptance from a tool result, local fixture or Stripe sandbox proof.
+Only place a real call after I approve its caller, recipient, task and cost.
+Read the terminal result; a call ID alone is not an answered or completed call.
+Never log my code, session, API key, payment token or card details.
+```
+
+The same server-side OAuth flow serves Grok, ChatGPT and Claude where their
+clients permit it. Client support, tool availability and directory permissions
+remain separate: the current public Claude listing is read-only. A full
+connection needs its own supported path and consented write scopes.
+
+## Prerequisites
+
+- A client supporting remote MCP OAuth and permission to connect a workspace.
+- Access to your email mailbox or a supported social account. Enter verification
+  codes only on Skysay's sign-in page; SMS signup is unavailable in this release.
+- Owner-approved purchased funds for number setup/rental, all PSTN calls and
+  SMS. The once-per-customer $5 credit is for browser testing only.
+
+Connecting does not activate a number or authorize spending. Start with a
+successful read and enable only the actions you need. Unverified contact email
+never links an existing phone-owned workspace. See [MCP authentication](/docs/mcp).
+
+## What Grok Bot does
+
+Grok opens the ordinary OAuth connection. You complete verified email/social
+sign-in, review the workspace and consent, then return to Grok. Reconnection
+uses the same workspace and does not mint another welcome grant.
+
+Use **Agents → select an AI agent → Talk to it** in Skysay for the browser
+credit. For a real number, inspect `get_coverage` and `get_number_catalog`,
+approve the displayed prices and fund the wallet before paid fulfillment.
+`request_number` may record a request awaiting funds or documents; wait for
+actual activation. Set `customer_purchase_confirmed: true` only after the
+owner approves the displayed prices. Phone calls and SMS use purchased funds and ordinary
+metering, duration, renewal and carrier controls. There is no free owner-call
+exception or special 60-second telephone trial.
+
+A client with secure API-key support may alternatively connect an existing
+workspace with a scoped key. This is not a headless signup route and is not
+required for OAuth clients. Do not paste keys into chat.
+
+Optional top-ups use `create_wallet_topup` with separately consented
+`wallet:write`. It calls the same billing service as the retained
+`POST /v1/agent/onboarding/headless/payments` API; email/social workspaces need
+no phone identity. The owner approves the exact amount, wallet currency and
+purchase purpose. Hosted checkout returns a direct Stripe URL, where the owner
+completes payment. A compatible wallet may instead supply an owner-approved
+shared payment token; that path also needs a configured Stripe seller profile.
+Only a signed, matching webhook adds purchased funds. See
+[MCP payments and their limits](/docs/billing#adding-funds-through-mcp).
+Actual native-client, Link/default-card and merchant acceptance remain pending
+external proof. Ordinary **Billing → Add funds** remains available separately.
+
+Numbers are offered in **100+ countries**, subject to current availability,
+number type, documents and carrier review. A listed country does not mean all
+channels are ready. No local bridge or downloaded MCP server is needed.
+
+## Option 2: Configure the connection yourself
+
+Ask Grok Bot to add a custom remote MCP server named Skysay with the values
+below. Complete the connection card's sign-in flow if it appears. To inspect an
+existing connection, open **Connect apps → Your plugins → Skysay** and check
+the URL and connected status. Installed connectors are shared across your
+account's Bots, so a fresh Bot can use an existing authorized connection.
+
+If the connection cannot be added or authenticated, stop and use a
+[supported MCP client](/docs/install-connector) instead of pasting a secret
+into chat. See [Grok Bot's app connection guide](https://docs.x.ai/grok-bot/computer-and-apps#connect-an-app).
+
+| Field | Value |
+| --- | --- |
+| Server URL | `https://api.skysay.ai/mcp` |
+| Transport | Streamable HTTP |
+| Authentication | OAuth authorization code with PKCE S256 |
+| API-key alternative | `Authorization: Bearer YOUR_SKYSAY_API_KEY`, only in a secure connection credential field |
+| Fixed read-only resource | `https://api.skysay.ai/mcp/read-only` |
+
+For API-key setup, [create a scoped workspace key](/docs/authentication).
+Never paste it into a conversation or commit it. For OAuth, review the requested
+permissions before consenting. Start the workspace read with `account:read`;
+add `coverage:read` for the coverage checks and the specific write scopes only
+when you decide to enable those actions. See [Scopes](/docs/scopes).
+
+Some clients request several scopes together. Check the actual consent page;
+decline if the bundle grants more access than you accept. Bot approval rules
+are behavioral safeguards, not an OAuth-enforced confirmation for each action.
+
+Then ask Grok Bot:
+
+```text
+Use Skysay account_overview and summarize the result.
+Do not perform writes, place calls or send SMS.
+```
+
+The fixed read-only resource has five workspace read tools and deliberately
+excludes coverage checks and writes. Its OAuth resource and token are separate
+from the full endpoint; reconnect when switching resources.
+
+## Coverage and limits
+
+Numbers are available in 100+ countries. Always check live `get_coverage` and
+`get_number_catalog` results for the country and number type you want.
+
+| Country examples | Inbound calls on an active local number | Outbound calls and SMS |
+| --- | --- | --- |
+| United States, Canada, United Kingdom, Mexico | Available | Check the number's channels, workspace readiness and any messaging registration first. |
+| Germany, France, Spain, Italy, Poland | Available immediately once active | Carrier review required first; do not assume either channel is enabled. |
+| Brazil, Argentina, Australia | Available immediately once active | Carrier review required first; do not assume either channel is enabled. |
+| Belgium, Switzerland | Available immediately once active | Carrier review required first; SMS also depends on the number type. |
+| United Arab Emirates | Check toll-free availability and business registration | The public UAE toll-free offer is inbound voice only. |
+
+Number availability and activation requirements vary. "Inbound immediately"
+describes an active number's capability, not an instant-purchase guarantee.
+Workspace outbound approval and a number's carrier review are separate checks;
+neither makes every number SMS-capable.
+
+**Costs:** pay as you go has no monthly platform fee. Number rental, setup,
+carrier minutes, hosted voice AI and SMS are charged separately. Use the quote
+shown before assignment or use and the [public pricing page](https://skysay.ai/pricing).
+
+**Workspace limits:** pay as you go supports up to **10 simultaneous calls**
+and **10 billed numbers**. Workspace risk limits and carrier capacity may be
+lower. `get_capabilities` shows current channels, destinations, caps and usage.
+For higher limits, [contact Skysay](https://skysay.ai/contact).
+
+Calls also have duration and silence controls. See
+[How a call ends](/docs/how-calls-end). Before each outbound action, check
+[Policy & outbound](/docs/policy-and-outbound). A refusal needs the named
+readiness issue resolved; do not retry it automatically.
+
+## Things to ask Grok Bot
+
+Start with an approved caller number, a configured voice AI agent and a
+destination you own or whose recipient agreed to the call. For example:
+
+```text
+Check my UK number's outbound readiness and my voice agent's English setup.
+Prepare one short test call to the number I provide. Show me the caller,
+recipient, task and expected cost, and wait for approval before dialling.
+Afterwards, report the terminal status and transcript if available.
+```
+
+Once you have tested that path, adapt the task:
+
+```text
+Prepare a call to a restaurant in Madrid in Spanish to ask about a table for
+4 on Friday at 21:00. Use my approved outbound-capable number and a published
+Spanish voice agent. Show me the recipient, instructions and cost first.
+Instruct the agent to ask about availability only and not confirm a booking or
+alternative date. Report back so I can decide what to approve next.
+```
+
+```text
+Check whether my number can send SMS. Prepare this text to the recipient I
+provide: "Hi Maria, see you Wednesday at 10. Reply if anything changes."
+Show me the sender, recipient, exact message and cost before sending.
+```
+
+```text
+Help me assign a published inbound voice agent to my active Berlin number
+to take messages while I am busy. Show me the configuration before changing
+it. Do not enable outbound calls or SMS without the required carrier review.
+```
+
+Recurring reminders need a separately configured scheduler. Receiving calls
+needs an assigned inbound agent; a post-call SMS summary needs a separate
+automation and an SMS-capable, approved sender. These examples do not set
+those automations up automatically.
+
+The approval instructions are for your assistant; OAuth does not enforce a
+human confirmation for every billable tool call. Follow the
+[billable-action controls](/docs/quickstart#before-any-billable-action), including
+recipient consent, AI disclosure and recording requirements for your use case.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Connected, but no tool result | Ask for `account_overview`; a saved connection alone proves nothing. |
+| HTTP 401 or sign-in loop | Complete OAuth again, or check the key. Tokens for the two MCP resources are separate. |
+| Coverage tool refused | Use the full `/mcp` resource with `coverage:read`. |
+| Call or SMS refused | Read `get_capabilities` and the number's rules; carrier review, channel support, funds or caps may block the action. |
+| Number request waits | Check the request status and required documents. For an assigned number, `get_number_rules` explains its rules. |
+| Call ID returned, but no answer | Read the call status and evidence before claiming success. |
+
+## Next steps
+
+<Cards>
+  <Card title="MCP overview" href="/docs/mcp" description="OAuth, API keys, scopes and the read-only resource." />
+  <Card title="Make your first outbound call" href="/docs/make-first-outbound-call" description="Readiness checks, approval and the actual call result." />
+  <Card title="Receive incoming calls" href="/docs/receive-inbound-calls" description="Assign a hosted voice AI agent to answer your number." />
+  <Card title="Send SMS" href="/docs/send-sms" description="SMS-capable numbers, approval and delivery." />
+  <Card title="Multilingual calls" href="/docs/multilingual-outbound" description="Configure and test the recipient's language." />
+  <Card title="Tool reference" href="/docs/tool-reference" description="Skysay MCP tools and required scopes." />
+</Cards>
+
+Docs for agents: [llms.txt](https://skysay.ai/llms.txt)

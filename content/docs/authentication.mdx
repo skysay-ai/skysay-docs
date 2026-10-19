@@ -52,17 +52,25 @@ Pass the key on every call to `POST /mcp` (or the REST API):
 Authorization: Bearer sky_your_scoped_key
 ```
 
-Over the OpenClaw connector the key lives in the mcporter `env` block as
-`SKYSAY_API_KEY`; the stdio bridge attaches it to each JSON-RPC call. It is a
-secret — never commit it, never put it in `SKILL.md`.
+For [Claude Code](/docs/claude-code) and [Codex](/docs/codex), supply the key
+through `SKYSAY_API_KEY` in the process environment. Keep the value out of
+committed configuration, prompts, screenshots and logs. Environment variables
+are available to local programs with access to that process; they are not a
+secret boundary against the assistant itself.
 
 ## Minting a key
+
+For ordinary setup, sign in and create a narrow key on the workspace's
+[API keys](https://skysay.ai/api-keys) page. The REST example below is for an
+existing authenticated administration client; it is not a prerequisite for
+connecting your first MCP client.
+
 
 ```bash
 curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
   -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"OpenClaw agent",
+  -d '{"name":"MCP client",
        "scopes":["account:read","coverage:read","agents:write",
                  "calls:read","recordings:read"]}'
 ```
@@ -325,12 +333,14 @@ and those are answers about the request, not about the service.
 
 ## Rotate / revoke
 
-Mint a new key, swap the mcporter `env`, then revoke the old one:
+Mint a new key, update `SKYSAY_API_KEY` in the environment that launches your
+client, restart the client and verify a read, then revoke the old one:
 
 ```bash
 curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys/{key_id}/revoke" \
   -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN"
 ```
 
-The bridge is stateless, so there is no downtime on the Skysay side. See the
-full [scope catalog](/docs/scopes) for every scope and the tool it gates.
+Do not revoke the old key before verifying the new connection if you need an
+uninterrupted workflow. See the [scope catalog](/docs/scopes) for every scope
+and the tool it gates.
