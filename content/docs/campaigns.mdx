@@ -70,8 +70,15 @@ curl -X POST https://api.skysay.ai/v1/contact-lists \
   }'
 ```
 
-- `time_zone` defaults from the number's country (`+233…` becomes
-  `Africa/Accra`); set it per row when you know better.
+- `time_zone` is an IANA time zone such as `America/New_York`. Case does not
+  matter, and another spelling of a zone is stored as the zone it names:
+  `US/Eastern` and `america/new york` become `America/New_York`, `Europe/Kiev`
+  becomes `Europe/Kyiv`, and `EST` becomes `America/Panama`, which is what
+  `EST` means in the IANA database (UTC−5 all year, no daylight saving). An
+  offset such as `UTC-5` is refused, and the row's reason gives an example.
+  Left empty, it comes from the number when the number has only one zone
+  (`+233…` becomes `Africa/Accra`); set it per row when you know better. The
+  same rules apply to a campaign's `time_zone`.
 - `first_name` is the contact's own first name: at most 80 characters, no
   `{` or `}`, and an empty value clears it. It is stored and returned with the
   contact, separately from `name` and from any custom variable you also call
@@ -453,5 +460,6 @@ latest run.
 The same operations are available over MCP as `create_contact_list`,
 `add_contacts`, `add_do_not_call`, `create_campaign`, `update_campaign`,
 `launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`,
-`list_campaigns` and `get_campaign`. The CSV exports, the results page and
+`list_campaigns` and `get_campaign`, and contact lists are readable with
+`list_contact_lists`, `get_contact_list` and `list_contacts` (`calls:read`). The CSV exports, the results page and
 the review inbox are REST-only.

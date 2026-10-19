@@ -1,17 +1,23 @@
+import { loadBlogCorpus } from "@/lib/llms-blog";
 import { blogSource, getLLMText, source } from "@/lib/source";
 
 // Site-root /llms-full.txt: the WHOLE docs + blog corpus in one pull, with a
 // header block that cross-links the API surface so an agent gets docs + API in
 // one request.
-export const dynamic = "force-static";
+//
+// The blog corpus comes from the blog app's /blog/llms-full.txt, falling back
+// to the bundled legacy snapshot (see src/lib/llms-blog.js), so this route is
+// regenerated every 5 minutes instead of being frozen at build time.
+export const revalidate = 300;
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://skysay.ai";
 
 export async function GET() {
   const docsPages = source.getPages();
-  const blogPages = [...blogSource.getPages()].sort(
-    (a, b) => (b.data.date ? new Date(b.data.date).getTime() : 0) - (a.data.date ? new Date(a.data.date).getTime() : 0),
-  );
+  const blogPages = () =>
+    [...blogSource.getPages()].sort(
+      (a, b) => (b.data.date ? new Date(b.data.date).getTime() : 0) - (a.data.date ? new Date(a.data.date).getTime() : 0),
+    );
 
   const header = `# Skysay — full docs + blog corpus
 
@@ -36,7 +42,9 @@ Each page below is also available as raw markdown at <page-url>.md.
 ---`;
 
   const docsBody = (await Promise.all(docsPages.map((page) => getLLMText(page)))).join("\n\n---\n\n");
-  const blogBody = (await Promise.all(blogPages.map((page) => getLLMText(page)))).join("\n\n---\n\n");
+  const blog = await loadBlogCorpus(async () =>
+    (await Promise.all(blogPages().map((page) => getLLMText(page)))).join("\n\n---\n\n"),
+  );
 
   const body = `${header}
 
@@ -47,8 +55,9 @@ ${docsBody}
 ---
 
 # Blog
+${blog.marker}
 
-${blogBody}
+${blog.body}
 `;
 
   return new Response(body, {

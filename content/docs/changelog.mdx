@@ -12,6 +12,166 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 19 October 2026
+
+### Connect and fund a workspace through MCP
+
+- Connect a supported AI client through Skysay's existing email or social sign-in, then choose its workspace and permissions.
+- After you grant payment permission, `create_wallet_topup` returns a Stripe checkout link or accepts an approved token from a compatible wallet.
+- Each top-up still needs your approval of its exact amount and currency; phone numbers, calls and SMS use purchased funds.
+- [Connect Grok Bot](/docs/grok-bot) · [MCP permissions](/docs/mcp#permissions-consent-and-reconnecting) · [Add funds through MCP](/docs/billing#adding-funds-through-mcp)
+
+### Phone menu navigation is on by default for every AI agent
+
+- Every AI agent now answers automated phone menus and waits on hold on its outbound calls, without being switched on; turn it off per AI agent under **Tools**.
+- An AI agent you turned off stays off through every later save, and the editor shows one checkbox, ticked unless you untick it.
+- Agents on GPT-Live, or set only to Estonian or Finnish, save and publish normally, show why they don't navigate yet, and place their calls without it.
+- Hold defaults to 600 seconds and menus to 180; inbound calls are unchanged.
+- [Phone menu navigation](/docs/phone-menu-navigation) · [Turn it off or change its limits](/docs/phone-menu-navigation#turn-it-on) · [Which agents can use it](/docs/phone-menu-navigation#which-agents-can-use-it)
+
+### A menu read in pieces is answered as one menu
+
+- When a phone menu pauses mid-sentence, for example "To hear these options again," then "press nine", the agent keeps the pieces of that menu together.
+- It presses a key only once the menu has finished, choosing among all of the menu's options; this can add a few seconds before the key is sent.
+- [What the agent does](/docs/phone-menu-navigation#what-the-agent-does)
+
+## 18 October 2026
+
+### AI agents navigate phone menus and wait on hold
+
+- On outbound calls, a Cascade or Gemini Live agent presses keys or answers spoken menus, waits in hold queues and declines callback offers.
+- Turn it on under **Tools → Navigate phone menus and wait on hold**, or with `navigation` on `PATCH /v1/agents/{agent_id}/voice-stack`; hold defaults to 600 seconds and menus to 180.
+- Menus are navigated in English, German, French, Spanish, Italian, Dutch, Portuguese, Russian and Polish; GPT-Live agents and Estonian or Finnish menus are not supported.
+- Pass a `navigation_hint` in `call_context` to say which options to choose; a call that runs out of menu or hold time ends with `ivr_timeout`.
+- [Phone menu navigation](/docs/phone-menu-navigation) · [Turn it on](/docs/phone-menu-navigation#turn-it-on) · [How these calls end](/docs/phone-menu-navigation#how-these-calls-end)
+
+### Connect a DIDWW number you already own
+
+- In **Numbers → Import a number**, paste one DIDWW API key, pick a number you own and connect it to a published AI agent for incoming calls, outgoing calls or both.
+- Skysay creates dedicated SIP trunks and sets credentials, destination and caller ID itself; you keep the number and your DIDWW account, and nothing is ported.
+- Skysay shows the number's current DIDWW route and asks you to confirm before changing it; DIDWW still controls verification, outbound permissions and balance.
+- [Import a number you own](/docs/import-a-number) · [DIDWW: connect with one API key](/docs/import-a-number#didww-connect-with-one-api-key)
+
+### Calendar booking preview: an AI agent books an appointment the caller confirms
+
+- Connect Google Calendar, Calendly or Cal.com in **Integrations → Calendar booking**, and an AI agent can check free times and book one appointment the caller confirms.
+- Choose a writable calendar or a Calendly or Cal.com event type, the appointment length and the timezone; tokens stay encrypted on the server and never reach the agent.
+- This is a preview: each provider needs its own real-account proof, and only providers the platform has configured offer **Connect**.
+- [Calendar booking](/docs/calendar-booking) · [Connect and select a destination](/docs/calendar-booking#connect-and-select-a-destination)
+
+## 14 October 2026
+
+### Choose an exact number by area code or region
+
+- `POST /v1/available-numbers/search` and `GET /v1/available-numbers` take optional `area_code` and `region` filters, and each row says where the number is.
+- In **Phone numbers → Get a number**, the checkout dialog has area code and state fields and offers **Refresh list** once the list is a few minutes old.
+- A number you picked can still be bought after its list snapshot expires; Skysay checks it with the carrier again before ordering.
+- [Choose an exact number](/docs/regulated-numbers#choose-an-exact-number)
+
+### Carrier requirements are validated before you pay for a regulated number
+
+- For a number that needs registration, **Phone numbers** shows five steps, from verification details to the number becoming active.
+- Skysay approval and a carrier requirement check must both pass before the request asks you to add funds; the check is not the carrier's final approval.
+- Workspace owners get an email after the required carrier proofs are submitted for review.
+- [Validate requirements before funding the purchase](/docs/regulated-numbers#validate-requirements-before-funding-the-purchase)
+
+### See why a call failed and who acts on it
+
+- Finished calls carry a failure label in one of three layers: telephony, audio and media, or AI agent behaviour, each naming who acts.
+- Filter the Calls page by layer or label; campaign pages and each AI agent's overview break failures down the same way.
+- Labels apply to calls made from this release on; earlier calls are not labelled.
+- [Why calls fail](/docs/why-calls-fail) · [Finding failed calls](/docs/why-calls-fail#finding-failed-calls)
+
+### Know why an outbound call was refused before dialling
+
+- A call refused before it dials carries a `refusal` object on `POST /v1/calls`, `GET /v1/calls/{call_id}`, `GET /v1/calls` and the MCP call tools.
+- `POST /v1/policies/authorize-outbound` and the `authorize_outbound` MCP tool check both pre-dial gates in order and name the one that refused in `stage`.
+- [Why a call was refused before dialling](/docs/policy-and-outbound#why-a-call-was-refused-before-dialling) · [Check before you call](/docs/policy-and-outbound#check-before-you-call)
+
+### Calls no longer sit silent when the agent's opening fails
+
+- If the AI agent's opening fails before anything is heard, Skysay asks for it once more when that cannot repeat or overlap anything.
+- If the opening still never reaches the caller, the call ends with `ended_reason` `agent_unresponsive` instead of leaving both sides in silence.
+- The campaign wizard shows **How calls open** for the chosen AI agent and warns when a call could start with both sides waiting.
+- [When the opening never reaches the caller](/docs/voice-behavior#when-the-opening-never-reaches-the-caller) · [Create and launch](/docs/launch-a-campaign#create-and-launch)
+
+### Phone calls wait through mid-sentence pauses
+
+- On phone calls the AI agent holds longer before replying, so a pause after a name, before a number or mid-message no longer ends the caller's turn.
+- Browser tests keep their shorter waits; the agent's voice settings list the seconds behind each preset for its language.
+- [How long the agent waits](/docs/turn-detection-by-language#how-long-the-agent-waits)
+
+### New numbers answer with the right AI agent
+
+- An activated number gets a number rule at once: the AI agent you named, otherwise your only active AI agent, otherwise do not answer.
+- A confirmed purchase in a market where Skysay cannot carry incoming calls is refused with **409** `inbound_coverage_missing`; nothing is created or charged.
+- [Who a new number answers with](/docs/regulated-numbers#who-a-new-number-answers-with) · [Numbers Skysay cannot carry yet](/docs/regulated-numbers#numbers-skysay-cannot-carry-yet)
+
+### Connect AI assistants with exactly the permissions you choose
+
+- The MCP consent screen shows each permission as a checkbox, including **Place calls**, and grants exactly what is ticked.
+- Connecting the same app again keeps the permissions you already allowed, so tokens issued earlier keep working.
+- New MCP tools read contact lists and contacts: `list_contact_lists`, `get_contact_list` and `list_contacts`.
+- [Permissions, consent and reconnecting](/docs/mcp#permissions-consent-and-reconnecting) · [Contacts tools](/docs/tool-reference#contacts)
+
+### Contact time zones accept common spellings
+
+- A contact's or campaign's `time_zone` is matched to the IANA zone it names, so `US/Eastern` is stored as `America/New_York` instead of being refused.
+- **Add contact** offers a searchable time zone list and **From the phone number**; a refused contact keeps the form open with the reason.
+- [Contact lists](/docs/campaigns#contact-lists) · [A list's contacts](/docs/contacts#a-lists-contacts)
+
+### Know why a number can't send SMS
+
+- Skysay says whether SMS is stopped platform-wide or by the number itself.
+- `send_sms` refuses with **400** and a reason naming the number before anything is stored or charged, and the workspace marks the number as unable to send.
+- [When a number can't send](/docs/send-sms#when-a-number-cant-send)
+
+## 12 October 2026
+
+### Retry a stalled GPT-Live reply once
+
+- GPT-Live calls with `end_call` enabled can request one recovery reply when caller input reaches the engine but the engine stops responding.
+- The model can answer a continuing question or request a hang-up; recovery respects caller and tool activity and keeps the original timeout.
+- Recovery is a safety net, not a guarantee that a model responds or ends the call.
+- [When the agent stops answering](/docs/voice-behavior#when-the-agent-stops-answering-altogether)
+
+### Continue speaking during a Standard agent's goodbye
+
+- When Skysay detects you speaking during a Standard agent's pending goodbye, it cancels that ending and keeps caller input open.
+- A later ending needs a fresh `end_call` request; the canceled request cannot disconnect the continued conversation.
+- This depends on speech detection, not the word "no"; missed speech and safety limits can still allow the call to end.
+- [Speaking again during a goodbye](/docs/how-calls-end#speaking-again-during-a-goodbye) · [Call-ending limits](/docs/post-call-results#why-a-call-ended)
+
+### Preserve consecutive Standard agent replies in new transcripts
+
+- Consecutive recorded Standard agent replies remain separate transcript entries, even when the caller has not spoken between them.
+- Interrupted replies may contain words not heard in full; check playback evidence and the recording before treating text as delivered speech.
+- This applies to newly recorded calls; existing transcripts are not repaired by this release.
+- [What a recording contains](/docs/read-call-evidence#what-a-recording-contains)
+
+## 8 October 2026
+
+### Recover a silent GPT-Live opening after reconnecting
+
+- GPT-Live 1 can retry an initial opening once if its model connection restarts before any response begins, within the existing ten-second start timeout.
+- Caller speech, a generated response, tool activity or changed context prevents this recovery; later replies and tool actions are not replayed.
+- This applies automatically to agent-first and callee-first openings; no agent setting or API option is required.
+- [GPT-Live recovery and call evidence](/docs/conversation-engines#call-evidence)
+
+### Number requests link to the verification you complete later
+
+- Submitting verification links the request **Complete verification** started from, and your workspace's other open requests for the same country, number type and business or personal type.
+- When more than one verification profile could apply, Skysay does not choose; support links the request.
+- Approval moves linked requests to their next check in the same step instead of leaving them at `awaiting_verification`.
+- [Where a number request waits](/docs/regulated-numbers#where-a-number-request-waits)
+
+### More reliable transcript translation
+
+- Translation requests no longer fail because Skysay rejected a valid translation response from the language model; earlier requests that failed this way can be requested again.
+- Temporary provider failures are retried automatically up to three times; a translation that still fails releases its reserved funds and is not charged.
+- Translations whose output changes numbers or breaks language checks are refused rather than saved; the original transcript stays readable.
+- [Translate a transcript](/docs/read-call-evidence#translate-a-transcript) · [Translation charges](/docs/read-call-evidence#languages-charges-and-funds)
+
 ## 7 October 2026
 
 ### Recover funds reserved by ended calls
@@ -854,7 +1014,7 @@ services were confirmed deployed.
 - `GET /v1/numbers/requirements` returns `carrier_proof_requirement`, one of `none`, `required` or `unknown`, alongside `registration_required`.
 - Where it is `none` the carrier lists no end-user document for that market, so it can never mark your identity verified before the number exists. Skysay orders the number first instead of waiting for a verdict that cannot arrive.
 - Every other market keeps the previous path: the carrier's verdict is waited for exactly as before, and `unknown` is treated as `required`.
-- [Markets with no documents are ordered first](/docs/regulated-numbers#markets-with-no-documents-are-ordered-first)
+- [Markets with no documents are ordered first](/docs/regulated-numbers#read-the-requirement-first)
 
 ### A number request in a metered market now quotes a real inbound price
 

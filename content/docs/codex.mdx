@@ -1,0 +1,88 @@
+---
+title: Connect Codex to Skysay MCP
+description: Connect Codex to hosted Skysay MCP with an environment-variable API key or OAuth and verify read-only access.
+icon: Code
+---
+
+Use Codex's remote HTTP MCP connection to inspect your Skysay workspace before
+enabling phone actions. You need no private Skysay checkout or local bridge.
+The connection does not provision a number by itself.
+
+## API-key setup
+
+Create a workspace API key with only `account:read` on
+[API keys](https://skysay.ai/api-keys). Supply it through `SKYSAY_API_KEY` in
+the environment of the process launching Codex; do not put its value in a
+prompt or a config file.
+
+```bash
+codex mcp add skysay --url https://api.skysay.ai/mcp/read-only \
+  --bearer-token-env-var SKYSAY_API_KEY
+```
+
+The equivalent server entry in your Codex `config.toml` is:
+
+```toml
+[mcp_servers.skysay]
+url = "https://api.skysay.ai/mcp/read-only"
+bearer_token_env_var = "SKYSAY_API_KEY"
+```
+
+Use the CLI command **or** edit the entry, not two competing definitions.
+Keep other server entries intact. A terminal export applies to processes
+started from that terminal; an already running desktop app does not acquire
+it automatically. The CLI recipe below uses that terminal environment. For an app launched
+from Finder, use its supported OAuth connection flow instead of assuming it
+inherits a terminal export. A local process that can read your environment may read the key.
+
+## Verify the connection
+
+Run `codex mcp list` to check configuration, then start a new Codex session
+and ask:
+
+```text
+Use Skysay account_overview and summarize the result.
+Do not perform writes, place calls or send SMS.
+```
+
+Require a successful tool result. A configured server or an answer from model
+knowledge does not prove an authenticated connection. Empty collections in a
+new workspace are normal.
+
+## OAuth alternative
+
+Use a `skysay` server entry without `bearer_token_env_var`:
+
+```bash
+codex mcp add skysay --url https://api.skysay.ai/mcp/read-only
+codex mcp login skysay --scopes account:read
+```
+
+Review the Skysay workspace and requested permission in the browser before
+approving. Do not run this on top of an existing API-key entry; remove or
+update that entry first. Disconnect in Skysay's **Connected apps** to revoke
+the OAuth grant. API keys must be revoked separately.
+
+## Enable an approved phone workflow
+
+Follow [Quickstart](/docs/quickstart#4-choose-what-to-enable-next) to switch to
+`https://api.skysay.ai/mcp` and grant only the needed scopes. OAuth grants
+are tied to the resource, so log in again for the new URL. The read-only
+endpoint refuses all writes even with a broader credential.
+
+[Review billable-action controls](/docs/quickstart#before-any-billable-action)
+before enabling number orders, calls, SMS or paid audio previews. An assistant's
+tool permission is not human approval of a particular recipient or cost.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Key missing or HTTP 401 | The variable must be present in the process that runs Codex; verify its name without printing the value. Reconnect OAuth if using that method. |
+| Server configured, but no result | Start a fresh session and verify an actual tool call; configuration is only the first step. |
+| Missing scopes | Grant the named leaf scope only if needed. `account:read` is enough for this check. |
+| A coverage or write tool is missing/refused | That is expected on the read-only profile; change resource and scopes only for an approved workflow. |
+| GET returns 405 | The server expects MCP POST requests, not a browser GET. |
+
+Configuration reference: [official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+Skysay permissions: [MCP overview](/docs/mcp) and [Authentication & keys](/docs/authentication).

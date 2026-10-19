@@ -48,6 +48,7 @@ with `GET /v1/agents/{agent_id}/variables` and replaced with
 | `max_length` | strings: at most this many characters (1–512, default 512) |
 | `max_items` | lists: at most this many items (1–16, default 16) |
 | `item` | lists: each item's own keys, each `string`, `number` or `boolean`; an item key cannot be required, so it is printed inside its own section |
+| `keypad` | strings: the value is keyed on a phone menu and never shown to the agent (see [Keypad variables](#keypad-variables)) |
 
 An agent declares at most 32 variables. Names are letters, digits and `_`, not
 starting with a digit, up to 80 characters.
@@ -79,6 +80,7 @@ your names.
 | `campaign.id`, `campaign.name`, `campaign.run_id`, `campaign.attempt` | the campaign a call belongs to |
 | `call.direction`, `call.counterparty_number`, `call.agent_number` | the call itself |
 | `call.local_date`, `call.local_time` | the time when the call was admitted, in the contact's zone -- or, without one, the campaign's zone, then the default zone of the other party's number, then UTC |
+| `call.navigation_hint` | the `navigation_hint` you sent in `call_context`: what the phone menu this call will meet expects (see [Phone menus](/docs/answer-detection#phone-menus-and-hold-queues)) |
 
 ## Write them into lines
 
@@ -169,6 +171,95 @@ workflow is published.
   as ordinary ones, and give them only data that may be said to whoever answers.
 </Callout>
 
+### Keypad variables
+
+An automated phone menu can ask for a number: a card, a PIN, a government ID, a
+date of birth, a reference. Declare that value with `keypad` and a class, and
+send it with the call like any other value (as text: a number is refused, because it would lose leading zeros):
+
+```json
+"card": { "type": "string", "keypad": { "class": "card" } }
+```
+
+The class is one of `reference`, `card`, `pin`, `government_id`,
+`date_of_birth` or `other`. A keypad variable is a `string` (a number would lose
+its leading zeros), cannot be `protected`, and is allowed on every conversation
+engine, GPT-Live and Gemini Live included.
+
+The value comes only from the call's own data. The agent never invents one, and
+a menu that asks for something the call was not given gets nothing.
+
+What a keypad variable is not:
+
+- **Never text.** It is not in the agent's prompt, the `<call_variables>` block,
+  a tool request or a webhook's `context.variables`, and the model never sees or
+  says it. When a menu asks for it, the platform enters it on the agent's behalf:
+  on the keypad, or, for an agent on the Cascade engine and a prompt that accepts
+  speech only, spoken by the platform's own controller voice while the model is
+  muted. Either way the transcript records only `Entered {field}`.
+  A greeting, instruction, workflow line or SMS template that names it
+  (`{{card}}`) is refused when you save the config (`KEYPAD_FIELD_IN_TEXT`) and
+  again when a call is placed.
+- **Never in another text.** A call whose instructions, prompts, workflow lines,
+  SMS templates, `navigation_hint` or other variables contain the value's digits
+  is refused with `keypad_value_in_text`, naming the field and where, never the
+  value. The check ignores spaces, punctuation and non-ASCII digits (`4111 1111`
+  and `４１１１` both match), counts `*` and `#`, and also reads each filled-in
+  line as it will be said or sent and all your other variables together, so a
+  value split between a greeting and a variable, or between two variables, is
+  found. A value of three characters or fewer is only refused where it stands
+  alone as a whole number, so ordinary text with a stray digit does not refuse
+  the call. It cannot catch a value you deliberately cut into pieces and spread
+  across unrelated texts, or digits written out as words.
+- **Not in your reads.** `GET /v1/calls/{call_id}`, the MCP call tools and the
+  Calls drawer withhold it from `call_context` and the variables list while the
+  call runs, and a call refused by policy never stores it. The drawer lists the
+  field with its class and the state `keypad`, not whether it has a value.
+
+The value has to be dialable. Spaces, `-`, `/`, `.` and parentheses are
+dropped (`4111 1111 1111 1111` is `4111111111111111`, `01/02/1990` is
+`01021990`, in the order you wrote it), and what remains must be 1 to 32
+characters of `0-9`, `*` and `#`. If it is not, a **required** variable refuses
+the call with `keypad_value_not_dialable` and an **optional** one is dropped: the
+call is placed without it, and a menu that asks for it ends the call.
+
+Two limits worth knowing. A keypad value is entered on the call's own line for
+whatever menu asks, at any prompt: the platform does not check that the
+menu is the one you meant, and it cannot see a company phone system that
+forwards the line elsewhere. And once a person answers, anything that person
+says is an ordinary conversation, even if they read a number back.
+
+#### What is kept after a keypad value is entered
+
+The platform holds a keypad value only so the call can key it. When the call
+ends it deletes the value from the call record: `call_context` (as stored and as
+`GET /v1/calls/{call_id}` returns it) no longer lists the field, and neither does
+the copy of your request the call was checked against. The Calls drawer and the
+timeline show the entry as `Entered {field}`, with no digits and no count.
+
+The transcript is masked at the source, in three stages:
+
+- **From the first key until a person answers**, every number the other side says
+  (digits in any script, and number words in the languages the platform has a
+  table for) is stored as `█`, whether or not it matches your value. The agent is
+  not given what the menu says in that time; it is told which keys the menu offers
+  and what each is for, without numbers. A menu in a language the platform has no
+  number words for is stored as "far end spoke, content withheld".
+- **Once a person answers**, the agent hears the call again, and any stretch of
+  two or more digits that is part of your value is stored as `█`, however the
+  digits are spaced or split across consecutive turns, and for the digits 0 to 9
+  spoken as words ("four one one one", "double four") in those languages. A pair
+  of digits that happens to occur in your value (such as `11`) is masked too.
+  Numbers such as "twenty four" are not read as digits.
+- **When the call ends** the whole transcript is masked once more, across adjacent
+  turns, before it is uploaded.
+
+The platform keeps no copy to retry with. A campaign retry reads the contact's own
+variables again. For a call you place through the API, send the value again with
+every retry: a retry without an **optional** keypad variable is placed, and a menu
+that asks for it ends the call; without a **required** one it is refused, as for
+any missing required variable.
+
 ### Caller lookup
 
 For inbound calls an agent can look the caller's number up in one of its
@@ -204,9 +295,12 @@ A refused call is answered
 `reason` is one of `call_variables_missing` (a required value is
 absent), `call_variables_invalid` (a value does not match its declaration),
 `call_variables_over_budget` (a filled-in line is empty or over its limit),
-`workflow_binding_failed`, `schema_pair_mismatch` or
+`workflow_binding_failed`, `schema_pair_mismatch`,
 `per_call_text_on_workflow` (per-call `first_message` or `instructions` sent to
-a workflow agent, which speaks only its authored lines).
+a workflow agent, which speaks only its authored lines),
+`keypad_value_not_dialable` (a required [keypad variable](#keypad-variables) has
+characters a phone keypad cannot press) or `keypad_value_in_text` (a text names
+a keypad variable or carries its digits).
 
 ## What changes for existing integrations
 
@@ -421,6 +515,8 @@ read to check it. Nothing is stored.
 | `PROTECTED_FIELD_WITHOUT_VERIFICATION` | A protected variable on an agent without a workflow: nothing could confirm the caller before it is said. |
 | `PROTECTED_FIELD_ON_LIVE_ENGINE` | A protected variable on a GPT-Live or Gemini Live agent, which cannot hold a value back. |
 | `REQUIRES_WITHOUT_PROTECTED`, `INVALID_REQUIRES` | `requires` on an unprotected variable, or not `confirmation` / `knowledge_match`. |
+| `INVALID_KEYPAD`, `KEYPAD_FIELD_NOT_STRING`, `KEYPAD_FIELD_PROTECTED`, `KEYPAD_FIELD_RESERVED_NAME` | `keypad` is not `{"class": ...}` with a known class, or is on a variable that is not a `string`, on a `protected` one, or on one named `navigation_hint` (that name carries the [navigation hint](/docs/answer-detection#phone-menus-and-hold-queues)). |
+| `KEYPAD_FIELD_IN_TEXT` | A greeting, prompt, workflow line or SMS template names a keypad variable. |
 | `BEFORE_CONFIRMATION_WITHOUT_LOOKUP` | `before_confirmation` without a `caller_lookup`, in an agent's own variables. A workflow's variables may keep it without one; it only changes anything for a looked-up field. |
 | `VARIABLES_BELONG_TO_WORKFLOW` | The agent has a workflow: declare the variables on the workflow instead. |
 | `INVALID_CALLER_LOOKUP`, `CALLER_LOOKUP_LIST_NOT_FOUND` | `caller_lookup` is malformed, or names a contact list this agent's project does not have. |
