@@ -87,6 +87,14 @@ answers `400` and names it.
 
 ## Manage endpoints
 
+List endpoints with an explicit page size, for example
+`GET /v1/agent-endpoints?limit=100`. The result is
+`{ agent_endpoints, pagination }`, not an array, and a missing `limit` is `400`.
+The delivery feed likewise returns `{ deliveries, pagination, event_catalog,
+retry_policy }`. Follow [list pagination](/docs/rest-endpoints#bounded-list-pages)
+before deciding an endpoint is absent; do not register a duplicate because a
+match is outside the first page or because a response cannot be parsed.
+
 | Method | Path | Scope | What it does |
 | --- | --- | --- | --- |
 | `GET` | `/v1/agent-endpoints` | `agents:read` | List endpoints with their status, subscribed events and last delivery result. |
@@ -171,6 +179,13 @@ The body is one event:
   }
 }
 ```
+
+The `data` of `call.completed` and `call.failed` also says where the call's
+workflow ended, in `workflow`, the same object `GET /v1/calls/{call_id}`
+returns (`null` for a call that ran no workflow). It is the value when the call
+ended: while its `settled` is `false`, read the call again for the current one.
+See
+[Where a call's workflow ended](/docs/read-call-evidence#where-a-calls-workflow-ended).
 
 `id` is stable for each state of each call, so a call produces one
 `call.completed` however many parts of the platform observed it. Store `id` and

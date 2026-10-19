@@ -52,6 +52,9 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # Fetch order, contract checks and fallback for the Blog part of the
+      # root llms files (no network: the blog app is faked locally).
+      - run: npm run llms-blog:test
       - run: npm run build
       # Boot the production server and assert every URL this app owns resolves,
       # the redirect and rewrites fire, and both llms corpora are complete.
@@ -71,3 +74,6 @@ jobs:
             exit 1
           fi
           node scripts/parity-check.mjs --local http://127.0.0.1:3000 --no-live
+          # The served Blog section/corpus against the blog-app fixtures, and
+          # the /raw/blog -> /blog/<slug>.md redirect next to its rewrite.
+          node scripts/llms-blog.test.mjs --local http://127.0.0.1:3000
