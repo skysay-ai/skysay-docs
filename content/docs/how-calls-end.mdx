@@ -52,14 +52,38 @@ ending needs a fresh `end_call` request; the canceled one cannot disconnect
 the continued conversation. GPT-Live 1 and Gemini Live also protect the
 caller's turn during a pending close.
 
-This protection depends on speech detection, not on recognizing a particular
+What counts as speaking again depends on the speech-to-text the call uses.
+
+On a Standard phone call whose speech-to-text is Deepgram Nova-3 in English,
+with [`min_interruption_words`](/docs/wire-an-agent#interruptions-and-barge-in) at its default or above
+`0`, Skysay listens for the caller's **words**. Background noise on the line
+that carries no words does not stop the goodbye and does not cancel the
+hang-up, so a caller who says goodbye on a noisy line is still disconnected
+promptly. While such noise is on the line, Skysay waits at most 1.5 seconds for
+words before going ahead: once when the agent asks to end the call, and again
+just before it hangs up after the goodbye, so a caller who starts saying
+"wait" over the end of the goodbye is still heard. Listening noises such as
+"mm-hm" are not words. Intelligible background speech, such as a television or
+someone nearby talking, can still be heard as words and keep the call open.
+
+On every other speech-to-text, and on GPT-Live 1 and Gemini Live, this
+protection depends on speech detection, not on recognizing a particular
 word such as "no"; recognized words can also cancel a Standard agent's close
 when the acoustic detector misses them. Missed speech may not cancel a
-hang-up, and noise mistaken for speech can cancel it unnecessarily. Even a
+hang-up, and noise mistaken for speech can cancel it unnecessarily.
+
+When a hang-up is declined because the caller is speaking, the agent does not
+say goodbye again on its own: it answers what the caller says next, and can
+end the call on a later turn. Even a
 spoken response to the goodbye can keep the conversation open until a fresh
 ending request or a safety limit. It cannot undo a goodbye already heard or reopen a call
 after disconnection. Call-length, balance and operator limits still end the
 call even if the caller is speaking.
+
+The agent cannot end a call while a [transfer to a human](/docs/transfer-to-a-human)
+is being placed or after it has connected, and once the agent has asked to end
+the call it cannot start a transfer. Call-length, balance and operator limits
+still apply to both.
 
 ## The standing call-ending instruction
 

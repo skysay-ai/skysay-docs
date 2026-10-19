@@ -229,3 +229,126 @@ in progress.
 
 `shadow` is the platform default on purpose, and `end_call` is a choice you
 make per agent rather than something that arrives underneath you.
+
+## Phone menus and hold queues
+
+An outbound call to a company often reaches an automated menu ("press 2 for
+English") and then a hold queue, not a person. Every AI agent has
+**navigation** on by default: on the calls it places, it answers the menu, waits
+in the queue, and talks when a person picks up. Inbound calls (the editor's
+phone test included), browser tests, Simulations Lab, chat and SMS never
+navigate. The whole feature is described in
+[Phone menu navigation](/docs/phone-menu-navigation).
+
+While a call is in a menu or on hold, the non-human-audio ending above does not
+end it, even on an AI agent set to `end_call`: hold music is what a queue sounds
+like. If an AI agent must hang up on hold music, turn navigation off for it.
+
+You turn navigation off, or change its limits, per AI agent with the
+`navigation` section of `PATCH /v1/agents/{agent_id}/voice-stack` (MCP tool
+`set_agent_voice_stack`):
+
+| Setting | Meaning |
+| --- | --- |
+| `enabled` | Required in every write of the section. `true` turns navigation on for this AI agent's outbound calls, `false` turns it off and is kept by every save, and `null` follows the platform default, which is on. |
+| `max_hold_seconds` | The most time one call may spend waiting in a hold queue (10-3600, default 600). |
+| `max_navigation_seconds` | The most time one call may spend answering menus (10-900, default 180). |
+
+```bash
+curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"navigation": {"enabled": null, "max_hold_seconds": 900}}'
+```
+
+An empty object, `"navigation": null`, or a section without `enabled` is
+refused with `400` `navigation_enabled_required`. The section is replaced
+whole: a limit you leave out goes back to its default. A limit kept beside
+`enabled: false` is kept as it is. The section the GET below returns can be
+sent back as it is: its read-only fields `effective`, `eligible` and
+`ineligible_reason` are accepted and ignored on write, and any other unknown
+field is refused with `400`.
+
+The two limits belong to the agent and to the whole call: time in menus and time
+on hold are counted separately, never start over when the call goes back to a
+menu, and a single call cannot change them. The call also ends at its overall
+maximum length (`turn_taking.max_call_seconds`). `GET /v1/agents/{agent_id}/voice-stack`
+always returns `navigation`: the stored `enabled`, whether it is `effective`,
+both limits with their defaults applied, and whether the AI agent's outbound
+calls may navigate (`eligible`, with `ineligible_reason` when they may not; see
+[Read what an AI agent will do](/docs/phone-menu-navigation#read-what-an-ai-agent-will-do)).
+Like the other sections, it applies when a call starts; saving never changes a
+call in progress.
+
+### Telling the agent what the menu expects
+
+If you know the menu, say so. Send `navigation_hint` in the call's
+`call_context` (or as a column of a campaign contact): plain text of at most 500
+characters, for example `Press 2 for English, then 1 for billing.` It reaches
+the agent as the built-in variable `call.navigation_hint` (see
+[Call variables](/docs/call-variables#built-in-variables)). A longer hint, or
+one that is not text, refuses the call with `call_variables_invalid`. A hint is
+only a hint: the agent still answers the menu it actually hears.
+
+### Typing numbers into a menu
+
+A menu sometimes asks for a number the call knows: an account number, a date of
+birth. Declare that value as a [keypad variable](/docs/call-variables#keypad-variables):
+the agent can have it keyed on the menu, and it is never shown to the agent as
+text.
+
+### Languages
+
+Phone menu navigation works in English, German, French, Spanish, Italian, Dutch,
+Portuguese, Russian and Polish. Estonian and Finnish are not supported yet.
+
+To follow a menu or a queue the agent listens to the far end on its own
+speech-to-text connection for as long as the call is in a menu or on hold, using
+the transcribers Skysay supports. It uses at most **two connections at once**,
+chosen from your agent's selected languages:
+
+- An agent with one language gets one connection, provided navigation works in
+  that language (see above).
+- An agent with several languages gets one connection when a single transcriber
+  can listen for the whole set at once, and otherwise one connection per
+  language, up to two.
+- If the set cannot be covered that way, nothing is refused: the AI agent's
+  calls run without navigation, and `GET /v1/agents/{agent_id}/voice-stack`
+  reports `navigation.eligible` `false` with `ineligible_reason`
+  `languages_uncovered` (no supported transcriber hears one of its languages) or
+  `too_many_sockets` (every language is covered, but not by two connections).
+  Remove a language to use navigation.
+
+An AI agent set only to languages navigation does not support yet, such as
+Estonian or Finnish, saves and publishes too. Its calls run without navigation
+(`ineligible_reason` `languages_unreleased`), and it starts navigating by itself
+when one of its languages is supported.
+
+An AI agent's calls navigate only when at least one of its languages is
+supported and the transcribers above can listen to all of its languages with at
+most two connections; otherwise `ineligible_reason` is `languages_unreleased`,
+`languages_uncovered` or `too_many_sockets`. Its menus in unsupported languages
+are not navigated: the agent presses no key
+and says nothing at a menu in a language navigation does not support, and the
+time limits above decide when the call ends.
+
+A menu can be in a different language from the call ("for English press 2").
+Within the supported languages, keys work whatever language the menu is in. For
+a menu spoken in a supported language the agent does not speak, the agent
+answers with keys or not at all: it never improvises a spoken answer in a
+language it was not set up for.
+
+Numbers read out in words need a word list per language. Skysay has one for
+English, German, French, Spanish, Italian, Dutch, Portuguese, Russian, Estonian
+and Finnish; Estonian and Finnish have a list, but navigation is not supported
+in them. Polish is supported for menus but has no word list yet, so an agent
+whose languages include Polish navigates Polish menus but cannot enter keypad
+values yet: a value is refused with `value_language_unsupported` and the menus
+are still navigated. Digits are recognised in every language. For a language
+with no list Skysay does not guess: it treats spoken numbers it cannot place as
+present, and holds back the words instead of risking a number you keyed in.
+
+How well the agent understands a menu is measured language by language on a
+synthetic corpus before it is claimed; a language that works on keys can still
+have a menu the agent misreads. Hold times and menu times are limited by the two
+settings above in every language.
