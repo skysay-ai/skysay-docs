@@ -87,6 +87,63 @@ configured site origin. In this mode the persisted checkout claim governs
 idempotency, including when a caller supplies its own key. Standalone top-ups
 keep their ordinary return behavior.
 
+## Adding funds through MCP
+
+A full MCP connection can request purchased funds with `create_wallet_topup`
+and explicitly consented `wallet:write`. The permission starts unticked and
+approves no payment. Read the wallet currency with `account_overview`, then
+ask the owner to approve the exact amount, currency and purchase purpose:
+**purchased Skysay calling credit**. The workspace comes only from the
+authenticated connection.
+
+For a wallet in USD, an owner-approved $10 request looks like:
+
+```json
+{
+  "method": "card_checkout",
+  "amount_minor": 1000,
+  "currency": "USD",
+  "idempotency_key": "unique-owner-approved-purchase",
+  "payment_approved": true
+}
+```
+
+Use the actual wallet currency, in three uppercase letters. A missing or
+mismatched currency refuses before payment. Current top-up limits apply.
+Never put card numbers, CVC, passwords, verification codes or payment tokens
+in an idempotency key, chat message or log.
+
+| Path | What happens | What it proves |
+| --- | --- | --- |
+| `card_checkout` | The tool returns a direct Stripe hosted-checkout URL. The owner completes payment there. No Skysay dashboard visit is needed to initiate it. | MCP initiation with browser checkout; not entirely in-chat payment. |
+| `shared_payment_token` | A compatible host/wallet obtains an owner-approved token scoped to the seller, amount and currency, then submits it through the tool. A configured Stripe seller profile is required. | Backend support; actual host/default-card and merchant acceptance are separate. |
+| Website **Billing → Add funds** | The existing hosted Checkout flow remains available with its existing return context. | Website funding; unchanged by MCP permission. |
+
+With `method: "shared_payment_token"` and `request_challenge: true`, the tool
+can return seller/amount/currency metadata before purchase approval. This is
+JSON metadata, not native payment UI or MCP elicitation. If the seller profile
+is unavailable, use `card_checkout`. The owner obtains and approves tokens in
+their compatible wallet; Skysay does not collect their payment credentials.
+See Stripe's [seller token contract](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens?agent-seller=seller)
+and [Link buyer approval flow](https://docs.stripe.com/agentic-commerce/agents/link-agent-wallet/use-link-wallet-pay-online).
+Client support for MCP or [URL elicitation](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation)
+does not itself supply a native wallet or payment card.
+
+A checkout, pending payment, successful redirect or synchronous token response
+is not spendable credit. Only a matching signed Stripe webhook adds purchased
+funds, once. Check `account_overview` before ordering numbers or placing paid
+calls. Retry an uncertain result with the **same idempotency key and identical
+parameters**; do not authorize another payable attempt. A definite token
+refusal requires new owner approval, a new token and a new key. Reusing a card
+key with changed parameters is refused by Stripe's idempotency contract; it
+does not amend the earlier approval. Never reuse an approval for another
+workspace, amount, currency or credential.
+
+The same contract is available to scoped API clients at the retained
+`POST /v1/agent/onboarding/headless/payments` URL. It does not enable signup.
+None of these payment paths expands the $5 browser-only welcome grant or
+changes normal purchased-funds number, PSTN or SMS billing.
+
 ## Your browser-testing credit
 
 An eligible customer receives a **one-time USD $5 welcome credit** when signing
@@ -105,12 +162,24 @@ released when the session settles. Once browser credit is exhausted, further
 tests require purchased funds. A negative purchased balance must be resolved;
 browser credit does not cancel a debt.
 
-<Callout title="Browser credit is not phone credit">
-  Welcome credit cannot pay for PSTN calls, SMS, phone-number rental or setup.
+<Callout title="Browser testing only">
+  Welcome credit cannot fund number setup, number rental, PSTN calls or SMS.
+  Those require purchased funds and normal approval and carrier readiness.
   It is not cash, refundable purchased credit, or transferable to another
-  workspace. The anonymous homepage demo is a separate, bounded demo; it does
-  not replenish your workspace credit.
+  workspace. The anonymous homepage demo is separate and does not replenish
+  workspace credit. SMS signup is deferred.
 </Callout>
+
+A browser test whose requested opening fails with confirmed zero agent output
+may have its unused hold released without charge. The trusted worker decision
+must win before native usage is accepted. Usage accepted first settles
+normally; a final settled, released or payment-due result is preserved. Missing
+usage or an empty transcript alone does not release a hold at once; the usual
+24-hour recovery in
+[A call has ended but funds are still reserved](#a-call-has-ended-but-funds-are-still-reserved)
+still applies. A late usage report
+after an authorized release does not charge the customer again. Retrying starts
+a separate test with the normal balance checks.
 
 ## Reading your balance and costs
 
@@ -221,7 +290,10 @@ use actual component usage; variable model/tool use, delayed usage reports or
 a delayed carrier disconnect can exceed reserved credit. Unused reserved funds
 are released after settlement, and unpaid usage can still appear as **payment
 due**. Funding new call time does not itself collect historical unpaid charges.
-Browser-only promotional credit remains restricted to eligible browser calls.
+Promotional credit funds eligible browser calls only. All telephone calls,
+number setup/rental and SMS use purchased funds. They retain normal funded
+runtime renewal, transfer and settlement behavior; there is no setup-call
+waiver of overrun charges or purchased-funds debt.
 
 ## Existing subscription records
 

@@ -48,6 +48,28 @@ reflects your own profile's status.
 - `unknown` — the carrier published nothing for this market. Treat it exactly
   like `required`: Skysay does, and the number waits.
 
+### Carrier forms
+
+Some markets need a form the carrier publishes: a letter of authorization, a
+letter of intent, a registration form or an agreement. France local, Hong Kong
+national, India local, Thailand and most Caribbean numbers are examples.
+`carrier_forms` lists the forms for the profile type you asked about, and is an
+empty list everywhere else:
+
+| Field | Meaning |
+| --- | --- |
+| `id` | The carrier's template id. |
+| `name` | The form's name, also listed in `document_names`. |
+| `url` | Where to download the form. |
+| `format` | The file type, such as `pdf` or `docx`. |
+| `notes` | Conditions the carrier adds, in its own words, such as `less than 1 month old`. |
+
+To complete one, download it, fill in your details and sign where it asks for
+you or your company. Use letterhead or a stamp if the form asks for them, and
+leave any part for Skysay or the carrier empty. Upload the signed form as a PDF,
+JPG or PNG; save a Word file as PDF first. In the workspace, **Verification**
+shows each form with its download link above its upload field.
+
 ## Some markets cannot be ordered at all
 
 Registration decides *when* a number is ordered. A separate field decides
@@ -176,6 +198,50 @@ charged:
 `blocker` uses the same words the Numbers page shows after activation
 (`capacity_plan_unavailable`, `carrier_rate_missing`). Choose another market,
 or contact support.
+
+## Numbers offered on request
+
+Some numbers are not in the carrier catalogue Skysay orders from
+automatically. Skysay orders them by hand and enables them in your workspace
+when they are ready. Today that is **United Arab Emirates mobile**.
+
+| | United Arab Emirates mobile |
+| --- | --- |
+| One-time setup | $180.00 |
+| Monthly | $180.00 |
+| Calls in | $0.20/min, plus AI agent usage |
+| Calls out | $0.30/min to UAE numbers, plus AI agent usage |
+| Usually ready in | about 15 business days |
+| Who can order | businesses only |
+| What Skysay asks for | a local business address in the UAE and your business registration certificate |
+
+Per-minute prices are billed in whole minutes (60/60).
+
+To order one, open **[Phone numbers](https://skysay.ai/numbers) → Get a
+number**, choose **United Arab Emirates**, and choose **Request** on the
+**Mobile** row, which is marked **On request**. The coverage list on the
+[skysay.ai](https://skysay.ai) home page links to the same request.
+
+- **Nothing is charged when you request it.** The request shows **Requested**
+  with three steps: requested, Skysay orders it from the carrier, number
+  active. Skysay contacts you for the documents.
+- **When Skysay enables the number,** the setup fee and the first month,
+  $360.00 in total, are charged from your purchased wallet funds at once, and
+  the number appears as **Active**. Choose who answers it, as with any number.
+  If your wallet cannot cover it, the number is not enabled and nothing is
+  charged.
+- **Calls are placed and answered by a Skysay AI agent.** Outbound calls go to
+  UAE numbers only; a call to another country is refused before it starts.
+  Outbound calls routed through your own app or phone server are not available
+  on these numbers yet.
+- These numbers are voice only.
+
+Through the API, request it like any other number with
+`POST /v1/number-requests`, `country: "AE"`, `number_type: "mobile"`. The
+saved request's `provider_flow.fulfillment` is `manual_offer`; its
+`price_snapshot` carries the fixed setup and monthly prices, and prices sent
+in the request body are ignored. The offer itself is published in
+`GET /v1/pricing/catalog` under `public_price_book.numbers.on_request`.
 
 ## Where a number request waits
 
