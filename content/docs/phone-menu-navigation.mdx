@@ -1,6 +1,6 @@
 ---
 title: Phone menu navigation
-description: Let an AI agent answer automated phone menus and wait on hold on outbound calls - how to switch it on, what the Calls page shows, how these calls end, when they are retried, and what they cost.
+description: AI agents answer automated phone menus and wait on hold on outbound calls by default - how to turn it off or change its limits, what the Calls page shows, how these calls end, when they are retried, and what they cost.
 icon: Dialpad
 ---
 
@@ -8,9 +8,13 @@ An outbound call to a company often reaches an automated menu ("press 2 for
 English") and then a hold queue, not a person. With **phone menu navigation**
 on, the AI agent listens to each menu, presses the key that fits the call's
 task (or answers a menu that asks you to speak), waits quietly on hold, and
-starts talking when a person picks up. It is off by default and you opt in per
-agent. It works on **outbound calls only**: support for keypad menus on inbound
-calls comes later.
+starts talking when a person picks up. It is on by default for every AI agent,
+and you turn it off per AI agent.
+
+It works on **outbound calls only**: the calls your AI agent places and
+campaign calls. Inbound calls, including the phone test in the agent editor
+(you dial in to it), browser tests, [Simulations Lab](/docs/simulations-lab),
+chat and SMS never navigate.
 
 **A call can last at most 29 minutes, including time in menus and on hold. If nobody answers by then, the call ends as “Hold limit reached”** (`ended_reason` `ivr_timeout`, `reason_detail` `deadline`). No setting raises this limit.
 
@@ -22,21 +26,36 @@ values). Campaign retries are described in [Campaigns](/docs/campaigns).
 
 ## Which agents can use it
 
-Phone menu navigation works for agents on the **Cascade** engine, including
-agents that run a conversation workflow, and for agents on **Gemini Live**. It
-is not available for agents on **GPT-Live** at this release: in the workspace the
-setting is shown switched off, with the reason beside it. Through the API, turning `navigation.enabled` on for a
-GPT-Live agent, or switching an agent that has it on to GPT-Live, is refused with
-400 `navigation_engine_not_supported`; the response names the engine and lists
-the supported ones (`supported_engines`). Each engine in the agent catalog
-(`GET /v1/agent-catalog`) says whether it can navigate in `supports_navigation`.
-Switch the agent to Cascade or Gemini Live first, or leave navigation off.
+Phone menu navigation works for AI agents on the **Cascade** engine, including
+AI agents that run a conversation workflow, and for AI agents on **Gemini Live**.
+AI agents on **GPT-Live** do not navigate yet.
 
-## Turn it on
+Nothing is refused because an AI agent cannot navigate yet. A GPT-Live AI agent
+keeps its navigation setting, saves and publishes as usual, and its calls run
+without navigation. It starts navigating by itself when GPT-Live is supported,
+with no change on your side. In the workspace the setting stays as you left it,
+with a line under it saying why it is not active. Through the API,
+`GET /v1/agents/{agent_id}/voice-stack` reports `navigation.eligible` `false`
+with `ineligible_reason` `engine_not_supported` (see
+[Read what an AI agent will do](#read-what-an-ai-agent-will-do)). Each engine in
+the agent catalog (`GET /v1/agent-catalog`) says whether its calls navigate in
+`supports_navigation`.
 
-In the workspace, open the AI agent, then **Tools**, and tick **Navigate phone
-menus and wait on hold**. Two limits appear under it, with notes on the menu
-languages and on which voices may say a value (see [Languages](#languages) and
+The same holds for an AI agent whose languages navigation does not cover yet
+(see [Languages](#languages)), and for one whose own tools leave no room for
+navigation (see [Your own tools](#your-own-tools)).
+
+## Turn it off or change its limits [#turn-it-on]
+
+Every AI agent navigates unless you turn it off. An AI agent that never made a
+choice follows the platform default, which is on.
+
+In the workspace, open the AI agent, then **Tools**. **Navigate phone menus and
+wait on hold** is ticked by default. Untick it to turn navigation off for this
+AI agent. That stores an explicit off: every later save keeps it, and a change
+of the platform default never reaches it. Tick it again to turn navigation back
+on. Two limits appear under it, with notes on the menu languages and on which
+voices may say a value (see [Languages](#languages) and
 [Typed and spoken values](#typed-and-spoken-values)):
 
 | Setting | API field | Default | Range |
@@ -50,22 +69,119 @@ the time allowed for menus, and the other way round. The API schema allows up to
 outlast the call, so the 29-minute call maximum caps both.
 
 Through the API the same setting is the `navigation` section of
-`PATCH /v1/agents/{agent_id}/voice-stack`:
+`PATCH /v1/agents/{agent_id}/voice-stack` (MCP tool `set_agent_voice_stack`).
+`enabled` takes one of three values:
+
+| `enabled` | Meaning |
+| --- | --- |
+| `true` | On. |
+| `false` | Off. Every save keeps it, and a change of the platform default never reaches it. |
+| `null` | Follow the platform default, which is on. |
+
+To turn navigation off for an AI agent:
 
 ```bash
 curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
   -H "Authorization: Bearer $SKYSAY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"navigation": {"enabled": true, "max_hold_seconds": 900}}'
+  -d '{"navigation": {"enabled": false}}'
 ```
 
-A hold or a menu cannot outlast the call that contains it, so neither limit can be longer than the agent's maximum call length (`turn_taking.max_call_seconds`, 1740 seconds = 29 minutes unless you shorten it). A longer limit is refused with `400`, and so is shortening the maximum call length below a limit you set.
+To follow the default and allow 15 minutes on hold:
 
-The limits belong to the agent and are not changed per call. Time in menus and
-time on hold are counted separately across the whole call, and the call also
-ends at its overall maximum length. The setting applies when a call starts;
-saving never changes a call in progress. Navigation only applies to calls the
-agent places, not to calls it receives.
+```bash
+curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"navigation": {"enabled": null, "max_hold_seconds": 900}}'
+```
+
+Every write of the section must say what `enabled` is. An empty object
+(`{"navigation": {}}`), `"navigation": null`, or a section without `enabled` is
+refused with `400` `navigation_enabled_required`, and the response names the
+field `navigation.enabled`. An older client sent `{}` to mean off; it is refused
+rather than guessed at. The section is replaced whole: a limit you leave out
+goes back to its default, so send every limit you want to keep.
+
+You can send back the `navigation` section that
+`GET /v1/agents/{agent_id}/voice-stack` returned, as it is: the read-only fields
+`effective`, `eligible` and `ineligible_reason` are accepted and ignored on
+write (see [Read what an AI agent will do](#read-what-an-ai-agent-will-do)).
+Any other unknown field is refused with `400`.
+
+While navigation is on, by your choice or by default, neither limit can be
+longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`,
+1740 seconds = 29 minutes unless you shorten it), because a hold or a menu
+cannot outlast the call that contains it. A longer limit is refused with `400`,
+and so is shortening the maximum call length below a limit you set, or turning
+navigation back on beside such a limit. A limit you keep beside
+`enabled: false` is kept as it is.
+
+The limits belong to the AI agent and are not changed per call. Time in menus
+and time on hold are counted separately across the whole call, and the call
+also ends at its overall maximum length. The setting applies when a call
+starts; saving never changes a call in progress, and no republish is needed.
+
+### Other routes that write it
+
+- **Agent create** (`POST /v1/agents`, MCP tool `create_agent`) accepts the
+  same section as `metadata.navigation`, under the same rules: `enabled` is
+  required in it. Leave the section out and the new AI agent follows the
+  default.
+- **Agent update** (`PATCH /v1/agents/{agent_id}`, MCP tool `update_agent`)
+  keeps the stored section when its `metadata` replacement leaves `navigation`
+  out, so an explicit off survives any metadata replace. A different
+  `metadata.navigation` is refused with `400` naming the voice-stack route, as
+  `follow_caller` and `opening` are.
+
+### Read what an AI agent will do
+
+`GET /v1/agents/{agent_id}/voice-stack` always returns `navigation`:
+
+| Field | Meaning |
+| --- | --- |
+| `enabled` | The stored choice: `true`, `false`, or `null` when the AI agent never chose and follows the platform default. |
+| `effective` | Whether the setting is on: the stored choice, or the platform default (on) when it is `null`. |
+| `max_hold_seconds` | The hold limit, with the default applied. |
+| `max_navigation_seconds` | The menu limit, with the default applied. |
+| `eligible` | Whether this AI agent's outbound calls may navigate. |
+| `ineligible_reason` | Why `eligible` is `false`, else `null`. |
+
+For a GPT-Live AI agent that never chose:
+
+```json
+{
+  "navigation": {
+    "enabled": null,
+    "effective": true,
+    "max_hold_seconds": 600,
+    "max_navigation_seconds": 180,
+    "eligible": false,
+    "ineligible_reason": "engine_not_supported"
+  }
+}
+```
+
+| `ineligible_reason` | Why its calls do not navigate | What changes it |
+| --- | --- | --- |
+| `turned_off` | `enabled` is `false`. | Send `true` or `null`, or tick the box. |
+| `not_released` | Navigation is switched off platform-wide. | Nothing on your side. |
+| `engine_not_supported` | The AI agent's conversation engine, GPT-Live today, does not navigate yet. | It starts by itself when the engine is supported, or switch to Cascade or Gemini Live. |
+| `languages_unreleased` | Navigation is released in none of the AI agent's languages, for example an AI agent set only to Estonian or Finnish. | It starts by itself when one of its languages is supported, or add a supported language. |
+| `languages_uncovered` | No supported transcriber can listen in one of the AI agent's languages. | Remove that language. |
+| `too_many_sockets` | Listening in all of the AI agent's languages would need more than two transcriber connections. | Remove a language. |
+| `no_language` | The AI agent has no language selected. | Select a language. |
+| `tool_name_conflict` | One of the AI agent's own tools is named `press_digits`, `wait_on_hold` or `abandon_navigation`. | Rename that tool. |
+| `tool_budget` | The AI agent's own tools leave no room for the three navigation tools. | Remove a tool. |
+
+`eligible` describes the AI agent, not one call. Each call is still decided
+when it starts, on its direction and the configuration it runs with, and the
+call's timeline shows what happened.
+
+The workspace shows the same reasons as a line under the
+**Navigate phone menus and wait on hold** row, which stays operable. For
+GPT-Live it reads: "Not active on GPT-Live yet. This AI agent's calls run
+without it, and it switches on by itself when GPT-Live is supported."
 
 ## What the agent does
 
@@ -95,6 +211,12 @@ It has four jobs, and nothing else changes while it is in a menu or a queue:
   for something the call does not carry, or the key presses change nothing, it
   ends the call instead of guessing. The call ends as **Menu had no matching
   option** and is not redialled.
+
+**Hold music and answer detection.** While a call is in a menu or on hold, the
+non-human-audio ending of [Answer detection](/docs/answer-detection#the-ending-it-is-paired-with)
+does not end it, even when the AI agent's `answer_detection.non_human_audio` is
+`end_call`: hold music is what a queue sounds like. If an AI agent must hang up
+on hold music, turn navigation off for it.
 
 When something that may be a person answers, the agent first confirms it with a
 short check question, such as whether it is speaking with a person. Only then
@@ -149,11 +271,18 @@ agent's own voice, without the model.
 ## Languages
 
 Phone menu navigation works in English, German, French, Spanish, Italian, Dutch,
-Portuguese, Russian and Polish. Estonian and Finnish are not supported. An agent
-whose languages are all unsupported cannot turn navigation on (the API answers
-400 `navigation_languages_unsupported` with reason `unreleased`). An agent with at
-least one supported language can, and its menus in other languages are not
-navigated.
+Portuguese, Russian and Polish. Estonian and Finnish are not supported yet.
+Nothing is refused because of an AI agent's languages. An AI agent's calls
+navigate only when both of these hold:
+
+- at least one of its languages is supported, and
+- the transcribers Skysay supports can listen to all of its languages with at
+  most two connections (see below).
+
+Its menus in unsupported languages are not navigated. An AI agent whose
+languages are all unsupported keeps its setting, its calls run without
+navigation (`ineligible_reason` `languages_unreleased`), and it starts
+navigating by itself when one of its languages is supported.
 
 Agents whose languages include Polish navigate Polish menus, but cannot enter
 keypad values yet (`value_language_unsupported`). That applies to the whole
@@ -166,12 +295,26 @@ yet.
 
 To listen to the far end the agent uses at most two speech-to-text connections,
 chosen from the transcribers Skysay supports for the agent's selected languages.
-If the agent's languages cannot be covered that way, switching navigation on is
-refused with 400 `navigation_languages_unsupported`; the response lists the
-language codes concerned in `languages`, and `reason` is `uncovered` (no
-supported transcriber hears that language), `too_many_sockets` (every language is
-covered, but not by two connections) or `unreleased` (see above). Remove a
-language, add a supported one, or turn navigation off. Details are in [Answer detection](/docs/answer-detection).
+If the AI agent's languages cannot be covered that way, nothing is refused: its
+calls run without navigation, and the voice-stack response says why in
+`ineligible_reason`: `languages_uncovered` (no supported transcriber hears one of
+its languages) or `too_many_sockets` (every language is covered, but not by two
+connections). Remove a language to use navigation. Details are in [Answer detection](/docs/answer-detection#languages).
+
+## Your own tools
+
+Navigation gives the call three tools of its own: `press_digits`,
+`wait_on_hold` and `abandon_navigation`. These names are reserved: a tool of
+yours with one of them is refused with `400`. An AI agent that already has a
+tool with one of these names does not navigate (`ineligible_reason`
+`tool_name_conflict`) until you rename it.
+
+A call carries at most 32 tool names: the AI agent's own tools, `end_call`, a
+slot always kept for `search_knowledge_base` (whether or not a knowledge base is
+attached), and the three navigation tools. An AI agent whose own tools leave no
+room for the three does not navigate (`ineligible_reason` `tool_budget`), so an
+AI agent that should navigate can have at most 27 tool names of its own.
+Remove a tool to make room.
 
 ## Lines that carry keys
 
@@ -275,6 +418,17 @@ completed, and the ending says why nothing came of the call.
 Time in menus and on hold is billed at your normal call rate, as part of one
 call. Navigation adds no surcharge and there is no separate hold price; the split
 in the call details is for reading, not for billing.
+
+Waiting still costs call time. With the default limits, one call can spend up
+to 180 seconds in menus and 600 seconds on hold before it ends, and all of it
+is billed. When no person was reached earlier in the call, a campaign retries
+three endings: `ivr_timeout` with `hold_limit` (the hold limit ran out) or
+`deadline` (the call reached its maximum length), and
+`remote_party_disconnected` with `during_hold`. So one contact can be billed
+for several long waits. `ivr_timeout` with `navigation_limit` (the menu limit
+ran out), `menu_no_path` or `data_not_authorised` is final and is not retried
+(see [How these calls end](#how-these-calls-end)). Lower **Max hold time**, or turn navigation off for the AI
+agent a campaign uses, if that matters more than reaching a person.
 
 ## Limits worth knowing
 

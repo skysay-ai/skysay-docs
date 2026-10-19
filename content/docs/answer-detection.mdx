@@ -233,18 +233,24 @@ make per agent rather than something that arrives underneath you.
 ## Phone menus and hold queues
 
 An outbound call to a company often reaches an automated menu ("press 2 for
-English") and then a hold queue, not a person. By default an agent treats both
-like any other answer: it is not built to press keys, and the rules above end a
-call that hears only recorded audio. An agent that has **navigation** switched
-on instead answers the menu and waits in the queue, and talks when a person
-picks up.
+English") and then a hold queue, not a person. Every AI agent has
+**navigation** on by default: on the calls it places, it answers the menu, waits
+in the queue, and talks when a person picks up. Inbound calls (the editor's
+phone test included), browser tests, Simulations Lab, chat and SMS never
+navigate. The whole feature is described in
+[Phone menu navigation](/docs/phone-menu-navigation).
 
-Navigation is off unless you turn it on, per agent, with the `navigation`
-section of `PATCH /v1/agents/{agent_id}/voice-stack`:
+While a call is in a menu or on hold, the non-human-audio ending above does not
+end it, even on an AI agent set to `end_call`: hold music is what a queue sounds
+like. If an AI agent must hang up on hold music, turn navigation off for it.
+
+You turn navigation off, or change its limits, per AI agent with the
+`navigation` section of `PATCH /v1/agents/{agent_id}/voice-stack` (MCP tool
+`set_agent_voice_stack`):
 
 | Setting | Meaning |
 | --- | --- |
-| `enabled` | `true` switches navigation on for this agent's outbound calls. Omitted or `false` leaves the agent exactly as it was. |
+| `enabled` | Required in every write of the section. `true` turns navigation on for this AI agent's outbound calls, `false` turns it off and is kept by every save, and `null` follows the platform default, which is on. |
 | `max_hold_seconds` | The most time one call may spend waiting in a hold queue (10-3600, default 600). |
 | `max_navigation_seconds` | The most time one call may spend answering menus (10-900, default 180). |
 
@@ -252,16 +258,27 @@ section of `PATCH /v1/agents/{agent_id}/voice-stack`:
 curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
   -H "Authorization: Bearer $SKYSAY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"navigation": {"enabled": true, "max_hold_seconds": 900}}'
+  -d '{"navigation": {"enabled": null, "max_hold_seconds": 900}}'
 ```
+
+An empty object, `"navigation": null`, or a section without `enabled` is
+refused with `400` `navigation_enabled_required`. The section is replaced
+whole: a limit you leave out goes back to its default. A limit kept beside
+`enabled: false` is kept as it is. The section the GET below returns can be
+sent back as it is: its read-only fields `effective`, `eligible` and
+`ineligible_reason` are accepted and ignored on write, and any other unknown
+field is refused with `400`.
 
 The two limits belong to the agent and to the whole call: time in menus and time
 on hold are counted separately, never start over when the call goes back to a
 menu, and a single call cannot change them. The call also ends at its overall
 maximum length (`turn_taking.max_call_seconds`). `GET /v1/agents/{agent_id}/voice-stack`
-returns all three values when navigation is on, and no `navigation` key when it
-is off. Like the other sections, it applies when a call starts; saving never
-changes a call in progress.
+always returns `navigation`: the stored `enabled`, whether it is `effective`,
+both limits with their defaults applied, and whether the AI agent's outbound
+calls may navigate (`eligible`, with `ineligible_reason` when they may not; see
+[Read what an AI agent will do](/docs/phone-menu-navigation#read-what-an-ai-agent-will-do)).
+Like the other sections, it applies when a call starts; saving never changes a
+call in progress.
 
 ### Telling the agent what the menu expects
 
@@ -283,7 +300,7 @@ text.
 ### Languages
 
 Phone menu navigation works in English, German, French, Spanish, Italian, Dutch,
-Portuguese, Russian and Polish. Estonian and Finnish are not supported.
+Portuguese, Russian and Polish. Estonian and Finnish are not supported yet.
 
 To follow a menu or a queue the agent listens to the far end on its own
 speech-to-text connection for as long as the call is in a menu or on hold, using
@@ -295,19 +312,23 @@ chosen from your agent's selected languages:
 - An agent with several languages gets one connection when a single transcriber
   can listen for the whole set at once, and otherwise one connection per
   language, up to two.
-- If the set cannot be covered that way, `PATCH /v1/agents/{agent_id}/voice-stack`
-  with `navigation.enabled: true` (or any publish of an agent that already has it)
-  is refused with `400` and the error `navigation_languages_unsupported`. The
-  response lists the language codes concerned in `languages`, and `reason` is
-  `uncovered` (no supported transcriber hears that language),
-  `too_many_sockets` (every language is covered, but not by two connections) or
-  `unreleased` (navigation works in none of the agent's languages: `languages`
-  then lists all of them, for example an agent set only to Estonian or Finnish).
-  Remove a language, add a supported one, or turn navigation off. Nothing is
-  switched on in silence.
+- If the set cannot be covered that way, nothing is refused: the AI agent's
+  calls run without navigation, and `GET /v1/agents/{agent_id}/voice-stack`
+  reports `navigation.eligible` `false` with `ineligible_reason`
+  `languages_uncovered` (no supported transcriber hears one of its languages) or
+  `too_many_sockets` (every language is covered, but not by two connections).
+  Remove a language to use navigation.
 
-An agent with at least one supported language is accepted, whatever else it
-speaks. Its menus in other languages are not navigated: the agent presses no key
+An AI agent set only to languages navigation does not support yet, such as
+Estonian or Finnish, saves and publishes too. Its calls run without navigation
+(`ineligible_reason` `languages_unreleased`), and it starts navigating by itself
+when one of its languages is supported.
+
+An AI agent's calls navigate only when at least one of its languages is
+supported and the transcribers above can listen to all of its languages with at
+most two connections; otherwise `ineligible_reason` is `languages_unreleased`,
+`languages_uncovered` or `too_many_sockets`. Its menus in unsupported languages
+are not navigated: the agent presses no key
 and says nothing at a menu in a language navigation does not support, and the
 time limits above decide when the call ends.
 
