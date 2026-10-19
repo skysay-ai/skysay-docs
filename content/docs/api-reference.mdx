@@ -20,6 +20,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | Method | Path | Summary | Required scope |
 | --- | --- | --- | --- |
 | `POST` | `/mcp` | Hosted MCP endpoint | See the live OpenAPI operation |
+| `POST` | `/mcp/read-only` | Use the read-only MCP connector | See the live OpenAPI operation |
 | `GET` | `/v1/activation-state` | Get live customer activation checklist and next action | See the live OpenAPI operation |
 | `GET` | `/v1/agent-catalog` | List runnable agent stack entries | See the live OpenAPI operation |
 | `GET` | `/v1/agent-endpoints` | List agent webhook/audio endpoints | See the live OpenAPI operation |
@@ -29,6 +30,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `POST` | `/v1/agent-endpoints/{agent_endpoint_id}/pause` | Pause webhook deliveries to this endpoint | See the live OpenAPI operation |
 | `POST` | `/v1/agent-endpoints/{agent_endpoint_id}/resume` | Resume a paused or auto-disabled webhook endpoint | See the live OpenAPI operation |
 | `POST` | `/v1/agent-endpoints/{agent_endpoint_id}/test-event` | Dispatch a signed test event through the real delivery pipeline | See the live OpenAPI operation |
+| `POST` | `/v1/agent/onboarding/headless/payments` | Approve a wallet top-up with hosted checkout or a shared payment token | `wallet:write` |
 | `GET` | `/v1/agents` | List first-class agents | See the live OpenAPI operation |
 | `POST` | `/v1/agents` | Create an external or hosted agent | See the live OpenAPI operation |
 | `GET` | `/v1/agents/{agent_id}` | Get one agent | `agents:read` |
@@ -78,12 +80,27 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `POST` | `/v1/api-keys/{key_id}/revoke` | Revoke an API key | See the live OpenAPI operation |
 | `GET` | `/v1/audio-environments` | List immutable audio-environment presets | `account:read` |
 | `GET` | `/v1/audit-events` | List audit events | See the live OpenAPI operation |
+| `GET` | `/v1/available-numbers` | List the exact numbers currently loaded for purchase. Each row is an availability snapshot, not a reservation: availability and price are rechecked with the carrier before the number is ordered, so a row past its expires_at can still be chosen | See the live OpenAPI operation |
+| `POST` | `/v1/available-numbers/search` | Load exact numbers from the carrier for one country and number type, optionally narrowed by area code or region. A safe read: nothing is reserved, ordered or charged. A recent identical search is answered from the loaded snapshot or its cooldown instead of reading the carrier again | See the live OpenAPI operation |
+| `GET` | `/v1/billing/invoices` | List wallet top-ups with their receipt and invoice links | See the live OpenAPI operation |
 | `GET` | `/v1/billing/settings` | Read wallet billing settings and auto-recharge readiness | See the live OpenAPI operation |
 | `PATCH` | `/v1/billing/settings` | Update safe auto-recharge settings without triggering a live charge | See the live OpenAPI operation |
 | `POST` | `/v1/billing/stripe/topup-sessions` | Create a Stripe checkout topup session when enabled | See the live OpenAPI operation |
-| `POST` | `/v1/byo/sip-trunk/dids` | List the connected BYO SIP trunk carrier account's DIDs for the import picker (live read with a transient, never-stored API token) | See the live OpenAPI operation |
-| `POST` | `/v1/byo/sip-trunk/import` | Import a carrier-owned DID as a voice-only number; activates only on passing live activation evidence, monthly fee stays with the carrier | See the live OpenAPI operation |
-| `POST` | `/v1/byo/sip-trunk/setup-checks` | Run secret-redacted BYO SIP trunk readiness checks for one DID (trunk auth, caller ID, inbound destination, channel capacity) | See the live OpenAPI operation |
+| `POST` | `/v1/byo/sip-trunk/dids` | List owned DIDLogic or DIDWW numbers using a transient customer API key; discovery never changes routing | See the live OpenAPI operation |
+| `POST` | `/v1/byo/sip-trunk/import` | Connect a selected customer-owned voice number after confirmation, or disconnect its local runtime access; carrier bills rental and traffic | See the live OpenAPI operation |
+| `POST` | `/v1/byo/sip-trunk/setup-checks` | Preview one DIDWW routing change and issue a scoped confirmation token, or check existing DIDLogic SIP readiness | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/calcom/complete` | calcom calendar OAuth complete | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/calcom/start` | calcom calendar OAuth start | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/calendly/complete` | calendly calendar OAuth complete | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/calendly/start` | calendly calendar OAuth start | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/google/complete` | google calendar OAuth complete | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/google/start` | google calendar OAuth start | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/microsoft/complete` | microsoft calendar OAuth complete | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/oauth/microsoft/start` | microsoft calendar OAuth start | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/{connection_id}/appointments/{appointment_id}/resolve` | Record account-verified outcome of an uncertain appointment | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/{connection_id}/configure` | Choose calendar destination and booking policy | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/{connection_id}/disable` | Disconnect a calendar and erase locally stored tokens | See the live OpenAPI operation |
+| `POST` | `/v1/calendars/{connection_id}/selections` | Fetch account calendar or event-type choices | See the live OpenAPI operation |
 | `GET` | `/v1/call-results` | Read one bounded factual post-call result group | `calls:read`, `recordings:read` |
 | `GET` | `/v1/calls` | List calls | See the live OpenAPI operation |
 | `POST` | `/v1/calls` | Place one policy-gated, idempotent outbound call | See the live OpenAPI operation |
@@ -98,8 +115,10 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `DELETE` | `/v1/calls/{call_id}/recording` | Delete the active call recording metadata and audit the action | See the live OpenAPI operation |
 | `GET` | `/v1/calls/{call_id}/recording` | Get call recording metadata and disclosure state | `recordings:read` |
 | `GET` | `/v1/calls/{call_id}/recording/content` | Stream call recording audio | `recordings:read` |
-| `GET` | `/v1/calls/{call_id}/transcript` | Get call transcript turns | See the live OpenAPI operation |
-| `GET` | `/v1/calls/{call_id}/transcript/stream` | Get transcript stream events | See the live OpenAPI operation |
+| `GET` | `/v1/calls/{call_id}/transcript` | Get call transcript turns | `recordings:read` |
+| `GET` | `/v1/calls/{call_id}/transcript/stream` | Get transcript stream events | `recordings:read` |
+| `GET` | `/v1/calls/{call_id}/transcript/translations` | Read cached call translations | `recordings:read` |
+| `POST` | `/v1/calls/{call_id}/transcript/translations` | Request paid call translation | `recordings:read`, `translations:write` |
 | `GET` | `/v1/calls/{call_id}/waveform` | Get waveform peaks for playback | See the live OpenAPI operation |
 | `GET` | `/v1/campaigns` | List campaigns (bounded page) | `calls:read` |
 | `POST` | `/v1/campaigns` | Create a draft outbound campaign | `calls:write` |
@@ -135,6 +154,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/do-not-call` | List the workspace do-not-call register (bounded page) | `calls:read` |
 | `POST` | `/v1/do-not-call` | Add numbers to the do-not-call register | `calls:write` |
 | `DELETE` | `/v1/do-not-call/{phone_number}` | Remove one number from the do-not-call register | `calls:write` |
+| `GET` | `/v1/end-users` | List end-user verification profiles | See the live OpenAPI operation |
 | `GET` | `/v1/end-users/{end_user_profile_id}/registration-status` | KYC + carrier identity + per-number registration status with derived customer status, and a headline naming how many number registrations Skysay has submitted to the carrier (empty when none is currently submitted, and also when the profile is rejected or needs more information) | See the live OpenAPI operation |
 | `POST` | `/v1/end-users/{end_user_profile_id}/submit-registration` | Enqueue the carrier end-user registration chain (identity/address/proofs/verification) through the operator queue; identity is org-level and reused | See the live OpenAPI operation |
 | `GET` | `/v1/gateway-deployments` | List media gateways | See the live OpenAPI operation |
@@ -168,6 +188,8 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/messages` | List SMS messages | See the live OpenAPI operation |
 | `POST` | `/v1/messages` | Send a policy-gated outbound SMS | See the live OpenAPI operation |
 | `GET` | `/v1/messages/{message_id}/delivery-events` | List SMS provider delivery events for one message | See the live OpenAPI operation |
+| `GET` | `/v1/messages/{message_id}/translations` | Read cached message translations | `sms:read` |
+| `POST` | `/v1/messages/{message_id}/translations` | Request paid message translation | `sms:read`, `translations:write` |
 | `GET` | `/v1/number-catalog` | Search the stored number catalog with customer setup/monthly prices, capabilities, and onboarding terms | See the live OpenAPI operation |
 | `GET` | `/v1/number-requests` | List managed phone-number requests | See the live OpenAPI operation |
 | `POST` | `/v1/number-requests` | Request a managed Skysay phone number | See the live OpenAPI operation |
@@ -193,6 +215,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/phone-servers/{phone_server_id}` | Get one customer phone server | See the live OpenAPI operation |
 | `PATCH` | `/v1/phone-servers/{phone_server_id}` | Update one customer phone server | See the live OpenAPI operation |
 | `POST` | `/v1/phone-servers/{phone_server_id}/test` | Dry-run verify a customer phone server before assigning Number rules | See the live OpenAPI operation |
+| `POST` | `/v1/policies/authorize-outbound` | Preflight an outbound call or SMS against the pre-dial gates, persisting nothing | See the live OpenAPI operation |
 | `POST` | `/v1/policies/evaluate` | Evaluate outbound policy | See the live OpenAPI operation |
 | `GET` | `/v1/pricing/catalog` | List pricing plans | See the live OpenAPI operation |
 | `POST` | `/v1/pricing/estimate` | Estimate monthly platform cost on the public price book (public_launch_pricing_v1) | See the live OpenAPI operation |
@@ -201,6 +224,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/trial-calls` | List historical and offline trial fixtures | See the live OpenAPI operation |
 | `POST` | `/v1/trial-calls` | Create an offline synthetic trial fixture | See the live OpenAPI operation |
 | `GET` | `/v1/usage` | Get usage summary | See the live OpenAPI operation |
+| `GET` | `/v1/usage-records` | List usage records | See the live OpenAPI operation |
 | `GET` | `/v1/usage/daily` | Get daily usage summary | See the live OpenAPI operation |
 | `GET` | `/v1/usage/monthly` | Get monthly usage summary | See the live OpenAPI operation |
 | `GET` | `/v1/verification/requirement-summaries` | Resolve batched per-number-type verification deltas for one country and optional reusable profile | See the live OpenAPI operation |

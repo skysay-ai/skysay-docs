@@ -1,5 +1,5 @@
 ---
-title: Send SMS
+title: Send SMS from your AI agent
 description: Read SMS conversations and send policy-gated messages from your numbers.
 icon: ChatBubble
 ---
@@ -8,6 +8,64 @@ Skysay exposes SMS as two scoped capabilities: reading conversation history
 and sending messages. Sending is gated separately from reading so a read-only
 agent can follow a thread without ever being able to send.
 
+## Send your first approved SMS
+
+Start with an active number whose carrier connection actually supports outgoing
+SMS, purchased funds and an approved outbound envelope. A number's country
+being listed is not evidence that SMS sending is enabled. The refusal cases
+below explain platform-wide and number-specific blocks.
+
+Use `sms:send` to send and `sms:read` if you need the returned body or message
+history. Your application should obtain explicit approval of the **exact
+recipient, sender, purpose and text** before sending. `user_authorization`
+records the real approver and reason; it does not obtain consent on its own.
+Do not let a model fill those values in as a way to bypass approval.
+
+The request goes to `POST https://api.skysay.ai/v1/messages`. Use the
+[authenticated curl helper](/docs/make-first-outbound-call#read-your-workspace)
+to keep the key out of source and command-line arguments. The helper, Bash and
+jq must be configured before this example.
+
+```bash
+: "${ORG_ID:?Use your authenticated workspace ID}"
+: "${PROJECT_ID:?Use your project in that workspace}"
+: "${FROM_NUMBER_ID:?Use an SMS-capable number ID}"
+: "${TO_PHONE:?Use the explicitly approved recipient}"
+: "${SMS_BODY:?Use the exact approved message text}"
+: "${SMS_PURPOSE:?Declare the actual purpose}"
+: "${APPROVED_BY:?Name the real approver}"
+: "${APPROVAL_REASON:?Record the actual authorization}"
+
+umask 077
+jq -n --arg org "$ORG_ID" --arg project "$PROJECT_ID" \
+  --arg from "$FROM_NUMBER_ID" --arg to "$TO_PHONE" \
+  --arg body "$SMS_BODY" --arg purpose "$SMS_PURPOSE" \
+  --arg approved_by "$APPROVED_BY" --arg reason "$APPROVAL_REASON" \
+  '{organization_id:$org,project_id:$project,from_phone_number_id:$from,
+    to_phone_number:$to,body:$body,purpose:$purpose,
+    user_authorization:{authorized_by:$approved_by,reason:$reason}}' \
+  > approved-message.json
+
+skysay_request -X POST https://api.skysay.ai/v1/messages \
+  -H 'Content-Type: application/json' --data-binary @approved-message.json
+```
+
+Keep the request file private. The examples deliberately contain no customer
+number or message. A returned message ID means a record exists, not that the
+recipient received it. Inspect status and delivery events; `live_blocked` is
+not queued for later sending. A policy refusal needs review, not automatic
+retries. An inbound SMS is stored and delivered as an event; AI agents do not
+reply to it automatically.
+
+Do not enable generic HTTP retries after an ambiguous send. The `SmsMessage`
+request schema has no idempotency field, and this guide does not define a replay
+contract for REST sends. Preserve any returned message ID and reconcile with
+`sms:read` before a separately approved resend.
+
+The request fields are checked against the public schema. No SMS was sent in
+documentation validation; verify one controlled delivery using your own approved
+recipient before automating it.
+
 ## Read conversations
 
 ```text
@@ -15,6 +73,17 @@ agent can follow a thread without ever being able to send.
 ```
 
 Connects SMS history to the same customer workspace as calls and numbers.
+
+For REST clients, `GET /v1/conversations` returns a
+[bounded `conversations` page](/docs/rest-endpoints#bounded-list-pages).
+Each list item and `GET /v1/conversations/{id}` contain `message_count` and the
+newest message as `last_message` when one exists, **not** an embedded `messages`
+history. Read that history through
+`GET /v1/messages?conversation_id=conv_example`, following its `messages`
+pages and `pagination.next_cursor`. An unknown conversation or one outside
+the key's workspace or selected project returns `404`.
+
+This REST change does not change the MCP `list_conversations` tool's contract.
 
 ## Send one of an agent's SMS templates
 
@@ -50,3 +119,57 @@ an existing idempotency key.
   lead generation, and more) fail closed. Evaluate policy and get explicit human
   approval before sending live. See [Policy & outbound](/docs/policy-and-outbound).
 </Callout>
+
+## Check SMS sending setup
+
+On the **SMS** page, hover over **SMS out** beside the number filter, or focus
+it with the keyboard. The compact help explains Skysay’s sending availability
+and the selected number’s connection. Choose a number to check its setup.
+
+The help links directly to support if you need sending connected or want to
+check carrier requirements. Selecting the support action includes the selected
+number and its country; it does not submit a carrier application or send a
+message. Business messaging requirements depend on recipient countries and use
+case. A configured connection is not proof of carrier approval for every use.
+
+## When a number can't send
+
+Two different things can stop a message, and Skysay says which one:
+
+- **SMS sending isn't switched on for Skysay.** This is platform-wide: it is
+  the same for every workspace and every number, and nothing you change fixes
+  it. You can still receive texts. In the workspace, **SMS** says so and the
+  composer waits. A message sent in the meantime is not delivered: its status
+  is `live_blocked`, never `queued`.
+- **This number can't send.** Its carrier connection is voice-only, or Skysay
+  doesn't send SMS through the carrier that hosts it. `send_sms` refuses with
+  `400` and a reason naming the number, before anything is stored or charged.
+  In the workspace, the number is shown as unable to send, with the reason.
+
+When you buy a number, the checkout says what it will do with SMS for that
+country and number type: receive and send, receive only, send only, or calls
+only.
+
+AI agents don't answer texts automatically. A text to one of your numbers is
+kept in **SMS** and delivered to your `sms.received` webhook.
+
+## Receive incoming SMS
+
+Incoming SMS is enabled on supported numbers. In **Numbers**, **SMS in** means
+texts sent to that number arrive in your workspace’s **SMS** inbox. You do not
+need an AI agent or an activation test to receive messages. An empty inbox
+simply means there are no messages to display.
+
+If an expected message does not arrive, contact Skysay support with the
+receiving number and approximate send time. We can trace carrier delivery and
+inbox routing. Some services do not send verification codes to virtual numbers,
+so receiving ordinary texts does not guarantee delivery of every verification
+code. Do not share passwords or verification codes with support.
+
+## Read a message in another language
+
+For new messages associated with an AI agent, its transcript translation
+settings can generate saved translations after the original message is
+persisted. In **SMS**, choose Original, Translation, or Both, or explicitly
+request a translation with the displayed price. Reading a saved translation
+does not send another SMS. See [translation settings and pricing](/docs/read-call-evidence#translate-a-transcript).

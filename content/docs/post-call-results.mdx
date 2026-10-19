@@ -288,16 +288,18 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `remote_party_disconnected` | the other party hung up |
 | `hangup_requested` | someone ended the call from your workspace or through the hangup endpoint |
 | `max_call_duration_reached` | the call reached its configured maximum length |
+| `funding_exhausted` | the current credit reservation could not be extended before its funded deadline — see [Funding a running call](/docs/billing#funding-a-call-while-it-is-running) |
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
 | `agent_completed` | the agent finished the conversation and ended the call |
 | `media_session_lost` | the media session went away while the call was still live |
 | `no_human_after_answer` | the call was answered but only music or tones were ever heard |
 | `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
-| `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) |
+| `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) — or, with an empty `reason_detail`, the agent's opening could not be produced and never reached the caller ([details](/docs/voice-behavior#when-the-opening-never-reaches-the-caller)) |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
+| `ivr_timeout` | an outbound call that was in a phone menu or a hold queue ended there: a limit ran out, the menu had no way to a person, or it asked for a value the call did not carry; `reason_detail` says which. [Phone menu navigation](/docs/phone-menu-navigation#how-these-calls-end) is on by default, so any call your AI agent places can end this way |
 
-The workspace Calls page does not display the ending reason yet; read it
-from the call resource or the `call.completed` webhook.
+The workspace Calls detail explains funding-related endings. Read the full
+ending-reason vocabulary from the call resource or the `call.completed` webhook.
 
 That is the whole set. The field is empty on a call that has not completed, and on calls that
 completed before this shipped. A call that **failed** reports its reason in
@@ -314,11 +316,36 @@ and it qualifies one of the two, which you can tell from its value:
 | `looping_recording` | `answer_classification` `non_human_audio` | a recording repeated the same cycle of things over and over |
 | `no_audio` | `answer_classification` `silent` | the line answered and nothing at all was heard |
 | `model_unresponsive` | `ended_reason` `agent_unresponsive` | the agent stopped answering: see below |
+| `insufficient_balance` | `ended_reason` `funding_exhausted` | the latest renewal confirmed insufficient eligible credit |
+| `renewal_unavailable` | `ended_reason` `funding_exhausted` | additional funded time was not confirmed by the deadline |
+| `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path`, `data_not_authorised` | `ended_reason` `ivr_timeout` | the time allowed on hold, the time allowed in menus, or the call's overall maximum length ran out while the call was waiting; or the menu offered no way to a person; or it asked for a value the call did not supply. See [How these calls end](/docs/phone-menu-navigation#how-these-calls-end) |
+| `during_hold` | `ended_reason` `remote_party_disconnected` | the other party hung up while the call was waiting in a menu or on hold |
+| `recorded_message_only` | `ended_reason` `no_human_after_answer` | a recording and nothing else answered: no menu, no person |
+| `navigation_detector_lost` | `ended_reason` `media_session_lost` | the listening a waiting call depends on stopped delivering |
 
 It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` is the
 ending that goes with the `non_human_audio` classification, and only an agent set to `end_call`
 ends a call that way. See [Answer detection](/docs/answer-detection) for the whole set, for the
 two situations that end a call, and for the per-agent setting.
+
+### A wait that ran out after a conversation
+
+The call resource also carries `person_reached`: `true` when a person was reached earlier in the
+call, `false` when nobody was, and `null` when the call did not report it (a call that completed
+before the field shipped, an agent that does not handle phone menus, and any ending the platform
+did not decide). It matters for the three endings that mean "the call waited and nobody came":
+`ivr_timeout` with `hold_limit` or `deadline`, and `remote_party_disconnected` with `during_hold`.
+
+| `person_reached` | campaign disposition | pick-up and talk time |
+| --- | --- | --- |
+| `false` | `no_answer`: the contact is dialled again | the call is not a pick-up and its recording is not talk time |
+| `true` | `connected_completed`: terminal, the contact is not dialled again | the call is a pick-up and its recording is talk time |
+| `null` | `connected_completed`: missing information never starts a redial | excluded, as it was before the field existed |
+
+A conversation followed by a transfer into a queue that ran out of time has reached its contact, so
+it is neither redialled nor discounted. `ivr_timeout` with `navigation_limit`, `menu_no_path` or
+`data_not_authorised` is terminal whatever `person_reached` says, and `no_human_after_answer` is never
+a pick-up. The same field is in the `call.completed` webhook, and the terminal `call.ended` event's `details` carries it as a boolean when the platform reported one.
 
 ### When the media session is lost
 
