@@ -89,13 +89,45 @@ external MCP client is not required. Their definitions are part of the
 
 1. The AI agent checks a future UTC range against your calendar and rules. It
    receives up to five offers with local time, timezone and a three-minute expiry.
-2. The caller chooses a time. The AI agent collects and reads back the date,
-   time, timezone, name, required email and event-type answers, then asks for
-   explicit confirmation. It must not invent an email or fill in the owner's.
-3. Skysay checks the offer again and records an appointment intent before
+   If the range is in the past or outside your booking window, Skysay refuses it
+   and tells the AI agent the current time, so it can work out "tomorrow" or
+   "next Tuesday" and ask again. The result also says whether the caller will
+   get a confirmation email, and which details a booking needs.
+2. The caller chooses a time. The AI agent collects the caller's name, any
+   required email and event-type answers. It must not invent an email or fill
+   in the owner's.
+3. The AI agent asks to book. Skysay does not book yet: it returns the booking
+   to read back. The AI agent reads the whole booking back in one sentence —
+   what (an appointment and its length), when (date, time and timezone), for
+   whom (the caller's name) and where the confirmation goes (the caller's email,
+   or that no email is sent) — and asks one yes-or-no question about exactly
+   that booking.
+4. Only after a clear, explicit yes does the AI agent ask again with the same
+   details and the caller's confirmation. An unclear answer gets one
+   clarifying question ("Just to be sure, is that a yes?"). Any change to the
+   details means a new read-back. Silence, a no or a hang-up never books. Skysay
+   refuses a booking request that arrives within a few seconds of its read-back,
+   before the read-back could have been spoken and answered.
+
+   A read-back stops counting as soon as the conversation moves on to other
+   booking details: when the AI agent checks availability for another time or
+   date (even if that check fails or finds nothing free), or asks to book
+   different details. A "yes" the caller gives after that may answer the other
+   question, so the next booking request — even for the earlier details — is a
+   new read-back that needs its own yes. Re-checking exactly the slot that was
+   read back does not reset it.
+5. Skysay checks the offer again and records an appointment intent before
    contacting the provider. An expired offer, changed configuration, ended call
    or concurrent overlapping claim is refused.
-4. The AI agent reports a booking only when the result has `booking_succeeded: true` and `state: booked`. A completed tool request by itself does not mean an appointment exists.
+6. The AI agent reports a booking only when the result has `booking_succeeded: true` and `state: booked`. A completed tool request by itself does not mean an appointment exists.
+
+Skysay cannot hear the caller: the read-back step guarantees that a booking is
+read back before it is written, and the AI agent judges whether the answer was
+a clear yes. Review the call's transcript in **Calls** when you need to see
+exactly what was agreed.
+
+The same rules apply to every AI agent and every conversation engine, on phone
+calls and in the browser.
 
 Daylight-saving time is handled using UTC instants and the selected IANA
 zone. An old offer cannot be moved to another call. A definite conflict before
@@ -129,9 +161,12 @@ its state is unconfirmed.
 
 ## Test without accidental appointments
 
-Anonymous and public demo calls cannot write to calendars. An authenticated
-browser call can write only when the owner has selected a **dedicated test
-connection** and explicitly enabled **real calendar writes in browser tests**.
+Attaching a calendar to an AI agent is what lets its callers book there,
+including the anonymous visitors of Skysay's homepage demo, which runs normal
+AI agents of the demo workspace with their attached calendars and knowledge
+bases. A workspace browser test can write only when the owner has selected a
+**dedicated test connection** and explicitly enabled **real calendar writes in
+browser tests**.
 These settings do not themselves authorize someone to run real test bookings;
 obtain the account owner's permission first.
 
