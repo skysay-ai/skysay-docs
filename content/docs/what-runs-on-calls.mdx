@@ -32,13 +32,13 @@ Otherwise it names the reason, and the **?** next to it explains it (Tab reaches
 it, Enter opens it, Escape closes it). The **Knowledge** section shows the same
 answer for the knowledge base search, under the attached bases.
 
-The page describes the AI agent as last saved. Each row also says when the
+The page describes the AI agent as last published. Each row also says when the
 answer is the same on every engine.
 
 ## Engines
 
 The answers are shown for the engine selected in the editor. Choose another
-engine and the panel shows that engine's answers before you save.
+engine and the panel shows that engine's answers before you publish.
 
 Tools, knowledge bases and calendar tools reach Cascade, Gemini Live and
 GPT-Live the same way. Two things differ by engine today:
@@ -68,17 +68,18 @@ them. The homepage demo does not run an AI agent that has a published workflow.
 | Not in workflows yet | `workflow_call` | These calls run the published workflow, which does not offer the AI agent's tools, knowledge bases or calendar tools yet. |
 | Engine can't run workflows | `engine_cannot_run_workflows` | These calls run the published workflow and the engine cannot run workflow calls yet, so they are refused before they start. |
 | Not on the demo | `homepage_demo_refuses_workflows` | The homepage demo does not run an AI agent with a published workflow. |
-| Too many tools | `tool_budget` | A call holds at most 32 tool names, counting the built-ins and the knowledge base search. Until the tools fit, calls are refused, or run without an added built-in (Save a callback) or without phone menu navigation. |
+| Too many tools | `tool_budget` | A call holds at most 32 tool names, counting the built-ins and, on a billed call, the knowledge base search. Until the tools fit, calls are refused, or run without an added built-in (Save a callback) or without phone menu navigation. |
 | Invalid tool name | `tool_contract_unsafe` | Every tool name must be at most 32 lowercase letters, digits and underscores, starting with a letter. Until then, calls are refused. |
-| Can't be offered | `not_buildable` | The voice service cannot offer this entry (an unknown type, a repeated or reserved name, or a missing schema). Calls leave it out and record a `configured_tool_omitted` event. |
+| Can't be offered | `not_buildable` | The voice service cannot offer this entry (an unknown type, a repeated or reserved name, or a schema that is missing or nested more than 32 levels deep). Calls leave it out and record a `configured_tool_omitted` event. |
+| Name taken by the voice service | `worker_tool_name` | While Follow the caller is on, the voice service adds its own `switch_language` tool, so a tool of yours with that name is left out. Rename it. |
 | No SMS template | `sms_templates_missing` | SMS is set to templates only and the AI agent has no SMS template. |
 | Integration off | `integration_unavailable` | The integration action, or its integration, is switched off in this project. |
 | Calendar not connected | `calendar_connection_inactive` | The calendar the tools use is not connected and active. Reconnect it under **Integrations**. |
 | Not available yet | `calendar_fleet_not_ready` | Calendar tools are offered once every running voice server supports them. |
 | No ready document | `knowledge_not_ready` | None of the attached knowledge bases has a processed document yet. |
-| Needs a phone call | `needs_phone_caller` | The tool acts on the caller's phone number (a text, a transfer, a callback or the call's outcome), and this kind of call has none. |
+| Needs a phone call | `needs_phone_caller` | The tool acts on a phone call (such as a text, a transfer or a callback), and this kind of call has none. On the homepage demo every built-in except ending the call and the calendar tools needs one. |
 | Test calendar only | `calendar_test_writes_off` | A browser test books only on a calendar connection marked as a test calendar with test bookings allowed. Checking availability still works. |
-| Outbound only | `outbound_only` | Phone menu navigation is used only on calls the AI agent places. |
+| Outbound only | `outbound_only` | Phone menu navigation is used only on calls the AI agent places. On an engine that does not navigate, every column says **Engine not supported** instead. |
 
 Phone menu navigation can also show the reasons its own setting explains, such
 as **Engine not supported** or **Language not supported**; see
