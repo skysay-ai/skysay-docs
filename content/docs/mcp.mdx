@@ -37,6 +37,44 @@ Manage and revoke connections from **Connected apps** on the [API keys](https://
 Revocation invalidates the connection's tokens. Existing API keys continue to
 work independently and must be revoked separately.
 
+### Verified email signup during OAuth
+
+A supported MCP client opens Skysay's existing verified email OTP or supported
+social sign-in. Complete verification in the browser, then review the client,
+workspace and permissions and choose **Allow access** or **Deny**. Verification
+alone grants no MCP access. PKCE returns to the originating registered client.
+No arbitrary HTTP tool, custom bearer header or API key is needed for signup.
+Reconnecting uses the same workspace without another welcome grant.
+
+Unverified contact email never grants access to a stored phone identity or
+links its workspace. Existing phone-owned API keys remain valid until revoked,
+but phone browser sign-in is deferred with SMS signup. Cross-account linking
+is not provided. Use your verified email/social account's own workspace.
+Expired or used connection requests must be restarted from the client.
+
+The single $5 welcome credit has no expiry and applies only to authenticated
+metered browser testing in Skysay. Number setup/rental, PSTN and SMS require
+purchased funds and ordinary readiness and metering. Optional approved funding
+is available without a phone identity through `create_wallet_topup` with
+explicit `wallet:write` consent. The permission is offered unticked and approves
+no purchase. Each payment still needs approval of the exact amount, wallet
+currency and purpose. The tool returns a direct Stripe hosted-checkout URL, or
+accepts an owner-approved shared payment token from a compatible host/wallet.
+It uses the same billing service as the retained payment API; the historical
+headless URL does not enable signup. See [payment paths and limits](/docs/billing#adding-funds-through-mcp).
+
+Client connection support and directory permissions remain separate. The
+public Claude listing remains read-only; calling requires a separately allowed
+full connection with consented calling scopes. OAuth does not itself approve
+payments, number purchases or billable calls. See [Billing](/docs/billing).
+
+`create_wallet_topup` is absent from the public read-only connector. MCP tool
+availability does not establish native payment support in ChatGPT, Claude,
+Codex or Grok. This server returns ordinary tool results and does not negotiate
+or send MCP elicitation requests. A checkout link opens Stripe in a browser;
+JSON seller/approval metadata is not a native payment card. Actual entirely
+in-chat and default-card merchant acceptance remain unproven.
+
 ### OAuth client configuration
 
 | Setting | Value |
@@ -81,6 +119,11 @@ press **Allow access** is exactly what the app gets:
 - **Place calls** is offered unticked under **You can also allow** when the app
   did not ask for it, so an assistant that never completes a scope step-up can
   still be allowed to place calls.
+- **Add purchased funds** (`wallet:write`) is also offered unticked on a full
+  connection when neither requested nor already allowed. It enables
+  `create_wallet_topup`; it approves no payment. Each purchase needs separate
+  owner approval of the exact amount, currency and purpose. It is unavailable
+  on the read-only connector; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
 
 Connecting the same app again never takes a permission away on its own: approval
 keeps everything already allowed and adds what was asked for, so tokens issued
