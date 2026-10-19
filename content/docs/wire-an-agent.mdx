@@ -29,6 +29,23 @@ have built, one row per AI agent, and each row says where it has got to:
 | **Number activating** | A number is attached and the carrier has not finished |
 | **Live** | A number is attached and activated, and nothing about the agent blocks a call |
 
+The **Voice setup** column shows the speech recognition, language model,
+and speech synthesis selections for hosted cascade AI agents. Native live
+engines show their saved model and voice. External integrations are identified
+as externally managed instead of being assigned platform model defaults.
+
+Select an AI agent's name or voice setup to open its details panel, including
+the voice and any separate backend model. **Open editor** takes you to its
+configuration. You can search by name, language, phone number, or model and
+filter by voice setup. These filters apply to the loaded list; the page reports
+when only part of the workspace is loaded.
+
+The summary describes **saved settings**, which can differ from the published
+configuration used by calls. **Draft** identifies saved unpublished settings;
+it is separate from whether the AI agent is ready to test. **Activity** combines
+calls today and the last call time, with the counting timezone shown below the
+list.
+
 The **Next** column names the one thing to do next and links to the control
 that does it, so a row is never a dead end. **Needs a voice** covers more than
 a missing voice -- a suspended agent or an unreachable external endpoint lands
@@ -126,6 +143,54 @@ you › connect my audio agent at wss://my-agent.example/stream
 `create_agent` is the full form (mode, first message, system prompt, voice
 stack). `connect_external_agent` is the shortcut for an `external_audio` agent
 with webhook and audio-stream URLs.
+
+### Changing an agent later
+
+An edit through `update_agent` (`PATCH /v1/agents/{agent_id}`) takes effect on
+the agent's next call. An edit to its prompt, greeting, language or voice
+stack publishes the agent in the same step. If the agent could not be
+published that way (a greeting its voice cannot speak, for example), the edit
+is refused and nothing changes. Tools, the recording setting and tuning are
+read when each call starts, so they always took effect on the next call.
+Calls already under way keep what they started with, and an edit that
+changes none of these, such as a new name, publishes nothing. An edit made
+while the agent is not `hosted` is published when it becomes `hosted` again.
+
+This fixes a bug. On an agent that had already been published, an edit to
+its prompt, greeting, language or voice stack used to be stored while calls
+kept running the last published version until the next publish from the
+editor.
+
+A hosted agent that has never been published is published by the first save
+that leaves it valid. A save that does not is still kept, and the agent's
+`metadata.publication` says why:
+
+```json
+{"state": "unpublished", "reason": "publication_variables_invalid", "where": "system_prompt.en", "issue": "UNDECLARED_VARIABLE"}
+```
+
+`reason` is one of `publication_stack_incomplete`,
+`publication_greeting_missing`, `publication_variables_invalid`,
+`publication_workflow_invalid`, `publication_language_unavailable` or
+`publication_refused`; `where` names the part of the agent to fix, and
+`issue` carries the call-variables code when there is one. Once published,
+the record reads `{"state": "published"}` with the other fields empty. It
+belongs to the platform: a `metadata` replace keeps it as it was.
+
+Three settings belong to `set_agent_voice_stack`
+(`PATCH /v1/agents/{agent_id}/voice-stack`):
+
+- **Follow the caller** (`metadata.follow_caller`): `update_agent` refuses a
+  change to it and keeps it through a metadata replace.
+- **Phone menu navigation** (`metadata.navigation`): on by default for every AI
+  agent. `update_agent` refuses a change to it and keeps it through a metadata
+  replace, so an explicit off survives. See
+  [Phone menu navigation](/docs/phone-menu-navigation#turn-it-on).
+- **A new language for an agent that runs a workflow:** `set_agent_voice_stack`
+  translates the workflow into that language first, including every language
+  Follow the caller for all languages adds. `update_agent` refuses a language
+  the workflow does not speak yet, and so does a switch back to `hosted` that
+  would publish one.
 
 ## 2. Choose a voice stack
 
@@ -309,18 +374,21 @@ while keeping a sustained request such as “stop” interruptible. Sustained
 background speech can still be treated as caller speech.
 
 After the caller stops speaking, the agent waits for a fixed **endpointing
-hold** before it treats the turn as finished. An agent whose language has a
-trained turn detector holds for 200 ms and lets the detector decide; every other
-language holds for **800 ms**, so that a mid-sentence pause is less likely to
-end the turn. The `interruption_sensitivity` presets move that hold by a
+hold** before it treats the turn as finished. On a phone call, an agent whose
+language has a trained turn detector holds for **600 ms** when the detector
+judges the caller finished and up to **1200 ms** when it judges them probably
+not finished; every other language holds for **800 ms**. These holds keep a
+caller's mid-sentence pause (after their name, before a number, while leaving a
+message) from ending the turn on a narrowband phone line. A browser test call
+runs the shorter browser timings. The `interruption_sensitivity` presets move that hold by a
 different amount in each class, because in a language without the turn detector
 the hold is the whole end-of-turn decision:
 
 | Preset | Interruption threshold | Hold, language with the turn detector | Hold, every other language |
 | --- | --- | --- | --- |
-| `balanced` (default) | 500 ms | 200 ms | 800 ms |
-| `low` | 750 ms | 520 ms | 1100 ms |
-| `high` | 150 ms | 260 ms | 600 ms |
+| `balanced` (default) | 500 ms | 600 ms, up to 1200 ms | 800 ms |
+| `low` | 750 ms | 900 ms, up to 1800 ms | 1100 ms |
+| `high` | 150 ms | 260 ms, up to 600 ms | 600 ms |
 
 Languages with the trained turn detector are Arabic, German, English, Spanish,
 French, Hindi, Indonesian, Italian, Japanese, Korean, Dutch, Portuguese, Turkish
@@ -328,6 +396,13 @@ and Chinese. Every other language, including Sinhala, Tamil and Estonian, uses
 the right-hand hold column. See [Turn detection by
 language](/docs/turn-detection-by-language) for how the two signals behind
 this table work and for guidance on choosing a preset per language.
+
+The hold is a **minimum wait, not the reply time**. A turn never ends before
+voice detection reports the end of speech, which takes about 250 ms of silence,
+and never before the final transcript of what the caller said has arrived,
+which depends on the speech-to-text provider. The agent editor shows these
+figures for the agent's own language under **Interruption sensitivity**, with a
+timeline of when that agent's recorded replies actually started.
 
 What `turn_taking` in `set_agent_voice_stack` adds is per-agent control over
 that threshold, the endpointing hold, and whether an interruption must also
@@ -344,9 +419,9 @@ an in-progress call.
 
 | Setting | Effect on a hosted phone call |
 | --- | --- |
-| `interruption_sensitivity` | Every language. `balanced` is the default: the 500 ms threshold and the platform hold. `low` requires 750 ms of continuous speech and holds longer after it. `high` uses 150 ms for callers who need a more responsive threshold and holds for less. The hold each preset sets depends on whether the language has the trained turn detector (table above). `min_speech_ms` and `silence_hold_ms`, when set, take precedence for their knob. |
+| `interruption_sensitivity` | Every language. `balanced` is the default: the 500 ms threshold and the platform hold. `low` requires 750 ms of continuous speech and holds longer after it. `high` uses 150 ms for callers who need a more responsive threshold, and holds for less. The hold each preset sets depends on whether the language has the trained turn detector (table above), and it is a minimum wait, not the reply time. `min_speech_ms` and `silence_hold_ms`, when set, take precedence for their knob. |
 | `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call it is honoured down to 150 ms; a value below 150 ms is raised to 150 ms. A phone call without it, and without a preset, uses the 500 ms default. Browser and web calls store it but do not apply it. |
-| `silence_hold_ms` | Every language. An explicit 100–2000 ms endpointing hold after speech. It overrides the platform hold and any sensitivity preset. |
+| `silence_hold_ms` | Every language. The shortest wait, 100–2000 ms, after the caller stops speaking before their turn can end. It overrides the platform hold and any sensitivity preset. A value below about 250 ms has no effect, because voice detection needs that much silence to report the end of speech, and the wait is longer whenever the final transcript arrives later than this value. |
 | `min_interruption_words` | 0–5. Defaults to `1` on hosted **English** calls and to `0` (off) everywhere else. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
 | `barge_in_speech_rms` | **Deprecated.** Accepted, stored and returned for compatibility only; the runtime does not apply it to call behavior. Use `interruption_sensitivity`, `min_speech_ms` and `min_interruption_words` to control interruptions. |
 
@@ -433,7 +508,8 @@ phone call, in any language:
   preparing or delivering a reply, and delivers it once that reply ends.
   Background speech picked up by transcription therefore cannot cut the agent
   off mid-sentence.
-- For agents using the **Standard** conversation engine, the opening line is
+- For agents using the **Standard** conversation engine on an inbound call, or
+  on a call bound to an agent workflow, the opening line is
   not interrupted by the phone being picked up. While the opening line plays,
   caller speech shorter than **one second** of continuous speech — a "hello?",
   a syllable, a breath — does not cut it, in any language and whatever the
@@ -452,6 +528,9 @@ phone call, in any language:
   before starting it.
   The opening line also cannot be cancelled before its first audio frame reaches
   the caller, so mis-transcribed background noise cannot open a call in silence.
+  On an **outbound** call with the Standard engine none of this applies: the
+  agent lets the person say hello first, and its opening is an ordinary reply
+  the person can interrupt. See [Who speaks first](/docs/who-speaks-first).
   If the opening line cannot be synthesised at all, a short line in the call's
   own language is played in its place; that substitute exists for English,
   Estonian, Sinhala and Tamil, and a call in another language, or one whose

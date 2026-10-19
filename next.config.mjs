@@ -72,10 +72,21 @@ const nextConfig = {
       // lives in the "MCP tools" + "Authentication & keys" pages. Keep the
       // old URL resolving.
       { source: "/docs/agents", destination: "/docs/mcp", permanent: true },
+      // /raw/blog/<slug> is the internal target of the /blog/:path*.md
+      // rewrite below. The blog now lives in its own app (skysay-blog), which
+      // serves /blog/<slug>.md itself, so an external request for the old
+      // raw URL is sent to the canonical .md URL (308). Redirects match the
+      // incoming path before rewrites run, and a rewrite's destination is
+      // never redirected, so the rewrite below still reaches the raw handler
+      // (no loop) while this app serves /blog.
+      { source: "/raw/blog/:slug", destination: "/blog/:slug.md", permanent: true },
     ];
   },
   async rewrites() {
     return [
+      // Production ingress strips /docs-assets. Keep the same public-image
+      // URL working when this app is served directly for local verification.
+      { source: "/docs-assets/images/:path*", destination: "/images/:path*" },
       // Per-page agent-readable markdown: /docs/quickstart.md and
       // /blog/launch.md serve the raw processed markdown.
       { source: "/docs/:path*.md", destination: "/raw/docs/:path*" },

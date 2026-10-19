@@ -193,6 +193,17 @@ anything, or on a call whose replies come from a workflow.
 A call where nobody speaks at all is a different situation, with its own
 reason, `no_caller_speech_after_answer`.
 
+On GPT-Live calls with `end_call` enabled, Skysay can request one recovery
+reply if caller input reached the engine but the engine stopped responding.
+It waits until half the configured bound, capped at 10 seconds of free-line
+time, and does not interrupt the caller or an active tool or backend request.
+The model can answer a continuing question or invoke `end_call` if the
+conversation is finished. Saying goodbye alone never authorizes a hang-up.
+The agent keeps its configured tools and is instructed not to repeat completed
+actions. Recovery runs at most once per call and does not extend the original
+unresponsive deadline. It is a safety net, not a guarantee that a model will
+respond or choose to end the call.
+
 Change it per agent in the same `voice_polish` object:
 
 ```json
@@ -207,6 +218,25 @@ Change it per agent in the same `voice_polish` object:
 an agent that legitimately waits on something slow. Leaving the section out
 keeps the 20-second default. There is no editor control for it; set it through
 `PATCH /v1/agents/{agent_id}/voice-stack`.
+
+## When the opening never reaches the caller
+
+Every call opens with the AI agent's opening: its opening line as written, or
+first words it writes from its instructions when it has no line. If producing
+that opening fails before anything is heard, Skysay asks for it once more, but
+only when that cannot repeat or overlap anything: nothing of the opening was
+played, the person has not started speaking, no tool or ending is in progress,
+and the original time allowed for the reply has not run out. If the person
+speaks first, their turn is answered as usual instead.
+
+If the opening still never reaches the caller, Skysay ends the call rather than
+leave both sides waiting in silence. The [call result](/docs/post-call-results)
+reports `ended_reason` `agent_unresponsive` with an empty `reason_detail`, which
+tells it apart from the silent-agent bound above (`model_unresponsive`). A
+workspace browser test reports such a failure as `browser_startup_failed`, as
+before. On an incoming call answered by a voice-to-voice engine (GPT-Live,
+Gemini Live), the engine already hears the caller and answers them directly, so
+the call continues and the silent-agent bound above applies.
 
 ## What it does not do
 
@@ -224,3 +254,16 @@ and [audio environments](/docs/audio-environments) for ambience.
 - [Post-call results](/docs/post-call-results) explains `agent_unresponsive`,
   `model_session_lost` and `reason_detail`, including the silent-agent bound
   above.
+
+
+## When funded call time runs out
+
+A hosted call can end because its existing credit reservation cannot be extended.
+Skysay checks this independently of whether the conversation is progressing,
+which language is spoken, or which conversation engine is selected. This is a
+platform billing rule; it does not depend on the AI agent following a prompt.
+
+The ending is `funding_exhausted`. The [billing guide](/docs/billing#funding-a-call-while-it-is-running)
+explains the reason details, automatic recharge and final settlement. Keeping
+sufficient eligible credit available lets renewals proceed, subject to the
+call's existing maximum duration.

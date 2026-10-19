@@ -1,131 +1,96 @@
 ---
 title: Quickstart
-description: Connect an MCP client, inspect your workspace, and test a configured agent in the browser.
+description: Connect Claude Code or Codex to hosted MCP and verify read-only access without placing a paid call.
 icon: FastArrowRight
 ---
 
-Connect an MCP client and inspect your workspace without placing a paid phone
-call. The example uses the OpenClaw connector; other MCP clients use the same
-scoped tools. To call the REST API directly instead, follow the
-[Quickstart with curl](/docs/quickstart-curl). For the fastest audio test, configure an agent in the workspace
-and [test it in the browser](/docs/trial-calls) using welcome credit or purchased
-funds. PAYG has no monthly platform subscription; see [Billing](/docs/billing).
+Connect your coding assistant directly to Skysay's hosted MCP server. You do
+not need a Skysay source checkout, a local bridge or a Twilio account.
+Start with read-only access; adding a connection does not provision a phone
+number or place a call.
 
-## Prerequisites
+## 1. Sign in and choose a credential
 
-- An **Skysay organization** and a credential that can mint keys — a
-  dashboard session token (`opsess_…`) or a bootstrap key that holds
-  `api_keys:write`.
-- **Node 18+** (for the `.mjs` bridge) or Python 3.8+ (for the `.py` bridge).
-- An agent host that speaks MCP — an OpenClaw checkout with
-  `config/mcporter.json`, or any other MCP client.
+Open [Skysay](https://skysay.ai/start), then your workspace's
+[API keys](https://skysay.ai/api-keys) page.
 
-<Steps>
+For the first check, create a key with only `account:read`. Keep the value in
+your local secret store or `SKYSAY_API_KEY` environment variable. The key is
+shown once; do not paste it into a prompt, commit it or share it in screenshots.
+Do not use `all` or `all-read` for this check: bundles can include future scopes.
 
-<Step>
+OAuth is an alternative when your client supports it. The read-only resource
+is `https://api.skysay.ai/mcp/read-only`; review the workspace and permissions
+on the consent screen. API-key permissions and OAuth grants are independent.
 
-### Install the connector
+## 2. Connect your client
 
-Copy the connector into your agent checkout and register the hosted MCP
-endpoint.
+<Cards>
+  <Card title="Claude Code" href="/docs/claude-code" description="HTTP configuration, an environment-variable key or OAuth, and a read-only check." />
+  <Card title="Codex" href="/docs/codex" description="A bearer-token environment variable or OAuth, configuration and troubleshooting." />
+</Cards>
 
-```bash
-cp -R connectors/openclaw skills/skysay
-npx mcporter add skysay --url https://api.skysay.ai/mcp
-```
+Use exactly one authentication method for the server entry. Both recipes start
+at `/mcp/read-only`, which refuses writes even if a credential has broader
+permissions. Its five tools are a catalogue; calling a listed tool still needs
+that tool's scopes. With just `account:read`, use `account_overview`.
 
-Full detail — the stdio bridge, the `.mjs` vs `.py` choice, and the
-remote-MCP shortcut — is in [Install the connector](/docs/install-connector).
+## 3. Verify a real read
 
-</Step>
-
-<Step>
-
-### Mint a scoped key
-
-Mint one org key with the agent scope set. Control-plane scopes
-(`api_keys:write`, `wallet:write`, `operator:*`, `provider_mutations:*`) are
-intentionally omitted, and requested scopes are clamped server-side to what your
-admin credential already holds — the key cannot self-escalate.
-
-```bash
-curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
-  -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"OpenClaw agent",
-       "scopes":["account:read","coverage:read","agents:write",
-                 "numbers:read","numbers:write",
-                 "calls:read","calls:write","recordings:read",
-                 "sms:read","sms:send","policy:evaluate"]}'
-```
-
-The response returns `token` (a `sky_…` key) **once** — store it immediately, it
-is never retrievable again. For a cautious tier, drop `sms:send`, `calls:write`,
-and `numbers:write` to prevent those live actions. See
-[Authentication & keys](/docs/authentication) for the full scope model.
-
-</Step>
-
-<Step>
-
-### Wire the key into the MCP server
-
-Set the three env vars on the `skysay` MCP server and restart your agent so
-`tools/list` picks up the tools.
-
-```json
-{
-  "mcpServers": {
-    "skysay": {
-      "command": "node",
-      "args": ["skills/skysay/bin/skysay-mcp-bridge.mjs"],
-      "env": {
-        "SKYSAY_BASE_URL": "https://api.skysay.ai",
-        "SKYSAY_API_KEY": "sky_your_scoped_key",
-        "SKYSAY_ORGANIZATION_ID": "org_your_org"
-      }
-    }
-  }
-}
-```
-
-</Step>
-
-<Step>
-
-### Your agent calls the tools
-
-Ask the agent in plain language — it selects the right tool from `tools/list`.
+Ask your assistant:
 
 ```text
-you › show my account and search GB number coverage; do not place a call
-
-→ account_overview(...)            # account:read
-→ get_coverage(country="GB")       # coverage:read
-✓ workspace balance and coverage summarized back to you
+Use Skysay account_overview to show my workspace summary.
+Do not create an agent, buy a number, place a call or send SMS.
 ```
 
-</Step>
+A successful MCP result proves an authenticated read, not a functioning phone
+line. Empty collections are normal in a new workspace. A connection marked
+“configured” is not enough: check that a tool returned successfully rather
+than the assistant answering from its own knowledge.
 
-</Steps>
+## 4. Choose what to enable next
 
-Then use the workspace's agent browser test to hear the configured voice.
-Shared-number live PIN trials are retired; `create_trial_call` is an offline
-synthetic-fixture tool, not a way to reach the agent by phone. A real outbound
-call requires purchased funds, a configured route, and policy authorization.
+To discover coverage or configure a phone agent, switch the server entry to
+`https://api.skysay.ai/mcp` and grant only the additional scopes needed for that
+workflow. For example, `get_coverage` needs `coverage:read` and accepts
+`countries: ["GB"]`. It is not available on the read-only profile. See
+[MCP overview](/docs/mcp) and [Scopes](/docs/scopes).
 
-<Callout type="info" title="Safety by default">
-  Live outbound calls and SMS are policy-gated. Evaluate
-  `evaluate_outbound_policy` first, show the decision and cost, and wait for an
-  explicit human yes. Scopes fail closed — a `tools/call` for a tool whose
-  `required_scopes` are not on your key returns `missing MCP scopes`.
-</Callout>
+OAuth grants are resource-specific: reconnect when moving from the read-only
+resource to `/mcp`; a token for one is not a token for the other. For API keys,
+update the endpoint and use a key carrying the required scopes. Revoke unused
+credentials rather than leaving broad test access behind.
+
+For an audio test, configure an agent and use the
+[browser test](/docs/trial-calls). Pay-as-you-go billing has no monthly platform
+subscription; browser credit and purchased funds are separate. A phone number,
+real call or SMS has its own availability, activation and funding requirements.
+
+## Before any billable action
+
+- Confirm the exact recipient, action and expected cost with the user. A tool's
+  presence or an OAuth consent grant is not approval for a particular call,
+  SMS or number order.
+- Use only scopes needed for that action. Read-only MCP refuses all writes;
+  the full endpoint can expose billable operations.
+- Review the workspace's [destination restrictions and spending safeguards](/docs/policy-and-outbound#workspace-limits-and-higher-limit-requests).
+  Policy preflight is not a reservation or a guarantee that a call will pass
+  every admission check. Controls do not supply the recipient's consent.
+- Keep keys out of model prompts, project files and logs. A local assistant or
+  program able to read your process environment may still read an exported key.
+- Follow applicable recipient-permission, AI-disclosure and recording rules.
+  Do not use a successful API request as proof of legal authorization.
+
+Read [Policy & outbound](/docs/policy-and-outbound),
+[Billing](/docs/billing) and [Regulated numbers](/docs/regulated-numbers) before
+moving to real telephony. Shared-number PIN trials are retired; `create_trial_call`
+is a synthetic fixture, not a phone call.
 
 ## Next steps
 
 <Cards>
-  <Card title="Quickstart with curl" href="/docs/quickstart-curl" description="The same journey over REST, every request copy-pasteable." />
-  <Card title="Wire an agent to a number" href="/docs/wire-an-agent" description="Connect an external or hosted agent and answer real calls." />
-  <Card title="Read call evidence" href="/docs/read-call-evidence" description="Recordings, waveforms, transcripts, and retention state." />
-  <Card title="MCP tool reference" href="/docs/tool-reference" description="Every tool, its scope, and its arguments." />
+  <Card title="Quickstart with curl" href="/docs/quickstart-curl" description="Use REST instead of an MCP client." />
+  <Card title="Wire an agent to a number" href="/docs/wire-an-agent" description="Connect an external or hosted agent to real telephony." />
+  <Card title="MCP tool reference" href="/docs/tool-reference" description="Find the exact arguments, scopes and side effects." />
 </Cards>

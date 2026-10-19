@@ -550,9 +550,13 @@ the run, so one suite can hold both. `start_simulation_run` takes `scenario_ids`
 — run the deterministic scenarios on every commit, and the `adaptive_voice` ones
 on the schedule your budget allows.
 
-**Two reads, two scopes.** `get_simulation_run` returns the attempts with their
-transcripts, recognition facts and evidence links, and needs `agents:read`
-because that includes what your callers said. `get_simulation_run_results`
+**Run metadata and conversation content.** `get_simulation_run` needs
+`agents:read` and always returns status, verdicts and pagination. Transcripts,
+recording references and facts additionally require `recordings:read`; without
+it, assertion actual values, rubric rationale and linked-evidence notes are
+also omitted because they can quote conversation content. The same field rule
+applies to the REST run reads.
+`get_simulation_run_results`
 returns the redacted pass/fail projection described under
 [Automation](#automation-reading-results-from-ci) and needs only
 `simulation_suites:read` — the scope to issue a build server.

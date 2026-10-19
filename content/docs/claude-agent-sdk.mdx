@@ -1,0 +1,167 @@
+---
+title: Connect Claude Agent SDK to Skysay
+description: Configure Claude Agent SDK with hosted Skysay MCP and scoped read-only tools before enabling telephone actions.
+icon: MultiBubble
+---
+
+Claude Agent SDK can connect an application agent to Skysay's hosted MCP
+server. This guide configures one read-only account tool before any phone
+number request, call or message.
+
+## Prerequisites
+
+- Python 3.13 and uv; a Skysay workspace.
+- A workspace key with `account:read`, supplied securely as `SKYSAY_API_KEY`.
+- Supported Claude Agent SDK provider authentication; the SDK launches its
+  bundled Claude Code CLI. For application development use your own supported
+  provider/API credential, not copied browser/session tokens.
+
+[Create a scoped Skysay key](/docs/quickstart#1-sign-in-and-choose-a-credential).
+Skysay and Claude provider credentials are separate. Never commit either.
+[Get the public sample](https://github.com/skysay-ai/skysay-docs/tree/main/examples/agent-sdks).
+
+## Install and check the connection
+
+In the public sample's `examples/agent-sdks` directory:
+
+```bash
+uv venv --python 3.13.13
+uv pip sync --require-hashes requirements.lock
+uv run --no-sync python claude_agent.py
+```
+
+The sample pins `claude-agent-sdk==0.2.166` and `openai-agents==0.23.1`;
+`requirements.lock` pins transitive dependencies. If copying only the Claude sample,
+install `claude-agent-sdk==0.2.166` in your own Python 3.13 virtual environment.
+
+## Configure HTTP and limit tools
+
+Save this as `claude_agent.py`. `setting_sources=[]` avoids inheriting project
+and user settings; strict MCP configuration admits only this server.
+`tools=[]` removes built-in tools. The header keeps an environment-variable
+reference so the literal Skysay key is not passed in command-line arguments. Only
+`mcp__skysay__account_overview` is approved for automatic model use. The Skysay
+read-only resource and key scopes remain the server-side authorization boundary.
+
+```python
+"""Configure Claude Agent SDK for one read-only Skysay tool."""
+import argparse
+import asyncio
+import os
+from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, query
+
+URL = 'https://api.skysay.ai/mcp/read-only'
+
+def options():
+    return ClaudeAgentOptions(
+        mcp_servers={'skysay': {'type': 'http', 'url': URL,
+            'headers': {'Authorization': 'Bearer ${SKYSAY_API_KEY}'}}},
+        tools=[],  # No built-in shell, file, browser or search tools.
+        allowed_tools=['mcp__skysay__account_overview'],
+        setting_sources=[],  # Do not inherit project or user tool configuration.
+        extra_args={"strict-mcp-config": None, "no-session-persistence": None},
+        max_turns=3,
+    )
+
+async def main(ask_model=False):
+    if ask_model:
+        async for message in query(prompt='Use account_overview to confirm my Skysay workspace is accessible. Do not repeat private account details.', options=options()):
+            if isinstance(message, ResultMessage):
+                if message.is_error:
+                    raise RuntimeError('Agent run failed; inspect authentication and tool permissions privately.')
+                print(message.result)
+        return
+    async with ClaudeSDKClient(options=options()) as client:
+        # The CLI can report pending while its HTTP handshake finishes.
+        deadline = asyncio.get_running_loop().time() + 20
+        while True:
+            status = await client.get_mcp_status()
+            if sorted(s["name"] for s in status.get("mcpServers", [])) != ["skysay"]:
+                raise RuntimeError("Unexpected MCP configuration; use the isolated sample settings.")
+            server = next((s for s in status.get('mcpServers', []) if s['name'] == 'skysay'), None)
+            if server and server['status'] == 'connected':
+                break
+            if server and server['status'] not in ('pending',):
+                raise RuntimeError('MCP connection refused; check authentication and the workspace key.')
+            if asyncio.get_running_loop().time() >= deadline:
+                raise RuntimeError('MCP connection timed out; check network and client authentication.')
+            await asyncio.sleep(0.2)
+        print('Connected: Skysay MCP registered. Run the OpenAI probe to verify a tool result without a model request.')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ask-model', action='store_true', help='Optional Claude request: requires a supported Claude API account and may incur model charges.')
+    asyncio.run(main(parser.parse_args().ask_model))
+```
+
+Expected connection-probe output:
+
+```text
+Connected: Skysay MCP registered. Run the OpenAI probe to verify a tool result without a model request.
+```
+
+This checks the SDK's configured MCP connection, **not** a tool call or an
+agent answer. To verify `account_overview` without model inference, run the
+[OpenAI transport probe](/docs/openai-agents-sdk) from the same pinned sample.
+It uses the same Skysay key and HTTP resource and needs no OpenAI key.
+
+## Optional: let Claude call the read-only tool
+
+After configuring supported Claude provider authentication, run:
+
+```bash
+uv run --no-sync python claude_agent.py --ask-model
+```
+
+This invokes Claude and sends account tool output to its provider; charges
+may apply. Use a test workspace and review provider data handling first.
+An allowed tool is automatically permitted by the client, but still needs
+the appropriate Skysay scope. Do not add wildcard tool grants or bypass
+permissions to make a failing setup appear successful.
+
+## Before calls or SMS
+
+A successful read is not an active phone number. In the workspace, choose a
+country and number type, inspect voice/SMS capabilities and prices, and complete
+any required identity, business and carrier-document review. Skysay handles
+carrier onboarding; you still provide the required information. Number activation
+is not instant in every market. See [regulated numbers](/docs/regulated-numbers)
+and [pricing](/pricing).
+
+Your SDK agent configures and operates Skysay. It is **not** automatically the
+voice model speaking to the person on the phone. Configure the voice agent's
+published flow before enabling real calls.
+
+Keep the initial read-only endpoint. Enabling the full MCP resource is a
+separate application change: use the least scopes for the selected tools, an
+explicit destination/action/cost confirmation, and a server-side approval flow
+before number purchases, calls or SMS. An SDK allowlist is not an authorization
+or spending boundary. [Quickstart](/docs/quickstart#before-any-billable-action)
+explains these boundaries; [MCP tools](/docs/tool-reference) gives exact names
+and arguments. This guide does not dial, text or purchase a number.
+
+## Troubleshooting
+
+- **401:** confirm the workspace key is active and present in the launching
+  process. Do not print the key while debugging.
+- **Tool error / missing scope:** the initial key needs `account:read`.
+  Connection success alone does not prove authorization to call the tool.
+- **405 in your browser:** MCP uses POST. Opening the endpoint as a web page
+  is not an initialization or tool-call test.
+- **Timeout:** check outbound HTTPS to `api.skysay.ai` and proxy configuration.
+  Do not disable TLS validation.
+- **Unexpected tools:** confirm the read-only URL and use a clean example
+  directory. Do not inherit unrelated MCP, shell or file tools.
+
+## What was verified
+
+The pinned client packages were exercised against the real Skysay HTTP handler
+in an isolated local workspace with disposable credentials. No production
+account, customer data, hosted model request, phone call, SMS or number purchase
+was used. Optional model-mediated runs above remain untested; they incur
+provider usage. This is transport/configuration acceptance, not a live-carrier
+or model-quality benchmark.
+
+## SDK reference
+
+Configuration checked on 14 October 2026 against the [official SDK MCP documentation](https://code.claude.com/docs/en/agent-sdk/mcp). Recheck pinned versions before upgrading.
