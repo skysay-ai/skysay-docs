@@ -10,45 +10,154 @@ a number, transfer ownership, or port it to Skysay.
 
 ## DIDWW: connect with one API key
 
-Your DIDWW account and number must already be approved for the calls you want
-to make. DIDWW controls its verification, outbound permissions, balance and
-carrier restrictions. Connecting to Skysay does not bypass them.
+You need a DIDWW account, and DIDWW must already have approved your number for
+the calls you want to make. DIDWW keeps control of its own verification,
+outbound calling permission, balance and restrictions. Connecting the number
+to Skysay does not get around any of them.
 
-1. Sign in to [DIDWW](https://my.didww.com/). Open **APIs → DIDWW API 3 →
-   Create new API Key**. Give the integration a name such as Skysay, choose
-   **Create**, and copy the key. See the official
-   [API-key guide](https://doc.didww.com/api3/configuration.html).
-2. In Skysay, choose **DIDWW** and paste that production key. **List my
-   numbers** reads the account inventory. It makes no routing change. Search
-   accepts a complete number; use the page controls for larger accounts.
-3. Select one available number. Choose a published AI agent to connect
-   incoming calls, or choose to set up incoming later. The latter preserves
-   the current DIDWW route. Select **Connect outgoing calls** if wanted.
-4. Review the selected number, its current incoming route and the billing
-   explanation. Confirm the change. Skysay creates dedicated SIP trunks and
-   automatically configures credentials, destination and caller ID. You do
-   not enter a SIP username, password or host.
-5. Read the separate incoming and outgoing results. **Configured** means the
-   stored configuration was checked at setup time. It does not mean that a
-   call has completed or that carrier permission is continuously monitored.
+To start, open **Numbers** in Skysay and choose **Import a number**.
 
-Connecting incoming calls replaces that number's existing DIDWW incoming
-route, including a trunk group if assigned. Do not edit the same carrier route
-while connecting it. Skysay checks it again before assignment and refuses a
-detected change. DIDWW does not provide an atomic conditional update for this
-operation, so concurrent edits cannot be guaranteed safe. Other numbers and
-unrelated trunks are left alone.
+<img
+  src="/docs-assets/images/docs/import-a-number/numbers-import-a-number.webp"
+  alt="The Skysay Numbers page, with the Import a number button next to Get a number"
+  width="2560"
+  height="940"
+  style={{ display: 'block', width: '100%', height: 'auto' }}
+/>
 
-The key grants carrier account API access; it is not a read-only credential.
-Skysay uses it during the setup request and does not retain it. Only the SIP
-credentials needed for this integration are stored, encrypted. Those
-credentials permit calls through your DIDWW account. Re-enter the API key for
-a later refresh, retry or additional direction.
+<Steps>
 
-IP-restricted API keys need known Skysay API egress IPs. Contact support before
-connecting one; this first import flow does not supply fixed API egress IPs.
-Keep existing restrictions. The voice-server address and your laptop address
-are not substitutes for the API's egress address.
+<Step>
+
+### Create a DIDWW API key
+
+Sign in to [DIDWW](https://my.didww.com/) and open **APIs → DIDWW API 3 →
+Create new API Key**. Name the key Skysay, choose **Create**, and copy the
+key. DIDWW's own [API-key guide](https://doc.didww.com/api3/configuration.html)
+walks through these screens.
+
+</Step>
+
+<Step>
+
+### Paste the key and list your numbers
+
+In the **Import from your carrier** window, choose **DIDWW** as the carrier,
+paste your production API key and choose **List my numbers**. Skysay only
+reads the numbers on your DIDWW account here. Nothing changes at DIDWW yet.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/didww-api-key.webp"
+  alt="The Import from your carrier window with DIDWW chosen as the carrier, an API key pasted into the DIDWW API key field, and the List my numbers button"
+  width="1152"
+  height="964"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+</Step>
+
+<Step>
+
+### Choose a number and what it should do
+
+Choose **Select** next to the number you want to connect. To find one number,
+type the complete number into the search box. On a large account, use **Next
+page**.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/choose-a-number.webp"
+  alt="A list of three example numbers on the DIDWW account, each marked Billed by your carrier and Incoming available, with a Select button"
+  width="1152"
+  height="1176"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+Then decide what the number should do:
+
+- **AI agent for incoming calls**: pick one of your published AI agents to
+  answer calls to this number. If you are not ready, choose **Set up incoming
+  later**. Calls then keep going where they go today.
+- **Connect outgoing calls**: tick this if your AI agents should also call out
+  from this number.
+
+This import connects calls only, not SMS, even if DIDWW offers SMS on the
+number.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/incoming-agent-and-outgoing-calls.webp"
+  alt="The selected example number with the Front desk AI agent chosen for incoming calls and Connect outgoing calls ticked, above the Review setup button"
+  width="1152"
+  height="968"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+</Step>
+
+<Step>
+
+### Review and confirm
+
+Choose **Review setup**. Skysay shows the number, where its incoming calls go
+today, what will change, and who bills what. Tick the confirmation box and
+choose **Connect this number**, or **Save number** if you connected neither
+direction.
+
+Skysay then creates dedicated SIP trunks in your DIDWW account and sets up
+their credentials, destination and caller ID for you. You never enter a SIP
+username, password or host.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/review-and-confirm.webp"
+  alt="The review screen showing the current incoming route, the incoming and outgoing changes, the billing note and a ticked confirmation box above the Connect this number button"
+  width="1152"
+  height="1052"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+</Step>
+
+<Step>
+
+### Check the result
+
+Skysay reports incoming and outgoing calls separately. **Incoming setup
+complete** and **Outgoing configured** mean Skysay checked the saved setup at
+DIDWW at that moment. They do not mean a call has already gone through, and
+Skysay does not keep checking your DIDWW permissions afterwards.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/connection-result.webp"
+  alt="The result screen: Number connected, Incoming setup complete, Outgoing configured, and a note that SMS is not connected"
+  width="1152"
+  height="916"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+</Step>
+
+</Steps>
+
+### Details
+
+**Incoming route.** Connecting incoming calls replaces the number's existing
+DIDWW incoming route, including a trunk group if one is assigned. Other
+numbers and unrelated trunks are left alone. Do not edit the same route at
+DIDWW while you connect the number. Skysay checks the route again just before
+it switches and stops if it sees a change. DIDWW cannot make that switch in
+one step that applies only if nothing changed, so Skysay cannot guarantee
+safety if someone edits the route at the same moment.
+
+**API key.** The key gives API access to your whole DIDWW account; it is not
+read-only. Skysay uses it only during each setup request and does not keep it.
+Skysay stores only the SIP credentials this connection needs, encrypted. Those
+credentials can place calls through your DIDWW account. To refresh, retry or
+add a direction later, enter the API key again.
+
+**IP-restricted keys.** If your DIDWW API key only works from approved IP
+addresses, contact support before connecting it. This import does not yet
+come from fixed Skysay API addresses that you could approve. Keep your
+existing restrictions. The Skysay voice-server address and your own
+computer's address cannot stand in for the Skysay API's address.
 
 ## Billing and availability
 
