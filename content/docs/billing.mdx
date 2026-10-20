@@ -16,7 +16,10 @@ Usage is still metered. Phone-number rental and setup charges are separate;
 an imported number's carrier may bill you directly. A hosted agent on
 [GPT-Live 1](/docs/conversation-engines) is billed by call duration, from the
 moment the call is placed, at $0.05 per minute, including silence, plus tokens
-for the backend that handles tools.
+for the backend that handles tools. A hosted agent on Gemini Live is billed for
+the time the call is connected to the engine, at $0.023 per minute, including
+silence; while the engine reconnects after a dropped connection, nothing is
+billed.
 
 PAYG's standard workspace allowance is **10 billed phone numbers** and
 **10 simultaneous live calls**, shared across projects and agents. Number
@@ -90,7 +93,9 @@ keep their ordinary return behavior.
 ## Adding funds through MCP
 
 A full MCP connection can request purchased funds with `create_wallet_topup`
-and explicitly consented `wallet:write`. The permission starts unticked and
+on `/mcp`. This tool is not available on the OpenAI `/mcp/openai` profile or
+the `/mcp/read-only` profile. Full-connector funding requires
+explicitly consented `wallet:write`. The permission starts unticked and
 approves no payment. Read the wallet currency with `account_overview`, then
 ask the owner to approve the exact amount, currency and purchase purpose:
 **purchased Skysay calling credit**. The workspace comes only from the
@@ -205,6 +210,26 @@ components used. BYOK provider charges follow that component's billing mode;
 bringing a provider key does not make unrelated platform or carrier usage free.
 New calls use their own pricing snapshot. Existing call prices and historical
 wallet entries are not rewritten when the catalog changes.
+
+### Speech that is interrupted or refused
+
+A caller often talks over the agent, and the agent stops speaking. For the
+voices Skysay measures itself (Cartesia, Fish Audio and Azure), the voice
+charge for each reply is the text Skysay had already sent to the voice
+provider:
+
+- A reply that finishes is charged the text that was sent.
+- A reply the caller interrupts, or that Skysay stops at the end of the call,
+  is charged the text sent before it stopped. Text the agent had not sent yet
+  is not charged.
+- A reply the voice provider rejects with an error is not charged.
+- A reply lost to a connection failure or a provider timeout is not charged.
+  When Skysay retries it, only the attempt that succeeds is charged.
+
+The unit is the provider's own: characters for Cartesia and Azure, and UTF-8
+bytes for Fish Audio. Azure counts escaped markup, and counts each Chinese
+character twice. An interrupted reply never holds the call's reservation: the
+call settles with the rest of its measured usage.
 
 ## Usage history and the ledger
 
