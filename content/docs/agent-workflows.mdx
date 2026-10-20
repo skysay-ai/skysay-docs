@@ -419,10 +419,10 @@ tools for it. A step can run one of these:
 
 | Tool | What the step does | What a later line can say |
 | --- | --- | --- |
-| **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and writes a short answer from the matching passages. The answer states only what the documents say. | `{{tool.knowledge_answer}}` |
-| **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to five offered times with their dates, said in the call's language with the calendar's time zone |
-| **Book an appointment** | Books one of the offered times, and only after the caller says yes to the platform's read-back; see [Book an appointment](#book-an-appointment). | `{{tool.booking_when}}`, `{{tool.booking_length}}`, `{{tool.booking_name}}`, `{{tool.booking_email}}`: said by the read-back question |
-| **Integration action** | Runs one of the AI agent's read-only Integration actions. | `{{tool.<key>}}` for each result key you list: text or a number |
+| **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and quotes the documents' own sentences that answer it. | `{{tool.knowledge_answer}}`: whole sentences of the documents, exactly as written and in the documents' language |
+| **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to three offered times with their dates, said in the call's language with the calendar's time zone |
+| **Book an appointment** | Books one of the offered times, and only after the caller says yes to the platform's read-back; see [Book an appointment](#book-an-appointment). | `{{tool.booking_when}}`, `{{tool.booking_length}}`, `{{tool.booking_name}}`, `{{tool.booking_email}}`: said by the read-back question; `{{tool.booking_needs}}` and `{{tool.booking_needs_email}}` when details are missing |
+| **Integration action** | Runs one of the AI agent's Integration actions that read. An action that changes something is refused (`workflow_tool_not_read`), however the workflow declares it. | `{{tool.<key>}}` for each result key you list: text or a number |
 
 A tool runs only if the AI agent has it. Nothing is attached for you: the
 knowledge search is there once you attach a knowledge base to the AI agent
@@ -480,6 +480,11 @@ time zone follow that language's own conventions.
   that does.
 - A step that fails clears its earlier results, so a later line never says a
   previous answer as if it were this one.
+- A knowledge answer is never text a model wrote. A model only picks which
+  sentences of the retrieved passages answer the question; the platform checks
+  that they are the document's exact words and says each whole sentence they
+  come from. When nothing in the documents answers, the step takes its error
+  route.
 - A result is never cut short. A knowledge answer or a list of times over 300
   characters, an Integration value over 200 characters (600 for one action's
   values together), or a line that would grow past its limit with the result
@@ -501,7 +506,8 @@ To confirm: an appointment on Tuesday, November 3, 2026, 10:00 AM (Eastern Europ
 The question is the platform's own, in fixed wording you cannot edit, for
 every language the workflow is published in: English, Estonian, German,
 Spanish, French and Russian today. A workflow in another language cannot
-publish a booking step. Select the booking step and choose **Add the read-back
+publish a booking step, and a booking runs only on Cascade (see
+[Engines and tests](#engines-and-tests)). Select the booking step and choose **Add the read-back
 question** to add it together with its one clarification. Its "No" route
 starts at the booking step's error route and its "Wants a change" route at the
 workflow's availability step; rewire them as you need.
@@ -527,7 +533,20 @@ the reply they are answering, in the language they heard it in. Otherwise the
 booking step takes its error route rather than guess. A booking the calendar
 refuses, or whose result at the provider is uncertain, also takes the error
 route and is never reported as booked: word that line so it does not say the
-appointment exists, and check the call's appointment in **Calls**. A line of
+appointment exists, and check the call's appointment in **Calls**.
+
+When a booking request lacks an email address the calendar needs for its
+invitation, or an answer to one of the calendar's own questions, the step takes
+its error route and sets two values for that line: `{{tool.booking_needs}}`
+lists the labels of the unanswered questions ("Reason for visit and Phone
+number"), and `{{tool.booking_needs_email}}` is set when an email address is
+needed. Say them inside sections, as the **Appointment booking**
+template does:
+
+```text
+Sorry, I couldn't confirm a booking for that.{{#tool.booking_needs_email}} I also need your email address for the confirmation.{{/tool.booking_needs_email}}{{#tool.booking_needs}} I also need: {{tool.booking_needs}}.{{/tool.booking_needs}} Could you tell me again which time you'd like and the name for the booking?
+```
+ A line of
 your own after a successful booking can say its details too, such as
 `{{#tool.booking_when}}Your appointment on {{tool.booking_when}} is booked.{{/tool.booking_when}}`,
 because they are the calendar's own read-back, never the model's. All the
@@ -569,10 +588,13 @@ name the booking step in `confirms`:
 ```
 
 The clarification is a second `ask` that `confirms` the same booking step, with
-the routes `yes`, `no` and `change` and no `unclear`. Validation also refuses an
+the routes `yes`, `no` and `change` and no `unclear`. The read-back question
+must have its `unclear` route, leading to that clarification; without it
+publishing fails with `WRITE_TOOL_NEEDS_CONFIRMATION`. Validation also refuses an
 agent tool declared with the wrong kind (`AGENT_TOOL_KIND_INVALID`,
 `MUTATION_AUTHORITY_UNAVAILABLE`), a built-in with fixed results given a
-`projection`, or an Integration action given none or more than eight keys
+`projection`, an Integration action given none or more than eight keys, or
+AI agent tools that together give more than 64 results
 (`AGENT_TOOL_RESULT_INVALID`), and a result given by two tools or a tool
 declared twice (`AGENT_TOOL_RESULT_DUPLICATE`). It also refuses one of the AI
 agent's own tools declared without `"source": "agent"`
@@ -597,16 +619,24 @@ it takes its error route. A template does not change a draft you already have.
 
 - **Cascade** says each line with its results exactly as written. **GPT-Live
   1** is given each line, results filled in, to read exactly, and says it in
-  its own voice; its words are not guaranteed to match, so use Cascade when the
-  read-back must be said word for word. Gemini Live cannot run workflow calls.
+  its own voice; its words are not guaranteed to match. Gemini Live cannot run
+  workflow calls.
+- **Workflow bookings run on Cascade.** GPT-Live reports that a line was played,
+  not what was said, so nothing can confirm the read-back was said as written.
+  On GPT-Live a booking step takes its error route
+  (`read_back_not_verbatim`) before anything is read back or booked. Knowledge
+  and availability steps still run on GPT-Live.
 - Outbound calls, an inbound call from a caller you armed a **Phone** test for,
   and the **Talk** test run tool steps the same way, with the AI agent's real
   tools. Talk is a browser test, so its booking writes only to a calendar
   connection set up for test bookings; see
   [Calendar booking](/docs/calendar-booking#test-without-accidental-appointments).
-- **Chat** calls no real tool. Every tool step succeeds with clearly synthetic
-  values (`test-knowledge_answer`, `test-available_times`), and a booking step
-  goes through the read-back question and books nothing.
+- **Chat** calls no real tool. A step whose tool the AI agent has not
+  configured fails as it would on a call (`tool_not_configured`): no knowledge
+  base with a ready document is attached, or the tool is not in the AI agent's
+  tools. Every other tool step succeeds with clearly synthetic values
+  (`test-knowledge_answer`, `test-available_times`), and a booking step goes
+  through the read-back question and books nothing.
 
 ### What a tool step never runs
 
