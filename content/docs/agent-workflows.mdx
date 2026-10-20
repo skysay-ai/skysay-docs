@@ -362,13 +362,14 @@ error `message`. They also run before any funds are reserved:
 
 ### Billing
 
-A Cascade workflow call is billed for the listener's speech-to-text and the
-voice's text-to-speech, each in its provider's own unit (Fish Audio by the
-UTF-8 bytes it speaks, as on any Fish Audio call). A GPT-Live workflow call is
-billed for GPT-Live session time and the listener's speech-to-text, with no
-backend model line and no text-to-speech line; see
-[Billing](/docs/conversation-engines#billing). The platform and carrier lines
-apply as on any call.
+When a spoken workflow call starts, Skysay places a hold that prices each
+source in its provider's own unit: the listener in audio seconds (Soniox in
+tokens), the voice in characters (Fish Audio in UTF-8 bytes, Soniox in tokens),
+and on GPT-Live the session in seconds, with no backend model line and no
+text-to-speech line (see [Billing](/docs/conversation-engines#billing)). When
+the call ends, it settles to the usage confirmed for each source, and any
+difference from the hold is released. The platform and carrier lines apply as
+on any call.
 
 ## Call variables
 
