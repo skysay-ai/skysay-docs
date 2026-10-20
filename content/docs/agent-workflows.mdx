@@ -29,7 +29,7 @@ Each step is one governed unit:
 | **Read tool** | Checks, silently inside a turn, that the call carries the data the next lines need, and takes its error route when it does not. |
 | **Branch** | Chooses exactly one named route from the caller's answer. Cannot invent routes. |
 | **Outcome** | Records a structured result or review candidate. |
-| **Transfer** | Hands the live call to a configured destination, with a declared fallback. |
+| **Transfer** | Hands the live call to a person: dials the number in the AI agent's [Transfer to a human](/docs/transfer-to-a-human) tool, with a declared fallback. |
 | **Send SMS** | Sends an authored text message to the number on the call, then continues. |
 | **End** | Speaks the farewell and closes the session. |
 
@@ -366,11 +366,53 @@ is unknown is never sent again, so the person cannot receive it twice. The
 workflow does not wait for the result: a later line in the same turn should not
 say the message has arrived.
 
+### Transfer steps
+
+A **Transfer** step hands a phone call to a person. It dials the number set in
+the AI agent's [Transfer to a human](/docs/transfer-to-a-human) tool, with that
+tool's ring time (`ring_seconds`, 10 to 60 seconds, 25 by default). The step's
+**Destination** field is your own name for the step; every transfer step of an
+agent dials the same number. The dial follows the tool's rules: one transfer
+attempt per call, your workspace's outbound policy gate for the destination's
+country, and the same suspensions.
+
+What happens on the call:
+
+1. The workflow speaks the lines before the step. A transfer says nothing of
+   its own, so put a **Tell / Say** step before it ("One moment, I'll put you
+   through.") if the caller should hear one. While the person's phone rings
+   the caller hears silence, and anything they say then is not treated as an
+   answer to anything.
+2. **The person answers.** The caller and the person are connected and hear
+   each other; the AI agent says nothing more. The workflow ends with status
+   `transferred`, and the call goes on until the caller or the person hangs
+   up (or the call reaches its maximum length or your balance runs out).
+3. **Nobody answers, the line is busy, the call is rejected or fails, or the
+   caller hangs up first.** The step's failure route runs (its `on_fail`, or the
+   workflow's fallback step), so the conversation continues as you designed
+   it.
+
+A call with a person on it dials from your number the caller reached (inbound)
+or the number the call was placed from (outbound). Transfer steps run on
+Cascade and GPT-Live workflows alike.
+
+The run's trace records how the step went: `tool_status` `success` when the
+person answered, otherwise `error` with a `policy_reason` naming why, such as
+`transfer:busy`, `transfer:no_answer`, `transfer:rejected`, `transfer:failed`,
+`transfer:caller_hangup`, or, when no dial was placed,
+`transfer:transfer_destination_not_configured` (the AI agent has no Transfer to
+a human tool) or `transfer:unavailable_in_test`. The call's transfer state in
+the Calls drawer shows the same outcome.
+
+A browser **Talk** test has no phone number on the line, so it never dials and
+its transfer steps always take their failure route; **Chat** and
+**Simulations** never dial either. Use a **Phone** test to try a transfer.
+
 ### Tools on a workflow call
 
-A workflow runs only its own read tools. The agent's other tools — actions,
-webhooks, the model's own `send_sms` — are refused on any call bound to a
-workflow, and on any call that carries protected values
+A workflow runs only its own read tools and its transfer steps. The agent's
+other tools — actions, webhooks, the model's own `send_sms` — are refused on any
+call bound to a workflow, and on any call that carries protected values
 (`"tools are not available on this call"`). An agent that needs a tool during
 the call is a free-form agent, without a workflow. The agent page's
 [What runs on calls](/docs/what-runs-on-calls) shows, per kind of call, which
