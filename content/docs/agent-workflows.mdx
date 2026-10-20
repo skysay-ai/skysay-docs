@@ -14,6 +14,94 @@ the transition. On the Cascade engine every line is spoken exactly as you
 wrote it; on GPT-Live 1 the model says each line in its own words (see
 [Spoken workflow calls](#spoken-workflow-calls)).
 
+## Voice and turn-taking
+
+Choose the caller's speech recognizer under **Voice → Transcriber**. Choose
+interruption sensitivity under **Tuning → Turn-taking**. Expand **Advanced
+overrides** only when you need explicit silence or interruption durations;
+clearing a value restores the preset.
+
+For an agent with a workflow, **Voice** also shows the published ordinary-call
+input per language. Calls without a bound workflow keep that published input;
+a workflow-only listener is never presented as the ordinary cascade input.
+**Save settings** stages the workflow input, then workflow **Publish** applies it.
+
+These are the agent's shared editable settings. A workflow's **Publish** view
+shows the saved listener, its languages, credential source, and resolved timing,
+with links to those controls. Save pending Voice/Tuning edits before publishing
+the workflow. Publishing freezes a copy: changing the shared settings later does
+not change an existing workflow version or an in-progress call. Restoring a
+workflow version restores its graph; it keeps the agent's saved Voice/Tuning
+settings for the next publication.
+
+A text-only workflow can have voice input turned off. A spoken workflow needs a
+qualified listener covering every language required by the workflow and agent.
+Choosing a model does not automatically qualify additional languages.
+
+| Listener | Languages qualified for spoken workflows | Credentials |
+| --- | --- | --- |
+| Deepgram Nova-3 | English, Tamil | Skysay or your supported credential |
+| Azure Realtime | English, Sinhala | Skysay only |
+| Soniox STT-RT v5 | English | Skysay or your supported credential |
+| OpenAI GPT-Live Transcribe | English | Skysay only |
+
+GPT-Live Transcribe is a finite **workflow listener**. It is not offered as a
+transcriber for an ordinary cascade conversation. It uses OpenAI's transcription
+connection directly, and bills provider-reported audio seconds, including the
+provider's rounding. It does not provide detected-language evidence for
+**Follow the caller**. English qualification is not a claim about other languages
+or automatic language switching.
+
+For ordinary GPT-Live or Gemini Live conversations, the live engine handles
+listening and turn-taking. A GPT-Live spoken workflow instead uses its qualified
+listener to hear the caller and the live session to speak. GPT-Live's workflow
+output is currently qualified for English; the model speaks in its own wording.
+Cascade workflow outputs use the selected qualified TTS path. See
+[conversation engines](/docs/conversation-engines).
+
+Workflow presets use voice activity detection, rather than a semantic turn
+model. Silence holds accept 300–3000 ms and minimum interruption speech accepts
+0–1000 ms. Ordinary cascade overrides retain their existing 100–2000 ms and
+80–2000 ms bounds. The settings express the same intent across modes; their
+underlying turn detectors differ.
+
+### Configure shared input through the API
+
+Read `GET /v1/agents/{agent_id}/voice-stack` and retain
+`voice_setup.revision`. Once the agent has a workflow, stage an English listener:
+
+```json
+{
+  "expected_voice_setup_revision": 0,
+  "voice_setup": {
+    "listener": {
+      "registry_name": "openai_transcribe",
+      "model": "gpt-live-transcribe",
+      "languages": ["en"],
+      "credential_source": "platform_managed"
+    },
+    "turn_taking": {
+      "interruption_sensitivity": "balanced"
+    }
+  }
+}
+```
+
+Send this to `PATCH /v1/agents/{agent_id}/voice-stack`, replacing `0` with the
+revision you read. A stale revision returns 409; reload and review the other
+edit before trying again. Do not combine `voice_setup` with `transcriber` or
+the overlapping `turn_taking` fields in one request. Existing component and
+tuning commands update the same owner and retain ordinary agent publication
+behavior.
+
+Read the workflow draft before publishing. Send its `revision` as
+`base_revision` and its `voice_setup_revision` as
+`expected_voice_setup_revision` to
+`POST /v1/agents/{agent_id}/workflow/publish`. A voice change while publication
+is preparing returns 409. The workflow read contains a derived `voice_input`
+for inspection; omit that field from graph PATCH requests. Writing it is
+refused with instructions to use the shared voice-stack command.
+
 ## The canvas
 
 Open any agent and choose **Workflow**. If the agent has no workflow yet you
