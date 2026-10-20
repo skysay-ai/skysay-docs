@@ -421,7 +421,7 @@ tools for it. A step can run one of these:
 | --- | --- | --- |
 | **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and writes a short answer from the matching passages. The answer states only what the documents say. | `{{tool.knowledge_answer}}` |
 | **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to five offered times with their dates, said in the call's language with the calendar's time zone |
-| **Book an appointment** | Books one of the offered times, and only after the caller says yes to the platform's read-back; see [Book an appointment](#book-an-appointment). | The read-back question says the booking's details |
+| **Book an appointment** | Books one of the offered times, and only after the caller says yes to the platform's read-back; see [Book an appointment](#book-an-appointment). | `{{tool.booking_when}}`, `{{tool.booking_length}}`, `{{tool.booking_name}}`, `{{tool.booking_email}}`: said by the read-back question |
 | **Integration action** | Runs one of the AI agent's read-only Integration actions. | `{{tool.<key>}}` for each result key you list: text or a number |
 
 A tool runs only if the AI agent has it. Nothing is attached for you: the
@@ -527,7 +527,10 @@ the reply they are answering, in the language they heard it in. Otherwise the
 booking step takes its error route rather than guess. A booking the calendar
 refuses, or whose result at the provider is uncertain, also takes the error
 route and is never reported as booked: word that line so it does not say the
-appointment exists, and check the call's appointment in **Calls**. All the
+appointment exists, and check the call's appointment in **Calls**. A line of
+your own after a successful booking can say its details too, such as
+`{{#tool.booking_when}}Your appointment on {{tool.booking_when}} is booked.{{/tool.booking_when}}`,
+because they are the calendar's own read-back, never the model's. All the
 other booking rules of [Calendar booking](/docs/calendar-booking) apply too,
 such as at most two booking attempts per call.
 
@@ -571,7 +574,12 @@ agent tool declared with the wrong kind (`AGENT_TOOL_KIND_INVALID`,
 `MUTATION_AUTHORITY_UNAVAILABLE`), a built-in with fixed results given a
 `projection`, or an Integration action given none or more than eight keys
 (`AGENT_TOOL_RESULT_INVALID`), and a result given by two tools or a tool
-declared twice (`AGENT_TOOL_RESULT_DUPLICATE`).
+declared twice (`AGENT_TOOL_RESULT_DUPLICATE`). It also refuses one of the AI
+agent's own tools declared without `"source": "agent"`
+(`AGENT_TOOL_NEEDS_SOURCE`): without it, a declared tool only checks that the
+call carries variables of those names and runs nothing, so a booking step
+would succeed without booking. This covers the knowledge search, both calendar
+tools, and the built-ins a workflow has its own steps for.
 
 ### Starter templates with tools
 
