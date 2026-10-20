@@ -8,9 +8,11 @@ An agent workflow turns an open-ended voice agent into a governed conversation:
 a graph of typed steps with named routes, hard limits, and evidence for every
 turn. You build the graph visually — or describe it in plain language and let
 AI draft it — while Skysay continuously compiles it into a versioned,
-server-validated runtime contract. The model phrases nothing on its own
+server-validated runtime contract. The model decides nothing on its own
 authority: it chooses between the routes you declared, and the server applies
-the transition.
+the transition. On the Cascade engine every line is spoken exactly as you
+wrote it; on GPT-Live 1 the model says each line in its own words (see
+[Spoken workflow calls](#spoken-workflow-calls)).
 
 ## The canvas
 
@@ -164,8 +166,10 @@ outcome step, tool or language incompatibilities, blank spoken text, missing
 transfer destinations, a line that names a variable the workflow does not
 declare, and a line or SMS that could say a
 [protected variable](#protected-values) before the caller is confirmed
-(`PROTECTED_BEFORE_CONFIRMATION`, naming the step). Warnings are separate and must
-be explicitly acknowledged before publishing.
+(`PROTECTED_BEFORE_CONFIRMATION`, naming the step). An incomplete or invalid
+**Voice input** setting (`INVALID_VOICE_INPUT`) blocks publishing too; see
+[Choose how the workflow hears callers](#choose-how-the-workflow-hears-callers).
+Warnings are separate and must be explicitly acknowledged before publishing.
 
 Four test modes run against the exact draft — its voice stack, knowledge,
 tools, and workflow:
@@ -183,9 +187,16 @@ tools, and workflow:
   turn.
 - **Phone** — a controlled test call on an attached, eligible number. You arm
   a short-lived pin for one declared caller number and one attached number;
-  while it is armed, calls from that caller run the pinned draft, and every
-  other caller continues to reach the published workflow. Pins expire on a
-  timer and after a bounded number of matches.
+  while it is armed, calls from that caller run the pinned workflow, and every
+  other caller continues to reach the published workflow. A draft pin takes the
+  draft as it is when the matching call arrives, not as it was when you armed
+  it; if the draft changes while that call is being prepared, the call is not
+  bound to it. Pins expire on a timer and after a bounded number of matches.
+
+Talk and Phone are spoken calls, so they pass the same checks as a real call:
+funds, and a voice and listener that a spoken workflow accepts (see
+[Spoken workflow calls](#spoken-workflow-calls)). Chat and Simulations use no
+voice or listener.
 
 Draft tests can never execute unapproved mutation tools and never publish
 anything implicitly. Runs record the exact pinned contract, each step, the
@@ -196,6 +207,123 @@ Publishing creates an immutable version. Ordinary callers move to it only when
 you publish; drafts never affect live traffic. Restoring an old version copies
 it into a new draft — history is never rewritten — and version history shows
 what changed between versions.
+
+## Spoken workflow calls
+
+A phone call, a Phone test or a Talk test that runs a workflow needs two
+things the workflow itself does not provide: a **listener** that turns the
+caller's speech into text, and a **voice** that speaks the lines. You choose
+the listener on the workflow; the voice is the AI agent's own. Skysay starts a
+spoken workflow call only when both have been tested for every language the
+call can speak or hear.
+
+### Choose how the workflow hears callers
+
+Open the workflow's publish panel and find **Voice input**. Turn on **Receive
+caller speech**, then set:
+
+| Setting | What it does |
+| --- | --- |
+| **Speech recognition model** | The listener. It is chosen here, for the workflow, and is never taken from the AI agent's own transcriber. |
+| **Caller languages** | Every language the workflow speaks must be in this list. |
+| **Credential source** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
+| **Additional silence (ms)** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000, 1500 by default. |
+| **Minimum voiced interruption (ms)** | How much caller speech it takes to cut off a line being spoken: 0 to 1000, 150 by default. Shorter noise does not interrupt; recognized words always do. |
+
+With **Receive caller speech** off, the workflow still runs in Chat and in
+Simulations, but every spoken call is refused. Publishing refuses a half-filled
+setting (`INVALID_VOICE_INPUT`): complete it, or turn it off.
+
+AI never chooses the listener for you. Generating a workflow from a brief
+leaves **Voice input** for you to set, and an AI edit keeps the listener you
+chose.
+
+Through the API the setting is the draft's `voice_input`, sent with
+`PATCH /v1/agents/{agent_id}/workflow` and returned by
+`GET /v1/agents/{agent_id}/workflow`; `null` turns caller speech off. The
+publish operation lists the complete shape it requires (`WorkflowVoiceInput`)
+in the [API reference](/docs/api-reference).
+
+Publishing checks that the listener covers every language. It does not check
+that the listener has been tested for workflow calls; that is checked when a
+call starts, as described next.
+
+### Which voices and listeners a spoken workflow accepts
+
+These are the listeners and voices Skysay has tested end to end on workflow
+calls. Any other provider, model or language is refused when the call starts.
+
+| Used as | Provider and model | Languages |
+| --- | --- | --- |
+| Listener | Deepgram Nova-3 (`nova-3`) | English, Tamil |
+| Voice (Cascade) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English |
+| Voice (Cascade) | Azure AI Speech neural voices | Sinhala, English |
+| Voice (Cascade) | Fish Audio S2 Pro (`s2-pro`) | Tamil |
+| Engine | GPT-Live 1, any of its voices | English |
+
+So a Cascade workflow in English can use Deepgram Nova-3 with ElevenLabs Flash
+v2.5 or an Azure voice, and a Tamil workflow can use Deepgram Nova-3 with Fish
+Audio. Sinhala has a tested voice but no tested listener yet, so a spoken
+Sinhala workflow call is not available. An Azure voice on a workflow call runs
+on Skysay-managed credentials only; with your own Azure key the call fails
+when it starts. Other voices, such as Cartesia, Gemini TTS and Soniox, and other
+listeners, such as Soniox and Azure, still work on AI agents without a
+workflow; they are not accepted on spoken workflow calls yet. Gemini Live
+cannot run a spoken workflow. Each language is added to this list only after
+Skysay has tested it.
+
+Every language a call can use counts: the call's language, every language the
+workflow is published in, and every language of the AI agent's voice. With
+[Follow the caller](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow),
+that is each followed language.
+
+### How the lines are spoken
+
+- **Cascade** speaks each line exactly as you wrote it, in the agent's voice.
+  A line is split only at spaces, into at most 128 pieces of up to 160 bytes
+  of UTF-8 text each. A single word, or a run of text with no spaces, longer
+  than that is refused rather than cut short; this matters for languages
+  written without spaces.
+- **GPT-Live 1** speaks each line through the call's live session, in GPT's
+  own voice and its own wording. The meaning follows your line, but the words
+  are not guaranteed to match it. Use Cascade when a line must be said word for
+  word, such as a legal disclosure. On a GPT-Live workflow call the listener
+  you chose hears the caller, not GPT-Live, so **Receive caller speech** is
+  required there too. GPT-Live does not navigate phone menus, so a GPT-Live
+  workflow call runs without
+  [phone menu navigation](/docs/phone-menu-navigation).
+
+On both engines the workflow decides the route; GPT-Live's wording never
+changes which step comes next.
+
+### When a spoken workflow call is refused
+
+These checks run before Skysay reserves funds for the call. An outbound call,
+campaign call or Talk test that fails one is not started, and a request that
+starts it gets `400` with the message below. On a **Phone** test, an inbound
+call whose pinned workflow fails these checks is not refused: the pin is
+skipped and the call is answered by the AI agent's normal configuration, as if
+no pin were armed.
+
+| Message | What to change |
+| --- | --- |
+| Select a listener for this workflow and publish a new version. | The published version has no listener. Turn on **Receive caller speech** and publish. |
+| The selected workflow sources are not qualified for spoken calls. | The listener or the voice is not in the table above for one of the call's languages. |
+| This voice engine has no qualified workflow source adapter. | The AI agent's engine cannot speak workflow lines. |
+| Gemini Live is unavailable for workflow-bound calls | Gemini Live cannot run workflow calls. Switch the AI agent to Cascade or GPT-Live 1. |
+| The workflow listener configuration changed. Publish a new version. | The listener saved on the published version is no longer valid. Publish again. |
+| This workflow has no spoken lines for *language*. Publish it again before calling. | The call's language has no rendered lines. |
+| The workflow voice configuration is invalid. | The AI agent's engine and voice settings disagree. Check them and publish the AI agent again. |
+
+### Billing
+
+A Cascade workflow call is billed for the listener's speech-to-text and the
+voice's text-to-speech, each in its provider's own unit (Fish Audio by the
+UTF-8 bytes it speaks, as on any Fish Audio call). A GPT-Live workflow call is
+billed for GPT-Live session time and the listener's speech-to-text, with no
+backend model line and no text-to-speech line; see
+[Billing](/docs/conversation-engines#billing). The platform and carrier lines
+apply as on any call.
 
 ## Call variables
 

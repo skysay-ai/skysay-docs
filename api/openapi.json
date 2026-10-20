@@ -1182,6 +1182,18 @@
                 "type": "string"
               },
               "draft": {
+                "properties": {
+                  "voice_input": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/WorkflowVoiceInputDraft"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
                 "type": "object"
               },
               "layout": {
@@ -6117,6 +6129,167 @@
         },
         "type": "object"
       },
+      "WorkflowVoiceInput": {
+        "additionalProperties": false,
+        "description": "Explicit workflow listener selection, independent of the AI agent's conversation engine. Null means no spoken listener is selected. Publication validates the selected model and language set and freezes its construction; this setting does not qualify or enable an unavailable voice engine.",
+        "properties": {
+          "interruption_min_duration_ms": {
+            "description": "Minimum detected caller speech duration for interrupting workflow output.",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "listener": {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "not": {
+                  "required": [
+                    "credential_id"
+                  ]
+                },
+                "properties": {
+                  "credential_source": {
+                    "enum": [
+                      "platform_managed"
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "credential_source": {
+                    "enum": [
+                      "customer_byok"
+                    ]
+                  }
+                },
+                "required": [
+                  "credential_id"
+                ]
+              }
+            ],
+            "properties": {
+              "credential_id": {
+                "description": "Required only for customer_byok. Must name an active, customer-owned STT credential for this workspace, project and selected provider.",
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                "type": "string"
+              },
+              "credential_source": {
+                "description": "Explicit listener credential choice; never inherited from the AI agent's transcriber.",
+                "enum": [
+                  "platform_managed",
+                  "customer_byok"
+                ],
+                "type": "string"
+              },
+              "languages": {
+                "items": {
+                  "maxLength": 64,
+                  "pattern": "^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "model": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$",
+                "type": "string"
+              },
+              "registry_name": {
+                "pattern": "^[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "registry_name",
+              "model",
+              "languages",
+              "credential_source"
+            ],
+            "type": "object"
+          },
+          "silence_hold_ms": {
+            "description": "Additional silence after the physical speech endpoint before a workflow caller turn is submitted.",
+            "maximum": 3000,
+            "minimum": 300,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "listener",
+          "silence_hold_ms",
+          "interruption_min_duration_ms"
+        ],
+        "type": "object"
+      },
+      "WorkflowVoiceInputDraft": {
+        "additionalProperties": false,
+        "description": "Bounded editable caller-speech settings, including unfinished choices. All fields are optional; an empty object keeps caller speech enabled but incomplete. Stored non-null values that are not objects are served as empty objects, keeping caller speech enabled but incomplete; publication refuses until the settings are completed or explicitly turned off. Read responses omit malformed, unknown and oversized fields without repairing the stored draft. The validation report describes the stored draft; the publish operation's x-draft-publication-requirements declares the strict WorkflowVoiceInput contract.",
+        "properties": {
+          "interruption_min_duration_ms": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listener": {
+            "additionalProperties": false,
+            "properties": {
+              "credential_id": {
+                "maxLength": 128,
+                "type": "string"
+              },
+              "credential_source": {
+                "enum": [
+                  "platform_managed",
+                  "customer_byok"
+                ],
+                "type": "string"
+              },
+              "languages": {
+                "items": {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "type": "array"
+              },
+              "model": {
+                "maxLength": 128,
+                "type": "string"
+              },
+              "registry_name": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "silence_hold_ms": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
       "WorkspaceContext": {
         "properties": {
           "organization": {
@@ -8058,6 +8231,16 @@
                             "type": "null"
                           }
                         ]
+                      },
+                      "voice_input": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/components/schemas/WorkflowVoiceInputDraft"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "type": "object"
@@ -8086,7 +8269,7 @@
         ]
       },
       "post": {
-        "description": "Creates only a workflow draft: no publish, call, tool authorization, or number attachment. From a starter template (blank, payment_reminder, payment_reminder_variables, customer_support, receptionist), blank, or a natural-language 'brief' generated by AI. template_id and brief are mutually exclusive. A brief that the model returns unreadable fails closed (400) and creates nothing; a readable-but-invalid AI-generated graph is still created so the canvas can show what needs fixing. Fails with a conflict if this agent already has a workflow -- edit the existing draft instead.",
+        "description": "Creates only a workflow draft: no publish, call, tool authorization, or number attachment. AI generation never selects the caller-speech listener; configure voice_input explicitly. From a starter template (blank, payment_reminder, payment_reminder_variables, customer_support, receptionist), blank, or a natural-language 'brief' generated by AI. template_id and brief are mutually exclusive. A brief that the model returns unreadable fails closed (400) and creates nothing; a readable-but-invalid AI-generated graph is still created so the canvas can show what needs fixing. Fails with a conflict if this agent already has a workflow -- edit the existing draft instead.",
         "parameters": [
           {
             "in": "path",
@@ -8145,7 +8328,7 @@
     },
     "/v1/agents/{agent_id}/workflow/ai-edit": {
       "post": {
-        "description": "Given a free-text instruction, asks the AI generation provider to propose a replacement draft, then returns that proposal plus its validation -- it never writes to the draft. The caller (frontend) shows a diff and, only on explicit accept, PATCHes the existing update-draft route with the proposal, so an accepted AI edit is undoable through the same history as any manual edit. Rejects a proposal that changes more than 10 steps.",
+        "description": "Given a free-text instruction, asks the AI generation provider to propose a replacement draft, then returns that proposal plus its validation -- it never writes to the draft. AI edits preserve the author's caller-speech listener selection. The caller (frontend) shows a diff and, only on explicit accept, PATCHes the existing update-draft route with the proposal, so an accepted AI edit is undoable through the same history as any manual edit. Rejects a proposal that changes more than 10 steps.",
         "parameters": [
           {
             "in": "path",
@@ -8215,7 +8398,7 @@
         ]
       },
       "post": {
-        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is answered by a fresh run of the pinned draft or published workflow instead of the agent's normal configuration. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
+        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is bound to the selected workflow instead of the agent's normal configuration. A draft pin selects the current draft when a matching call arrives, then compiles, prepares and renders that exact revision and compiled contract into the admitted run's immutable snapshot. Arming does not freeze the draft. A draft changed during preparation is not bound. A published pin uses its published snapshot. Both require normal qualification, funding and admission, including qualified listener and output sources for spoken execution. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
         "parameters": [
           {
             "in": "path",
@@ -8241,6 +8424,7 @@
                   },
                   "pinned_source": {
                     "default": "draft",
+                    "description": "Draft selects the current draft when a matching call arrives; arming does not freeze it. The admitted run keeps the prepared revision and compiled contract. A draft changed during preparation is not bound. Published uses its published snapshot. Both require normal qualification, funding and admission, including qualified listener and output sources for spoken execution.",
                     "enum": [
                       "draft",
                       "published"
@@ -8355,6 +8539,19 @@
           }
         },
         "summary": "Publish the current draft as a new immutable workflow version",
+        "x-draft-publication-requirements": {
+          "voice_input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowVoiceInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The stored draft's voice_input must be null or satisfy WorkflowVoiceInput. This validates the stored draft; voice_input is not sent in this publish request."
+          }
+        },
         "x-required-scopes": [
           "agents:write"
         ]
