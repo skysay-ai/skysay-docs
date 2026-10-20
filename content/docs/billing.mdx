@@ -209,8 +209,8 @@ wallet entries are not rewritten when the catalog changes.
 ### Speech that is interrupted or refused
 
 A caller often talks over the agent, and the agent stops speaking. For the
-voices Skysay measures itself (Cartesia, Fish Audio and Azure), the voice
-charge for each reply is the text Skysay had already sent to the voice
+voices Skysay measures itself (Cartesia, ElevenLabs, Fish Audio and Azure), the
+voice charge for each reply is the text Skysay had already sent to the voice
 provider:
 
 - A reply that finishes is charged the text that was sent.
@@ -221,10 +221,22 @@ provider:
 - A reply lost to a connection failure or a provider timeout is not charged.
   When Skysay retries it, only the attempt that succeeds is charged.
 
-The unit is the provider's own: characters for Cartesia and Azure, and UTF-8
-bytes for Fish Audio. Azure counts escaped markup, and counts each Chinese
-character twice. An interrupted reply never holds the call's reservation: the
-call settles with the rest of its measured usage.
+The unit is the provider's own, counted the way the provider counts it:
+characters for Cartesia, ElevenLabs and Azure, and UTF-8 bytes for Fish Audio.
+Azure counts escaped markup, and counts each Chinese character twice.
+
+Gemini voices are charged in the tokens Google reports for each reply (the
+text sent and the audio generated):
+
+- A reply that finishes is charged the tokens Google reported for it.
+- A reply the caller interrupts is charged the tokens Google had reported when
+  it stopped, never an estimate.
+- A reply Google rejects, or that comes back without audio, is not charged,
+  and neither is a reply lost to a connection failure.
+
+An interrupted reply never holds the call's reservation: the call settles with
+the rest of its measured usage. Voice-to-voice engines (GPT-Live and Gemini
+Live) are charged by session time, so none of this applies to them.
 
 ## Usage history and the ledger
 
