@@ -135,6 +135,11 @@ press **Allow access** is exactly what the app gets:
   `create_wallet_topup`; it approves no payment. Each purchase needs separate
   owner approval of the exact amount, currency and purpose. It is unavailable
   on the OpenAI and read-only connectors; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
+- **Transcripts** (`recordings:read`) is offered unticked on a full connection
+  when neither requested nor already allowed. This is the existing combined
+  permission for call and simulation transcripts, recording details and
+  evidence that quotes conversation content—not a separate transcript scope.
+  Leaving it unticked does not grant content access.
 
 Connecting the same app again never takes a permission away on its own: approval
 keeps everything already allowed and adds what was asked for, so tokens issued
@@ -152,7 +157,17 @@ names it in `WWW-Authenticate` and in the body:
 }
 ```
 
-Reconnect and tick the named permission.
+Reconnect and tick the named permission. If a transcript request repeatedly
+asks you to reconnect, check that the consent screen shows the intended
+workspace and **Transcripts** is selected before approving. Some clients
+repeat their initial permission request instead of requesting the missing
+scope; the optional checkbox lets you approve it on the full connector.
+Already-approved access is retained only for the same user, workspace, OAuth
+client and resource. A newly authorized connection can use its approved
+scopes; an older, narrower token does not gain permissions merely because
+another connection was authorized.
+
+The read-only connector below does not offer transcript or recording access.
 
 ## OpenAI connector: calling without wallet top-ups
 
