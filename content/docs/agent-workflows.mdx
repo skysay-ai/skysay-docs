@@ -422,7 +422,7 @@ tools for it. A step can run one of these:
 | **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and quotes the documents' own sentences that answer it. | `{{tool.knowledge_answer}}`: whole sentences of the documents, exactly as written and in the documents' language |
 | **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to three offered times with their dates, said in the call's language with the calendar's time zone |
 | **Book an appointment** | Books one of the offered times, and only after the caller says yes to the platform's read-back; see [Book an appointment](#book-an-appointment). | `{{tool.booking_when}}`, `{{tool.booking_length}}`, `{{tool.booking_name}}`, `{{tool.booking_email}}`: said by the read-back question; `{{tool.booking_needs}}` and `{{tool.booking_needs_email}}` when details are missing |
-| **Integration action** | Runs one of the AI agent's Integration actions that read. An action that changes something is refused (`workflow_tool_not_read`), however the workflow declares it. | `{{tool.<key>}}` for each result key you list: text or a number |
+| **Integration action** | Runs one of the AI agent's Integration actions that read. An action classified as one that changes something is refused (`workflow_tool_not_read`), however the workflow declares it; the agent page shows it as **Changes data**. | `{{tool.<key>}}` for each result key you list: text or a number |
 
 A tool runs only if the AI agent has it. Nothing is attached for you: the
 knowledge search is there once you attach a knowledge base to the AI agent
@@ -506,8 +506,7 @@ To confirm: an appointment on Tuesday, November 3, 2026, 10:00 AM (Eastern Europ
 The question is the platform's own, in fixed wording you cannot edit, for
 every language the workflow is published in: English, Estonian, German,
 Spanish, French and Russian today. A workflow in another language cannot
-publish a booking step, and a booking runs only on Cascade (see
-[Engines and tests](#engines-and-tests)). Select the booking step and choose **Add the read-back
+publish a booking step. Select the booking step and choose **Add the read-back
 question** to add it together with its one clarification. Its "No" route
 starts at the booking step's error route and its "Wants a change" route at the
 workflow's availability step; rewire them as you need.
@@ -621,11 +620,11 @@ it takes its error route. A template does not change a draft you already have.
   1** is given each line, results filled in, to read exactly, and says it in
   its own voice; its words are not guaranteed to match. Gemini Live cannot run
   workflow calls.
-- **Workflow bookings run on Cascade.** GPT-Live reports that a line was played,
-  not what was said, so nothing can confirm the read-back was said as written.
-  On GPT-Live a booking step takes its error route
-  (`read_back_not_verbatim`) before anything is read back or booked. Knowledge
-  and availability steps still run on GPT-Live.
+- **Bookings follow the same rule on every engine**, GPT-Live included, as
+  for an AI agent without a workflow: the engine speaks the platform's
+  read-back line, the caller's explicit answer is taken as a yes, a no, a
+  change or unclear (with the one clarification), and only a yes books exactly
+  the details read back. The calendar's own checks are unchanged.
 - Outbound calls, an inbound call from a caller you armed a **Phone** test for,
   and the **Talk** test run tool steps the same way, with the AI agent's real
   tools. Talk is a browser test, so its booking writes only to a calendar

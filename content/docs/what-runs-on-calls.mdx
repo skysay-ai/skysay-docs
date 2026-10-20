@@ -65,10 +65,10 @@ So the **Outbound calls** column describes the published workflow:
 | **Send an SMS**, **Transfer to a person**, **Save a callback**, setting the call's outcome, ending the call | **Workflow step instead** |
 | Phone menu navigation | As on any outbound call: it runs on workflow calls on Cascade, and GPT-Live does not navigate |
 
-On GPT-Live the booking shows **Read-back not word for word** instead of
-**Runs**: GPT-Live says each line in its own words, so a workflow on it does
-not book. Workflow bookings run on Cascade; knowledge and availability steps
-run on GPT-Live too.
+The answers are the same on Cascade and GPT-Live: a workflow booking on
+GPT-Live follows the same read-back rule as on Cascade. An Integration action
+classified as one that changes something shows **Changes data**, because a
+workflow step runs only actions that read.
 
 Calendar tools in a workflow are run by the platform, not by the voice
 servers, so **Not available yet** never applies to them on those calls. The
@@ -88,7 +88,7 @@ has a published workflow.
 | No workflow step uses it | `workflow_step_missing` | These calls run the published workflow, and no tool step of it uses this tool. A workflow runs the AI agent's knowledge base search, calendar tools and Integration actions only from its own tool steps. |
 | Protected values | `workflow_protected_values` | These calls run the published workflow, which declares a protected variable. A call that holds a protected value runs no tool. |
 | Not in workflows yet | `workflow_tool_kind_unclassified` | These calls run the published workflow. A tool step runs tools that only read (the knowledge base, calendar availability, Integration actions) and the calendar booking, which is read back and confirmed first. Webhook tools cannot be used in a workflow yet. |
-| Read-back not word for word | `workflow_read_back_not_verbatim` | These calls run the published workflow on an engine that says each line in its own words (GPT-Live). A booking needs the platform's read-back said exactly as written, so a workflow on this engine does not book. Use Cascade for workflow bookings. |
+| Changes data | `workflow_action_not_read` | These calls run the published workflow. A workflow step runs only Integration actions that read, and this action is classified as one that changes something. |
 | Workflow step instead | `workflow_has_own_step` | These calls run the published workflow, which has its own steps for this (SMS, transfer, outcome or end), so the built-in is not used. |
 | Engine can't run workflows | `engine_cannot_run_workflows` | These calls run the published workflow and the engine cannot run it: Gemini Live today, and GPT-Live in a language it has not been tested in for workflow calls. They are refused before they start. |
 | Not on the demo | `homepage_demo_refuses_workflows` | The homepage demo does not run an AI agent with a published workflow. |
