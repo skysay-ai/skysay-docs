@@ -214,8 +214,9 @@ A phone call, a Phone test or a Talk test that runs a workflow needs two
 things the workflow itself does not provide: a **listener** that turns the
 caller's speech into text, and a **voice** that speaks the lines. You choose
 the listener on the workflow; the voice is the AI agent's own. Skysay starts a
-spoken workflow call only when both have been tested for every language the
-call can speak or hear.
+spoken workflow call only when both have been tested for the languages the
+call can speak or hear (see
+[which languages count](#which-voices-and-listeners-a-spoken-workflow-accepts)).
 
 ### Choose how the workflow hears callers
 
@@ -244,6 +245,22 @@ Through the API the setting is the draft's `voice_input`, sent with
 publish operation lists the complete shape it requires (`WorkflowVoiceInput`)
 in the [API reference](/docs/api-reference).
 
+A listener is turned off only by an explicit `null`, never by leaving the
+field out. A `PATCH` that omits `voice_input` keeps the draft's listener. A
+draft that has no `voice_input` at all, such as one saved before the setting
+existed, cannot be published while the published version has a listener, and
+an old version without the setting cannot be restored then either. Both
+answer `400`:
+
+- "Cannot publish: the workflow has no voice_input while its published
+  version has a listener. Save voice_input to keep a listener, or
+  voice_input: null to turn the listener off."
+- "Cannot restore version *N*: the workflow has no voice_input while its
+  published version has a listener. ..." with the same advice.
+
+Save `voice_input` on the draft to keep a listener, or `null` to turn it off,
+then publish.
+
 Publishing checks that the listener covers every language. It does not check
 that the listener has been tested for workflow calls; that is checked when a
 call starts, as described next.
@@ -257,27 +274,43 @@ calls. Any other provider, model or language is refused when the call starts.
 | --- | --- | --- |
 | Listener | Deepgram Nova-3 (`nova-3`) | English, Tamil |
 | Listener | Azure AI Speech real-time transcription | English, Sinhala |
+| Listener | Soniox Real-time v5 (`stt-rt-v5`) | English |
 | Voice (Cascade) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English |
 | Voice (Cascade) | Azure AI Speech neural voices | Sinhala, English |
 | Voice (Cascade) | Fish Audio S2 Pro (`s2-pro`) | Tamil |
+| Voice (Cascade) | Soniox (`tts-rt-v2`) | English |
 | Engine | GPT-Live 1, any of its voices | English |
 
-So a Cascade workflow in English can use Deepgram Nova-3 or Azure with
-ElevenLabs Flash v2.5 or an Azure voice, a Sinhala workflow can use the Azure
-listener with an Azure voice, and a Tamil workflow can use Deepgram Nova-3 with
-Fish Audio. A GPT-Live workflow in English can use either English listener.
-Azure, as listener or voice, runs on Skysay-managed credentials only on a
-workflow call; with your own Azure key the call fails when it starts. Other
-voices, such as Cartesia, Gemini TTS and Soniox, and other listeners, such as
-Soniox, still work on AI agents without a workflow; they are not accepted on
-spoken workflow calls yet. Gemini Live
-cannot run a spoken workflow. Each language is added to this list only after
-Skysay has tested it.
+So a Cascade workflow in English can use Deepgram Nova-3, Azure or Soniox as
+the listener with ElevenLabs Flash v2.5, an Azure voice or a Soniox voice, a
+Sinhala workflow can use the Azure listener with an Azure voice, and a Tamil
+workflow can use Deepgram Nova-3 with Fish Audio. A GPT-Live workflow in
+English can use any of the three English listeners.
 
-Every language a call can use counts: the call's language, every language the
-workflow is published in, and every language of the AI agent's voice. With
-[Follow the caller](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow),
-that is each followed language.
+Azure, as listener or voice, and GPT-Live run on Skysay-managed credentials
+only. A workspace cannot add its own Azure or OpenAI key, and a call whose
+workflow would use a workspace key for one of them is refused before funds are reserved
+(`source_credential_platform_only`, see
+[When a spoken workflow call is refused](#when-a-spoken-workflow-call-is-refused)).
+Other voices, such as Cartesia and Gemini TTS, and other listeners still work
+on AI agents without a workflow; they are not accepted on spoken workflow calls
+yet. Gemini Live cannot run a spoken workflow. Each language is added to this
+list only after Skysay has tested it.
+
+Which languages count:
+
+- **The listener** must be tested for every language in its **Caller
+  languages**, which include every language the workflow speaks and the call's
+  language.
+- **The voice**, on an AI agent with a single voice, must be tested for the
+  call's language, every language the workflow is published in, and every
+  language the AI agent is set up to speak.
+- With
+  [Follow the caller](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow),
+  each language has its own voice, and each voice must be tested for its own
+  language only. English on ElevenLabs Flash v2.5 with Sinhala on an Azure
+  voice is accepted, for example. The listener must be tested for every
+  followed language.
 
 ### How the lines are spoken
 
@@ -302,7 +335,8 @@ changes which step comes next.
 
 These checks run before Skysay reserves funds for the call. An outbound call,
 campaign call or Talk test that fails one is not started, and a request that
-starts it gets `400` with the message below. On a **Phone** test, an inbound
+starts it gets `400` with the message below, or `409` with one of the codes in
+the second table. On a **Phone** test, an inbound
 call whose pinned workflow fails these checks is not refused: the pin is
 skipped and the call is answered by the AI agent's normal configuration, as if
 no pin were armed.
@@ -316,6 +350,15 @@ no pin were armed.
 | The workflow listener configuration changed. Publish a new version. | The listener saved on the published version is no longer valid. Publish again. |
 | This workflow has no spoken lines for *language*. Publish it again before calling. | The call's language has no rendered lines. |
 | The workflow voice configuration is invalid. | The AI agent's engine and voice settings disagree. Check them and publish the AI agent again. |
+
+When the call is priced, a few more checks answer `409` with a code as the
+error `message`. They also run before any funds are reserved:
+
+| Code | What to change |
+| --- | --- |
+| `source_adapter_unqualified` | With Follow the caller, one followed language's voice is not in the table above for that language. |
+| `source_credential_platform_only` | The listener or voice is Azure, or the engine is GPT-Live, and the call would use a workspace provider key. These run on Skysay-managed credentials only. |
+| `source_output_profiles_invalid` | The AI agent's Follow the caller language profiles do not match what the call was checked against, or one is incomplete. Check them, publish the AI agent again and retry. |
 
 ### Billing
 

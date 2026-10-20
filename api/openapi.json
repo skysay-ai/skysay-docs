@@ -8529,7 +8529,7 @@
             "description": "New published version"
           },
           "400": {
-            "description": "Draft has validation errors, or unacknowledged warnings"
+            "description": "Draft has validation errors, or unacknowledged warnings, or has no voice_input while the active version has a listener"
           },
           "404": {
             "description": "Agent has no workflow yet"
@@ -8549,7 +8549,7 @@
                 "type": "null"
               }
             ],
-            "description": "The stored draft's voice_input must be null or satisfy WorkflowVoiceInput. This validates the stored draft; voice_input is not sent in this publish request."
+            "description": "The stored draft's voice_input must be null or satisfy WorkflowVoiceInput. This validates the stored draft; voice_input is not sent in this publish request. While the active version has a listener, a draft with no voice_input key at all is refused with 400 rather than published without one: only an explicit null turns the listener off, and a version without a listener refuses every spoken call until one is published."
           }
         },
         "x-required-scopes": [
@@ -8809,6 +8809,9 @@
         "responses": {
           "200": {
             "description": "Draft restored from the named version"
+          },
+          "400": {
+            "description": "The version's snapshot has no voice_input while the active version has a listener; restoring it would silently drop the listener at the next publish"
           },
           "404": {
             "description": "Agent or version not found"
