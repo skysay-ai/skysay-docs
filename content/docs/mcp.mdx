@@ -18,17 +18,6 @@ Authorization: Bearer sky_your_scoped_key
 
 Standard JSON-RPC: `tools/list` to discover, `tools/call` to invoke.
 
-Choose the profile for the connection:
-
-| Profile | URL | What it can do |
-| --- | --- | --- |
-| Full integration | `https://api.skysay.ai/mcp` | All supported tools, including separately approved wallet funding. |
-| OpenAI connector | `https://api.skysay.ai/mcp/openai` | Calling and the other supported tools, without wallet top-ups. |
-| Read-only directory connector | `https://api.skysay.ai/mcp/read-only` | Five workspace read tools, no calls or writes. |
-
-These are server-enforced profiles, not permissions selected by a client's name.
-Directory approval and publication are separate from endpoint availability.
-
 ## Connect with OAuth
 
 For an assistant that supports remote MCP authorization, enter
@@ -66,7 +55,7 @@ Expired or used connection requests must be restarted from the client.
 The single $5 welcome credit has no expiry and applies only to authenticated
 metered browser testing in Skysay. Number setup/rental, PSTN and SMS require
 purchased funds and ordinary readiness and metering. Optional approved funding
-is available on the full `/mcp` resource without a phone identity through `create_wallet_topup` with
+is available without a phone identity through `create_wallet_topup` with
 explicit `wallet:write` consent. The permission is offered unticked and approves
 no purchase. Each payment still needs approval of the exact amount, wallet
 currency and purpose. The tool returns a direct Stripe hosted-checkout URL, or
@@ -79,7 +68,7 @@ public Claude listing remains read-only; calling requires a separately allowed
 full connection with consented calling scopes. OAuth does not itself approve
 payments, number purchases or billable calls. See [Billing](/docs/billing).
 
-`create_wallet_topup` is absent from the OpenAI and public read-only connectors. MCP tool
+`create_wallet_topup` is absent from the public read-only connector. MCP tool
 availability does not establish native payment support in ChatGPT, Claude,
 Codex or Grok. This server returns ordinary tool results and does not negotiate
 or send MCP elicitation requests. A checkout link opens Stripe in a browser;
@@ -134,7 +123,7 @@ press **Allow access** is exactly what the app gets:
   connection when neither requested nor already allowed. It enables
   `create_wallet_topup`; it approves no payment. Each purchase needs separate
   owner approval of the exact amount, currency and purpose. It is unavailable
-  on the OpenAI and read-only connectors; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
+  on the read-only connector; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
 - **Transcripts** (`recordings:read`) is offered unticked on a full connection
   when neither requested nor already allowed. This is the existing combined
   permission for call and simulation transcripts, recording details and
@@ -168,34 +157,6 @@ scopes; an older, narrower token does not gain permissions merely because
 another connection was authorized.
 
 The read-only connector below does not offer transcript or recording access.
-
-## OpenAI connector: calling without wallet top-ups
-
-Use `https://api.skysay.ai/mcp/openai` for the OpenAI connector profile. It keeps
-calling enabled: approve **Place calls** (`calls:write`) for the intended
-workspace, then explicitly approve each call's caller, recipient, purpose and
-expected cost. Normal number readiness, destination policy and available
-purchased funds still apply. The $5 welcome credit remains for browser calls
-only, not phone-number rental, PSTN calls or SMS.
-
-This profile does not list or execute `create_wallet_topup`. It does not offer
-`wallet:write` at consent and refuses attempts to request it. Hiding a tool in
-the client is not the security boundary: even a broad API key cannot invoke
-the top-up tool on this endpoint.
-
-Its resource discovery document is
-`https://api.skysay.ai/.well-known/oauth-protected-resource/mcp/openai`, and its
-OAuth resource is `https://api.skysay.ai/mcp/openai`. Use this resource throughout
-authorization, token exchange and refresh. The authorization server and PKCE
-flow are the same as above. Tokens for `/mcp/openai`, `/mcp` and `/mcp/read-only`
-are not interchangeable; switching profiles requires a new authorization for
-the target resource. Creating that connection does not modify or revoke an
-existing full connection.
-
-Other integrations using `/mcp`, including Grok, retain their existing payment
-tools and consent rules. This profile does not change Claude's read-only
-directory listing, and its existence is not a claim of OpenAI directory approval
-or native in-chat payment support.
 
 ## Read-only connector for Claude
 
@@ -239,9 +200,7 @@ value into client configuration; use the recipe's environment-variable
 reference or its OAuth flow.
 
 Use `https://api.skysay.ai/mcp` for the full resource, or
-`https://api.skysay.ai/mcp/read-only` for five read tools and no writes. The
-OpenAI profile at `https://api.skysay.ai/mcp/openai` keeps calling but excludes
-wallet funding. API keys
+`https://api.skysay.ai/mcp/read-only` for five read tools and no writes. API keys
 and OAuth grants are independent. Revoking one does not revoke the other.
 
 ## Results, errors and tool metadata
@@ -257,12 +216,7 @@ Tool calls return a `text` content block containing JSON and the same data in
 error (`-32602`); anything that goes wrong once the tool runs is a refused tool
 result.
 
-Every tool has a title and explicit boolean `readOnlyHint`, `destructiveHint`,
-`openWorldHint` and `idempotentHint` annotations. Creating a new draft record is
-a write, but not inherently destructive; spending funds, sending messages and
-ending calls are consequential actions. A fixed provider handling bounded
-workspace data is not open-world merely because it is remote. These hints do
-not grant permissions or replace approval. Required scopes are in
+Every tool has a title and read-only or destructive hints. Required scopes are in
 `_meta["ai.skysay/required_scopes"]`; alternatives are in
 `_meta["ai.skysay/alternative_required_scopes"]`. The catalogue lists all tools,
 even when your credential lacks their scopes. A call whose credential lacks a

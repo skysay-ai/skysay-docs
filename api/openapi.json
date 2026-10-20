@@ -282,74 +282,6 @@
         ],
         "type": "object"
       },
-      "AgentFiniteListener": {
-        "additionalProperties": false,
-        "oneOf": [
-          {
-            "not": {
-              "required": [
-                "credential_id"
-              ]
-            },
-            "properties": {
-              "credential_source": {
-                "enum": [
-                  "platform_managed"
-                ]
-              }
-            }
-          },
-          {
-            "properties": {
-              "credential_source": {
-                "enum": [
-                  "customer_byok"
-                ]
-              }
-            },
-            "required": [
-              "credential_id"
-            ]
-          }
-        ],
-        "properties": {
-          "credential_id": {
-            "maxLength": 128,
-            "type": "string"
-          },
-          "credential_source": {
-            "enum": [
-              "platform_managed",
-              "customer_byok"
-            ],
-            "type": "string"
-          },
-          "languages": {
-            "items": {
-              "maxLength": 64,
-              "type": "string"
-            },
-            "maxItems": 128,
-            "minItems": 1,
-            "type": "array"
-          },
-          "model": {
-            "maxLength": 128,
-            "type": "string"
-          },
-          "registry_name": {
-            "pattern": "^[a-z][a-z0-9_]{0,63}$",
-            "type": "string"
-          }
-        },
-        "required": [
-          "registry_name",
-          "model",
-          "languages",
-          "credential_source"
-        ],
-        "type": "object"
-      },
       "AgentFollowCaller": {
         "additionalProperties": false,
         "description": "Explicit saved and published automatic multilingual policy. Existing clients may send only enabled; omitted scope means selected. With scope all, the server resolves every language compatible with the exact stack at publication and freezes that concrete set. With selected, languages supplies the allowed subset. Clients cannot supply runtime adapter options, bindings, or rates.",
@@ -628,31 +560,6 @@
             "maximum": 5,
             "minimum": 1,
             "type": "number"
-          }
-        },
-        "type": "object"
-      },
-      "AgentSharedTurnTaking": {
-        "additionalProperties": false,
-        "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
-        "properties": {
-          "interruption_sensitivity": {
-            "enum": [
-              "balanced",
-              "low",
-              "high"
-            ],
-            "type": "string"
-          },
-          "min_speech_ms": {
-            "maximum": 2000,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "silence_hold_ms": {
-            "maximum": 3000,
-            "minimum": 100,
-            "type": "integer"
           }
         },
         "type": "object"
@@ -1019,148 +926,8 @@
         },
         "type": "object"
       },
-      "AgentVoiceSetup": {
-        "description": "Saved shared setup plus monotonic revision. Credential IDs are references, never secrets.",
-        "properties": {
-          "listener": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AgentFiniteListener"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "revision": {
-            "minimum": 0,
-            "readOnly": true,
-            "type": "integer"
-          },
-          "turn_taking": {
-            "$ref": "#/components/schemas/AgentSharedTurnTaking"
-          }
-        },
-        "required": [
-          "revision",
-          "listener",
-          "turn_taking"
-        ],
-        "type": "object"
-      },
-      "AgentVoiceSetupEdit": {
-        "additionalProperties": false,
-        "description": "Shared finite input. Requires expected_voice_setup_revision beside it. Do not mix with transcriber or overlapping turn_taking fields. With a workflow, stages input for workflow publication; ordinary calls keep their published stack. Without a workflow, publishes a compatible cascade selection. Native free-form input is engine-owned. GPT-Live Transcribe is workflow-only, English and platform-managed.",
-        "properties": {
-          "listener": {
-            "anyOf": [
-              {
-                "additionalProperties": false,
-                "oneOf": [
-                  {
-                    "not": {
-                      "required": [
-                        "credential_id"
-                      ]
-                    },
-                    "properties": {
-                      "credential_source": {
-                        "enum": [
-                          "platform_managed"
-                        ]
-                      }
-                    }
-                  },
-                  {
-                    "properties": {
-                      "credential_source": {
-                        "enum": [
-                          "customer_byok"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "credential_id"
-                    ]
-                  }
-                ],
-                "properties": {
-                  "credential_id": {
-                    "maxLength": 128,
-                    "type": "string"
-                  },
-                  "credential_source": {
-                    "enum": [
-                      "platform_managed",
-                      "customer_byok"
-                    ],
-                    "type": "string"
-                  },
-                  "languages": {
-                    "items": {
-                      "maxLength": 64,
-                      "type": "string"
-                    },
-                    "maxItems": 128,
-                    "minItems": 1,
-                    "type": "array"
-                  },
-                  "model": {
-                    "maxLength": 128,
-                    "type": "string"
-                  },
-                  "registry_name": {
-                    "pattern": "^[a-z][a-z0-9_]{0,63}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "registry_name",
-                  "model",
-                  "languages",
-                  "credential_source"
-                ],
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "turn_taking": {
-            "additionalProperties": false,
-            "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
-            "properties": {
-              "interruption_sensitivity": {
-                "enum": [
-                  "balanced",
-                  "low",
-                  "high"
-                ],
-                "type": "string"
-              },
-              "min_speech_ms": {
-                "maximum": 2000,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "silence_hold_ms": {
-                "maximum": 3000,
-                "minimum": 100,
-                "type": "integer"
-              }
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "listener",
-          "turn_taking"
-        ],
-        "type": "object"
-      },
       "AgentVoiceStack": {
-        "description": "Safe read projection with opaque shared listener credential references; never provider secret material.",
+        "description": "Safe read projection. It never includes component credential binding IDs, plaintext/ciphertext, nonce, fingerprint, or provider secrets.",
         "properties": {
           "agent_id": {
             "type": "string"
@@ -1242,16 +1009,6 @@
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
           },
-          "voice_setup": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AgentVoiceSetup"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "warnings": {
             "items": {
               "type": "string"
@@ -1303,11 +1060,6 @@
               "$ref": "#/components/schemas/AgentTool"
             },
             "type": "array"
-          },
-          "expected_voice_setup_revision": {
-            "description": "Required when voice_setup is supplied; stale revisions return 409.",
-            "minimum": 0,
-            "type": "integer"
           },
           "first_message": {
             "type": "string"
@@ -1388,9 +1140,6 @@
           },
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
-          },
-          "voice_setup": {
-            "$ref": "#/components/schemas/AgentVoiceSetupEdit"
           }
         },
         "type": "object"
@@ -1466,10 +1215,6 @@
               },
               "validation": {
                 "type": "object"
-              },
-              "voice_setup_revision": {
-                "minimum": 0,
-                "type": "integer"
               },
               "workflow_id": {
                 "type": "string"
@@ -6640,32 +6385,6 @@
         "summary": "Hosted MCP endpoint"
       }
     },
-    "/mcp/openai": {
-      "post": {
-        "description": "Streamable HTTP profile with the same protocols and calling tools as /mcp, but without create_wallet_topup. Top-ups are excluded from discovery and refused before execution regardless of credential permissions. OAuth grants use a separate /mcp/openai audience, cannot request wallet:write and cannot be used on /mcp or REST routes. Calls still require calls:write consent, workspace funds and normal outbound authorization. Existing full and read-only connectors are unchanged. GET and HEAD return 405.",
-        "responses": {
-          "200": {
-            "description": "JSON-RPC response, including refused unavailable tools"
-          },
-          "202": {
-            "description": "Notification accepted without tool execution"
-          },
-          "400": {
-            "description": "Malformed request or unsupported protocol version"
-          },
-          "401": {
-            "description": "Authentication or resource audience rejected"
-          },
-          "403": {
-            "description": "Invalid supplied Origin or insufficient credential permissions"
-          },
-          "404": {
-            "description": "Unsupported modern protocol method"
-          }
-        },
-        "summary": "Use the OpenAI MCP connector"
-      }
-    },
     "/mcp/read-only": {
       "post": {
         "description": "Streamable HTTP profile exposing account_overview, list_agents, get_agent, list_numbers and list_calls only, in the same protocol revisions as /mcp. Every other tool is refused before dispatch, regardless of credential permissions. OAuth tokens are audience-bound to this endpoint and cannot be used on /mcp. GET and HEAD return 405.",
@@ -8341,7 +8060,7 @@
     },
     "/v1/agents/{agent_id}/voice-stack": {
       "get": {
-        "description": "The target agent authorizes the tenant boundary. Returns selected/resolved STT, model, and TTS catalog metadata plus validation warnings, cost, latency, prompt, and tuning configuration. Platform-managed selections use the catalog's managed component estimate; a BYOK component selected on PATCH through an existing component credential ID has no Skysay component charge. The shared voice_setup includes opaque credential references when selected; plaintext, ciphertext, nonce, fingerprints, and provider secrets are never returned. This GET is a pure read: it makes no provider call, validation probe, compilation, repair, lazy creation, or write.",
+        "description": "The target agent authorizes the tenant boundary. Returns selected/resolved STT, model, and TTS catalog metadata plus validation warnings, cost, latency, prompt, and tuning configuration. Platform-managed selections use the catalog's managed component estimate; a BYOK component selected on PATCH through an existing component credential ID has no Skysay component charge. Credential binding IDs, plaintext, ciphertext, nonce, fingerprints, and provider secrets are never returned. This GET is a pure read: it makes no provider call, validation probe, compilation, repair, lazy creation, or write.",
         "parameters": [
           {
             "in": "path",
@@ -8501,12 +8220,6 @@
                     "type": "object"
                   },
                   "workflow": {
-                    "description": "Graph content only. voice_input is derived from shared voice_setup and is refused on writes.",
-                    "not": {
-                      "required": [
-                        "voice_input"
-                      ]
-                    },
                     "properties": {
                       "variables": {
                         "description": "The workflow's own call variables, replacing the draft's; null removes them, and a save that leaves the key out keeps them. Checked when the workflow is published.",
@@ -8803,11 +8516,6 @@
                   "base_revision": {
                     "description": "The draft revision this publish was reviewed against. The 409 body carries the current draft under 'current'. Omit to publish whatever the draft currently is.",
                     "type": "integer"
-                  },
-                  "expected_voice_setup_revision": {
-                    "description": "Voice setup revision reviewed for this publication. A stale value returns 409. Voice changes during rendering always return 409, even when omitted.",
-                    "minimum": 0,
-                    "type": "integer"
                   }
                 },
                 "type": "object"
@@ -9063,7 +8771,7 @@
     },
     "/v1/agents/{agent_id}/workflow/versions/{version}/restore": {
       "post": {
-        "description": "Restores graph content from a past version into the draft, keeping the current shared voice_setup. Never mutates version history; existing published versions and their call evidence are unaffected. Send base_revision -- the revision of the draft you are replacing -- to be refused when someone else has changed it since; the 409 body carries the current draft under 'current'. Omitting it overwrites whatever the draft currently is.",
+        "description": "Overwrites the current draft with a past version's snapshot. Never mutates version history; existing published versions and their call evidence are unaffected. Send base_revision -- the revision of the draft you are replacing -- to be refused when someone else has changed it since; the 409 body carries the current draft under 'current'. Omitting it overwrites whatever the draft currently is.",
         "parameters": [
           {
             "in": "path",
@@ -9100,7 +8808,7 @@
         },
         "responses": {
           "200": {
-            "description": "Graph restored from the named version; shared voice_setup stays unchanged"
+            "description": "Draft restored from the named version"
           },
           "400": {
             "description": "The version's snapshot has no voice_input while the active version has a listener; restoring it would silently drop the listener at the next publish"
