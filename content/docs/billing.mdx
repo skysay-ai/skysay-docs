@@ -206,6 +206,26 @@ bringing a provider key does not make unrelated platform or carrier usage free.
 New calls use their own pricing snapshot. Existing call prices and historical
 wallet entries are not rewritten when the catalog changes.
 
+### Speech that is interrupted or refused
+
+A caller often talks over the agent, and the agent stops speaking. For the
+voices Skysay measures itself (Cartesia, Fish Audio and Azure), the voice
+charge for each reply is the text Skysay had already sent to the voice
+provider:
+
+- A reply that finishes is charged the text that was sent.
+- A reply the caller interrupts, or that Skysay stops at the end of the call,
+  is charged the text sent before it stopped. Text the agent had not sent yet
+  is not charged.
+- A reply the voice provider rejects with an error is not charged.
+- A reply lost to a connection failure or a provider timeout is not charged.
+  When Skysay retries it, only the attempt that succeeds is charged.
+
+The unit is the provider's own: characters for Cartesia and Azure, and UTF-8
+bytes for Fish Audio. Azure counts escaped markup, and counts each Chinese
+character twice. An interrupted reply never holds the call's reservation: the
+call settles with the rest of its measured usage.
+
 ## Usage history and the ledger
 
 Open **[Billing → Usage and ledger](https://skysay.ai/billing/history)** to
