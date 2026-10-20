@@ -16,9 +16,11 @@ Usage is still metered. Phone-number rental and setup charges are separate;
 an imported number's carrier may bill you directly. A hosted agent on
 [GPT-Live 1](/docs/conversation-engines) is billed by call duration, from the
 moment the call is placed, at $0.05 per minute, including silence, plus tokens
-for the backend that handles tools. A hosted agent on Gemini Live is billed for
-the time the call is connected to the engine, at $0.023 per minute, including
-silence; while the engine reconnects after a dropped connection, nothing is
+for the backend that handles tools. A GPT-Live call that runs a
+[workflow](/docs/agent-workflows#billing) is billed for the same duration plus
+the workflow listener's speech-to-text, with no backend tokens. A hosted agent
+on Gemini Live is billed for the time the call is connected to the engine, at
+$0.023 per minute, including silence; while the engine reconnects after a dropped connection, nothing is
 billed.
 
 PAYG's standard workspace allowance is **10 billed phone numbers** and
@@ -93,9 +95,7 @@ keep their ordinary return behavior.
 ## Adding funds through MCP
 
 A full MCP connection can request purchased funds with `create_wallet_topup`
-on `/mcp`. This tool is not available on the OpenAI `/mcp/openai` profile or
-the `/mcp/read-only` profile. Full-connector funding requires
-explicitly consented `wallet:write`. The permission starts unticked and
+and explicitly consented `wallet:write`. The permission starts unticked and
 approves no payment. Read the wallet currency with `account_overview`, then
 ask the owner to approve the exact amount, currency and purchase purpose:
 **purchased Skysay calling credit**. The workspace comes only from the
