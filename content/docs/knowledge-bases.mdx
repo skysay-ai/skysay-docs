@@ -82,6 +82,29 @@ Uploaded content is treated as untrusted data. Text inside a document cannot
 change the agent's permissions, call another tool, send a message, or override
 the agent's system instructions.
 
+### In a workflow
+
+An agent with a published [workflow](/docs/agent-workflows) does not offer its
+model this tool. Instead, a workflow **Read tool** step set to **Search the
+knowledge base** searches the bases attached to the agent, as in the
+**Customer support** and **Appointment booking** starter templates. Attaching
+a base is still what makes it searchable; a workflow never attaches one.
+
+- The platform works out the question from what the caller said.
+- From the matching passages, the step writes one short answer, at most 300
+  characters, that states only facts the documents state. A later line says it
+  as `{{tool.knowledge_answer}}`, inside its own section:
+  `{{#tool.knowledge_answer}}{{tool.knowledge_answer}}{{/tool.knowledge_answer}}`.
+- When no base is attached, nothing relevant is found, or the answer would say
+  something the passages do not, the step takes its error route, so the
+  workflow can say it does not know or hand the caller on.
+- A call that holds a protected value runs no search.
+
+Each search is recorded on the call like any other. The workflow builder's
+**Chat** test does not search: it fills the answer with a placeholder
+(`test-knowledge_answer`). See
+[Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call).
+
 ## Updating and deleting content
 
 - Upload a new source when business information changes.
@@ -95,6 +118,7 @@ the agent's system instructions.
 Source files are Customer Content. They are stored in Skysay private object
 storage, not published at a public URL. Google Gemini processes the source text
 and live search query needed to create embeddings and retrieve relevant
+passages. In a workflow, Google Gemini also writes the short answer from those
 passages. A source is available only to the hosted agents you attach to it.
 
 See the [Privacy Policy](/privacy) for the wider data-processing terms.
