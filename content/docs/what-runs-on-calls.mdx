@@ -43,32 +43,60 @@ engine and the panel shows that engine's answers before you publish.
 Tools, knowledge bases and calendar tools reach Cascade, Gemini Live and
 GPT-Live the same way. Two things differ by engine today:
 
-- **Workflows.** GPT-Live and Gemini Live cannot run a workflow call yet, so an
-  AI agent with a published workflow on one of them has its outbound calls
-  refused before they start (**Engine can't run workflows**).
+- **Workflows.** Cascade and GPT-Live run workflow calls. Gemini Live cannot
+  yet, so an AI agent with a published workflow on Gemini Live has its outbound
+  calls refused before they start (**Engine can't run workflows**).
 - **Phone menu navigation.** GPT-Live does not navigate phone menus yet
-  (**Engine not supported**); see [Phone menu navigation](/docs/phone-menu-navigation).
+  (**Engine not supported**), on workflow calls too; see
+  [Phone menu navigation](/docs/phone-menu-navigation).
+
+The panel answers for the engine only. Whether a particular workflow call can
+start also depends on its languages and on the listener and voice it uses:
+a GPT-Live workflow call runs in English only, for example. See
+[Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls).
 
 ## AI agents with a workflow
 
 Outbound calls of an AI agent with a published
-[workflow](/docs/agent-workflows) run the workflow, and a workflow call does
-not offer the AI agent's own tools, knowledge bases or calendar tools yet. The
-panel shows **Not in workflows yet** for them on outbound calls. Phone menu
-navigation still runs on those calls, and so does **Transfer to a human**: the
-workflow's [transfer steps](/docs/agent-workflows#transfer-steps) dial its
-number.
+[workflow](/docs/agent-workflows) run the workflow. On those calls the AI
+agent's model is offered no tool: the workflow's own tool steps run the AI
+agent's knowledge base search, calendar tools and Integration actions (see
+[Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call)).
+So the **Outbound calls** column describes the published workflow:
+
+| Item | Shown on outbound calls |
+| --- | --- |
+| Knowledge base search, calendar tools, Integration actions | **Runs** when a tool step of the published workflow uses it, or **Protected values** instead when the published workflow declares a protected variable; **No workflow step uses it** when no step does |
+| Webhook tools | **Not in workflows yet** |
+| **Send an SMS**, **Transfer to a person**, **Save a callback**, setting the call's outcome, ending the call | **Workflow step instead** |
+| Phone menu navigation | As on any outbound call: it runs on workflow calls on Cascade, and GPT-Live does not navigate |
+
+The answers are the same on Cascade and GPT-Live: a workflow booking on
+GPT-Live follows the same read-back rule as on Cascade. An Integration action
+classified as one that changes something shows **Changes data**, because a
+workflow step runs only actions that read.
+
+Calendar tools in a workflow are run by the platform, not by the voice
+servers, so **Not available yet** never applies to them on those calls. The
+other reasons, such as **Calendar not connected** or **Integration off**, still
+do.
 
 Inbound calls run without the workflow unless you armed a workflow phone test,
 and so does the browser test on the agent page; the panel shows what runs on
-them. The homepage demo does not run an AI agent that has a published workflow.
+them. A call a phone test pin binds to the workflow runs its tool steps as an
+outbound workflow call does. The homepage demo does not run an AI agent that
+has a published workflow.
 
 ## Reasons
 
 | Shown as | Code | Meaning |
 | --- | --- | --- |
-| Not in workflows yet | `workflow_call` | These calls run the published workflow, which does not offer the AI agent's tools, knowledge bases or calendar tools yet (Transfer to a human is the exception: the workflow's transfer steps dial its number). |
-| Engine can't run workflows | `engine_cannot_run_workflows` | These calls run the published workflow and the engine cannot run workflow calls yet, so they are refused before they start. |
+| No workflow step uses it | `workflow_step_missing` | These calls run the published workflow, and no tool step of it uses this tool. A workflow runs the AI agent's knowledge base search, calendar tools and Integration actions only from its own tool steps. |
+| Protected values | `workflow_protected_values` | These calls run the published workflow, which declares a protected variable. A call that holds a protected value runs no tool. |
+| Not in workflows yet | `workflow_tool_kind_unclassified` | These calls run the published workflow. A tool step runs tools that only read (the knowledge base, calendar availability, Integration actions) and the calendar booking, which is read back and confirmed first. Webhook tools cannot be used in a workflow yet. |
+| Changes data | `workflow_action_not_read` | These calls run the published workflow. A workflow step runs only Integration actions that read, and this action is classified as one that changes something. |
+| Workflow step instead | `workflow_has_own_step` | These calls run the published workflow, which has its own steps for this (SMS, transfer, outcome or end), so the built-in is not used. |
+| Engine can't run workflows | `engine_cannot_run_workflows` | These calls run the published workflow and the engine cannot run it: Gemini Live today, and GPT-Live in a language it has not been tested in for workflow calls. They are refused before they start. |
 | Not on the demo | `homepage_demo_refuses_workflows` | The homepage demo does not run an AI agent with a published workflow. |
 | Too many tools | `tool_budget` | A call holds at most 32 tool names, counting the built-ins and, on a billed call, the knowledge base search. Until the tools fit, calls are refused, or run without an added built-in (Save a callback) or without phone menu navigation. |
 | Invalid tool name | `tool_contract_unsafe` | Every tool name must be at most 32 lowercase letters, digits and underscores, starting with a letter. Until then, calls are refused. |
@@ -77,7 +105,7 @@ them. The homepage demo does not run an AI agent that has a published workflow.
 | No SMS template | `sms_templates_missing` | SMS is set to templates only and the AI agent has no SMS template. |
 | Integration off | `integration_unavailable` | The integration action, or its integration, is switched off in this project. |
 | Calendar not connected | `calendar_connection_inactive` | The calendar the tools use is not connected and active. Reconnect it under **Integrations**. |
-| Not available yet | `calendar_fleet_not_ready` | Calendar tools are offered once every running voice server supports them. |
+| Not available yet | `calendar_fleet_not_ready` | Calendar tools are offered once every running voice server supports them. This does not apply to calls that run the workflow. |
 | No ready document | `knowledge_not_ready` | None of the attached knowledge bases has a processed document yet. |
 | Needs a phone call | `needs_phone_caller` | The tool acts on a phone call (such as a text, a transfer or a callback), and this kind of call has none. On the homepage demo every built-in except ending the call and the calendar tools needs one. |
 | Test calendar only | `calendar_test_writes_off` | A browser test books only on a calendar connection marked as a test calendar with test bookings allowed. Checking availability still works. |
@@ -93,8 +121,10 @@ The panel says what an AI agent is offered, not what a given call does. Every
 call still checks that the workspace and the AI agent are not suspended, the
 balance, permission to call the number, the carrier's SMS support and each
 tool's own service, and its result is in the call's timeline. A booking still
-reads the details back and waits for the caller's clear yes; see
-[Calendar booking](/docs/calendar-booking).
+reads the details back and waits for the caller's clear yes, in a workflow
+too; see [Calendar booking](/docs/calendar-booking). A workflow's tool step
+also needs what the caller said: a step that cannot work out its arguments
+takes its error route.
 
 ## For API clients
 

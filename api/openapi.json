@@ -282,6 +282,74 @@
         ],
         "type": "object"
       },
+      "AgentFiniteListener": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "not": {
+              "required": [
+                "credential_id"
+              ]
+            },
+            "properties": {
+              "credential_source": {
+                "enum": [
+                  "platform_managed"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "credential_source": {
+                "enum": [
+                  "customer_byok"
+                ]
+              }
+            },
+            "required": [
+              "credential_id"
+            ]
+          }
+        ],
+        "properties": {
+          "credential_id": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "credential_source": {
+            "enum": [
+              "platform_managed",
+              "customer_byok"
+            ],
+            "type": "string"
+          },
+          "languages": {
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "maxItems": 128,
+            "minItems": 1,
+            "type": "array"
+          },
+          "model": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "registry_name": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "registry_name",
+          "model",
+          "languages",
+          "credential_source"
+        ],
+        "type": "object"
+      },
       "AgentFollowCaller": {
         "additionalProperties": false,
         "description": "Explicit saved and published automatic multilingual policy. Existing clients may send only enabled; omitted scope means selected. With scope all, the server resolves every language compatible with the exact stack at publication and freezes that concrete set. With selected, languages supplies the allowed subset. Clients cannot supply runtime adapter options, bindings, or rates.",
@@ -560,6 +628,31 @@
             "maximum": 5,
             "minimum": 1,
             "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "AgentSharedTurnTaking": {
+        "additionalProperties": false,
+        "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
+        "properties": {
+          "interruption_sensitivity": {
+            "enum": [
+              "balanced",
+              "low",
+              "high"
+            ],
+            "type": "string"
+          },
+          "min_speech_ms": {
+            "maximum": 2000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "silence_hold_ms": {
+            "maximum": 3000,
+            "minimum": 100,
+            "type": "integer"
           }
         },
         "type": "object"
@@ -926,8 +1019,148 @@
         },
         "type": "object"
       },
+      "AgentVoiceSetup": {
+        "description": "Saved shared setup plus monotonic revision. Credential IDs are references, never secrets.",
+        "properties": {
+          "listener": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentFiniteListener"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "minimum": 0,
+            "readOnly": true,
+            "type": "integer"
+          },
+          "turn_taking": {
+            "$ref": "#/components/schemas/AgentSharedTurnTaking"
+          }
+        },
+        "required": [
+          "revision",
+          "listener",
+          "turn_taking"
+        ],
+        "type": "object"
+      },
+      "AgentVoiceSetupEdit": {
+        "additionalProperties": false,
+        "description": "Shared finite input. Requires expected_voice_setup_revision beside it. Do not mix with transcriber or overlapping turn_taking fields. With a workflow, stages input for workflow publication; ordinary calls keep their published stack. Without a workflow, publishes a compatible cascade selection. Native free-form input is engine-owned. GPT-Live Transcribe is workflow-only, English and platform-managed.",
+        "properties": {
+          "listener": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "not": {
+                      "required": [
+                        "credential_id"
+                      ]
+                    },
+                    "properties": {
+                      "credential_source": {
+                        "enum": [
+                          "platform_managed"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "credential_source": {
+                        "enum": [
+                          "customer_byok"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "credential_id"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "credential_id": {
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "credential_source": {
+                    "enum": [
+                      "platform_managed",
+                      "customer_byok"
+                    ],
+                    "type": "string"
+                  },
+                  "languages": {
+                    "items": {
+                      "maxLength": 64,
+                      "type": "string"
+                    },
+                    "maxItems": 128,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "model": {
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "registry_name": {
+                    "pattern": "^[a-z][a-z0-9_]{0,63}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "registry_name",
+                  "model",
+                  "languages",
+                  "credential_source"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turn_taking": {
+            "additionalProperties": false,
+            "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
+            "properties": {
+              "interruption_sensitivity": {
+                "enum": [
+                  "balanced",
+                  "low",
+                  "high"
+                ],
+                "type": "string"
+              },
+              "min_speech_ms": {
+                "maximum": 2000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "silence_hold_ms": {
+                "maximum": 3000,
+                "minimum": 100,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "listener",
+          "turn_taking"
+        ],
+        "type": "object"
+      },
       "AgentVoiceStack": {
-        "description": "Safe read projection. It never includes component credential binding IDs, plaintext/ciphertext, nonce, fingerprint, or provider secrets.",
+        "description": "Safe read projection with opaque shared listener credential references; never provider secret material.",
         "properties": {
           "agent_id": {
             "type": "string"
@@ -1009,6 +1242,16 @@
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
           },
+          "voice_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentVoiceSetup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "warnings": {
             "items": {
               "type": "string"
@@ -1060,6 +1303,11 @@
               "$ref": "#/components/schemas/AgentTool"
             },
             "type": "array"
+          },
+          "expected_voice_setup_revision": {
+            "description": "Required when voice_setup is supplied; stale revisions return 409.",
+            "minimum": 0,
+            "type": "integer"
           },
           "first_message": {
             "type": "string"
@@ -1140,6 +1388,9 @@
           },
           "voice_polish": {
             "$ref": "#/components/schemas/AgentVoicePolish"
+          },
+          "voice_setup": {
+            "$ref": "#/components/schemas/AgentVoiceSetupEdit"
           }
         },
         "type": "object"
@@ -1182,6 +1433,19 @@
                 "type": "string"
               },
               "draft": {
+                "properties": {
+                  "voice_input": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/WorkflowVoiceInputDraft"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "readOnly": true
+                  }
+                },
                 "type": "object"
               },
               "layout": {
@@ -1203,6 +1467,10 @@
               },
               "validation": {
                 "type": "object"
+              },
+              "voice_setup_revision": {
+                "minimum": 0,
+                "type": "integer"
               },
               "workflow_id": {
                 "type": "string"
@@ -6117,6 +6385,167 @@
         },
         "type": "object"
       },
+      "WorkflowVoiceInput": {
+        "additionalProperties": false,
+        "description": "Explicit workflow listener selection, independent of the AI agent's conversation engine. Null means no spoken listener is selected. Publication validates the selected model and language set and freezes its construction; this setting does not qualify or enable an unavailable voice engine.",
+        "properties": {
+          "interruption_min_duration_ms": {
+            "description": "Minimum detected caller speech duration for interrupting workflow output.",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "listener": {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "not": {
+                  "required": [
+                    "credential_id"
+                  ]
+                },
+                "properties": {
+                  "credential_source": {
+                    "enum": [
+                      "platform_managed"
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "credential_source": {
+                    "enum": [
+                      "customer_byok"
+                    ]
+                  }
+                },
+                "required": [
+                  "credential_id"
+                ]
+              }
+            ],
+            "properties": {
+              "credential_id": {
+                "description": "Required only for customer_byok. Must name an active, customer-owned STT credential for this workspace, project and selected provider.",
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                "type": "string"
+              },
+              "credential_source": {
+                "description": "Explicit listener credential choice; never inherited from the AI agent's transcriber.",
+                "enum": [
+                  "platform_managed",
+                  "customer_byok"
+                ],
+                "type": "string"
+              },
+              "languages": {
+                "items": {
+                  "maxLength": 64,
+                  "pattern": "^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$",
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "model": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$",
+                "type": "string"
+              },
+              "registry_name": {
+                "pattern": "^[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "registry_name",
+              "model",
+              "languages",
+              "credential_source"
+            ],
+            "type": "object"
+          },
+          "silence_hold_ms": {
+            "description": "Additional silence after the physical speech endpoint before a workflow caller turn is submitted.",
+            "maximum": 3000,
+            "minimum": 300,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "listener",
+          "silence_hold_ms",
+          "interruption_min_duration_ms"
+        ],
+        "type": "object"
+      },
+      "WorkflowVoiceInputDraft": {
+        "additionalProperties": false,
+        "description": "Read-only projection of the shared caller-speech settings. This field cannot be written through the graph command. The publish operation validates the resolved value against WorkflowVoiceInput. Reads never repair storage.",
+        "properties": {
+          "interruption_min_duration_ms": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listener": {
+            "additionalProperties": false,
+            "properties": {
+              "credential_id": {
+                "maxLength": 128,
+                "type": "string"
+              },
+              "credential_source": {
+                "enum": [
+                  "platform_managed",
+                  "customer_byok"
+                ],
+                "type": "string"
+              },
+              "languages": {
+                "items": {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "type": "array"
+              },
+              "model": {
+                "maxLength": 128,
+                "type": "string"
+              },
+              "registry_name": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "silence_hold_ms": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
       "WorkspaceContext": {
         "properties": {
           "organization": {
@@ -6210,6 +6639,32 @@
           }
         },
         "summary": "Hosted MCP endpoint"
+      }
+    },
+    "/mcp/openai": {
+      "post": {
+        "description": "Streamable HTTP profile with the same protocols and calling tools as /mcp, but without create_wallet_topup. Top-ups are excluded from discovery and refused before execution regardless of credential permissions. OAuth grants use a separate /mcp/openai audience, cannot request wallet:write and cannot be used on /mcp or REST routes. Calls still require calls:write consent, workspace funds and normal outbound authorization. Existing full and read-only connectors are unchanged. GET and HEAD return 405.",
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response, including refused unavailable tools"
+          },
+          "202": {
+            "description": "Notification accepted without tool execution"
+          },
+          "400": {
+            "description": "Malformed request or unsupported protocol version"
+          },
+          "401": {
+            "description": "Authentication or resource audience rejected"
+          },
+          "403": {
+            "description": "Invalid supplied Origin or insufficient credential permissions"
+          },
+          "404": {
+            "description": "Unsupported modern protocol method"
+          }
+        },
+        "summary": "Use the OpenAI MCP connector"
       }
     },
     "/mcp/read-only": {
@@ -7887,7 +8342,7 @@
     },
     "/v1/agents/{agent_id}/voice-stack": {
       "get": {
-        "description": "The target agent authorizes the tenant boundary. Returns selected/resolved STT, model, and TTS catalog metadata plus validation warnings, cost, latency, prompt, and tuning configuration. Platform-managed selections use the catalog's managed component estimate; a BYOK component selected on PATCH through an existing component credential ID has no Skysay component charge. Credential binding IDs, plaintext, ciphertext, nonce, fingerprints, and provider secrets are never returned. This GET is a pure read: it makes no provider call, validation probe, compilation, repair, lazy creation, or write.",
+        "description": "The target agent authorizes the tenant boundary. Returns selected/resolved STT, model, and TTS catalog metadata plus validation warnings, cost, latency, prompt, and tuning configuration. Platform-managed selections use the catalog's managed component estimate; a BYOK component selected on PATCH through an existing component credential ID has no Skysay component charge. The shared voice_setup includes opaque credential references when selected; plaintext, ciphertext, nonce, fingerprints, and provider secrets are never returned. This GET is a pure read: it makes no provider call, validation probe, compilation, repair, lazy creation, or write.",
         "parameters": [
           {
             "in": "path",
@@ -8047,6 +8502,12 @@
                     "type": "object"
                   },
                   "workflow": {
+                    "description": "Graph content only. voice_input is derived from shared voice_setup and is refused on writes.",
+                    "not": {
+                      "required": [
+                        "voice_input"
+                      ]
+                    },
                     "properties": {
                       "variables": {
                         "description": "The workflow's own call variables, replacing the draft's; null removes them, and a save that leaves the key out keeps them. Checked when the workflow is published.",
@@ -8086,7 +8547,7 @@
         ]
       },
       "post": {
-        "description": "Creates only a workflow draft: no publish, call, tool authorization, or number attachment. From a starter template (blank, payment_reminder, payment_reminder_variables, customer_support, receptionist), blank, or a natural-language 'brief' generated by AI. template_id and brief are mutually exclusive. A brief that the model returns unreadable fails closed (400) and creates nothing; a readable-but-invalid AI-generated graph is still created so the canvas can show what needs fixing. Fails with a conflict if this agent already has a workflow -- edit the existing draft instead.",
+        "description": "Creates only a workflow draft: no publish, call, tool authorization, or number attachment. AI generation never selects the caller-speech listener; configure the agent shared voice_setup through the voice-stack route. From a starter template (blank, payment_reminder, payment_reminder_variables, customer_support, receptionist), blank, or a natural-language 'brief' generated by AI. template_id and brief are mutually exclusive. A brief that the model returns unreadable fails closed (400) and creates nothing; a readable-but-invalid AI-generated graph is still created so the canvas can show what needs fixing. Fails with a conflict if this agent already has a workflow -- edit the existing draft instead.",
         "parameters": [
           {
             "in": "path",
@@ -8145,7 +8606,7 @@
     },
     "/v1/agents/{agent_id}/workflow/ai-edit": {
       "post": {
-        "description": "Given a free-text instruction, asks the AI generation provider to propose a replacement draft, then returns that proposal plus its validation -- it never writes to the draft. The caller (frontend) shows a diff and, only on explicit accept, PATCHes the existing update-draft route with the proposal, so an accepted AI edit is undoable through the same history as any manual edit. Rejects a proposal that changes more than 10 steps.",
+        "description": "Given a free-text instruction, asks the AI generation provider to propose a replacement draft, then returns that proposal plus its validation -- it never writes to the draft. AI edits preserve the author's caller-speech listener selection. The caller (frontend) shows a diff and, only on explicit accept, PATCHes the existing update-draft route with the proposal, so an accepted AI edit is undoable through the same history as any manual edit. Rejects a proposal that changes more than 10 steps.",
         "parameters": [
           {
             "in": "path",
@@ -8215,7 +8676,7 @@
         ]
       },
       "post": {
-        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is answered by a fresh run of the pinned draft or published workflow instead of the agent's normal configuration. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
+        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is bound to the selected workflow instead of the agent's normal configuration. A draft pin selects the current draft when a matching call arrives, then compiles, prepares and renders that exact revision and compiled contract into the admitted run's immutable snapshot. Arming does not freeze the draft. A draft changed during preparation is not bound. A published pin uses its published snapshot. Both require normal qualification, funding and admission, including qualified listener and output sources for spoken execution. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
         "parameters": [
           {
             "in": "path",
@@ -8241,6 +8702,7 @@
                   },
                   "pinned_source": {
                     "default": "draft",
+                    "description": "Draft selects the current draft when a matching call arrives; arming does not freeze it. The admitted run keeps the prepared revision and compiled contract. A draft changed during preparation is not bound. Published uses its published snapshot. Both require normal qualification, funding and admission, including qualified listener and output sources for spoken execution.",
                     "enum": [
                       "draft",
                       "published"
@@ -8332,6 +8794,11 @@
                   "base_revision": {
                     "description": "The draft revision this publish was reviewed against. The 409 body carries the current draft under 'current'. Omit to publish whatever the draft currently is.",
                     "type": "integer"
+                  },
+                  "expected_voice_setup_revision": {
+                    "description": "Voice setup revision reviewed for this publication. A stale value returns 409. Voice changes during rendering always return 409, even when omitted.",
+                    "minimum": 0,
+                    "type": "integer"
                   }
                 },
                 "type": "object"
@@ -8345,7 +8812,7 @@
             "description": "New published version"
           },
           "400": {
-            "description": "Draft has validation errors, or unacknowledged warnings"
+            "description": "Draft has validation errors, or unacknowledged warnings, or has no voice_input while the active version has a listener"
           },
           "404": {
             "description": "Agent has no workflow yet"
@@ -8355,6 +8822,19 @@
           }
         },
         "summary": "Publish the current draft as a new immutable workflow version",
+        "x-draft-publication-requirements": {
+          "voice_input": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowVoiceInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The agent shared voice_setup resolves to null or WorkflowVoiceInput. Graph writes containing voice_input are refused; edit voice_setup on the voice-stack route. Workflow publication freezes the saved listener and timing. A version with no listener cannot make spoken calls."
+          }
+        },
         "x-required-scopes": [
           "agents:write"
         ]
@@ -8574,7 +9054,7 @@
     },
     "/v1/agents/{agent_id}/workflow/versions/{version}/restore": {
       "post": {
-        "description": "Overwrites the current draft with a past version's snapshot. Never mutates version history; existing published versions and their call evidence are unaffected. Send base_revision -- the revision of the draft you are replacing -- to be refused when someone else has changed it since; the 409 body carries the current draft under 'current'. Omitting it overwrites whatever the draft currently is.",
+        "description": "Restores graph content from a past version into the draft, keeping the current shared voice_setup. Never mutates version history; existing published versions and their call evidence are unaffected. Send base_revision -- the revision of the draft you are replacing -- to be refused when someone else has changed it since; the 409 body carries the current draft under 'current'. Omitting it overwrites whatever the draft currently is.",
         "parameters": [
           {
             "in": "path",
@@ -8611,7 +9091,7 @@
         },
         "responses": {
           "200": {
-            "description": "Draft restored from the named version"
+            "description": "Graph restored from the named version; shared voice_setup stays unchanged"
           },
           "404": {
             "description": "Agent or version not found"
@@ -11980,7 +12460,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection, navigation and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. It also carries `capabilities`, what the AI agent's configured tools, attached knowledge bases and calendar tools do on each conversation engine (`engines`, the saved one in `engine`) and call type (`call_types`: `inbound`, `outbound`, `browser_test` for the agent page's browser test, and `homepage_demo` in the homepage demo workspace only). `calls[engine][call_type]` says whether such a call starts (`starts`), whether it runs the published workflow (`workflow`: outbound calls do; an inbound call only through a workflow phone test pin) and, when it does not start, `refused_reason`. `items` lists each configured tool (at most 40, with `items_has_more`), an implied built-in such as request_callback (`implied`), the knowledge search when a knowledge base is attached, and phone menu navigation, each with `id`, `kind` (`builtin`, `calendar`, `webhook`, `connection`, `legacy`, `knowledge`, `navigation`, `unknown`), `name` and `status[engine][call_type]`: null when the item is offered on such a call, else the one reason it is not. `knowledge` counts the attached active knowledge bases and whether one has a ready document. It describes what is offered, not what a call does: suspension, the wallet, outbound authorization and a tool's own endpoint are still decided per call. The reasons are a closed set: `engine_cannot_run_workflows`: this call type runs the AI agent's published workflow, and its conversation engine (GPT-Live and Gemini Live today) cannot run workflow calls, so such calls are refused before they start; `homepage_demo_refuses_workflows`: the homepage demo does not run an AI agent that has a published workflow; `tool_budget`: the tools do not fit the call's 32-name tool contract (on a billed call it counts end_call and a ready knowledge base too): the call is refused, or it runs without the implied built-in (request_callback) or without phone menu navigation's three tools; `tool_contract_unsafe`: a tool name cannot be part of a call's tool contract (at most 32 lowercase letters, digits and underscores, starting with a letter), so calls are refused; `workflow_call`: this call type runs the AI agent's published workflow, and workflow calls do not offer the AI agent's own tools, knowledge bases or calendar tools yet (Transfer to a human is the exception: the workflow's transfer steps dial its destination); `not_buildable`: the voice worker cannot declare this entry (an unknown type or built-in, a repeated or reserved name, or a schema that is not an object or nests deeper than 32 levels), so it is left out of the call and named in a configured_tool_omitted event; `sms_templates_missing`: the SMS mode is Templates only and the AI agent has no SMS template, so there is nothing send_sms could send; `integration_unavailable`: the integration action, or its integration, is not active in this project; `calendar_connection_inactive`: the calendar connection the calendar tools name is not active in this project; `calendar_fleet_not_ready`: not every running voice worker can run the calendar tools yet, so they are not offered; `knowledge_not_ready`: no attached knowledge base has a ready document yet; `needs_phone_caller`: this built-in acts on a phone call (such as a text, a transfer or a callback), and this call type has no phone number on the line; `calendar_test_writes_off`: a workspace browser test books only on a dedicated test calendar connection with test writes allowed; `outbound_only`: phone menu navigation runs only on calls the AI agent places; `worker_tool_name`: the voice worker adds a tool of this name itself on these calls (switch_language while Follow the caller is on), so the configured tool is not built and a configured_tool_shadowed_by_worker_tool event names it; and, on the navigation item only, the reasons `navigation.ineligible_reason` of the voice-stack response documents: `turned_off`, `not_released`, `engine_not_supported`, `languages_unreleased`, `languages_uncovered`, `too_many_sockets`, `no_language`, `tool_name_conflict`.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection, navigation and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. It also carries `capabilities`, what the AI agent's configured tools, attached knowledge bases and calendar tools do on each conversation engine (`engines`, the saved one in `engine`) and call type (`call_types`: `inbound`, `outbound`, `browser_test` for the agent page's browser test, and `homepage_demo` in the homepage demo workspace only). `calls[engine][call_type]` says whether such a call starts (`starts`), whether it runs the published workflow (`workflow`: outbound calls do; an inbound call only through a workflow phone test pin) and, when it does not start, `refused_reason`. On such workflow calls the cells describe the published workflow: an item is offered when a published tool step runs it. `items` lists each configured tool (at most 40, with `items_has_more`), an implied built-in such as request_callback (`implied`), the knowledge search when a knowledge base is attached, and phone menu navigation, each with `id`, `kind` (`builtin`, `calendar`, `webhook`, `connection`, `legacy`, `knowledge`, `navigation`, `unknown`), `name` and `status[engine][call_type]`: null when the item is offered on such a call, else the one reason it is not. `knowledge` counts the attached active knowledge bases and whether one has a ready document. It describes what is offered, not what a call does: suspension, the wallet, outbound authorization and a tool's own endpoint are still decided per call. The reasons are a closed set: `engine_cannot_run_workflows`: this call type runs the AI agent's published workflow, and its conversation engine cannot run workflow calls (Gemini Live today, and GPT-Live in a language without a recorded workflow source), so such calls are refused before they start; `homepage_demo_refuses_workflows`: the homepage demo does not run an AI agent that has a published workflow; `tool_budget`: the tools do not fit the call's 32-name tool contract (on a billed call it counts end_call and a ready knowledge base too): the call is refused, or it runs without the implied built-in (request_callback) or without phone menu navigation's three tools; `tool_contract_unsafe`: a tool name cannot be part of a call's tool contract (at most 32 lowercase letters, digits and underscores, starting with a letter), so calls are refused; `workflow_step_missing`: this call type runs the AI agent's published workflow, and no step of the published workflow uses this tool (a workflow runs the AI agent's knowledge base search, calendar tools and Integration tools only from its own tool steps); `workflow_protected_values`: this call type runs the AI agent's published workflow, which declares a protected value, and a call holding protected values runs no tool; `workflow_action_not_read`: this call type runs the AI agent's published workflow, whose steps run only Integration actions that read, and this action is classified as one that changes something; `workflow_tool_kind_unclassified`: this call type runs the AI agent's published workflow, and a workflow step runs only tools that read (the knowledge base, calendar availability, Integration actions) or the calendar booking, which is read back and confirmed first; a webhook tool has no read or write kind yet; `workflow_has_own_step`: this call type runs the AI agent's published workflow, which has its own steps for this (an SMS, transfer, outcome or end step), so the AI agent's built-in is not used; `not_buildable`: the voice worker cannot declare this entry (an unknown type or built-in, a repeated or reserved name, or a schema that is not an object or nests deeper than 32 levels), so it is left out of the call and named in a configured_tool_omitted event; `sms_templates_missing`: the SMS mode is Templates only and the AI agent has no SMS template, so there is nothing send_sms could send; `integration_unavailable`: the integration action, or its integration, is not active in this project; `calendar_connection_inactive`: the calendar connection the calendar tools name is not active in this project; `calendar_fleet_not_ready`: not every running voice worker can run the calendar tools yet, so they are not offered; `knowledge_not_ready`: no attached knowledge base has a ready document yet; `needs_phone_caller`: this built-in acts on a phone call (such as a text, a transfer or a callback), and this call type has no phone number on the line; `calendar_test_writes_off`: a workspace browser test books only on a dedicated test calendar connection with test writes allowed; `outbound_only`: phone menu navigation runs only on calls the AI agent places; `worker_tool_name`: the voice worker adds a tool of this name itself on these calls (switch_language while Follow the caller is on), so the configured tool is not built and a configured_tool_shadowed_by_worker_tool event names it; and, on the navigation item only, the reasons `navigation.ineligible_reason` of the voice-stack response documents: `turned_off`, `not_released`, `engine_not_supported`, `languages_unreleased`, `languages_uncovered`, `too_many_sockets`, `no_language`, `tool_name_conflict`.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -12284,7 +12764,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`. The `component_catalog` is a display-only `selected_agent_display` projection: only listed selections and selected voices already visible under the metered catalogue caps are included, with raw-ID fallback unchanged. Its voice counts/truncation describe that original visibility window, not the complete picker inventory. Creation-only `stack_catalog`, `component_credentials`, `presets`, `voice_library`, and `audio_environments` are absent. Use `/v1/dashboard/agent-create?step=voice` for creation and its gallery, retaining `project_id` and optional pinned `voice`; `voice_library=1` on this list returns 400.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
