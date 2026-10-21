@@ -119,13 +119,24 @@ playback check. See [Confirming business actions](/docs/business-actions) for
 listener setup, receipts, SMS confirmation and uncertain outcomes.
 
 The same rules apply to every AI agent and every conversation engine, on phone
-calls and in the browser.
+calls and in the browser. SMS bookings use the same action contract with a
+confirmation reply in the SMS conversation.
+
+Google Calendar access requires verified no-training processors using
+Skysay-managed credentials. On voice calls, this includes the reserved
+conversation stack, every alternate language voice, and the additional
+confirmation listener. An unverified processor or customer-managed credential
+refuses Google access before a provider request. SMS action read-backs and
+confirmation use Skysay's managed text-processing service, independently of the
+agent's voice configuration.
 
 Daylight-saving time is handled using UTC instants and the selected IANA
-zone. An old offer cannot be moved to another call. A definite conflict before
-submission can use a fresh offer; Skysay allows at most two booking attempts per
-call. A submitted, successful or uncertain result cannot produce a second
-appointment for that call.
+zone. An old offer cannot be moved to another conversation. A definite conflict
+before submission can use a fresh offer. Each call or SMS conversation has a
+daily limit of five availability checks and two booking attempts. Replaying an
+action returns its existing receipt; it never books again. A separate appointment
+needs a new offer and confirmation. An unresolved booking blocks another attempt
+in that conversation until its outcome is known.
 
 Skysay serializes its own overlapping submissions, including duplicate
 connections to the same destination. Google Calendar's free/busy check and event
