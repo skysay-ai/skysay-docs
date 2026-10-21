@@ -75,7 +75,7 @@ they do not send messages, book appointments or dial anyone.
 
 ## Confirmation in SMS
 
-Use `POST /v1/sms/conversations/{conversation_id}/actions` to prepare a write for
+Use `POST /v1/sms-conversations/{conversation_id}/actions` to prepare a write for
 an existing, owned conversation. Supply `agent_id`, `name`, `arguments` and an
 `idempotency_key`. Skysay sends the action's read-back and a confirmation code by
 SMS. The recipient answers that actual message with an explicit yes and its code.
@@ -83,7 +83,7 @@ A bare yes gets the one clarification; a reply to an older code cannot approve a
 new action. The regular inbound SMS path receives the answer.
 
 This provides action confirmation, not an autonomous AI SMS chat agent. Reads
-use `POST /v1/sms/conversations/{conversation_id}/tool-reads`. See the
+use `POST /v1/sms-conversations/{conversation_id}/tool-reads`. See the
 [REST reference](/docs/api-reference) for exact fields and scopes.
 
 ## Receipts and uncertain outcomes
@@ -100,7 +100,7 @@ does not mean failed. Calendar intents keep reserving their interval while
 uncertain and use their provider-specific reconciliation process.
 
 Read an action through `GET /v1/calls/{call_id}/actions/{action_id}` or
-`GET /v1/sms/conversations/{conversation_id}/actions/{action_id}`. These reads do
+`GET /v1/sms-conversations/{conversation_id}/actions/{action_id}`. These reads do
 not execute, repair or retry anything. The confirmation ledger retains input
 ordering and hashes, not a second raw transcript; business receipts remain
 separate from recording and transcript retention.

@@ -648,6 +648,46 @@ A browser **Talk** test has no phone number on the line and cannot dial a
 person. **Chat** and scripted simulations use recorded-only outcomes after
 confirmation. See [Confirming business actions](/docs/business-actions).
 
+### Testing with values
+
+**Talk** and **Chat** render every line with the test values you give them
+(`test_values`), exactly as a call admits them, and run identity steps too: a
+comparison checks the caller's answer against the test value, and a missing
+test value counts as a mismatch. Protected values are shown only after the
+confirming step. Chat and scripted simulations record Action outcomes without
+performing external writes. In a scripted simulation, taking the identity
+step's verified route counts as a match, and anything else as a mismatch.
+
+### Versions from before call variables
+
+When your workspace moves to call variables, every workflow version published
+before then keeps its number and shows as **Archived before call variables**
+(status `archived_v2`). An archived version cannot run a call
+(`workflow_binding_failed`) and cannot be restored.
+
+Rerunning a simulation run from before the move:
+
+- a run against the version that was active reruns on its migrated copy, which
+  says the same words;
+- a run against an older version is refused with `409` ("This run's workflow
+  version predates call variables and could not be moved to them. Run the suite
+  again.");
+- a run against a draft from before the move is refused with `409` ("This run's
+  draft predates call variables. Run the suite again against the current
+  draft.").
+
+The version that was active gets a new copy, numbered after the workflow's
+highest version and moved to call variables. It becomes the active version and
+shows with its origin, for example **v5 (migrated from v3)**; the API's version summary
+carries the old number as `migrated_from_version` (null on every other
+version). Your next publish takes the next number.
+
+Restoring an archived version answers `409`, naming the copy to restore
+instead ("Version 3 was moved to call variables as version 5. Restore that
+version instead."), or saying the version predates call variables and was not
+moved. To take calls on the current workflow, publish the draft, which
+declares its variables.
+
 ## Tools on a workflow call
 
 On a workflow call the AI agent's model is offered no tool of its own: the
