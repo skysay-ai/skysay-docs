@@ -256,7 +256,8 @@ transfer destinations, a line that names a variable the workflow does not
 declare, and a line or SMS that could say a
 [protected variable](#protected-values) before the caller is confirmed
 (`PROTECTED_BEFORE_CONFIRMATION`, naming the step). An incomplete or invalid
-**Voice input** setting (`INVALID_VOICE_INPUT`) blocks publishing too; see
+listener in the agent's voice setup (`INVALID_VOICE_INPUT`) blocks publishing
+too; see
 [Choose how the workflow hears callers](#choose-how-the-workflow-hears-callers).
 Warnings are separate and must be explicitly acknowledged before publishing.
 
@@ -301,54 +302,58 @@ what changed between versions.
 
 A phone call, a Phone test or a Talk test that runs a workflow needs two
 things the workflow itself does not provide: a **listener** that turns the
-caller's speech into text, and a **voice** that speaks the lines. You choose
-the listener on the workflow; the voice is the AI agent's own. Skysay starts a
+caller's speech into text, and a **voice** that speaks the lines. Both belong
+to the AI agent's voice setup, not to the workflow: you choose the listener
+under **Voice → Transcriber** and the voice with the agent's other voice
+settings. Skysay starts a
 spoken workflow call only when both have been tested for the languages the
 call can speak or hear (see
 [which languages count](#which-voices-and-listeners-a-spoken-workflow-accepts)).
 
 ### Choose how the workflow hears callers
 
-Open the workflow's publish panel and find **Voice input**. Turn on **Receive
-caller speech**, then set:
+The listener that hears callers is part of the AI agent's voice setup. It is
+configured once, under **Voice → Transcriber**, with its timing under
+**Tuning → Turn-taking**, and it is shared: the same saved setup serves the
+agent's ordinary calls and its workflow. A workflow does not have a listener of
+its own to edit, and nothing on the canvas or in the graph sets one.
 
-| Setting | What it does |
-| --- | --- |
-| **Speech recognition model** | The listener. It is chosen here, for the workflow, and is never taken from the AI agent's own transcriber. |
-| **Caller languages** | Every language the workflow speaks must be in this list. |
-| **Credential source** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
-| **Additional silence (ms)** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000, 1500 by default. |
-| **Minimum voiced interruption (ms)** | How much caller speech it takes to cut off a line being spoken: 0 to 1000, 150 by default. Shorter noise does not interrupt; recognized words always do. |
+| Setting | Where | What it does |
+| --- | --- | --- |
+| **Transcriber** | **Voice** | The listener, a model from the table in [Voice and turn-taking](#voice-and-turn-taking). Choosing **No voice input (text only)** leaves a workflow that runs in Chat and Simulations but cannot make spoken calls. |
+| **Languages** | **Voice** | Every language the workflow speaks, and every language the agent is set up to speak, must be covered by a listener tested for it. |
+| **Credential source** | **Voice** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
+| **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
+| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller speech it takes to cut off a line being spoken: 0 to 1000 for a workflow. Shorter noise does not interrupt; recognized words always do. |
 
-With **Receive caller speech** off, the workflow still runs in Chat and in
-Simulations, but every spoken call is refused. Publishing refuses a half-filled
-setting (`INVALID_VOICE_INPUT`): complete it, or turn it off.
+A published workflow keeps hearing callers through that setup. Publishing
+freezes a copy of the saved listener and timing into the version, so each
+version and each call in progress keeps the listener it was published with.
+Changing the setting later does not alter either; it takes effect for the next
+version you publish. To change how a workflow hears callers:
+
+1. Change **Voice → Transcriber** or **Tuning → Turn-taking** and choose
+   **Save settings**.
+2. Open the workflow's **Publish** view, which shows the saved listener, its
+   languages, credential source and timing, and publish a new version.
+
+Publishing is blocked while the Voice or Tuning edits are unsaved, or if the
+setup changed elsewhere since you loaded the agent; reload the agent and review
+the change first. A listener that is incomplete or invalid for the workflow
+(`INVALID_VOICE_INPUT`) blocks publishing until you fix it in **Voice**. Restoring
+an older version restores its graph only; the agent's saved voice setup stays as
+it is.
 
 AI never chooses the listener for you. Generating a workflow from a brief
-leaves **Voice input** for you to set, and an AI edit keeps the listener you
-chose.
+does not touch the voice setup, and an AI edit keeps the listener you chose.
 
-Through the API the setting is the draft's `voice_input`, sent with
-`PATCH /v1/agents/{agent_id}/workflow` and returned by
-`GET /v1/agents/{agent_id}/workflow`; `null` turns caller speech off. The
-publish operation lists the complete shape it requires (`WorkflowVoiceInput`)
-in the [API reference](/docs/api-reference).
-
-A listener is turned off only by an explicit `null`, never by leaving the
-field out. A `PATCH` that omits `voice_input` keeps the draft's listener. A
-draft that has no `voice_input` at all, such as one saved before the setting
-existed, cannot be published while the published version has a listener, and
-an old version without the setting cannot be restored then either. Both
-answer `400`:
-
-- "Cannot publish: the workflow has no voice_input while its published
-  version has a listener. Save voice_input to keep a listener, or
-  voice_input: null to turn the listener off."
-- "Cannot restore version *N*: the workflow has no voice_input while its
-  published version has a listener. ..." with the same advice.
-
-Save `voice_input` on the draft to keep a listener, or `null` to turn it off,
-then publish.
+Through the API, read and change the listener with the agent's voice-stack
+route, as described in
+[Configure shared input through the API](#configure-shared-input-through-the-api).
+The workflow draft returns a read-only `voice_input` that shows what a publish
+would freeze; a workflow request that includes it is refused. The publish
+operation describes the complete shape (`WorkflowVoiceInput`) in the
+[API reference](/docs/api-reference).
 
 Publishing checks that the listener covers every language. It does not check
 that the listener has been tested for workflow calls; that is checked when a
@@ -412,8 +417,8 @@ Which languages count:
   own voice and its own wording. The meaning follows your line, but the words
   are not guaranteed to match it. Use Cascade when a line must be said word for
   word, such as a legal disclosure. On a GPT-Live workflow call the listener
-  you chose hears the caller, not GPT-Live, so **Receive caller speech** is
-  required there too. GPT-Live does not navigate phone menus, so a GPT-Live
+  saved under **Voice → Transcriber** hears the caller, not GPT-Live, so a
+  listener is required there too. GPT-Live does not navigate phone menus, so a GPT-Live
   workflow call runs without
   [phone menu navigation](/docs/phone-menu-navigation).
 
@@ -432,11 +437,11 @@ no pin were armed.
 
 | Message | What to change |
 | --- | --- |
-| Select a listener for this workflow and publish a new version. | The published version has no listener. Turn on **Receive caller speech** and publish. |
+| Select a listener for this workflow and publish a new version. | The published version has no listener. Choose a transcriber under **Voice**, save, and publish the workflow again. |
 | The selected workflow sources are not qualified for spoken calls. | The listener or the voice is not in the table above for one of the call's languages. |
 | This voice engine has no qualified workflow source adapter. | The AI agent's engine cannot speak workflow lines. |
 | Gemini Live is unavailable for workflow-bound calls | Gemini Live cannot run workflow calls. Switch the AI agent to Cascade or GPT-Live 1. |
-| The workflow listener configuration changed. Publish a new version. | The listener saved on the published version is no longer valid. Publish again. |
+| The workflow listener configuration changed. Publish a new version. | The listener frozen into the published version is no longer valid. Check the transcriber under **Voice**, save, and publish again. |
 | This workflow has no spoken lines for *language*. Publish it again before calling. | The call's language has no rendered lines. |
 | The workflow voice configuration is invalid. | The AI agent's engine and voice settings disagree. Check them and publish the AI agent again. |
 
