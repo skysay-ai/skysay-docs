@@ -13,7 +13,7 @@ calendar call behavior require fresh call proof before release.
 </Callout>
 
 Calendar booking gives a hosted AI agent two permitted tools: check available
-times and submit one confirmed appointment. It uses a calendar connection owned
+times and submit explicitly confirmed appointments. It uses a calendar connection owned
 by your workspace and project. The caller cannot change its destination,
 credentials or booking rules. Existing [webhook Integrations](/docs/integrations)
 continue to work independently.
@@ -105,29 +105,18 @@ external MCP client is not required. Their definitions are part of the
    whom (the caller's name) and where the confirmation goes (the caller's email,
    or that no email is sent) — and asks one yes-or-no question about exactly
    that booking.
-4. Only after a clear, explicit yes does the AI agent ask again with the same
-   details and the caller's confirmation. An unclear answer gets one
-   clarifying question ("Just to be sure, is that a yes?"). Any change to the
-   details means a new read-back. Silence, a no or a hang-up never books. Skysay
-   refuses a booking request that arrives within a few seconds of its read-back,
-   before the read-back could have been spoken and answered.
-
-   A read-back stops counting as soon as the conversation moves on to other
-   booking details: when the AI agent checks availability for another time or
-   date (even if that check fails or finds nothing free), or asks to book
-   different details. A "yes" the caller gives after that may answer the other
-   question, so the next booking request — even for the earlier details — is a
-   new read-back that needs its own yes. Re-checking exactly the slot that was
-   read back does not reset it.
+4. A later explicit, unconditional caller yes authorizes exactly those frozen
+   details. The finite confirmation listener supplies the completed caller turn;
+   a model assertion does not approve it. An unclear answer gets one clarification.
+   A change needs a fresh read-back and yes. No, silence and hang-up never book.
 5. Skysay checks the offer again and records an appointment intent before
    contacting the provider. An expired offer, changed configuration, ended call
    or concurrent overlapping claim is refused.
 6. The AI agent reports a booking only when the result has `booking_succeeded: true` and `state: booked`. A completed tool request by itself does not mean an appointment exists.
 
-Skysay cannot hear the caller: the read-back step guarantees that a booking is
-read back before it is written, and the AI agent judges whether the answer was
-a clear yes. Review the call's transcript in **Calls** when you need to see
-exactly what was agreed.
+The engine is trusted to speak the read-back; there is no word-for-word
+playback check. See [Confirming business actions](/docs/business-actions) for
+listener setup, receipts, SMS confirmation and uncertain outcomes.
 
 The same rules apply to every AI agent and every conversation engine, on phone
 calls and in the browser.
@@ -153,42 +142,17 @@ nothing is attached for you. Without it, those steps take their error routes.
 How to build them is in
 [Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call).
 
-The read-back rule is the same as above, with the question asked by the
-platform rather than the AI agent:
+Use a **Read tool** step for availability and an **Action** step for
+`calendar_book_appointment`. Its read-back and one clarification are built in;
+there are no separate booking confirmation questions to wire. Connect success,
+declined, changed details, error and unknown routes. The caller's explicit yes
+authorizes only the frozen offer and details. Unknown provider outcomes take
+`on_unknown` and must never be announced as booked or retried blindly.
 
-- The booking step's first request books nothing. The call goes to the
-  platform's **read-back question**, in fixed wording for the workflow's
-  language: the date and time with the time zone, the length, the caller's
-  name, and whether and where a confirmation email goes, then "Shall I book
-  it?". You cannot edit it. It exists in English, Estonian, German, Spanish,
-  French and Russian today; a workflow in another language cannot publish a
-  booking step.
-- Only an explicit, unconditional yes to that question books, and it books
-  exactly what was read back. No, silence, hanging up or an interruption never
-  books.
-- Any change ("yes, but at three") takes the workflow's change route, and the
-  new details need a new read-back and a new yes.
-- A hesitant or unclear answer ("I guess", "mm") gets exactly one
-  clarification that starts "Just to be sure" and repeats the details. A
-  second unclear answer counts as no.
-- A yes within a few seconds of the read-back is asked again, not booked.
-- The caller can pick only from the times the reply they are answering said
-  ("the second one"); otherwise the booking step takes its error route.
-
-The platform works out what the steps need from what the caller said: the
-time range to check, the chosen time, and the caller's name and email. The
-model that works them out never decides that the caller agreed. The offered
-times and the read-back say dates and times in the call's language with the
-calendar's time zone. A booking that is refused, or whose result at the
-provider is uncertain, takes the step's error route and is never announced as
-booked; its state is in **Calls** like any other.
-
-The rule is the same on every engine, GPT-Live included, and the same as for an
-AI agent without a workflow: the engine speaks the platform's read-back line,
-the caller's explicit answer is taken as a yes, a no, a change or unclear (with
-the one clarification), and only a yes books exactly the details read back.
-Skysay's own calendar checks, described above, apply unchanged. In a workflow
-the caller hears at most three offered times.
+The platform collects the time range, chosen offered slot and required caller
+details. All offer-expiry, calendar-revision, provider-policy and conflicting-slot
+checks still apply. Chat and scripted simulations use synthetic receipts and
+book nothing. The spoken workflow reuses its qualified listener.
 
 A call that holds a protected value runs no calendar step. The **Talk** test in
 the workflow builder is a browser test and books only under the test rules

@@ -120,8 +120,7 @@ Each step is one governed unit:
 | **Read tool** | Runs, silently inside a turn, one of the AI agent's own tools (see [Tools on a workflow call](#tools-on-a-workflow-call)), or checks that the call carries the data the next lines need. Takes its error route when it cannot. |
 | **Branch** | Chooses exactly one named route from the caller's answer. Cannot invent routes. |
 | **Outcome** | Records a structured result or review candidate. |
-| **Transfer** | Hands the live call to a person: dials the number in the AI agent's [Transfer to a human](/docs/transfer-to-a-human) tool, with a declared fallback. |
-| **Send SMS** | Sends an authored text message to the number on the call, then continues. |
+| **Action** | Prepares one configured write, asks for confirmation, and follows its success, declined, change, error or unknown route. SMS and call transfer use this step. |
 | **End** | Speaks the farewell and closes the session. |
 
 Routes carry the labels you write ("Can pay", "Dispute"), and those labels are
@@ -144,7 +143,7 @@ question", "Wants to leave a message") is taken when it fits what the caller
 said better, so the branch you laid out answers them, and when none of your
 routes fits, the interrupt applies as before. Wrong party, cease contact and
 language change are always checked on their own and still preempt any route.
-When a read tool or Send SMS step sits between the line and the branch, the
+When a read tool sits between the line and the branch, the
 branch decides after that step, separately, as before.
 
 Every semantic edit is also available from the form/list editor without
@@ -240,7 +239,7 @@ draft/revision, validation, safe canvas layout, active published-version
 metadata, and a bounded newest-first version summary so the client can compare
 what it intended to change. The draft comes back whole -- its `variables`
 (normalized; if any declaration cannot be read, the whole `variables` block is
-left out, and the draft's `validation` says why), each identity step's `matches` and every Send SMS step
+left out, and the draft's `validation` says why), each identity step's `matches` and every Action step
 -- so a client that reads, edits and writes the draft back keeps them. It is a pure read: no AI or provider call, compile,
 repair, lazy creation, or other mutation occurs.
 
@@ -619,106 +618,35 @@ endpoint.
 
 ### Send SMS steps
 
-A **Send SMS** step sends its authored `text` to the number on the call — the
-caller on an inbound call, the person called on an outbound one — then
-continues to `next`. The text uses the call's variables like any line, and is
-refused rather than sent with a gap. It must fit 6 segments with the values it
-is sent with: that is checked when it is sent, and a message over it is not
-sent -- the step records **SMS failed** (`OUTPUT_BUDGET_EXCEEDED`) and the call
-continues. It may name a
-protected variable only where the caller has been confirmed, which publishing
-checks as for spoken lines. The message is sent after the turn that reached
-the step is stored, once each time the step is reached. Talk and Chat record
-the message and send nothing.
+Use an **Action** with the AI agent's `send_sms` tool. Set its arguments to
+`{"body": "Your appointment is tomorrow."}` or a published template invocation.
+Authored arguments can use call-variable templates; protected values require
+their identity gate first. Connect all five Action routes.
 
-The call's **Identity checks and SMS steps** list shows each message's status:
-**SMS sent**, **SMS failed**, or **SMS delivery unknown** when the SMS provider
-may have accepted the message without confirming it. A message whose delivery
-is unknown is never sent again, so the person cannot receive it twice. The
-workflow does not wait for the result: a later line in the same turn should not
-say the message has arrived.
+The caller hears the proposed message and recipient before being asked to
+confirm. Only a later explicit yes queues the send, after that turn commits.
+The call waits for its receipt. A provider timeout takes `on_unknown` and is
+never automatically resent. An accepted send does not prove delivery to the
+recipient's handset. See [Confirming business actions](/docs/business-actions).
 
 ### Transfer steps
 
-A **Transfer** step hands a phone call to a person. It dials the number set in
-the AI agent's [Transfer to a human](/docs/transfer-to-a-human) tool and rings
-it for up to 25 seconds. The step's
-**Destination** field is your own name for the step; every transfer step of an
-agent dials the same number. The dial follows the tool's rules: one transfer
-attempt per call, your workspace's outbound policy gate for the destination's
-country, and the same suspensions.
+Use an **Action** with the AI agent's
+[Transfer to a human](/docs/transfer-to-a-human) tool. The read-back identifies
+its configured destination and asks the caller to approve the transfer. A
+later explicit yes permits one dial attempt; a no or changed request does not.
+The workspace's outbound policy and the tool's destination restrictions still apply.
 
-What happens on the call:
+After the dial is accepted, the workflow waits for its actual outcome. An
+answered call connects the caller and person, ending the workflow with status
+`transferred`. A busy line, no answer, rejection or failure takes `on_error`;
+an uncertain execution takes `on_unknown`. The call's transfer state in the
+Calls drawer records the dial outcome. While ringing, caller speech does not
+answer another workflow question.
 
-1. The workflow speaks the lines before the step. A transfer says nothing of
-   its own, so put a **Tell / Say** step before it ("One moment, I'll put you
-   through.") if the caller should hear one. While the person's phone rings
-   the caller hears silence, and anything they say then is not treated as an
-   answer to anything.
-2. **The person answers.** The caller and the person are connected and hear
-   each other; the AI agent says nothing more. The workflow ends with status
-   `transferred`, and the call goes on until the caller or the person hangs
-   up (or the call reaches its maximum length or your balance runs out).
-3. **Nobody answers, the line is busy, the call is rejected or fails, or the
-   caller hangs up first.** The step's failure route runs (its `on_fail`, or the
-   workflow's fallback step), so the conversation continues as you designed
-   it.
-
-A call with a person on it dials from your number the caller reached (inbound)
-or the number the call was placed from (outbound). Transfer steps run on
-Cascade and GPT-Live workflows alike.
-
-The run's trace records how the step went: `tool_status` `success` when the
-person answered, otherwise `error` with a `policy_reason` naming why, such as
-`transfer:busy`, `transfer:no_answer`, `transfer:rejected`, `transfer:failed`,
-`transfer:caller_hangup`, or, when no dial was placed,
-`transfer:transfer_destination_not_configured` (the AI agent has no Transfer to
-a human tool) or `transfer:unavailable_in_test`. The call's transfer state in
-the Calls drawer shows the same outcome.
-
-A browser **Talk** test has no phone number on the line, so it never dials and
-its transfer steps always take their failure route; **Chat** and
-**Simulations** never dial either. Use a **Phone** test to try a transfer.
-
-### Testing with values
-
-**Talk** and **Chat** render every line with the test values you give them
-(`test_values`), exactly as a call admits them, and run identity steps too: a
-comparison checks the caller's answer against the test value, and a missing
-test value counts as a mismatch. Protected values are shown only after the
-confirming step. An SMS step's message is recorded, not sent. In a scripted
-simulation, taking the step's verified route counts as a match, and anything
-else as a mismatch.
-
-### Versions from before call variables
-
-When your workspace moves to call variables, every workflow version published
-before then keeps its number and shows as **Archived before call variables**
-(status `archived_v2`). An archived version cannot run a call
-(`workflow_binding_failed`) and cannot be restored.
-
-Rerunning a simulation run from before the move:
-
-- a run against the version that was active reruns on its migrated copy, which
-  says the same words;
-- a run against an older version is refused with `409` ("This run's workflow
-  version predates call variables and could not be moved to them. Run the suite
-  again.");
-- a run against a draft from before the move is refused with `409` ("This run's
-  draft predates call variables. Run the suite again against the current
-  draft.").
-
-The version that was active gets a new copy, numbered after the workflow's
-highest version and moved to call variables. It becomes the active version and
-shows with its origin, for example **v5 (migrated from v3)**; the API's version summary
-carries the old number as `migrated_from_version` (null on every other
-version). Your next publish takes the next number.
-
-Restoring an archived version answers `409`, naming the copy to restore
-instead ("Version 3 was moved to call variables as version 5. Restore that
-version instead."), or saying the version predates call variables and was not
-moved. To take calls on the current workflow, publish the draft, which
-declares its variables.
+A browser **Talk** test has no phone number on the line and cannot dial a
+person. **Chat** and scripted simulations use recorded-only outcomes after
+confirmation. See [Confirming business actions](/docs/business-actions).
 
 ## Tools on a workflow call
 
@@ -730,8 +658,8 @@ tools for it. A step can run one of these:
 | --- | --- | --- |
 | **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and quotes the documents' own sentences that answer it. | `{{tool.knowledge_answer}}`: whole sentences of the documents, exactly as written and in the documents' language |
 | **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to three offered times with their dates, said in the call's language with the calendar's time zone |
-| **Book an appointment** | Books one of the offered times, and only after the caller says yes to the platform's read-back; see [Book an appointment](#book-an-appointment). | `{{tool.booking_when}}`, `{{tool.booking_length}}`, `{{tool.booking_name}}`, `{{tool.booking_email}}`: said by the read-back question; `{{tool.booking_needs}}` and `{{tool.booking_needs_email}}` when details are missing |
-| **Integration action** | Runs one of the AI agent's Integration actions that read. An action classified as one that changes something is refused (`workflow_tool_not_read`), however the workflow declares it; the agent page shows it as **Changes data**. | `{{tool.<key>}}` for each result key you list: text or a number |
+| **Book an appointment** | An Action books one offered time after its built-in read-back and confirmation. | Five outcome routes; the read-back includes the frozen appointment details. |
+| **Integration or webhook tool** | Read tools use **Read tool**; write tools use **Action** and require confirmation. | Reads expose the declared `{{tool.<key>}}` result values. Writes follow receipt outcome routes. |
 
 A tool runs only if the AI agent has it. Nothing is attached for you: the
 knowledge search is there once you attach a knowledge base to the AI agent
@@ -750,7 +678,7 @@ inspector says what to attach first. For an Integration action, enter its
 by commas. A line says each one as `{{tool.<key>}}`; a value that is not text
 or a number, or is missing, fails the step.
 
-You do not write the tool's arguments. The platform works them out from what
+Read-tool arguments are collected from the caller. An Action also accepts authored JSON arguments with call-variable templates. The platform works them out from what
 the caller said: the question to search for, the time range to check, and, for
 a booking, the chosen time, the caller's name, and the email address and any
 answers the calendar's event type needs. If something is still missing, the
@@ -784,7 +712,7 @@ time zone follow that language's own conventions.
 
 - A result is never a call variable. A contact, `call_context` or a campaign
   cannot supply it, and you do not declare it on the **Variables** tab.
-- Only the workflow's spoken lines can say a result. A **Send SMS** step, the
+- Only the workflow's spoken lines can say a result. Action arguments, the
   greeting and the instructions cannot name one; validation refuses a draft
   that does.
 - A step that fails clears its earlier results, so a later line never says a
@@ -801,115 +729,36 @@ time zone follow that language's own conventions.
 
 ### Book an appointment
 
-A booking writes to a real calendar, so a booking step has a second way out:
-besides `next` and its error route, it has a **read-back question**
-(`on_confirm`). The step's first request books nothing. It takes the call to
-the read-back question, which says the date and time with the time zone, the
-length, the caller's name, and whether and where a confirmation email goes,
-then asks "Shall I book it?". In English:
+Choose `calendar_book_appointment` in an **Action** step after checking
+availability. Its confirmation is built in, as for every other write. Connect
+`next`, `on_declined`, `on_change`, `on_error` and `on_unknown`. The last route is
+for an uncertain provider result and must not claim the booking succeeded.
 
-```text
-To confirm: an appointment on Tuesday, November 3, 2026, 10:00 AM (Eastern European Time), lasting 30 minutes, for Mari Tamm. No confirmation email will be sent. Shall I book it?
-```
-
-The question is the platform's own, in fixed wording you cannot edit, for
-every language the workflow is published in: English, Estonian, German,
-Spanish, French and Russian today. A workflow in another language cannot
-publish a booking step. Select the booking step and choose **Add the read-back
-question** to add it together with its one clarification. Its "No" route
-starts at the booking step's error route and its "Wants a change" route at the
-workflow's availability step; rewire them as you need.
-
-The caller's answer to the read-back question decides what happens. Your route
-labels play no part: the answer is taken as one of four fixed answers.
-
-| The caller says | What happens |
-| --- | --- |
-| An explicit, unconditional yes | The booking step books exactly what was read back, then continues to `next`. |
-| No | Nothing is booked; the call takes the **No** route. |
-| A change ("yes, but at three") | Nothing is booked; the call takes the **Wants a change** route, and any later booking needs a new read-back and a new yes. |
-| Something unclear ("I guess", "mm") | The call takes the **Unclear** route to the one clarification, which starts "Just to be sure", repeats the details and asks for a yes or a no. A second unclear answer counts as no. |
-
-Silence, hanging up or an interruption never books. A yes that arrives within
-a few seconds of the read-back, before it could have been heard and answered,
-is not booked early: the read-back question is asked again. The platform never
-asks the model that works out the booking details whether the caller agreed;
-only the answer to the read-back question can.
-
-The time the caller picks ("the second one") must be one of the times said in
-the reply they are answering, in the language they heard it in. Otherwise the
-booking step takes its error route rather than guess. A booking the calendar
-refuses, or whose result at the provider is uncertain, also takes the error
-route and is never reported as booked: word that line so it does not say the
-appointment exists, and check the call's appointment in **Calls**.
-
-When a booking request lacks an email address the calendar needs for its
-invitation, or an answer to one of the calendar's own questions, the step takes
-its error route and sets two values for that line: `{{tool.booking_needs}}`
-lists the labels of the unanswered questions ("Reason for visit and Phone
-number"), and `{{tool.booking_needs_email}}` is set when an email address is
-needed. Say them inside sections, as the **Appointment booking**
-template does:
-
-```text
-Sorry, I couldn't confirm a booking for that.{{#tool.booking_needs_email}} I also need your email address for the confirmation.{{/tool.booking_needs_email}}{{#tool.booking_needs}} I also need: {{tool.booking_needs}}.{{/tool.booking_needs}} Could you tell me again which time you'd like and the name for the booking?
-```
- A line of
-your own after a successful booking can say its details too, such as
-`{{#tool.booking_when}}Your appointment on {{tool.booking_when}} is booked.{{/tool.booking_when}}`,
-because they are the calendar's own read-back, never the model's. All the
-other booking rules of [Calendar booking](/docs/calendar-booking) apply too,
-such as at most two booking attempts per call.
-
-Validation refuses a booking step without its read-back question
-(`WRITE_TOOL_NEEDS_CONFIRMATION`), a read-back question whose wording was
-changed (`READ_BACK_INCOMPLETE`), a booking step in a workflow language the
-platform has no read-back for (`BOOKING_CONFIRMATION_LANGUAGE_UNSUPPORTED`),
-and a read-back question with other routes or reachable from anywhere but its
-booking step (`INVALID_CONFIRMS`).
-
-Through the API, a tool of the AI agent's own is a `declared_tools` entry with
-`"source": "agent"`. The knowledge search and availability are `read` tools
-and the booking is a `write`, all three with an empty `projection`; an
-Integration action is a `read` whose `projection` lists its result keys. The
-booking step names its read-back question in `on_confirm`, and both questions
-name the booking step in `confirms`:
+The platform freezes the selected offer, caller details and calendar
+configuration, reads the entire booking back, and asks one yes/no question. A
+later unconditional yes authorizes those details. An unclear answer gets one
+clarification; changes need a new read-back and yes. There is no timing-based
+shortcut or model-supplied confirmation flag.
 
 ```json
 {
-  "declared_tools": [
-    { "name": "calendar_check_availability", "kind": "read", "source": "agent", "projection": [] },
-    { "name": "calendar_book_appointment", "kind": "write", "source": "agent", "projection": [] }
-  ],
-  "steps": [
-    { "id": "book_appointment", "type": "read_tool", "tool": "calendar_book_appointment",
-      "next": "booked", "on_error": "booking_details_needed", "on_confirm": "confirm_booking" },
-    { "id": "confirm_booking", "type": "ask", "confirms": "book_appointment", "prompt": "<the platform's read-back>",
-      "routes": [
-        { "id": "yes", "label": "Yes", "target": "book_appointment" },
-        { "id": "no", "label": "No", "target": "declined" },
-        { "id": "change", "label": "Wants a change", "target": "check_availability" },
-        { "id": "unclear", "label": "Unclear", "target": "clarify_booking" }
-      ] }
-  ]
+  "id": "book_appointment",
+  "type": "action",
+  "name": "Book appointment",
+  "tool": "calendar_book_appointment",
+  "next": "booked",
+  "on_declined": "declined",
+  "on_change": "collect_details",
+  "on_error": "booking_error",
+  "on_unknown": "check_booking"
 }
 ```
 
-The clarification is a second `ask` that `confirms` the same booking step, with
-the routes `yes`, `no` and `change` and no `unclear`. The read-back question
-must have its `unclear` route, leading to that clarification; without it
-publishing fails with `WRITE_TOOL_NEEDS_CONFIRMATION`. Validation also refuses an
-agent tool declared with the wrong kind (`AGENT_TOOL_KIND_INVALID`,
-`MUTATION_AUTHORITY_UNAVAILABLE`), a built-in with fixed results given a
-`projection`, an Integration action given none or more than eight keys, or
-AI agent tools that together give more than 64 results
-(`AGENT_TOOL_RESULT_INVALID`), and a result given by two tools or a tool
-declared twice (`AGENT_TOOL_RESULT_DUPLICATE`). It also refuses one of the AI
-agent's own tools declared without `"source": "agent"`
-(`AGENT_TOOL_NEEDS_SOURCE`): without it, a declared tool only checks that the
-call carries variables of those names and runs nothing, so a booking step
-would succeed without booking. This covers the knowledge search, both calendar
-tools, and the built-ins a workflow has its own steps for.
+Declare the tool with `source: "agent"`, `kind: "write"` and an empty
+`projection`. Each route names a real step. Arguments omitted from the Action
+are collected from the caller. Calendar offer expiry, resource conflicts,
+provider rules and browser-test restrictions still apply. Read the full
+[business-action contract](/docs/business-actions) before wiring recovery.
 
 ### Starter templates with tools
 
@@ -943,21 +792,17 @@ it takes its error route. A template does not change a draft you already have.
   configured fails as it would on a call (`tool_not_configured`): no knowledge
   base with a ready document is attached, or the tool is not in the AI agent's
   tools. Every other tool step succeeds with clearly synthetic values
-  (`test-knowledge_answer`, `test-available_times`), and a booking step goes
-  through the read-back question and books nothing.
+  (`test-knowledge_answer`, `test-available_times`), and an Action goes
+  through confirmation with a recorded-only synthetic receipt. Scripted
+  simulations use their authored tool and transfer outcomes after confirmation.
 
-### What a tool step never runs
+### Which tools a step may run
 
-- **On a call that holds a protected value.** Such a call runs no tool, so its
-  tool steps take their error routes. The agent page's
-  [What runs on calls](/docs/what-runs-on-calls) shows **Protected values** for
-  the AI agent's tools while the published workflow declares one.
-- **Webhook tools.** They have no read or write kind yet, so a workflow cannot
-  use them.
-- **Send an SMS, transfers, callbacks, call outcomes and ending the call.** A
-  workflow has its own **Send SMS**, **Transfer**, **Outcome** and **End**
-  steps for these, and validation refuses declaring the AI agent's built-ins
-  for them (`UNKNOWN_AGENT_TOOL`).
+The step can use only a tool configured on its own AI agent, with its actual
+read/write kind. A declaration cannot turn a write into a read. Reads run without
+business confirmation; writes use Action. Ending a call and language switching
+remain conversation controls. Protected values keep their existing disclosure
+and tool restrictions; adding an Action never bypasses them.
 
 A workflow's tool results are kept with the call's transcript and deleted with
 it, when the call's recording is deleted or its retention period ends.
@@ -970,8 +815,8 @@ The compiled contract enforces, server-side, on every turn:
   model;
 - the model's structured decision is validated before anything executes;
 - only the tool the active step declares may run, and the AI agent's model is
-  offered none; the one write, a calendar booking, runs only after the
-  caller's yes to the platform's read-back;
+  offered none; every business write runs only after the
+  caller's later explicit yes to its read-back;
 - a protected value leaves the server only after the caller's confirmation is
   stored, and only in the lines after it;
 - per-step visit counts, a total turn budget, and a per-turn timeout are hard

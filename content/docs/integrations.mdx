@@ -11,13 +11,13 @@ policies, and FAQs in a [Knowledge Base](/docs/knowledge-bases) instead.
 
 <Callout title="One endpoint, named actions">
   An Integration is one public HTTPS adapter endpoint and one encrypted,
-  write-only signing secret. An **Action** is a named, typed read operation sent
+  write-only signing secret. An **Action** is a named, typed read or write operation sent
   to that endpoint. Giving an Action to an agent is the allowlist: the agent
   cannot use any other operation merely because it shares the endpoint.
 </Callout>
 
 Native [calendar booking](/docs/calendar-booking) uses provider account consent and
-confirmed booking tools, separate from these read-only webhook Actions.
+confirmed booking tools, using the same caller-confirmation contract as write Actions.
 
 ## The three parts
 
@@ -71,7 +71,6 @@ this example shows the shape deliberately:
       "required": ["status"]
     },
     "operation_kind": "read",
-    "requires_confirmation": false,
     "timeout_seconds": 5
   }
 }
@@ -221,18 +220,19 @@ switch (body.tool.name) {
 }
 ```
 
-## V1 is read-only
+## Read and write actions
 
-Every V1 Integration Action has `operation_kind: "read"` and
-`requires_confirmation: false`. Skysay intentionally refuses write actions
-today. A model instruction or transcript alone is not durable proof that the
-correct person consented to a specific business mutation with specific arguments.
+Choose `operation_kind: "read"` or `operation_kind: "write"` explicitly when
+creating an Action. There is no default. Reads run freely; writes require a
+read-back and a later explicit caller yes under the shared
+[business-action contract](/docs/business-actions). This also applies to webhook
+tools and workflow Action steps. `requires_confirmation` is not a configurable
+bypass: every business write requires confirmation.
 
-Future mutations need a server-owned, auditable confirmation boundary tied to a
-call, agent, exact action, argument hash, and one-time `tool_call_id`. Your
-application will still own its own correct-person checks, business rules,
-idempotency, and audit record. Do not rely on an Integration Action to update a
-CRM, charge a payment, change a booking, or perform another write in V1.
+Your endpoint receives the durable action ID in `tool_call_id`. Deduplicate it,
+validate the server-injected ownership against your records, and enforce your
+own business rules. An uncertain result is not permission to retry a mutation
+under a fresh ID.
 
 ## Production checklist
 
