@@ -12,6 +12,43 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 21 October 2026
+
+### One Voice and Tuning setup for calls and workflows
+
+- An agent's listener is now set once, under **Voice → Transcriber**, and its interruption sensitivity under **Tuning → Turn-taking**; ordinary calls and workflows share them.
+- A workflow's **Publish** view shows the saved listener, languages, credential source and timing; publishing freezes a copy, so later edits never change a published version or a call in progress.
+- OpenAI GPT-Live Transcribe is a new English workflow listener on Skysay-managed credentials, billed by the audio seconds OpenAI reports.
+- Through the API, send `voice_setup` to `PATCH /v1/agents/{agent_id}/voice-stack` with `expected_voice_setup_revision`; a stale revision returns `409`.
+- [Voice and turn-taking](/docs/agent-workflows#voice-and-turn-taking) · [Configure shared input through the API](/docs/agent-workflows#configure-shared-input-through-the-api)
+
+### Workflows run the agent's knowledge base, calendar and Integration actions
+
+- A workflow's read tool steps can search the AI agent's knowledge base, check calendar availability and run Integration actions that only read data.
+- A workflow can book an appointment: the booking is read back to the caller and confirmed before it is made, on Cascade and GPT-Live alike.
+- Webhook tools, and Integration actions that change data, still cannot run inside a workflow.
+- [Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call) · [Book an appointment](/docs/agent-workflows#book-an-appointment)
+
+### Workflow transfer steps put the caller through to a person
+
+- A **Transfer** step dials the number in the AI agent's **Transfer to a human** tool and rings it for up to 25 seconds.
+- When the person answers, the caller is connected and the workflow ends as `transferred`; if nobody answers or the line is busy, the step's failure route runs.
+- Browser **Talk** tests, **Chat** and **Simulations** never dial, so use a **Phone** test to try a transfer.
+- [Transfer steps](/docs/agent-workflows#transfer-steps) · [Transfer to a human](/docs/transfer-to-a-human)
+
+### Interrupted ElevenLabs and Gemini replies are charged what was sent or reported
+
+- An ElevenLabs reply the caller interrupts is charged the characters already sent to ElevenLabs, as Cartesia, Fish Audio and Azure replies already were.
+- Gemini voices are charged the tokens Google reported for each reply; an interrupted reply is charged what had been reported when it stopped, never an estimate.
+- A reply the provider rejects, or that is lost to a connection failure, is not charged.
+- [Speech that is interrupted or refused](/docs/billing#speech-that-is-interrupted-or-refused)
+
+### An OpenAI connector profile that calls without wallet top-ups
+
+- `https://api.skysay.ai/mcp/openai` keeps calling enabled but never lists or runs `create_wallet_topup`, and refuses `wallet:write` at consent.
+- Each call still needs your approval of its caller, recipient, purpose and expected cost, and normal number readiness and destination policy apply.
+- [OpenAI connector: calling without wallet top-ups](/docs/mcp#openai-connector-calling-without-wallet-top-ups)
+
 ## 20 October 2026
 
 ### Spoken workflows with a listener you choose, and GPT-Live 1 in English
