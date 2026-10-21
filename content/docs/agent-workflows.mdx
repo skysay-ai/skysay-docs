@@ -35,28 +35,31 @@ workflow version restores its graph; it keeps the agent's saved Voice/Tuning
 settings for the next publication.
 
 A text-only workflow can have voice input turned off. A spoken workflow needs a
-qualified listener covering every language required by the workflow and agent.
-Choosing a model does not automatically qualify additional languages.
+listener that accepts every language required by the workflow and agent: a
+model is accepted for every language Skysay lists for it, and its **Caller
+languages** picker offers those languages. See
+[Which voices and listeners a spoken workflow accepts](#which-voices-and-listeners-a-spoken-workflow-accepts).
 
-| Listener | Languages qualified for spoken workflows | Credentials |
-| --- | --- | --- |
-| Deepgram Nova-3 | English, Tamil | Skysay or your supported credential |
-| Azure Realtime | English, Sinhala | Skysay only |
-| Soniox STT-RT v5 | English | Skysay or your supported credential |
-| OpenAI GPT-Live Transcribe | English | Skysay only |
+| Listener | Accepted for spoken workflows | Tested by Skysay | Credentials |
+| --- | --- | --- | --- |
+| Deepgram Nova-3 | All the languages it lists | English, Tamil | Skysay or your supported credential |
+| Azure Realtime | All the languages it lists | English, Sinhala | Skysay only |
+| Soniox STT-RT v5 | All the languages it lists | English | Skysay or your supported credential |
+| OpenAI GPT-Live Transcribe | English | English | Skysay only |
 
 GPT-Live Transcribe is a finite **workflow listener**. It is not offered as a
 transcriber for an ordinary cascade conversation. It uses OpenAI's transcription
 connection directly, and bills provider-reported audio seconds, including the
 provider's rounding. It does not provide detected-language evidence for
-**Follow the caller**. English qualification is not a claim about other languages
-or automatic language switching.
+**Follow the caller**. It accepts English only, and makes no claim about
+automatic language switching.
 
 For ordinary GPT-Live or Gemini Live conversations, the live engine handles
-listening and turn-taking. A GPT-Live spoken workflow instead uses its qualified
-listener to hear the caller and the live session to speak. GPT-Live's workflow
-output is currently qualified for English; the model speaks in its own wording.
-Cascade workflow outputs use the selected qualified TTS path. See
+listening and turn-taking. A GPT-Live spoken workflow instead uses the listener
+under **Voice → Transcriber** to hear the caller and the live session to speak.
+GPT-Live's workflow output is accepted in every language, with English marked
+**Tested by Skysay**; the model speaks in its own wording. Cascade workflow
+outputs use the agent's selected voice. See
 [conversation engines](/docs/conversation-engines).
 
 Workflow presets use voice activity detection, rather than a semantic turn
@@ -305,9 +308,8 @@ things the workflow itself does not provide: a **listener** that turns the
 caller's speech into text, and a **voice** that speaks the lines. Both belong
 to the AI agent's voice setup, not to the workflow: you choose the listener
 under **Voice → Transcriber** and the voice with the agent's other voice
-settings. Skysay starts a
-spoken workflow call only when both have been tested for the languages the
-call can speak or hear (see
+settings. Skysay starts a spoken workflow call only when both accept every
+language the call can speak or hear (see
 [which languages count](#which-voices-and-listeners-a-spoken-workflow-accepts)).
 
 ### Choose how the workflow hears callers
@@ -320,9 +322,10 @@ its own to edit, and nothing on the canvas or in the graph sets one.
 
 | Setting | Where | What it does |
 | --- | --- | --- |
-| **Transcriber** | **Voice** | The listener, a model from the table in [Voice and turn-taking](#voice-and-turn-taking). Choosing **No voice input (text only)** leaves a workflow that runs in Chat and Simulations but cannot make spoken calls. |
-| **Languages** | **Voice** | Every language the workflow speaks, and every language the agent is set up to speak, must be covered by a listener tested for it. |
-| **Credential source** | **Voice** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
+| **Receive caller speech** | **Voice → Transcriber** | Turns on the listener for the agent's spoken workflows. Turned off, the publish view shows **No voice input (text only)**: the workflow runs in Chat and Simulations but cannot make spoken calls. |
+| **Speech recognition model** | **Voice → Transcriber** | The listener, a model from the table in [Voice and turn-taking](#voice-and-turn-taking). |
+| **Caller languages** | **Voice → Transcriber** | Every language the workflow speaks, and every language the agent is set up to speak, must be in this list, and the model must accept each of them. The list offers every language Skysay lists for the model; the ones Skysay has tested with that model carry a **Tested by Skysay** badge. |
+| **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
 | **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
 | **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller speech it takes to cut off a line being spoken: 0 to 1000 for a workflow. Shorter noise does not interrupt; recognized words always do. |
 
@@ -355,31 +358,46 @@ would freeze; a workflow request that includes it is refused. The publish
 operation describes the complete shape (`WorkflowVoiceInput`) in the
 [API reference](/docs/api-reference).
 
-Publishing checks that the listener covers every language. It does not check
-that the listener has been tested for workflow calls; that is checked when a
+Publishing checks that the listener covers every language. Whether the
+listener and the voice accept the call's languages is checked again when a
 call starts, as described next.
 
 ### Which voices and listeners a spoken workflow accepts
 
-These are the listeners and voices Skysay has tested end to end on workflow
-calls. Any other provider, model or language is refused when the call starts.
+A listener or voice on this list is **accepted** for every language Skysay
+lists for that model: the languages its provider supports that Skysay runs
+calls in, shown in the **Caller languages** picker for a listener and in the AI
+agent's language settings for a voice. GPT-Live 1
+publishes no per-language list, so it is accepted in every language Skysay
+runs calls in. Nothing else has to happen first: no test by Skysay, no review,
+no release. Any other provider or model, or a language the model does not
+support, is refused when the call starts.
 
-| Used as | Provider and model | Languages |
-| --- | --- | --- |
-| Listener | Deepgram Nova-3 (`nova-3`) | English, Tamil |
-| Listener | Azure AI Speech real-time transcription | English, Sinhala |
-| Listener | Soniox Real-time v5 (`stt-rt-v5`) | English |
-| Voice (Cascade) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English |
-| Voice (Cascade) | Azure AI Speech neural voices | Sinhala, English |
-| Voice (Cascade) | Fish Audio S2 Pro (`s2-pro`) | Tamil |
-| Voice (Cascade) | Soniox (`tts-rt-v2`) | English |
-| Engine | GPT-Live 1, any of its voices | English |
+Separately, **Tested by Skysay** marks the languages we have run end to end on
+a real workflow call with that listener or voice. It is shown beside those
+languages in the workspace and returned as `tested_languages` by
+`GET /v1/agent-catalog`. It is information, not a requirement: an untested
+language is accepted all the same, and the quality in it is the provider's.
+Test your own languages before you launch.
 
-So a Cascade workflow in English can use Deepgram Nova-3, Azure or Soniox as
-the listener with ElevenLabs Flash v2.5, an Azure voice or a Soniox voice, a
-Sinhala workflow can use the Azure listener with an Azure voice, and a Tamil
-workflow can use Deepgram Nova-3 with Fish Audio. A GPT-Live workflow in
-English can use any of the three English listeners.
+| Used as | Provider and model | Accepted | Tested by Skysay |
+| --- | --- | --- | --- |
+| Listener | Deepgram Nova-3 (`nova-3`) | All the languages it lists | English, Tamil |
+| Listener | Azure AI Speech real-time transcription | All the languages it lists | English, Sinhala |
+| Listener | Soniox Real-time v5 (`stt-rt-v5`) | All the languages it lists | English |
+| Listener | OpenAI GPT-Live Transcribe (`gpt-live-transcribe`) | English | English |
+| Voice (Cascade) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English | English |
+| Voice (Cascade) | Azure AI Speech neural voices | All the languages it lists | Sinhala, English |
+| Voice (Cascade) | Fish Audio S2 Pro (`s2-pro`) | English, Tamil | Tamil |
+| Voice (Cascade) | Soniox (`tts-rt-v2`) | All the languages it lists | English |
+| Engine | GPT-Live 1, any of its voices | Every language | English |
+
+So one listener can cover a workflow in several languages: Azure real-time
+transcription accepts English, Sinhala and Tamil, so an English, Sinhala and
+Tamil payment reminder can use it alone, spoken by an Azure voice on Cascade or
+by GPT-Live 1. A Tamil workflow can use Deepgram Nova-3 with Fish Audio, and a
+GPT-Live workflow in any language can use a listener that accepts that
+language.
 
 Azure, as listener or voice, and GPT-Live run on Skysay-managed credentials
 only. A workspace cannot add its own Azure or OpenAI key, and a call whose
@@ -388,23 +406,21 @@ workflow would use a workspace key for one of them is refused before funds are r
 [When a spoken workflow call is refused](#when-a-spoken-workflow-call-is-refused)).
 Other voices, such as Cartesia and Gemini TTS, and other listeners still work
 on AI agents without a workflow; they are not accepted on spoken workflow calls
-yet. Gemini Live cannot run a spoken workflow. Each language is added to this
-list only after Skysay has tested it.
+yet. Gemini Live cannot run a spoken workflow.
 
 Which languages count:
 
-- **The listener** must be tested for every language in its **Caller
-  languages**, which include every language the workflow speaks and the call's
-  language.
-- **The voice**, on an AI agent with a single voice, must be tested for the
-  call's language, every language the workflow is published in, and every
-  language the AI agent is set up to speak.
+- **The listener** must accept every language in its **Caller languages**,
+  which include every language the workflow speaks and the call's language.
+- **The voice**, on an AI agent with a single voice, must accept the call's
+  language, every language the workflow is published in, and every language
+  the AI agent is set up to speak.
 - With
   [Follow the caller](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow),
-  each language has its own voice, and each voice must be tested for its own
+  each language has its own voice, and each voice must accept its own
   language only. English on ElevenLabs Flash v2.5 with Sinhala on an Azure
-  voice is accepted, for example. The listener must be tested for every
-  followed language.
+  voice is accepted, for example. The listener must accept every followed
+  language.
 
 ### How the lines are spoken
 
@@ -438,7 +454,7 @@ no pin were armed.
 | Message | What to change |
 | --- | --- |
 | Select a listener for this workflow and publish a new version. | The published version has no listener. Choose a transcriber under **Voice**, save, and publish the workflow again. |
-| The selected workflow sources are not qualified for spoken calls. | The listener or the voice is not in the table above for one of the call's languages. |
+| The selected workflow sources are not qualified for spoken calls. | The listener or the voice is not in the table above, or does not accept one of the call's languages. |
 | This voice engine has no qualified workflow source adapter. | The AI agent's engine cannot speak workflow lines. |
 | Gemini Live is unavailable for workflow-bound calls | Gemini Live cannot run workflow calls. Switch the AI agent to Cascade or GPT-Live 1. |
 | The workflow listener configuration changed. Publish a new version. | The listener frozen into the published version is no longer valid. Check the transcriber under **Voice**, save, and publish again. |
@@ -450,7 +466,7 @@ error `message`. They also run before any funds are reserved:
 
 | Code | What to change |
 | --- | --- |
-| `source_adapter_unqualified` | With Follow the caller, one followed language's voice is not in the table above for that language. |
+| `source_adapter_unqualified` | With Follow the caller, one followed language's voice is not in the table above or does not accept that language. |
 | `source_credential_platform_only` | The listener or voice is Azure, or the engine is GPT-Live, and the call would use a workspace provider key. These run on Skysay-managed credentials only. |
 | `source_output_profiles_invalid` | The AI agent's Follow the caller language profiles do not match what the call was checked against, or one is incomplete. Check them, publish the AI agent again and retry. |
 
