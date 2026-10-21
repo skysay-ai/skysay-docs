@@ -477,9 +477,30 @@ source in its provider's own unit: the listener in audio seconds (Soniox in
 tokens), the voice in characters (Fish Audio in UTF-8 bytes, Soniox in tokens),
 and on GPT-Live the session in seconds, with no backend model line and no
 text-to-speech line (see [Billing](/docs/conversation-engines#billing)). When
-the call ends, it settles to the usage confirmed for each source, and any
-difference from the hold is released. The platform and carrier lines apply as
-on any call.
+the call ends, it settles to the usage of each source, and any difference from
+the hold is released straight away. The platform and carrier lines apply as on
+any call.
+
+Some sources never report their own usage. For these, Skysay charges the
+seconds it measured itself:
+
+| Source | What is measured |
+| --- | --- |
+| Listener: Deepgram Nova-3, Azure, Soniox | The caller audio Skysay sent to the listener while it was open. |
+| Soniox voice | The audio the voice returned for each line. |
+| GPT-Live 1 workflow line | The seconds of each line the caller heard. |
+
+A measured source is charged whether the line or caller turn finished, was
+interrupted, or failed, because the provider received that audio. Audio that
+was never sent, or a line nobody heard, is not charged. Soniox bills in tokens,
+so the measured seconds are converted at Soniox's published usage per minute:
+500 audio tokens and 250 text tokens per minute for the listener, 250 text
+tokens and 500 audio tokens per minute for the voice, rounded down. The other
+voices (ElevenLabs, Azure, Fish Audio) keep charging the text that was sent.
+
+In the call's cost breakdown, a line charged this way is marked **Measured by
+Skysay**. A call whose sources all measured nothing is not charged, and its
+whole hold is released when it ends.
 
 ## Call variables
 
