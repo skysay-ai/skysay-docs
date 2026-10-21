@@ -6,7 +6,9 @@ icon: Forward
 
 `transfer_to_human` is a built-in tool your AI agent can invoke mid-call to
 hand the caller to a person. You enable it on the agent and give it one
-destination number; the agent decides when to use it.
+destination number; the agent proposes when to use it. The caller must approve
+the read-back before the destination is dialed. See
+[Confirming business actions](/docs/business-actions).
 
 ## Configure the destination
 
@@ -50,13 +52,15 @@ it handed the call over.
 ## In a workflow
 
 An AI agent with a [workflow](/docs/agent-workflows) does not decide on its
-own: its workflow's **Transfer** steps dial this same destination, with the
-same policy gate and one attempt per call. See
+own: an **Action** using `transfer_to_human` reads back this same destination,
+waits for an explicit yes, and then permits one dial attempt per call through
+the same policy gate. See
 [Transfer steps](/docs/agent-workflows#transfer-steps).
 
 ## What the tool reports back
 
-The tool returns once the transfer has been **requested** — that is not the
-same as a person having answered. Treat a successful tool call as "the handoff
-was started," and read [call evidence](/docs/read-call-evidence) for what
-actually happened on the call.
+Before confirmation, the tool returns the pending action and its read-back.
+After confirmation and execution, a `connecting` receipt means the dial was
+requested; it does not mean a person answered. The workflow waits for that
+actual outcome. Read [call evidence](/docs/read-call-evidence) for what
+happened on the call.
