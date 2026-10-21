@@ -160,15 +160,23 @@ check that releases them:
   `date:YYYY-MM-DD`, `date:DD/MM/YYYY` or `date:MM/DD/YYYY`; `identifier` for an
   account or reference number).
 
-Protected variables need a [workflow](/docs/agent-workflows) agent on the
-cascade engine: the workflow decides when each line may be said, and a line
-before the confirming step that names a protected value is refused when the
-workflow is published.
+Protected variables need a [workflow](/docs/agent-workflows) agent on Cascade
+or GPT-Live: the workflow decides when each line may be said, and a line before
+the confirming step that names a protected value is refused when the workflow
+is published.
 
-<Callout type="warn" title="Live engines do not protect values">
-  GPT-Live and Gemini Live agents cannot hold protected variables: a live
-  engine speaks freely and nothing gates what it says. Declare their variables
-  as ordinary ones, and give them only data that may be said to whoever answers.
+On a GPT-Live workflow the live session is only the workflow's voice. It hears
+no one (the workflow's listener hears the caller), it is given each line as the
+workflow releases it, and before the confirming step no line it is given names a
+protected value. So a protected value reaches the model, and the caller, only
+after the caller is confirmed, exactly as on Cascade.
+
+<Callout type="warn" title="A free-form live agent does not protect values">
+  A GPT-Live or Gemini Live agent without a workflow cannot hold protected
+  variables: the model is given everything the call holds and nothing gates
+  what it says. Gemini Live cannot run workflows yet, so it cannot hold them at
+  all. Declare such an agent's variables as ordinary ones, and give it only data
+  that may be said to whoever answers.
 </Callout>
 
 ### Keypad variables
@@ -517,7 +525,7 @@ read to check it. Nothing is stored.
 | `INVALID_LIST_ITEM` | A list's `item` is missing or not `{key: "string" \| "number" \| "boolean"}`, or a non-list has one. |
 | `INVALID_FORMAT` | `format` is not one of the supported formats, or is on a non-string. |
 | `PROTECTED_FIELD_WITHOUT_VERIFICATION` | A protected variable on an agent without a workflow: nothing could confirm the caller before it is said. |
-| `PROTECTED_FIELD_ON_LIVE_ENGINE` | A protected variable on a GPT-Live or Gemini Live agent, which cannot hold a value back. |
+| `PROTECTED_FIELD_ON_LIVE_ENGINE` | A protected variable on an agent whose model would be given it before the caller is confirmed: a GPT-Live or Gemini Live agent without a workflow, or any Gemini Live agent. A GPT-Live agent with a published workflow can hold protected variables. |
 | `REQUIRES_WITHOUT_PROTECTED`, `INVALID_REQUIRES` | `requires` on an unprotected variable, or not `confirmation` / `knowledge_match`. |
 | `INVALID_KEYPAD`, `KEYPAD_FIELD_NOT_STRING`, `KEYPAD_FIELD_PROTECTED`, `KEYPAD_FIELD_RESERVED_NAME` | `keypad` is not `{"class": ...}` with a known class, or is on a variable that is not a `string`, on a `protected` one, or on one named `navigation_hint` (that name carries the [navigation hint](/docs/answer-detection#phone-menus-and-hold-queues)). |
 | `KEYPAD_FIELD_IN_TEXT` | A greeting, prompt, workflow line or SMS template names a keypad variable. |
