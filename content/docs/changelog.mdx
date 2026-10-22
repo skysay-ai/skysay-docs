@@ -12,6 +12,30 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 22 October 2026
+
+### Duplicate and delete AI agents
+
+- Use **Actions** in the AI agents list, its details panel or the AI agent editor to **Duplicate AI agent** or **Delete AI agent…**.
+- A copy is independent, stopped and unpublished, with its own connection and signing secret; numbers, routes, campaigns and call history are not copied.
+- Deletion first lists what still uses the AI agent, such as a number, route or unfinished campaign; calls, transcripts and billing records are kept.
+- Through the API, use `POST /v1/agents/{agent_id}/duplicate`, `GET /v1/agents/{agent_id}/deletion-check` and `DELETE /v1/agents/{agent_id}`, or the matching MCP tools.
+- [Duplicate and delete AI agents](/docs/agent-actions) · [API and MCP](/docs/agent-actions#api-and-mcp)
+
+### Faster number-rules sync and exact activation checklist totals
+
+- A self-hosted gateway's number-rules sync now costs the same three database reads however many numbers the workspace holds.
+- A number with a broken provider-account or end-user link is now routed instead of failing the whole number-rules document.
+- `GET /v1/activation-state` now reads counts instead of whole lists, so long SMS threads no longer slow it down.
+- Every `metrics` value is now an exact total; `number_requests` previously stopped at 100.
+- [Credentials for a self-hosted gateway](/docs/deployment-modes#credentials-for-a-self-hosted-gateway) · [Activation checklist](/docs/rest-endpoints#activation-checklist)
+
+### A dropped Gemini Live connection is no longer billed while it closes
+
+- When a Gemini Live connection drops mid-call, billing now stops as soon as the drop is detected, not up to about 10 seconds later when the connection finishes closing.
+- A connection that fails while it is still being opened is still billed until it closes.
+- [Billing](/docs/billing#pay-as-you-go)
+
 ## 21 October 2026
 
 ### Azure realtime listener on spoken workflows hears callers again
