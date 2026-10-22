@@ -6839,12 +6839,22 @@
     },
     "/v1/agent-endpoints/{agent_endpoint_id}": {
       "delete": {
+        "description": "Retires this connection and its companion AI agents, retaining history and closing queued deliveries. Refuses active phone-number routing and configured or unfinished work using those AI agents. Deletion locks and rechecks the dependencies before mutation.",
         "responses": {
           "200": {
             "description": "Deleted"
+          },
+          "400": {
+            "description": "Connection still routes an active phone number"
+          },
+          "409": {
+            "description": "Companion AI agents have configured dependencies or unfinished work, or attachments changed concurrently"
           }
         },
-        "summary": "Delete a webhook endpoint (soft: stops every delivery)"
+        "summary": "Delete a webhook endpoint (soft: stops every delivery)",
+        "x-required-scopes": [
+          "agents:write"
+        ]
       },
       "patch": {
         "parameters": [

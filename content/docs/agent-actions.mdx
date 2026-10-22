@@ -17,7 +17,7 @@ Numbers, routes, campaigns, call history, billing records, active sessions, publ
 
 ### Connection setup
 
-Every copy receives its own connection and signing secret. For an external connection or a hosted AI agent using webhook tools, save the new secret shown after creation and configure your service before testing. The secret is recoverable by the original requesting actor for 10 minutes. If you lose it after that period, delete the unused copy and create another. This setup is a checklist; Skysay cannot confirm that you have updated your external service.
+Every copy receives its own connection and signing secret. For an external connection or a hosted AI agent using webhook tools, save the new secret shown after creation before closing the dialog, and configure your service before testing. The workspace does not redisplay it after closing. The original requesting actor can recover it through an interrupted request or the API with the original idempotency key for 10 minutes. If you lose it after that period, delete the unused copy and create another. This setup is a checklist; Skysay cannot confirm that you have updated your external service.
 
 A failed or interrupted response does not mean copying failed. Retry the **same request** to recover its result without creating another copy. Keep its name unchanged until the outcome is known.
 
@@ -26,6 +26,8 @@ A failed or interrupted response does not mean copying failed. Retry the **same 
 Choose **Delete AI agent…** to check its current dependencies. If it is still referenced by a number, route, unfinished campaign, call, reservation, queued message, workflow, simulation or pending webhook delivery, resolve the listed dependency and select **Check again**. Deletion is unavailable while the AI agent is suspended.
 
 When eligible, confirm **Delete AI agent**. This cannot be undone through the workspace. Skysay retains historical calls, transcripts and billing records. It does not cancel phone numbers, refund credits or delete other AI agents that share a connection. Finished campaigns and historical records remain readable.
+
+Deleting a webhook connection also checks the dependencies of its companion AI agents before retiring them. It still closes that connection’s queued webhook deliveries.
 
 The backend checks again when you confirm, so work that started after the initial check can still prevent deletion. A deleted AI agent cannot receive new work, be edited or be resumed.
 
