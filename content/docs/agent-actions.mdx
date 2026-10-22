@@ -1,0 +1,45 @@
+---
+title: Duplicate and delete AI agents
+description: Create independent copies of saved configurations and safely remove unused AI agents.
+icon: Copy
+---
+
+Use **Actions** in the AI agents list, its details panel, or the AI agent editor. These controls require `agents:write`; a read-only workspace view does not show them.
+
+## Duplicate a saved configuration
+
+Choose **Duplicate AI agent**, give the copy a name, and select **Create copy**. It copies the latest saved configuration; save any editor changes you want included first.
+
+The copy is independent, stopped and unpublished. It includes prompts, voice and language settings, the saved workflow draft, tools, variables, extraction rules, and simulation definitions and publishing requirements. Simulation results and successful publishing checks are not copied. Run fresh tests when required and review the configuration. For a hosted AI agent, publish it before resuming. For an external connection, finish connection setup and then resume; there is no hosted Publish step.
+
+Knowledge bases, integration connections and provider credentials remain references to the same workspace resources. Editing those shared resources can affect both AI agents. Editing the copy's own configuration does not update the original.
+
+Numbers, routes, campaigns, call history, billing records, active sessions, published versions, and homepage demo placement are not copied.
+
+### Connection setup
+
+Every copy receives its own connection and signing secret. For an external connection or a hosted AI agent using webhook tools, save the new secret shown after creation before closing the dialog, and configure your service before testing. The workspace does not redisplay it after closing. The original requesting actor can recover it through an interrupted request or the API with the original idempotency key for 10 minutes. If you lose it after that period, delete the unused copy and create another. This setup is a checklist; Skysay cannot confirm that you have updated your external service.
+
+A failed or interrupted response does not mean copying failed. Retry the **same request** to recover its result without creating another copy. Keep its name unchanged until the outcome is known.
+
+## Delete an unused AI agent
+
+Choose **Delete AI agent…** to check its current dependencies. If it is still referenced by a number, route, unfinished campaign, call, reservation, queued message, workflow, simulation or pending webhook delivery, resolve the listed dependency and select **Check again**. Deletion is unavailable while the AI agent is suspended.
+
+When eligible, confirm **Delete AI agent**. This cannot be undone through the workspace. Skysay retains historical calls, transcripts and billing records. It does not cancel phone numbers, refund credits or delete other AI agents that share a connection. Finished campaigns and historical records remain readable.
+
+Deleting a webhook connection also checks the dependencies of its companion AI agents before retiring them. It still closes that connection’s queued webhook deliveries.
+
+The backend checks again when you confirm, so work that started after the initial check can still prevent deletion. A deleted AI agent cannot receive new work, be edited or be resumed.
+
+## API and MCP
+
+The authenticated workspace defines the tenant for all three operations:
+
+- `POST /v1/agents/{agent_id}/duplicate` accepts only a new `name` and requires an `Idempotency-Key` header. Reuse the header, name and source after an uncertain outcome. The same key used by another actor or with a different body is refused. Identity recovery is retained for at least 24 hours; connection-secret recovery is limited to 10 minutes.
+- `GET /v1/agents/{agent_id}/deletion-check` is a pure read requiring `agents:read`. Its response includes typed dependency counts and resolution links when your scopes permit them.
+- `DELETE /v1/agents/{agent_id}` requires `agents:write` and repeats the checks atomically. In-use AI agents return `409` with `reason: agent_in_use` and the current dependency check. Retrying a completed deletion returns the same acknowledgement.
+
+The corresponding MCP tools are `duplicate_agent`, `check_agent_deletion` and `delete_agent`. Ask the user to confirm deletion before invoking it. Connection secrets are never returned to the model; use the workspace or authenticated REST response for that setup. Copying webhook subscriptions or knowledge attachments may require additional content or knowledge scopes.
+
+See the [REST reference](/docs/api-reference) for exact request and response shapes.

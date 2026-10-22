@@ -6839,12 +6839,22 @@
     },
     "/v1/agent-endpoints/{agent_endpoint_id}": {
       "delete": {
+        "description": "Retires this connection and its companion AI agents, retaining history and closing queued deliveries. Refuses active phone-number routing and configured or unfinished work using those AI agents. Deletion locks and rechecks the dependencies before mutation.",
         "responses": {
           "200": {
             "description": "Deleted"
+          },
+          "400": {
+            "description": "Connection still routes an active phone number"
+          },
+          "409": {
+            "description": "Companion AI agents have configured dependencies or unfinished work, or attachments changed concurrently"
           }
         },
-        "summary": "Delete a webhook endpoint (soft: stops every delivery)"
+        "summary": "Delete a webhook endpoint (soft: stops every delivery)",
+        "x-required-scopes": [
+          "agents:write"
+        ]
       },
       "patch": {
         "parameters": [
@@ -7059,6 +7069,37 @@
       }
     },
     "/v1/agents/{agent_id}": {
+      "delete": {
+        "description": "Authenticated-workspace-only tombstone. Rechecks dependencies atomically. Refuses configured numbers, routing and unfinished work. Retains calls, transcripts and billing; does not cancel numbers or delete shared connections. Repeating a successful deletion returns the same acknowledgement.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted acknowledgement: id and deleted:true"
+          },
+          "403": {
+            "description": "Insufficient scope or suspension"
+          },
+          "404": {
+            "description": "Absent or foreign AI agent"
+          },
+          "409": {
+            "description": "agent_in_use with the same safe dependency check fields, or concurrent configuration change"
+          }
+        },
+        "summary": "Delete one unused AI agent",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      },
       "get": {
         "parameters": [
           {
@@ -7335,6 +7376,199 @@
           }
         },
         "summary": "Send one text turn to a prompt-driven hosted agent that has no conversation flow",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/deletion-check": {
+      "get": {
+        "description": "Pure bounded read bound to the authenticated workspace. The result is advisory; DELETE repeats it while excluding concurrent new work. Finished history does not prevent deletion.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "blockers": {
+                      "items": {
+                        "properties": {
+                          "count": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "href": {
+                            "description": "Resolution link omitted without the corresponding read scope.",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "count"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "can_delete": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "suspended": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "can_delete",
+                    "suspended",
+                    "blockers"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Current dependencies"
+          },
+          "404": {
+            "description": "Absent, deleted or foreign AI agent"
+          }
+        },
+        "summary": "Check dependencies before deleting one AI agent",
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/duplicate": {
+      "post": {
+        "description": "Atomic independent copy in the same workspace and project; starts inactive and unpublished. Copies authoring configuration and simulation definitions, not results or active publication. Knowledge, integrations and BYOK references stay shared. Creates a fresh endpoint and signing secret. Extra content scopes may be required by webhook events and knowledge attachments. Reuse the same Idempotency-Key, source and name after a timeout. Results are bound to the original actor. Identity is retained for at least 24 hours; one-time secret recovery is limited to 10 minutes. After that, delete an unused copy and recreate it if its secret was lost.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "maxLength": 120,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "credential_setup_expired": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "enum": [
+                        "hosted",
+                        "external_audio",
+                        "external_text"
+                      ],
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "needs_credential_setup": {
+                      "type": "boolean"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "webhook_secret": {
+                      "description": "New secret, only when connection setup is required and the recovery window is open.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "mode",
+                    "status",
+                    "replayed",
+                    "needs_credential_setup",
+                    "credential_setup_expired"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Created or recovered copy. Keep connection secrets out of logs."
+          },
+          "400": {
+            "description": "Invalid name, missing key or unsupported source configuration"
+          },
+          "403": {
+            "description": "Insufficient scopes or suspension"
+          },
+          "404": {
+            "description": "Absent, deleted or foreign source"
+          },
+          "409": {
+            "description": "Key belongs to a different body/actor, copy no longer available, or source dependency changed"
+          }
+        },
+        "summary": "Duplicate the latest saved AI agent configuration",
         "x-required-scopes": [
           "agents:write"
         ]
