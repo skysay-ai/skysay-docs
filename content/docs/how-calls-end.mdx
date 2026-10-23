@@ -120,11 +120,23 @@ eight seconds is unavailable for the rest of that call; late audio cannot revive
 it. An agent also using that listener for business writes cannot start normally
 without its required source. No listener is selected automatically.
 
-This check prevents some premature hangups; it does not guarantee an ending or
-generate an extra goodbye. A native voicemail call without a sourced caller turn,
-or a model that omits `end_call`, can remain open until the caller hangs up or an
-existing silence or duration limit ends it. Funding limits, operator/remote
-teardown and those platform backstops remain authoritative.
+On a free-form Live agent with only `end_call` and optionally knowledge-base
+search, Skysay can also recover a missing model hangup after a closing-only
+caller goodbye, explicit request to stop this call or pure wrong-person reply.
+This path requires the selected caller source and checks new complete caller
+turns, up to 128 classifier requests per call. It waits for the agent's speech
+to finish and for a short opportunity to continue. It generates no extra goodbye.
+A new caller request or detail cancels the pending intent, as does a new tool
+invocation. Line noise can resume a cancelled close only after the source
+positively reports a completed turn without words. Missing evidence or an
+expired intent never authorizes this automatic close.
+
+This recovery is unavailable to workflows, agents with business actions,
+navigation tools or tools outside that restricted set. It is a bounded safety
+check, not a guarantee of an ending or recognition in every language. A native
+voicemail call without sourced words can remain open until the caller hangs up
+or an existing silence or duration limit ends it. Funding limits,
+operator/remote teardown and platform backstops remain authoritative.
 
 ## The standing call-ending instruction
 
