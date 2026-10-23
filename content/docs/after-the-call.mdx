@@ -1,0 +1,116 @@
+---
+title: After the call
+description: The free AI call summary on the Calls page, the call goal it is judged against, and the result fields each AI agent pulls out of its calls.
+icon: TaskList
+---
+
+After a call with a conversation, Skysay writes a short AI summary of it. You
+read it in **Calls**: in the list's Goal and Summary columns, and at the top of
+the call's details. What it is judged against and which facts are pulled out of
+each call are set on the AI agent, in its **After the call** section.
+
+Every field in the summary is an AI estimate. Skysay never uses it to retry a
+call, block a number, bill or change do-not-call. The call's status, who
+answered (a person, voicemail or a phone menu) and its duration are platform
+facts and are not part of the summary.
+
+## What the summary says
+
+| Field | What it holds |
+| --- | --- |
+| Summary | One to three sentences, in the language of the call. |
+| Follow-up needed | Yes or no, with one line saying what still has to happen. |
+| Goal met | Yes, partly, no or unclear, with one line saying why. |
+| Sentiment | How the other person seemed: positive, neutral, negative or unclear. |
+
+The summary is free and on for every AI agent, existing ones included. It is
+made by Google Gemini from the call transcript after the call ends.
+
+## Set the call goal
+
+Open **Agents**, choose the AI agent and select **After the call**.
+
+**Call goal** is one optional line, for example "Find out if the store has the
+item, its price and today's closing time." Goal met is judged against it. When
+it is empty, Goal met is judged against the AI agent's own instructions, as
+published, never against the values a single call filled in. The call details
+say which one was used: "Judged against your call goal" or "Judged against the
+AI agent's instructions".
+
+A goal line is at most 4,000 characters. A change applies to calls whose
+transcript arrives after you save; calls already summarised keep their summary.
+
+## Turn the summary off for one AI agent
+
+In **After the call**, switch **AI call summary** off and save. Calls this AI
+agent makes or takes from then on get no summary. Summaries already written
+stay until their transcript is deleted.
+
+## Read summaries on the Calls page
+
+The list has two columns for it:
+
+- **Goal**: Met, Partly, Not met or Unclear. A dash means the call has no
+  summary.
+- **Summary**: the summary itself, with "Follow-up needed." added when one is.
+
+Open a call and the **Details** tab starts with the **Call summary** card: the
+summary, chips for goal met, follow-up and sentiment, the follow-up line, why
+the goal was or was not met, and what it was judged against. The AI agent's
+result fields follow directly under it. The call facts, recording and
+transcript come after them.
+
+A call that has no summary says why:
+
+| Shown | Why |
+| --- | --- |
+| Summarising… | The transcript has arrived and the summary is being written. The page updates on its own. |
+| No conversation | Nobody but the AI agent spoke: voicemail, a phone menu only, or no answer. No summary is made. |
+| Not enough transcript | The other person spoke, but too little of it was transcribed to summarise. |
+| Summary failed | The summary could not be written. |
+| No summary | The AI agent has summaries off, or the call is older than call summaries. |
+
+Summaries are deleted with the call's transcript, when the recording is
+deleted or its retention ends.
+
+The same summary is available to code with `GET /v1/calls/{call_id}/summary`
+and the MCP tool `get_call_summary`; see the [generated API
+reference](/docs/api-reference).
+
+## Result fields
+
+Result fields are facts Skysay pulls out of every completed call for this AI
+agent, such as whether the store had the item or the price it quoted. They are
+shown in the call's details and sent in the `call.extraction.ready` webhook
+(see [Post-call results](/docs/post-call-results)). They are an AI estimate
+too, kept apart from the summary, and free.
+
+They used to be set as raw JSON on the Integrations page. They are now edited
+in the AI agent's **After the call** section; existing fields were kept as
+they are, and the Integrations page links to each AI agent's section.
+
+For each field you set:
+
+- **Name**: letters, digits and underscores, at most 80 characters. Your
+  systems receive the value under this name.
+- **Type**: text, number, whole number, or yes / no.
+- **What to look for**: a description the AI reads, at most 600 characters.
+- **Choices** (optional, for text): the only values the field may take,
+  separated by commas. At most 50, each at most 120 characters.
+- **Required**: whether every result must include it.
+
+An AI agent has up to 24 fields. **Use a template** adds a starting set (store
+errand, appointment, lead qualification, payment reminder, support triage);
+it adds only fields you do not have yet. **Edit as JSON** shows the same fields
+as a JSON schema, for pasting or bulk edits.
+
+Each save that changes the fields creates a new version. Calls already
+analysed keep the version they used; a save that changes nothing creates no
+version. Removing every field and saving turns result fields off for new calls.
+
+## Coming later
+
+Paid extras are not part of this release: a stronger analysis model for long
+calls, scorecards with several pass/fail criteria, and re-analysing past calls
+after you change fields. Each will show its price per call before it can be
+turned on.
