@@ -130,6 +130,44 @@ A campaign whose agent is in this state finishes each contact as
   which never reserved anything. Once a worker has claimed the job, the API
   returns `409` rather than pretending a carrier call was stopped.
 
+- `POST /v1/calls/cancel-batch` with `{"external_group_reference": "...",
+  "project_id": "..."}` cancels every call of that batch that has not been
+  dialled yet (queued, held by the live-call gate, or held for review), through
+  the same path as the single-call cancel, so each reservation is released and
+  each call gets its `call.canceled` event. It handles up to 100 calls per
+  request and answers `{canceled, in_progress, campaign_owned, has_more}`:
+  repeat it until `has_more` is false. Calls already ringing or live finish
+  normally (`in_progress`). It never cancels a campaign's calls: a reference
+  that is one of your campaign ids is refused with `409`, so pause or cancel the
+  campaign instead.
+
+### Calling hours on a direct call
+
+A call or an SMS can carry its own calling window, so your application cannot
+reach someone at three in the morning by mistake:
+
+```json
+"calling_window": {
+  "windows": {"monday": [{"start": "09:00", "end": "18:00"}], "tuesday": [{"start": "09:00", "end": "18:00"}]},
+  "time_zone": "Europe/Tallinn"
+}
+```
+
+`windows` uses the same shape as a campaign's calling windows. The time zone is
+the one you name; without one, the destination number's own zone when the
+number has exactly one; otherwise `fallback_time_zone`; if none of these
+applies (for example a US number spanning several zones) the request is refused
+with `400`. Outside the window, `POST /v1/calls` and `POST /v1/messages` answer
+`409` with `error: "outside_calling_window"`, `next_window_opens_at`, the
+`time_zone` used, and a `Retry-After` header; nothing is created or reserved, so
+retrying with the same `Idempotency-Key` once the window opens places the call.
+A call admitted inside its window is checked again just before it dials and is
+refused if the window has closed meanwhile; a call already answered is never
+cut off by it. The call resource shows the window it was placed under as
+`calling_window` (with `time_zone_source`: `explicit`, `destination` or
+`fallback`). Campaigns keep their own calling windows. Inbound calls are not
+affected.
+
 Read current progress with `GET /v1/calls`, and fetch recording, transcript,
 waveform, and artifact evidence through the call endpoints in the generated
 reference. Use [signed events](/docs/post-call-results) for prompt,
