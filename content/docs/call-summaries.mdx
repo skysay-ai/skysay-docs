@@ -1,0 +1,89 @@
+---
+title: Call summaries
+description: A free AI summary of every call with a conversation, whether a follow-up is needed, whether the agent's goal was met, and the other party's sentiment.
+icon: Sparks
+---
+
+After a call's transcript is stored, Skysay writes a short AI summary of it.
+It is on for every agent unless you turn it off, and it is free. Every field
+is an **AI estimate**: read it as a pointer to the call, not as a record of it.
+Skysay itself never acts on it. It does not retry, block, bill, or change
+do-not-call because of anything in a summary.
+
+## What a summary contains
+
+| Field | What it holds |
+| --- | --- |
+| `summary` | One to three sentences about the call, in the language the call was held in. |
+| `follow_up_needed`, `follow_up` | Whether someone still has to act after the call, and what, in one line. |
+| `goal_met` | `yes`, `partly`, `no` or `unclear`, with a one-line `goal_reason`. |
+| `goal_source` | What the call was judged against: `goal_line` (the agent's call goal) or `agent_instructions` (the agent's own published instructions, when it has no call goal). |
+| `sentiment` | The other party's overall sentiment, not the agent's: `positive`, `neutral`, `negative` or `unclear`. |
+
+Call facts such as the call's status, who answered, and its duration are not
+part of the summary. They come from the platform, and the AI never decides
+them.
+
+## Read it
+
+```text
+→ get_call_summary(call_id="cl_...")   # recordings:read
+GET /v1/calls/{call_id}/summary        # recordings:read
+```
+
+The summary is derived from the transcript, so it needs the same
+`recordings:read` scope as the transcript. `calls:read` alone is refused.
+`GET /v1/calls/{call_id}` and `get_call` are unchanged and do not include it.
+
+| `status` | Meaning |
+| --- | --- |
+| `ready` | `result` holds the summary. |
+| `pending` | The transcript is stored and the summary is being written, usually within seconds. |
+| `skipped` | No summary was written, and no AI request was made. `reason` is `no_conversation` (the other party said nothing, or the call never connected) or `insufficient_transcript` (the other party spoke but none of it was transcribed). |
+| `failed` | The summary could not be written after two attempts. |
+| `not_available` | There is no summary for this call: summaries were off for its agent, its transcript was deleted, or the transcript has not arrived yet. |
+
+There is no webhook event for summaries. Read them when you need them.
+
+## Set the call goal, or turn summaries off
+
+Each agent has one setting, `call_summary`:
+
+```json
+PATCH /v1/agents/{agent_id}
+{ "call_summary": { "enabled": true, "goal": "Book a cleaning appointment and confirm the time." } }
+```
+
+- `goal` is optional, at most 4,000 characters. When it is set, `goal_met`
+  judges the call against it. When it is empty, `goal_met` judges the call
+  against the agent's published instructions as you wrote them, never against
+  the values a call filled in.
+- `enabled: false` turns summaries off for that agent's future calls. Calls
+  already summarised keep their summary.
+
+The same setting is accepted by `POST /v1/agents` and the MCP `update_agent`
+tool, and `GET /v1/agents/{agent_id}` returns it. Your own
+[post-call extraction](/docs/post-call-results) is a separate feature. A
+summary never changes your extraction schema, its result, or its
+`call.extraction.ready` event.
+
+## Who processes the transcript
+
+The summary is written by Google Gemini (Google LLC), which processes the
+transcript as a sub-processor for this post-call analysis. Each request is
+bounded: up to 24,000 characters of transcript and 4,000 characters of goal.
+Google returns the analysis and Skysay stores it with the call.
+
+## Deleting a transcript
+
+Deleting a call's recording and transcript, yourself or through your
+recording retention period, deletes that call's summary in the same step. It
+also deletes your post-call extraction result for that call.
+
+One case is not instant. If a summary request is already on its way to Google
+when the transcript is deleted, that request still completes, usually within
+about 30 seconds. Skysay then discards its answer and never stores it.
+
+A corrected recording that replaces a call's transcript replaces its summary
+too: the old summary is deleted with the old transcript, and a new one is
+written from the new transcript.
