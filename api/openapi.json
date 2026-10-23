@@ -496,7 +496,7 @@
       },
       "AgentModelUnresponsive": {
         "additionalProperties": false,
-        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
+        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything — a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
         "properties": {
           "seconds": {
             "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
@@ -634,7 +634,7 @@
       },
       "AgentSharedTurnTaking": {
         "additionalProperties": false,
-        "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
+        "description": "Explicit values override the preset. Workflow bounds: 300–3000 ms silence, 0–1000 ms interruption. Cascade bounds: 100–2000 and 80–2000 respectively.",
         "properties": {
           "interruption_sensitivity": {
             "enum": [
@@ -715,12 +715,8 @@
         "type": "object"
       },
       "AgentTool": {
-        "description": "A legacy string placeholder, a built-in tool, a signed webhook tool, or an attached Integration Action. The names `press_digits`, `wait_on_hold` and `abandon_navigation` are reserved for phone-menu navigation and refused with 400.",
+        "description": "A configured built-in tool, signed webhook tool, or attached Integration Action. String placeholders are refused. Custom tools explicitly declare read or write; every business write requires caller confirmation. The names `press_digits`, `wait_on_hold` and `abandon_navigation` are reserved for phone-menu navigation and refused with 400.",
         "oneOf": [
-          {
-            "description": "Legacy tool placeholder.",
-            "type": "string"
-          },
           {
             "$ref": "#/components/schemas/BuiltinAgentTool"
           },
@@ -823,7 +819,7 @@
       },
       "AgentUnrecognisedSpeech": {
         "additionalProperties": false,
-        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all \u2014 most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
+        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all — most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
         "properties": {
           "enabled": {
             "description": "`false` switches the line off for this agent, and is the only value stored: the behaviour is on for every agent that says nothing.",
@@ -1050,7 +1046,7 @@
       },
       "AgentVoiceSetupEdit": {
         "additionalProperties": false,
-        "description": "Shared finite input. Requires expected_voice_setup_revision beside it. Do not mix with transcriber or overlapping turn_taking fields. With a workflow, stages input for workflow publication; ordinary calls keep their published stack. Without a workflow, publishes a compatible cascade selection. Native free-form input is engine-owned. GPT-Live Transcribe is workflow-only, English and platform-managed.",
+        "description": "Shared finite input. Requires expected_voice_setup_revision beside it. Do not mix with transcriber or overlapping turn_taking fields. With a workflow, stages input for workflow publication; ordinary calls keep their published stack. Without a workflow, publishes a compatible cascade selection or saves an independent native-engine confirmation listener. Free-form business writes require the finite listener, with additional transcription usage; conversation input remains engine-owned. GPT-Live Transcribe is qualified for finite English input with platform-managed credentials.",
         "properties": {
           "listener": {
             "anyOf": [
@@ -1129,7 +1125,7 @@
           },
           "turn_taking": {
             "additionalProperties": false,
-            "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
+            "description": "Explicit values override the preset. Workflow bounds: 300–3000 ms silence, 0–1000 ms interruption. Cascade bounds: 100–2000 and 80–2000 respectively.",
             "properties": {
               "interruption_sensitivity": {
                 "enum": [
@@ -1693,6 +1689,60 @@
         "required": [
           "type",
           "name"
+        ],
+        "type": "object"
+      },
+      "BusinessAction": {
+        "additionalProperties": false,
+        "description": "Frozen read-back and durable outcome. A read is side-effect free. Replay returns the same action; unknown never authorizes an automatic retry.",
+        "properties": {
+          "clarifications": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "preview": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "receipt": {
+            "description": "Bounded platform-owned result fields, never arbitrary webhook output. An accepted SMS or connecting transfer is not proof of delivery or an answered call.",
+            "nullable": true,
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "authorized",
+              "awaiting_confirmation",
+              "canceled",
+              "executing",
+              "expired",
+              "failed",
+              "succeeded",
+              "superseded",
+              "unknown"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "preview",
+          "clarifications",
+          "expires_at",
+          "reason",
+          "receipt"
         ],
         "type": "object"
       },
@@ -5437,6 +5487,36 @@
         ],
         "type": "object"
       },
+      "SmsActionPrepare": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "arguments": {
+            "description": "Arguments for the agent's saved tool schema; finite JSON, at most 16 KiB serialized and 16 nested levels.",
+            "type": "object"
+          },
+          "idempotency_key": {
+            "description": "Stable request identity for this conversation and exact action. Reuse with different details returns 409.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "name",
+          "arguments",
+          "idempotency_key"
+        ],
+        "type": "object"
+      },
       "SmsMessage": {
         "description": "recipient_type is optional and never enforced; there is no recipient_type column on the SMS row, so it is accepted but not persisted. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
         "properties": {
@@ -5480,6 +5560,29 @@
           "to_phone_number",
           "body",
           "purpose"
+        ],
+        "type": "object"
+      },
+      "SmsToolRead": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "arguments": {
+            "description": "Arguments for the agent's saved tool schema; finite JSON, at most 16 KiB serialized and 16 nested levels.",
+            "type": "object"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "name",
+          "arguments"
         ],
         "type": "object"
       },
@@ -6337,6 +6440,14 @@
           "name": {
             "type": "string"
           },
+          "operation_kind": {
+            "description": "Explicitly required; no default. Writes require a complete read-back and a later caller confirmation. Their webhook envelope carries the durable action identity as tool_call_id for receiver deduplication.",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "type": "string"
+          },
           "parameters": {
             "type": "object"
           },
@@ -6356,7 +6467,58 @@
         "required": [
           "type",
           "name",
-          "url"
+          "url",
+          "operation_kind"
+        ],
+        "type": "object"
+      },
+      "WorkflowActionStep": {
+        "description": "A configured write with built-in full read-back and caller confirmation. Reads use read_tool; business writes use action. Each outcome is an explicit route. Unknown means the external result could not be established; do not automatically retry it.",
+        "properties": {
+          "arguments": {
+            "description": "Optional bounded JSON object; string leaves may reference declared, released call variables. Omit to collect details conversationally.",
+            "nullable": true,
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "on_change": {
+            "type": "string"
+          },
+          "on_declined": {
+            "type": "string"
+          },
+          "on_error": {
+            "type": "string"
+          },
+          "on_unknown": {
+            "type": "string"
+          },
+          "tool": {
+            "description": "Name of an agent tool declared with source=agent and kind=write.",
+            "type": "string"
+          },
+          "type": {
+            "const": "action"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "name",
+          "tool",
+          "next",
+          "on_declined",
+          "on_change",
+          "on_error",
+          "on_unknown"
         ],
         "type": "object"
       },
@@ -6612,7 +6774,7 @@
     }
   },
   "info": {
-    "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 \u2014 this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
+    "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 — this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
     "title": "Skysay API",
     "version": "0.1.0"
   },
@@ -8743,6 +8905,35 @@
                       ]
                     },
                     "properties": {
+                      "steps": {
+                        "items": {
+                          "oneOf": [
+                            {
+                              "$ref": "#/components/schemas/WorkflowActionStep"
+                            },
+                            {
+                              "properties": {
+                                "type": {
+                                  "enum": [
+                                    "ask",
+                                    "branch",
+                                    "end",
+                                    "outcome",
+                                    "read_tool",
+                                    "say"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type"
+                              ],
+                              "type": "object"
+                            }
+                          ]
+                        },
+                        "maxItems": 200,
+                        "type": "array"
+                      },
                       "variables": {
                         "description": "The workflow's own call variables, replacing the draft's; null removes them, and a save that leaves the key out keeps them. Checked when the workflow is published.",
                         "oneOf": [
@@ -10793,6 +10984,49 @@
         ]
       }
     },
+    "/v1/calls/{call_id}/actions/{action_id}": {
+      "get": {
+        "description": "Pure, workspace-bound read. Does not execute, retry, reconcile, or create an action. Response uses Cache-Control: no-store.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessAction"
+                }
+              }
+            },
+            "description": "Action snapshot"
+          },
+          "404": {
+            "description": "Action not found for this workspace and conversation"
+          }
+        },
+        "summary": "Read a business action and its receipt",
+        "x-required-scopes": [
+          "calls:read",
+          "recordings:read"
+        ]
+      }
+    },
     "/v1/calls/{call_id}/artifacts": {
       "get": {
         "responses": {
@@ -12694,7 +12928,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection, navigation and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. It also carries `capabilities`, what the AI agent's configured tools, attached knowledge bases and calendar tools do on each conversation engine (`engines`, the saved one in `engine`) and call type (`call_types`: `inbound`, `outbound`, `browser_test` for the agent page's browser test, and `homepage_demo` in the homepage demo workspace only). `calls[engine][call_type]` says whether such a call starts (`starts`), whether it runs the published workflow (`workflow`: outbound calls do; an inbound call only through a workflow phone test pin) and, when it does not start, `refused_reason`. On such workflow calls the cells describe the published workflow: an item is offered when a published tool step runs it. `items` lists each configured tool (at most 40, with `items_has_more`), an implied built-in such as request_callback (`implied`), the knowledge search when a knowledge base is attached, and phone menu navigation, each with `id`, `kind` (`builtin`, `calendar`, `webhook`, `connection`, `legacy`, `knowledge`, `navigation`, `unknown`), `name` and `status[engine][call_type]`: null when the item is offered on such a call, else the one reason it is not. `knowledge` counts the attached active knowledge bases and whether one has a ready document. It describes what is offered, not what a call does: suspension, the wallet, outbound authorization and a tool's own endpoint are still decided per call. The reasons are a closed set: `engine_cannot_run_workflows`: this call type runs the AI agent's published workflow, and its conversation engine cannot run workflow calls (Gemini Live today, and GPT-Live in a language without a recorded workflow source), so such calls are refused before they start; `homepage_demo_refuses_workflows`: the homepage demo does not run an AI agent that has a published workflow; `tool_budget`: the tools do not fit the call's 32-name tool contract (on a billed call it counts end_call and a ready knowledge base too): the call is refused, or it runs without the implied built-in (request_callback) or without phone menu navigation's three tools; `tool_contract_unsafe`: a tool name cannot be part of a call's tool contract (at most 32 lowercase letters, digits and underscores, starting with a letter), so calls are refused; `workflow_step_missing`: this call type runs the AI agent's published workflow, and no step of the published workflow uses this tool (a workflow runs the AI agent's knowledge base search, calendar tools and Integration tools only from its own tool steps); `workflow_protected_values`: this call type runs the AI agent's published workflow, which declares a protected value, and a call holding protected values runs no tool; `workflow_action_not_read`: this call type runs the AI agent's published workflow, whose steps run only Integration actions that read, and this action is classified as one that changes something; `workflow_tool_kind_unclassified`: this call type runs the AI agent's published workflow, and a workflow step runs only tools that read (the knowledge base, calendar availability, Integration actions) or the calendar booking, which is read back and confirmed first; a webhook tool has no read or write kind yet; `workflow_has_own_step`: this call type runs the AI agent's published workflow, which has its own steps for this (an SMS, transfer, outcome or end step), so the AI agent's built-in is not used; `not_buildable`: the voice worker cannot declare this entry (an unknown type or built-in, a repeated or reserved name, or a schema that is not an object or nests deeper than 32 levels), so it is left out of the call and named in a configured_tool_omitted event; `sms_templates_missing`: the SMS mode is Templates only and the AI agent has no SMS template, so there is nothing send_sms could send; `integration_unavailable`: the integration action, or its integration, is not active in this project; `calendar_connection_inactive`: the calendar connection the calendar tools name is not active in this project; `calendar_fleet_not_ready`: not every running voice worker can run the calendar tools yet, so they are not offered; `knowledge_not_ready`: no attached knowledge base has a ready document yet; `needs_phone_caller`: this built-in acts on a phone call (such as a text, a transfer or a callback), and this call type has no phone number on the line; `calendar_test_writes_off`: a workspace browser test books only on a dedicated test calendar connection with test writes allowed; `outbound_only`: phone menu navigation runs only on calls the AI agent places; `worker_tool_name`: the voice worker adds a tool of this name itself on these calls (switch_language while Follow the caller is on), so the configured tool is not built and a configured_tool_shadowed_by_worker_tool event names it; and, on the navigation item only, the reasons `navigation.ineligible_reason` of the voice-stack response documents: `turned_off`, `not_released`, `engine_not_supported`, `languages_unreleased`, `languages_uncovered`, `too_many_sockets`, `no_language`, `tool_name_conflict`.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection, navigation and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. It also carries `capabilities`, what the AI agent's configured tools, attached knowledge bases and calendar tools do on each conversation engine (`engines`, the saved one in `engine`) and call type (`call_types`: `inbound`, `outbound`, `browser_test` for the agent page's browser test, and `homepage_demo` in the homepage demo workspace only). `calls[engine][call_type]` says whether such a call starts (`starts`), whether it runs the published workflow (`workflow`: outbound calls do; an inbound call only through a workflow phone test pin) and, when it does not start, `refused_reason`. On such workflow calls the cells describe the published workflow: an item is offered when a published tool step runs it. `items` lists each configured tool (at most 40, with `items_has_more`), an implied built-in such as request_callback (`implied`), the knowledge search when a knowledge base is attached, and phone menu navigation, each with `id`, `kind` (`builtin`, `calendar`, `webhook`, `connection`, `legacy`, `knowledge`, `navigation`, `unknown`), `name` and `status[engine][call_type]`: null when the item is offered on such a call, else the one reason it is not. `knowledge` counts the attached active knowledge bases and whether one has a ready document. It describes what is offered, not what a call does: suspension, the wallet, outbound authorization and a tool's own endpoint are still decided per call. The reasons are a closed set: `engine_cannot_run_workflows`: this call type runs the AI agent's published workflow, and its conversation engine cannot run workflow calls (Gemini Live today, and GPT-Live in a language without a recorded workflow source), so such calls are refused before they start; `homepage_demo_refuses_workflows`: the homepage demo does not run an AI agent that has a published workflow; `tool_budget`: the tools do not fit the call's 32-name tool contract (on a billed call it counts end_call and a ready knowledge base too): the call is refused, or it runs without the implied built-in (request_callback) or without phone menu navigation's three tools; `tool_contract_unsafe`: a tool name cannot be part of a call's tool contract (at most 32 lowercase letters, digits and underscores, starting with a letter), so calls are refused; `workflow_step_missing`: this call type runs the AI agent's published workflow, and no step of the published workflow uses this tool (a workflow runs the AI agent's knowledge base search, calendar tools and Integration tools only from its own tool steps); `workflow_protected_values`: this call type runs the AI agent's published workflow, which declares a protected value, and a call holding protected values runs no tool; `workflow_tool_kind_unclassified`: the configured tool has no valid read or write kind; workflow read steps require reads, and Action steps require writes with caller confirmation; `workflow_has_own_step`: this call type runs the AI agent's published workflow, which handles conversation controls such as ending the call and switching language through its own runtime; `not_buildable`: the voice worker cannot declare this entry (an unknown type or built-in, a repeated or reserved name, or a schema that is not an object or nests deeper than 32 levels), so it is left out of the call and named in a configured_tool_omitted event; `sms_templates_missing`: the SMS mode is Templates only and the AI agent has no SMS template, so there is nothing send_sms could send; `integration_unavailable`: the integration action, or its integration, is not active in this project; `calendar_connection_inactive`: the calendar connection the calendar tools name is not active in this project; `calendar_fleet_not_ready`: not every running voice worker can run the calendar tools yet, so they are not offered; `knowledge_not_ready`: no attached knowledge base has a ready document yet; `needs_phone_caller`: this built-in acts on a phone call (such as a text, a transfer or a callback), and this call type has no phone number on the line; `calendar_test_writes_off`: a workspace browser test books only on a dedicated test calendar connection with test writes allowed; `outbound_only`: phone menu navigation runs only on calls the AI agent places; `worker_tool_name`: the voice worker adds a tool of this name itself on these calls (switch_language while Follow the caller is on), so the configured tool is not built and a configured_tool_shadowed_by_worker_tool event names it; and, on the navigation item only, the reasons `navigation.ineligible_reason` of the voice-stack response documents: `turned_off`, `not_released`, `engine_not_supported`, `languages_unreleased`, `languages_uncovered`, `too_many_sockets`, `no_language`, `tool_name_conflict`.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -12737,7 +12971,7 @@
     },
     "/v1/dashboard/agent-create": {
       "get": {
-        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header \u2014 not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
+        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header — not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -12998,7 +13232,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`. The `component_catalog` is a display-only `selected_agent_display` projection: only listed selections and selected voices already visible under the metered catalogue caps are included, with raw-ID fallback unchanged. Its voice counts/truncation describe that original visibility window, not the complete picker inventory. Creation-only `stack_catalog`, `component_credentials`, `presets`, `voice_library`, and `audio_environments` are absent. Use `/v1/dashboard/agent-create?step=voice` for creation and its gallery, retaining `project_id` and optional pinned `voice`; `voice_library=1` on this list returns 400.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate — never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`. The `component_catalog` is a display-only `selected_agent_display` projection: only listed selections and selected voices already visible under the metered catalogue caps are included, with raw-ID fallback unchanged. Its voice counts/truncation describe that original visibility window, not the complete picker inventory. Creation-only `stack_catalog`, `component_credentials`, `presets`, `voice_library`, and `audio_environments` are absent. Use `/v1/dashboard/agent-create?step=voice` for creation and its gallery, retaining `project_id` and optional pinned `voice`; `voice_library=1` on this list returns 400.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -14645,7 +14879,7 @@
                     "type": "string"
                   },
                   "initial_action": {
-                    "description": "A read-only action with name, input_schema, output_schema, description, and timeout_seconds.",
+                    "description": "An action with name, explicit operation_kind (read or write), input_schema, output_schema, description, and timeout_seconds. Writes always require caller confirmation.",
                     "type": "object"
                   },
                   "name": {
@@ -14738,7 +14972,7 @@
         ]
       },
       "post": {
-        "description": "V1 accepts read-only actions only. Mutation actions remain unavailable until Skysay provides a server-owned caller-confirmation flow.",
+        "description": "Every action must explicitly choose read or write. Writes use the shared read-back and caller-confirmation contract; requires_confirmation is refused because this policy is mandatory.",
         "parameters": [
           {
             "in": "path",
@@ -14762,7 +14996,8 @@
                   },
                   "operation_kind": {
                     "enum": [
-                      "read"
+                      "read",
+                      "write"
                     ],
                     "type": "string"
                   },
@@ -14775,12 +15010,6 @@
                   "project_id": {
                     "type": "string"
                   },
-                  "requires_confirmation": {
-                    "enum": [
-                      false
-                    ],
-                    "type": "boolean"
-                  },
                   "timeout_seconds": {
                     "maximum": 10,
                     "minimum": 1,
@@ -14792,7 +15021,8 @@
                   "project_id",
                   "name",
                   "input_schema",
-                  "output_schema"
+                  "output_schema",
+                  "operation_kind"
                 ],
                 "type": "object"
               }
@@ -14805,7 +15035,7 @@
             "description": "Integration action metadata"
           }
         },
-        "summary": "Add an allowlisted typed read action to an Integration",
+        "summary": "Add an allowlisted typed action to an Integration",
         "x-required-scopes": [
           "agents:write"
         ]
@@ -16460,6 +16690,158 @@
           }
         },
         "summary": "Fetch a mode-specific self-hosted or customer-hosted gateway install plan"
+      }
+    },
+    "/v1/sms-conversations/{conversation_id}/actions": {
+      "post": {
+        "description": "Bound to the authenticated workspace and the conversation's project. Queues the full action read-back and a confirmation question by SMS. Only a later inbound SMS reply containing the current confirmation code and an explicit unconditional yes can authorize execution. One unclear reply receives one clarification. No autonomous AI SMS conversation is started. Voice-only tools are refused.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmsActionPrepare"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessAction"
+                }
+              }
+            },
+            "description": "Action snapshot"
+          },
+          "400": {
+            "description": "Invalid arguments or unavailable tool/channel"
+          },
+          "403": {
+            "description": "Required scopes or policy missing"
+          },
+          "404": {
+            "description": "Conversation, agent or configured tool not in this workspace/project"
+          },
+          "409": {
+            "description": "Action identity conflicts or queued replies must be processed first"
+          }
+        },
+        "summary": "Prepare an SMS-confirmed business action",
+        "x-required-scopes": [
+          "agents:write",
+          "sms:read",
+          "sms:send"
+        ]
+      }
+    },
+    "/v1/sms-conversations/{conversation_id}/actions/{action_id}": {
+      "get": {
+        "description": "Pure, workspace-bound read. Does not execute, retry, reconcile, or create an action. Response uses Cache-Control: no-store.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessAction"
+                }
+              }
+            },
+            "description": "Action snapshot"
+          },
+          "404": {
+            "description": "Action not found for this workspace and conversation"
+          }
+        },
+        "summary": "Read a business action and its receipt",
+        "x-required-scopes": [
+          "sms:read",
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/sms-conversations/{conversation_id}/tool-reads": {
+      "post": {
+        "description": "Bound to the authenticated workspace and the conversation's project. Only a saved read tool may run; writes are refused. No confirmation or AI chat loop is started.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmsToolRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bounded configured tool result"
+          },
+          "400": {
+            "description": "Invalid arguments or unavailable tool/channel"
+          },
+          "403": {
+            "description": "Required scopes or policy missing"
+          },
+          "404": {
+            "description": "Conversation, agent or configured tool not in this workspace/project"
+          },
+          "409": {
+            "description": "Action identity conflicts or queued replies must be processed first"
+          }
+        },
+        "summary": "Run a configured read tool in an SMS conversation",
+        "x-required-scopes": [
+          "agents:read",
+          "sms:read"
+        ]
       }
     },
     "/v1/trial-calls": {

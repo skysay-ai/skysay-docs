@@ -1,0 +1,115 @@
+---
+title: Confirming business actions
+description: How callers approve bookings, messages and other changes, and how to handle an uncertain result.
+icon: ShieldCheck
+---
+
+<Callout title="Implementation preview">
+This contract is being prepared for a coordinated release. It is not a claim
+that the changes are available in production yet.
+</Callout>
+
+An AI agent can read information or make a change. A **read** tool, such as a
+knowledge search, availability check or customer lookup, runs without an action
+confirmation. A **write** tool needs the caller's approval of its exact details.
+Choose `read` or `write` explicitly when creating an Integration action or webhook
+tool. A prompt cannot override that choice or supply the caller's approval.
+
+Bookings, sending an SMS and requesting a callback are writes. Ending the
+conversation and switching its language are conversation controls and keep
+their normal behavior. Saving a call disposition records what happened on the
+call and runs without a confirmation question.
+
+Transferring a call is a write that the caller's own request confirms. When the
+caller asks to speak to someone, or says yes after the agent offers to connect
+them, the agent transfers straight away: no read-back and no second question. A
+workflow's transfer **Action** still reads back its destination and waits for a
+yes; see [Transfer steps](/docs/agent-workflows#transfer-steps).
+
+## What the caller experiences
+
+1. The agent reads back the whole action: what will change, when, for whom, and
+   where the confirmation will go. It asks one yes-or-no question.
+2. Only a later, explicit, unconditional yes permits that action to run.
+3. An unclear reply gets one clarification. A second unclear reply cancels it.
+4. A no, silence or hang-up never approves a write. Changed details require a
+   new read-back and a new yes. “Yes, but use a different date” is a change.
+
+For example: “Book a thirty-minute appointment tomorrow at 10:00 in
+Europe/Tallinn for Mari and send the confirmation to mari@example.com?”
+
+The platform classifies a completed caller turn. A model-supplied
+`caller_confirmed` value, a caption fragment or repeated tool invocation is not
+approval. The same rule applies on supported voice engines, inbound and outbound
+calls, browser calls and workflow calls. The engine is trusted to speak the
+read-back; Skysay does not verify word-for-word playback.
+
+## Voice setup
+
+Every free-form voice agent with write tools needs a supported confirmation
+listener covering its configured call languages. Select it in **Voice →
+Transcriber**; native voice engines show a separate confirmation listener there.
+**Tuning → Turn-taking** controls its silence and interruption settings.
+
+This finite listener runs alongside the free-form engine, including a cascade
+engine that already has STT. It adds transcription usage and can add confirmation
+delay. A spoken workflow reuses its existing listener. Choosing a language in
+the editor cannot extend a provider’s supported languages. Unsupported selections
+refuse admission before starting the call. Functional-test badges describe tested
+configurations separately from provider-declared language support.
+
+## Action steps in workflows
+
+Use **Read tool** for reads and **Action** for writes. An Action selects one of
+the agent's configured write tools. Arguments may be authored JSON containing
+ordinary call-variable templates, or collected from the caller when omitted.
+Protected values still require their identity gate before they can be used.
+
+Confirmation is built into the Action. You do not add separate confirmation
+questions. Connect all five routes:
+
+| Route | Meaning |
+| --- | --- |
+| `next` | The operation succeeded. A transfer still waits for the actual dial outcome. |
+| `on_declined` | The caller declined or remained unclear after one clarification. |
+| `on_change` | The caller changed the requested details. Collect them and prepare a fresh action. |
+| `on_error` | The operation was refused or failed definitively. |
+| `on_unknown` | The provider may have accepted it, but the result is uncertain. |
+
+A confirmed workflow action is queued only after its turn commits and the
+listener releases that exact answer after processing audio already received.
+New speech can cancel the action until execution is claimed. A restart cannot
+execute a confirmation that the listener never released. Chat and scripted simulations exercise confirmation with synthetic, recorded-only results;
+they do not send messages, book appointments or dial anyone.
+
+## Confirmation in SMS
+
+Use `POST /v1/sms-conversations/{conversation_id}/actions` to prepare a write for
+an existing, owned conversation. Supply `agent_id`, `name`, `arguments` and an
+`idempotency_key`. Skysay sends the action's read-back and a confirmation code by
+SMS. The recipient answers that actual message with an explicit yes and its code.
+A bare yes gets the one clarification; a reply to an older code cannot approve a
+new action. The regular inbound SMS path receives the answer.
+
+This provides action confirmation, not an autonomous AI SMS chat agent. Reads
+use `POST /v1/sms-conversations/{conversation_id}/tool-reads`. See the
+[REST reference](/docs/api-reference) for exact fields and scopes.
+
+## Receipts and uncertain outcomes
+
+An action has a durable ID, frozen details and configuration, and at most one
+execution claim. Replaying a request observes its existing receipt instead of
+executing it again. Webhook writes carry the durable action ID as `tool_call_id`;
+your endpoint must deduplicate that ID and apply its own authorization and
+business rules.
+
+A timeout or interrupted executor can leave an **unknown** result. Do not create
+a fresh action merely to retry it: first check the destination system. Unknown
+does not mean failed. Calendar intents keep reserving their interval while
+uncertain and use their provider-specific reconciliation process.
+
+Read an action through `GET /v1/calls/{call_id}/actions/{action_id}` or
+`GET /v1/sms-conversations/{conversation_id}/actions/{action_id}`. These reads do
+not execute, repair or retry anything. The confirmation ledger retains input
+ordering and hashes, not a second raw transcript; business receipts remain
+separate from recording and transcript retention.

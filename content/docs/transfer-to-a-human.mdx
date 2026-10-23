@@ -6,7 +6,9 @@ icon: Forward
 
 `transfer_to_human` is a built-in tool your AI agent can invoke mid-call to
 hand the caller to a person. You enable it on the agent and give it one
-destination number; the agent decides when to use it.
+destination number; the agent proposes when to use it. The caller must approve
+the read-back before the destination is dialed. See
+[Confirming business actions](/docs/business-actions).
 
 ## Configure the destination
 
@@ -49,6 +51,11 @@ the agent's own prompt**: if you want a transfer at once for emergencies, only
 for billing disputes, or only after the caller asks twice, say so in the
 instructions.
 
+The caller's request is the confirmation. When the caller asks to speak to
+someone, or says yes after the agent offers to connect them, the agent transfers
+straight away. It does not read the destination back or ask a second yes-or-no
+question.
+
 The tool takes an optional `reason`, which the agent supplies to describe why
 it handed the call over.
 
@@ -84,16 +91,19 @@ instead.
 ## In a workflow
 
 An AI agent with a [workflow](/docs/agent-workflows) does not decide on its
-own: its workflow's **Transfer** steps dial this same destination, with the
-same policy gate and one attempt per call. See
+own: an **Action** using `transfer_to_human` reads back this same destination,
+waits for an explicit yes, and then permits one dial attempt per call through
+the same policy gate. See
 [Transfer steps](/docs/agent-workflows#transfer-steps).
 
 ## What the tool reports back
 
-The tool answers once the transfer has been **requested** — that is not the
-same as a person having answered. Treat a successful tool call as "the handoff
-was started," and read [call evidence](/docs/read-call-evidence) for what
-actually happened on the call.
+A `connecting` result means the dial was requested; it does not mean a person
+answered. Treat it as "the handoff was started". In a workflow, the Action
+first returns the pending action and its read-back, and after the caller's yes
+the workflow waits for the actual dial outcome. Read
+[call evidence](/docs/read-call-evidence) for what actually happened on the
+call.
 
 Skysay records how each call's transfer ended:
 
