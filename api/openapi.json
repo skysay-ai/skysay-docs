@@ -9,6 +9,9 @@
           "begin_message": {
             "type": "string"
           },
+          "call_summary": {
+            "$ref": "#/components/schemas/AgentCallSummary"
+          },
           "follow_caller": {
             "allOf": [
               {
@@ -179,6 +182,22 @@
               "pattern": "^[A-Za-z]{2,3}([-_][A-Za-z0-9]+)*$"
             },
             "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "AgentCallSummary": {
+        "additionalProperties": false,
+        "description": "The free AI call summary for this agent's calls. On by default; send enabled false to turn it off. On an update, a key you leave out keeps its value.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "type": "boolean"
+          },
+          "goal": {
+            "description": "Optional call goal the summary judges goal_met against. Empty means the agent's own published instructions.",
+            "maxLength": 4000,
+            "type": "string"
           }
         },
         "type": "object"
@@ -496,7 +515,7 @@
       },
       "AgentModelUnresponsive": {
         "additionalProperties": false,
-        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything — a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
+        "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
         "properties": {
           "seconds": {
             "description": "The bound, in seconds. `0` switches it off, and is the only value outside the range: an agent that waits on something genuinely slow may need it. Otherwise 10 to 120. The platform's own bound applies when unset.",
@@ -634,7 +653,7 @@
       },
       "AgentSharedTurnTaking": {
         "additionalProperties": false,
-        "description": "Explicit values override the preset. Workflow bounds: 300–3000 ms silence, 0–1000 ms interruption. Cascade bounds: 100–2000 and 80–2000 respectively.",
+        "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
         "properties": {
           "interruption_sensitivity": {
             "enum": [
@@ -819,7 +838,7 @@
       },
       "AgentUnrecognisedSpeech": {
         "additionalProperties": false,
-        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all — most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
+        "description": "What the agent does when the caller speaks and the transcriber produces nothing at all \u2014 most often a caller using a language the agent's transcriber is not listening for, but also a bad line or a dropout. The agent says one short line in the call's own language telling the caller it could not understand them and which languages it can help in, then keeps listening; it never guesses what was said, never calls a tool and never ends the call. It is spoken only after the caller has stopped talking and the platform's wait for a transcript has expired, so it cannot talk over a live caller, and it is skipped entirely on an agent with follow-the-caller enabled, where the language switch answers instead. On by default, and spoken at most twice per call unless you change `max_per_call`. Send `enabled: false` to switch it off; an absent section is the default and is not stored.",
         "properties": {
           "enabled": {
             "description": "`false` switches the line off for this agent, and is the only value stored: the behaviour is on for every agent that says nothing.",
@@ -847,6 +866,9 @@
           },
           "begin_message": {
             "type": "string"
+          },
+          "call_summary": {
+            "$ref": "#/components/schemas/AgentCallSummary"
           },
           "expected_tools": {
             "description": "Optional previously read complete tools array, including read-only refs. With a tools replacement, a mismatch returns 409 with error AgentToolsChangedError and writes nothing. Workspace editors and calendar attachment send it to avoid lost changes.",
@@ -1125,7 +1147,7 @@
           },
           "turn_taking": {
             "additionalProperties": false,
-            "description": "Explicit values override the preset. Workflow bounds: 300–3000 ms silence, 0–1000 ms interruption. Cascade bounds: 100–2000 and 80–2000 respectively.",
+            "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
             "properties": {
               "interruption_sensitivity": {
                 "enum": [
@@ -3171,6 +3193,150 @@
           "talk_seconds",
           "answered",
           "failed"
+        ],
+        "type": "object"
+      },
+      "CallSummary": {
+        "properties": {
+          "advisory": {
+            "description": "Always true: every field is an AI estimate and nothing in the platform acts on it.",
+            "type": "boolean"
+          },
+          "analysis_version": {
+            "type": "integer"
+          },
+          "call_id": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "quality_flags": {
+            "description": "What the summarised input was: transcript_truncated when only the first part of a long call fit the request (200 turns, 24,000 characters), transcript_partial when the transcript was missing the text of an agent reply.",
+            "items": {
+              "enum": [
+                "transcript_truncated",
+                "transcript_partial"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "enum": [
+              "",
+              "no_conversation",
+              "insufficient_transcript",
+              "superseded",
+              "input_changed",
+              "provider_unavailable",
+              "provider_invalid_response",
+              "transcript_not_ready",
+              "processing_failed"
+            ],
+            "type": "string"
+          },
+          "result": {
+            "description": "Present only when status is ready.",
+            "properties": {
+              "follow_up": {
+                "type": "string"
+              },
+              "follow_up_needed": {
+                "type": "boolean"
+              },
+              "goal_met": {
+                "enum": [
+                  "yes",
+                  "partly",
+                  "no",
+                  "unclear"
+                ],
+                "type": "string"
+              },
+              "goal_reason": {
+                "type": "string"
+              },
+              "goal_source": {
+                "description": "goal_line: judged against the agent's call goal; agent_instructions: against its published instructions.",
+                "enum": [
+                  "goal_line",
+                  "agent_instructions"
+                ],
+                "type": "string"
+              },
+              "sentiment": {
+                "description": "The other party's, not the agent's.",
+                "enum": [
+                  "positive",
+                  "neutral",
+                  "negative",
+                  "unclear"
+                ],
+                "type": "string"
+              },
+              "summary": {
+                "description": "1-3 sentences in the language of the call.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "summary",
+              "follow_up_needed",
+              "follow_up",
+              "goal_met",
+              "goal_reason",
+              "goal_source",
+              "sentiment"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "skipped means no model call was made (see reason); not_available means no summary exists or is expected yet (summaries off, a deleted transcript, or one not imported yet).",
+            "enum": [
+              "ready",
+              "pending",
+              "failed",
+              "skipped",
+              "not_available"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "organization_id",
+          "project_id",
+          "status",
+          "reason",
+          "advisory",
+          "analysis_version",
+          "quality_flags",
+          "result",
+          "model",
+          "created_at",
+          "completed_at"
         ],
         "type": "object"
       },
@@ -5361,7 +5527,7 @@
             "type": "boolean"
           },
           "schema": {
-            "description": "When enabled: an object schema with 1-24 scalar properties (string, number, integer, or boolean), optional string enums, and no additional properties.",
+            "description": "When enabled: an object schema with 1-24 scalar properties (string, number, integer, or boolean), optional string enums, and no additional properties. Each property may set x-skysay-source to caller or conversation (default). Caller fields receive only captioned caller speech: agent recaps and unspoken form values are excluded, and references to omitted values remain unknown. Results remain advisory; at most two extraction requests are made per worker attempt. Normal worker retries repeat the source groups.",
             "type": "object"
           }
         },
@@ -6774,7 +6940,7 @@
     }
   },
   "info": {
-    "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 — this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
+    "description": "Agent-native telephony API for customer onboarding, credits, numbers, webhooks, gateways, and policy-gated calls. Request bodies are UTF-8. Send JSON: a body that is absent or whitespace-only reads as an empty object, and a JSON body that is not valid JSON, is not a JSON object, or is not UTF-8 returns 400. (The provider-callback routes that have always accepted application/x-www-form-urlencoded or text/plain still do.) A request carrying any Content-Encoding other than identity returns 415 \u2014 this API does not accept compressed request bodies. A required field that is missing, null or blank returns 400 naming the field.",
     "title": "Skysay API",
     "version": "0.1.0"
   },
@@ -11447,6 +11613,43 @@
         ]
       }
     },
+    "/v1/calls/{call_id}/summary": {
+      "get": {
+        "description": "A 1-3 sentence summary, whether a follow-up is needed, whether the agent's goal was met and the other party's sentiment, produced by Google Gemini from the bounded transcript after it is stored. Every field is an AI estimate (advisory) and nothing in the platform acts on it. Read with the transcript's scope; deleting the transcript deletes the summary. Turn it off per agent with call_summary.enabled on the agent.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallSummary"
+                }
+              }
+            },
+            "description": "The call's summary, or why it has none"
+          },
+          "403": {
+            "description": "The credential lacks recordings:read"
+          },
+          "404": {
+            "description": "The call is not in the authenticated workspace"
+          }
+        },
+        "summary": "Read the AI summary of one call",
+        "x-required-scopes": [
+          "recordings:read"
+        ]
+      }
+    },
     "/v1/calls/{call_id}/transcript": {
       "get": {
         "description": "Read one bounded original/translation timeline page with canonical IDs, source_revision, unchanged recording anchors, missing-caption events and pagination {limit, returned, has_more, next_cursor}. Follow next_cursor while has_more. Oversized source units return explicit unavailable placeholders so later events remain reachable. Cursors bind the source revision; refresh after a changed source. A selected translation language only reads a cached artifact and never creates work.",
@@ -12928,7 +13131,7 @@
     },
     "/v1/dashboard/agent-config": {
       "get": {
-        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection, navigation and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. It also carries `capabilities`, what the AI agent's configured tools, attached knowledge bases and calendar tools do on each conversation engine (`engines`, the saved one in `engine`) and call type (`call_types`: `inbound`, `outbound`, `browser_test` for the agent page's browser test, and `homepage_demo` in the homepage demo workspace only). `calls[engine][call_type]` says whether such a call starts (`starts`), whether it runs the published workflow (`workflow`: outbound calls do; an inbound call only through a workflow phone test pin) and, when it does not start, `refused_reason`. On such workflow calls the cells describe the published workflow: an item is offered when a published tool step runs it. `items` lists each configured tool (at most 40, with `items_has_more`), an implied built-in such as request_callback (`implied`), the knowledge search when a knowledge base is attached, and phone menu navigation, each with `id`, `kind` (`builtin`, `calendar`, `webhook`, `connection`, `legacy`, `knowledge`, `navigation`, `unknown`), `name` and `status[engine][call_type]`: null when the item is offered on such a call, else the one reason it is not. `knowledge` counts the attached active knowledge bases and whether one has a ready document. It describes what is offered, not what a call does: suspension, the wallet, outbound authorization and a tool's own endpoint are still decided per call. The reasons are a closed set: `engine_cannot_run_workflows`: this call type runs the AI agent's published workflow, and its conversation engine cannot run workflow calls (Gemini Live today, and GPT-Live in a language without a recorded workflow source), so such calls are refused before they start; `homepage_demo_refuses_workflows`: the homepage demo does not run an AI agent that has a published workflow; `tool_budget`: the tools do not fit the call's 32-name tool contract (on a billed call it counts end_call and a ready knowledge base too): the call is refused, or it runs without the implied built-in (request_callback) or without phone menu navigation's three tools; `tool_contract_unsafe`: a tool name cannot be part of a call's tool contract (at most 32 lowercase letters, digits and underscores, starting with a letter), so calls are refused; `workflow_step_missing`: this call type runs the AI agent's published workflow, and no step of the published workflow uses this tool (a workflow runs the AI agent's knowledge base search, calendar tools and Integration tools only from its own tool steps); `workflow_protected_values`: this call type runs the AI agent's published workflow, which declares a protected value, and a call holding protected values runs no tool; `workflow_tool_kind_unclassified`: the configured tool has no valid read or write kind; workflow read steps require reads, and Action steps require writes with caller confirmation; `workflow_has_own_step`: this call type runs the AI agent's published workflow, which handles conversation controls such as ending the call and switching language through its own runtime; `not_buildable`: the voice worker cannot declare this entry (an unknown type or built-in, a repeated or reserved name, or a schema that is not an object or nests deeper than 32 levels), so it is left out of the call and named in a configured_tool_omitted event; `sms_templates_missing`: the SMS mode is Templates only and the AI agent has no SMS template, so there is nothing send_sms could send; `integration_unavailable`: the integration action, or its integration, is not active in this project; `calendar_connection_inactive`: the calendar connection the calendar tools name is not active in this project; `calendar_fleet_not_ready`: not every running voice worker can run the calendar tools yet, so they are not offered; `knowledge_not_ready`: no attached knowledge base has a ready document yet; `needs_phone_caller`: this built-in acts on a phone call (such as a text, a transfer or a callback), and this call type has no phone number on the line; `calendar_test_writes_off`: a workspace browser test books only on a dedicated test calendar connection with test writes allowed; `outbound_only`: phone menu navigation runs only on calls the AI agent places; `worker_tool_name`: the voice worker adds a tool of this name itself on these calls (switch_language while Follow the caller is on), so the configured tool is not built and a configured_tool_shadowed_by_worker_tool event names it; and, on the navigation item only, the reasons `navigation.ineligible_reason` of the voice-stack response documents: `turned_off`, `not_released`, `engine_not_supported`, `languages_unreleased`, `languages_uncovered`, `too_many_sockets`, `no_language`, `tool_name_conflict`.",
+        "description": "Returns one selected agent, its resolved stack including saved turn_taking, voice_polish, answer_detection, navigation and audio_environment settings, which components were actually configured (for a voice the agent never stored, voice_stack.language_profiles.default_voices names the default voice model of each supported language the shown voice cannot run, so a language added in the editor gets one too), the same inbound-admission verdict the Agents list carries, the runnable-adapter catalog (each entry carrying component_metered, so the launch-supported view is one filter over it rather than a second copy), a wallet projection, a bounded metadata-only BYOK credential list, and the agent's measured reply time: the median of a bounded sample of its recorded worker-side reply turns, reported as unavailable rather than zero until real calls exist. That figure ends when the first audio frame leaves the worker, so carrier transit and remote playout are not in it. It is bound to the dashboard session organization and selected project; it never decrypts credentials, calls a provider, validates a key, or writes state. It also carries `call_variables`: the AI agent's normalized call-variables config (declared fields, SMS templates, SMS mode, caller lookup), the `revision` a write names as `base_revision`, the `schema` its calls are admitted with (a published workflow's variables when one is active, with `workflow_version` and the agent's own earlier fields as `superseded_fields`), whether its voice engine is live, its languages, and at most 50 of the project's contact lists for caller lookup, newest first, with `lookup_lists_has_more`. It is written only through `PUT /v1/agents/{agent_id}/variables`. It also carries `after_call` for the After the call section: `call_summary` (enabled and the goal line, as the agent read returns them), `result_fields` (the active post-call extraction schema with enabled, schema, schema_version and updated_at; enabled false and schema null when none is active) and `limits` (goal_characters, result_fields, result_fields_bytes, the limits the write routes enforce), in one statement. Both are written only through `PATCH /v1/agents/{agent_id}` and `PATCH /v1/agents/{agent_id}/post-call-extraction`. The editor also carries the AI agent's failure_breakdown over the calls it handled in the last 30 days (window_days): failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. It also carries `capabilities`, what the AI agent's configured tools, attached knowledge bases and calendar tools do on each conversation engine (`engines`, the saved one in `engine`) and call type (`call_types`: `inbound`, `outbound`, `browser_test` for the agent page's browser test, and `homepage_demo` in the homepage demo workspace only). `calls[engine][call_type]` says whether such a call starts (`starts`), whether it runs the published workflow (`workflow`: outbound calls do; an inbound call only through a workflow phone test pin) and, when it does not start, `refused_reason`. On such workflow calls the cells describe the published workflow: an item is offered when a published tool step runs it. `items` lists each configured tool (at most 40, with `items_has_more`), an implied built-in such as request_callback (`implied`), the knowledge search when a knowledge base is attached, and phone menu navigation, each with `id`, `kind` (`builtin`, `calendar`, `webhook`, `connection`, `legacy`, `knowledge`, `navigation`, `unknown`), `name` and `status[engine][call_type]`: null when the item is offered on such a call, else the one reason it is not. `knowledge` counts the attached active knowledge bases and whether one has a ready document. It describes what is offered, not what a call does: suspension, the wallet, outbound authorization and a tool's own endpoint are still decided per call. The reasons are a closed set: `engine_cannot_run_workflows`: this call type runs the AI agent's published workflow, and its conversation engine cannot run workflow calls (Gemini Live today, and GPT-Live in a language without a recorded workflow source), so such calls are refused before they start; `homepage_demo_refuses_workflows`: the homepage demo does not run an AI agent that has a published workflow; `tool_budget`: the tools do not fit the call's 32-name tool contract (on a billed call it counts end_call and a ready knowledge base too): the call is refused, or it runs without the implied built-in (request_callback) or without phone menu navigation's three tools; `tool_contract_unsafe`: a tool name cannot be part of a call's tool contract (at most 32 lowercase letters, digits and underscores, starting with a letter), so calls are refused; `workflow_step_missing`: this call type runs the AI agent's published workflow, and no step of the published workflow uses this tool (a workflow runs the AI agent's knowledge base search, calendar tools and Integration tools only from its own tool steps); `workflow_protected_values`: this call type runs the AI agent's published workflow, which declares a protected value, and a call holding protected values runs no tool; `workflow_tool_kind_unclassified`: the configured tool has no valid read or write kind; workflow read steps require reads, and Action steps require writes with caller confirmation; `workflow_has_own_step`: this call type runs the AI agent's published workflow, which handles conversation controls such as ending the call and switching language through its own runtime; `not_buildable`: the voice worker cannot declare this entry (an unknown type or built-in, a repeated or reserved name, or a schema that is not an object or nests deeper than 32 levels), so it is left out of the call and named in a configured_tool_omitted event; `sms_templates_missing`: the SMS mode is Templates only and the AI agent has no SMS template, so there is nothing send_sms could send; `integration_unavailable`: the integration action, or its integration, is not active in this project; `calendar_connection_inactive`: the calendar connection the calendar tools name is not active in this project; `calendar_fleet_not_ready`: not every running voice worker can run the calendar tools yet, so they are not offered; `knowledge_not_ready`: no attached knowledge base has a ready document yet; `needs_phone_caller`: this built-in acts on a phone call (such as a text, a transfer or a callback), and this call type has no phone number on the line; `calendar_test_writes_off`: a workspace browser test books only on a dedicated test calendar connection with test writes allowed; `outbound_only`: phone menu navigation runs only on calls the AI agent places; `worker_tool_name`: the voice worker adds a tool of this name itself on these calls (switch_language while Follow the caller is on), so the configured tool is not built and a configured_tool_shadowed_by_worker_tool event names it; and, on the navigation item only, the reasons `navigation.ineligible_reason` of the voice-stack response documents: `turned_off`, `not_released`, `engine_not_supported`, `languages_unreleased`, `languages_uncovered`, `too_many_sockets`, `no_language`, `tool_name_conflict`.",
         "parameters": [
           {
             "description": "Canonical agent ID in the authenticated project.",
@@ -12971,7 +13174,7 @@
     },
     "/v1/dashboard/agent-create": {
       "get": {
-        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header — not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
+        "description": "Returns one tenant-bound DTO for the hosted New-agent wizard. Start and Identity receive presets, the hosted language intersection, and the workspace wallet header \u2014 not existing agents, activity, numbers, credentials, catalogues, or the voice gallery. step=voice (and the retired step=review) adds the stack catalogue without embedded directory voices plus the same bounded gallery the editor embeds. Direct voice/pinned-voice links use that same one request. Pure read: no provider calls, writes, or secret retrieval.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -13232,7 +13435,7 @@
     },
     "/v1/dashboard/agents": {
       "get": {
-        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate — never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`. The `component_catalog` is a display-only `selected_agent_display` projection: only listed selections and selected voices already visible under the metered catalogue caps are included, with raw-ID fallback unchanged. Its voice counts/truncation describe that original visibility window, not the complete picker inventory. Creation-only `stack_catalog`, `component_credentials`, `presets`, `voice_library`, and `audio_environments` are absent. Use `/v1/dashboard/agent-create?step=voice` for creation and its gallery, retaining `project_id` and optional pinned `voice`; `voice_library=1` on this list returns 400.",
+        "description": "Returns one tenant-bound Agents DTO for SSR. It includes resolved static voice-stack display data, which components the customer actually configured (as opposed to the catalog defaults the resolved stack fills in), every language each agent answers in (`selected_languages`, which is the agent's own `language` alone for an agent whose owner never chose a language set -- `language` remains the one that OPENS the call), an inbound-admission verdict per agent, attached number routing, exact UTC-day activity, each agent's measured reply time (the median of its recorded worker-side reply turns, or an explicit unavailable when nothing was measured -- never a component-constant estimate presented as an observation), and wallet currency without provider or catalog API calls, verification, invoice, SMS, or webhook service reads. The admission verdict is a pure read of workspace state: `admits`/`readiness` reflect only conditions the inbound call path itself would refuse over; `blockers` is not a strict subset of those -- a small, explicitly declared set of codes (currently a misconfigured transfer_to_human destination) is real and actionable but does not affect `admits`/`readiness`, because invoking that tool mid-call fails gracefully rather than refusing the call. `unevaluated` lists the conditions the read could not evaluate before a call exists, and `readiness` is blocked or indeterminate \u2014 never ready, because the gates that need the agent's number are not run here. A line-scoped readiness is reported by the Overview aggregate's primary_line. An agent answered by the customer's own service is judged on the endpoints it needs rather than on the managed stack it does not use. Soft-deleted agents are not part of the workspace: they are excluded from `agents` and from `total_agents`. The `component_catalog` is a display-only `selected_agent_display` projection: only listed selections and selected voices already visible under the metered catalogue caps are included, with raw-ID fallback unchanged. Its voice counts/truncation describe that original visibility window, not the complete picker inventory. Creation-only `stack_catalog`, `component_credentials`, `presets`, `voice_library`, and `audio_environments` are absent. Use `/v1/dashboard/agent-create?step=voice` for creation and its gallery, retaining `project_id` and optional pinned `voice`; `voice_library=1` on this list returns 400.",
         "responses": {
           "200": {
             "description": "Agents workspace aggregate"
@@ -13446,7 +13649,7 @@
     },
     "/v1/dashboard/calls": {
       "get": {
-        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished, the language switches it made and, on a call that navigated automated phone menus, the menus it heard, the keys it pressed (a value it typed is named by its call variable and never shown as digits), the waits on hold and the moment a person answered, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Every call row carries `navigation`: null unless the call recorded a phone-menu moment, else {menu_ms, hold_ms, person_at_ms, conversation_ms}, how the call's time split into time in menus, time on hold (a hold with no recorded end runs to the end of the call), the offset at which a person first answered (null when none did) and the time that followed. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial, homepage_demo), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text. Each call row carries failure: null until the finished call has been labelled, otherwise why it failed -- category (one closed code, empty when no failure was observed, which is not a proof the call went well), layer (telephony: it never became a conversation; media: the voice pipeline broke; agent: the AI agent or the customer's own systems failed), signals (every code observed, in precedence order), connected, and evidence_complete (whether the transcript and telemetry were complete; signals that rest on them are only derived when it is true). Labels are decided when the call ends and again as its evidence arrives; this read never decides one. failure_layer or failure_category narrows the page, calls_total and has_more to the labelled calls that match, and calls_failure_filter echoes the filter applied; a call named by call_id is still answered when it does not match.",
+        "description": "Public customer API for the Calls workspace view: the newest page of call history with its real total, the selected call's observability detail, the workspace agents, the latest trial, and the compact wallet snapshot the shared workspace header uses. It also reports, per call, which workflow version ran and a compact path through it -- step ids, chosen routes, tool statuses and sanitized policy reasons -- plus the full turn-grouped trace for the selected call. A selected transcript turn's has_audio flag is true only while an active recording and its linked turn clip are available; clients use the authenticated recording relay rather than a storage or artifact identifier. A call that ran no workflow is ABSENT from workflow_evidence rather than present and empty. The selected call's transcript also carries one server-ordered timeline interleaving its turns with the typed tool calls the agent finished, the language switches it made and, on a call that navigated automated phone menus, the menus it heard, the keys it pressed (a value it typed is named by its call variable and never shown as digits), the waits on hold and the moment a person answered, ordered on the recording clock with a single truncation flag for both sources; turn entries reference the turns returned beside them rather than repeating their text. Every call row carries `navigation`: null unless the call recorded a phone-menu moment, else {menu_ms, hold_ms, person_at_ms, conversation_ms}, how the call's time split into time in menus, time on hold (a hold with no recorded end runs to the end of the call), the offset at which a person first answered (null when none did) and the time that followed. The selected call's waveform carries at most 256 peaks (a longer stored series is max-pooled, never cut) and speaker_segments: who spoke when on the recording's own clock, each with turn_id, speaker (agent or caller), start_ms and end_ms, projected only from turns whose boundary was measured on that recording, bounded by the same turn slice and reported with speaker_segments_truncated; a moment no segment covers is unattributed, not silent. The selected call's counterparty carries the other person's phone_e164 (the number called, or the caller's number on an inbound call; empty for a browser test) and contact_name, the name that number is saved under in this organization's contacts (the newest when several lists hold it; empty when none). Those rows are typed only: a tool entry carries its closed kind, an opaque reference, ok, a closed error class and a duration, and the configured tool name is resolved for display from the call's own agent configuration rather than stored - tool arguments, results, URLs, response bodies and error messages are never recorded. Each capability reports its own status and a closed reason, so a call handled before this existed, a gateway-imported call, a workflow call or an engine that does not record language switches is explicit about it and never reads as a call that made no tool calls. Bound to the bearer session organization; it never accepts an arbitrary organization, calls a provider, reconciles state, or writes data. The call's internal runtime configuration is never returned, and neither is a run's pinned contract. Both the path per row and the trace are bounded and report truncation; detail=0 omits the selected call's observability and its trace for routine freshness polls. Every response echoes calls_source_kind, the provenance it actually answered for, and calls_has_more, which says whether an older page exists -- observed by reading one row past the limit, never inferred from a page that happens to be full. Each call row carries source_kind, from the same closed set as the query parameter. The selected call's observability carries call_variables and its trace carries variables_evidence; call_variables lists what admission froze for the call -- each declared variable and built-in with its name, type, source (builtin, or the call's source: api, campaign, inbound_lookup, browser_test, simulation, trial, homepage_demo), protected, requires and state -- plus the committed confirmation record (method, match_kind, step_id, step_name, turn_index, committed_at), bounded with limit, returned and has_more; state is ready, not_admitted (no snapshot) or unreadable. A value is returned only for an ordinary variable in state shown; a protected variable never carries a value, before or after confirmation, only its state: held (until a confirmation releases it) or released with released_at_turn. variables_evidence lists the run's knowledge_match outcomes (match, mismatch, abstain) and workflow SMS-step statuses (pending, sending, sent, failed, uncertain, recorded) in run order from one bounded read, with limit, returned and has_more; never an answer, a compared value, an SMS body, a recipient or a failure text. Each call row carries failure: null until the finished call has been labelled, otherwise why it failed -- category (one closed code, empty when no failure was observed, which is not a proof the call went well), layer (telephony: it never became a conversation; media: the voice pipeline broke; agent: the AI agent or the customer's own systems failed), signals (every code observed, in precedence order), connected, and evidence_complete (whether the transcript and telemetry were complete; signals that rest on them are only derived when it is true). Labels are decided when the call ends and again as its evidence arrives; this read never decides one. failure_layer or failure_category narrows the page, calls_total and has_more to the labelled calls that match, and calls_failure_filter echoes the filter applied; a call named by call_id is still answered when it does not match. Each call row carries call_summary, with the same status, reason and result GET /v1/calls/{call_id}/summary gives for that call: status (ready, pending, failed, skipped or not_available), a closed reason (no_conversation or insufficient_transcript when skipped; a failure code when failed) and result (summary, follow_up_needed, follow_up, goal_met, goal_reason, sentiment, goal_source) only when ready. Every result field is an AI estimate; the page's summaries are read in one statement whatever the page size.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
@@ -14077,7 +14280,7 @@
     },
     "/v1/dashboard/integrations": {
       "get": {
-        "description": "Returns one tenant-bound, read-only DTO for customer Integrations, their bounded action metadata, hosted-agent attachments, and post-call extraction configuration. It never decrypts a signing secret, calls a customer endpoint, invokes a carrier, or returns endpoint URLs, secret material, arbitrary action arguments, or provider diagnostics.",
+        "description": "Returns one tenant-bound, read-only DTO for customer Integrations, their bounded action metadata, hosted-agent attachments, and whether each hosted AI agent has result fields (post_call_extraction: enabled and schema_version; the fields themselves are in /v1/dashboard/agent-config's after_call). It never decrypts a signing secret, calls a customer endpoint, invokes a carrier, or returns endpoint URLs, secret material, arbitrary action arguments, or provider diagnostics.",
         "parameters": [
           {
             "description": "Optional project in the authenticated organization.",
