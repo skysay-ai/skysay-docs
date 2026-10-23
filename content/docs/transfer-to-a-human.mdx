@@ -34,10 +34,22 @@ number in a different country.
 ## When the agent decides to transfer
 
 There is no fixed rule, hour, or condition that triggers a transfer. The agent
-calls the tool on its own judgment, from its instructions and the conversation
-so far — so **the way you steer transfers is the agent's own prompt**. If you
-want a transfer only for billing disputes, or only after the caller asks twice,
-say so in the instructions.
+calls the tool from its instructions and the conversation so far. By default
+Skysay tells it to **ask first**:
+
+- It transfers when the caller asks for a person ("Can I speak to someone?"),
+  straight away, without asking them to confirm.
+- Otherwise it may offer a transfer ("Would you like me to connect you to a
+  colleague?") and transfers only once the caller says yes. If something is
+  beyond what the agent can do, it says so and offers the transfer instead of
+  guessing.
+- If the caller declines, the agent keeps helping, or offers to save a
+  callback.
+
+That default is a starting point, not a lock. **The way you steer transfers is
+the agent's own prompt**: if you want a transfer at once for emergencies, only
+for billing disputes, or only after the caller asks twice, say so in the
+instructions.
 
 The caller's request is the confirmation. When the caller asks to speak to
 someone, or says yes after the agent offers to connect them, the agent transfers
@@ -46,6 +58,28 @@ question.
 
 The tool takes an optional `reason`, which the agent supplies to describe why
 it handed the call over.
+
+## If the caller changes their mind
+
+The agent stays on the line while the person's phone rings, and the caller can
+still stop the transfer. Enabling `transfer_to_human` also gives the agent a
+second built-in, `cancel_transfer` (shown as **Cancel a transfer in progress**,
+added with the transfer). When the caller says "no, don't transfer me" during
+the ring, the agent calls it: the ringing phone stops before anyone answers,
+nobody is connected, and the agent tells the caller the transfer is off only
+after it has really stopped. The conversation then carries on with the agent.
+
+Only the caller can call it off: Skysay stops a transfer only when the caller
+has started speaking since it began. If the agent tries to cancel with the
+caller silent, or because the caller repeated their request, the phone keeps
+ringing and the agent tells the caller it is still trying.
+
+Once the person has answered and the two of them are connected, a transfer can
+no longer be cancelled.
+
+Each call tries to reach a person once. After a transfer that was called off,
+the agent cannot transfer again on that call; it offers to save a callback
+instead.
 
 <Callout type="warn" title="Transfers are policy-gated">
   Every transfer passes your workspace's outbound policy gate, with the
@@ -65,7 +99,23 @@ the same policy gate. See
 ## What the tool reports back
 
 A `connecting` result means the dial was requested; it does not mean a person
-answered. In a workflow, the Action first returns the pending action and its
-read-back, and after the caller's yes the workflow waits for the actual dial
-outcome. Read [call evidence](/docs/read-call-evidence) for what
-happened on the call.
+answered. Treat it as "the handoff was started". In a workflow, the Action
+first returns the pending action and its read-back, and after the caller's yes
+the workflow waits for the actual dial outcome. Read
+[call evidence](/docs/read-call-evidence) for what actually happened on the
+call.
+
+Skysay records how each call's transfer ended:
+
+| Outcome | Meaning |
+| --- | --- |
+| `answered` | The person picked up and the caller was connected to them. |
+| `no_answer`, `busy`, `rejected` | The person did not pick up, the line was busy, or the call was declined. The caller stays with the agent. |
+| `failed` | The transfer could not be placed. The caller stays with the agent. |
+| `caller_cancelled` | The caller changed their mind while it rang, and the agent stopped it. Nobody was connected. |
+| `caller_hangup` | The caller hung up before anyone was connected. |
+| `outcome_unknown` | The call ended before the outcome was reported. |
+
+Only `failed`, `rejected`, `busy`, `no_answer` and `outcome_unknown` count as a
+transfer that went wrong in [why calls fail](/docs/why-calls-fail); a caller
+who withdrew the transfer or hung up first is not a failed handoff.
