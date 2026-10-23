@@ -678,6 +678,29 @@ string enums, and no additional properties.
 }
 ```
 
+Each scalar property can restrict its evidence with `"x-skysay-source": "caller"`.
+The default, `"conversation"`, uses both speakers. Caller fields receive only
+captioned caller speech, so an agent's recap or an unspoken form value cannot
+supply the answer. A bare “yes” cannot establish a value mentioned only in an
+omitted agent question; that value remains unknown. Choose caller fields for
+contact preferences and facts the caller actually states. A caller-only summary
+is deliberately one-sided and may omit context from the agent's questions.
+
+```json
+{
+  "lender": { "type": "string", "x-skysay-source": "caller" },
+  "call_outcome": { "type": "string", "x-skysay-source": "conversation" }
+}
+```
+
+The annotation belongs on individual scalar properties, not the root schema
+or nested objects. Other source values are rejected. Skysay uses one bounded
+transcript read and at most two model requests per extraction, one per nonempty
+source group. With no captioned caller words, caller fields return `null` without
+a model request. If either model request fails, the extraction follows the
+normal retry/failure process; a partially successful result is never published.
+The result remains an AI estimate, not verified caller identity or consent.
+
 Every configuration edit creates an immutable version for future calls. After a
 completed call has a transcript, a separate worker may produce a result. Read
 it through `GET /v1/calls/{call_id}/post-call-extraction`; its status is one of
