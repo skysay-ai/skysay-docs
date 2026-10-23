@@ -431,7 +431,16 @@ Which languages count:
 - **GPT-Live 1** speaks each line through the call's live session, in GPT's
   own voice and its own wording. The meaning follows your line, but the words
   are not guaranteed to match it. Use Cascade when a line must be said word for
-  word, such as a legal disclosure. On a GPT-Live workflow call the listener
+  word, such as a legal disclosure.
+  A line counts as spoken only once GPT-Live has played it to the caller in
+  full, its ending included. If the model pauses partway through a line,
+  Skysay waits up to 3 seconds for the rest and plays it; the call's
+  transcript shows a line only after it was played. A line before the end
+  of the workflow that GPT-Live does not finish ends the call as a workflow
+  failure, rather than moving on to a step the caller never heard asked. If
+  the closing line is not finished, the call still ends as `agent_completed`
+  with the outcome the workflow recorded, and the closing line is left out of
+  the transcript. On a GPT-Live workflow call the listener
   saved under **Voice → Transcriber** hears the caller, not GPT-Live, so a
   listener is required there too. GPT-Live does not navigate phone menus, so a GPT-Live
   workflow call runs without
