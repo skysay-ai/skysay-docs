@@ -96,6 +96,48 @@ is being placed or after it has connected, and once the agent has asked to end
 the call it cannot start a transfer. Call-length, balance and operator limits
 still apply to both.
 
+### Optional caller-source checks on Live agents
+
+A GPT-Live 1 or Gemini Live agent with `end_call` can use the speech-recognition
+listener you explicitly select in shared **Voice setup**. The conversation still
+runs through the Live model; this additional finite source supplies caller words
+for a closing check. Its speech-recognition usage is reserved and billed
+separately. When the agent or the existing closing fallback asks to hang up,
+Skysay sends the latest complete caller turn to its platform closing classifier.
+That adds a bounded check and sends caller text to that model. It does not make
+business actions available or ask the caller business-action confirmation questions.
+
+The check receives caller words only. A bare “yes”, “thank you”, a completed
+wordless turn, or no caller turn does not establish that the caller wants to
+finish. Pending recognition waits up to 2.5 seconds and then refuses the close;
+a classifier failure also refuses. Skysay checks the same caller evidence again
+before committing the hangup, so a newly detected turn can cancel a stale close.
+Speech below the detector's onset threshold still has a short detection window.
+
+An unavailable or missing listener preserves the model-decided ending and is
+reported internally as unproven. A configured source that does not start within
+eight seconds is unavailable for the rest of that call; late audio cannot revive
+it. An agent also using that listener for business writes cannot start normally
+without its required source. No listener is selected automatically.
+
+On a free-form Live agent with only `end_call` and optionally knowledge-base
+search, Skysay can also recover a missing model hangup after a closing-only
+caller goodbye, explicit request to stop this call or pure wrong-person reply.
+This path requires the selected caller source and checks new complete caller
+turns, up to 128 classifier requests per call. It waits for the agent's speech
+to finish and for a short opportunity to continue. It generates no extra goodbye.
+A new caller request or detail cancels the pending intent, as does a new tool
+invocation. Line noise can resume a cancelled close only after the source
+positively reports a completed turn without words. Missing evidence or an
+expired intent never authorizes this automatic close.
+
+This recovery is unavailable to workflows, agents with business actions,
+navigation tools or tools outside that restricted set. It is a bounded safety
+check, not a guarantee of an ending or recognition in every language. A native
+voicemail call without sourced words can remain open until the caller hangs up
+or an existing silence or duration limit ends it. Funding limits,
+operator/remote teardown and platform backstops remain authoritative.
+
 ## The standing call-ending instruction
 
 Every agent that has `end_call` enabled receives the same instruction from
