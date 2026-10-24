@@ -162,16 +162,44 @@ time zone, not its language.
 `POST /v1/do-not-call` with `phone_numbers[]` adds numbers to the organization
 register. It is honoured on every outbound path, campaigns and the direct calls
 API alike, and by every campaign at launch (those contacts are marked and never
-dialed). Only you add numbers. A hosted agent's `do_not_call` outcome (from the
-`set_call_disposition` tool), and a workflow `cease_contact` interrupt when it
-is the last request the caller made, record that the caller asked not to be
-contacted and finish that contact for the campaign, but they never add the
-number to the register: a caller can say anything, so review those calls and
-add the numbers you decide to. A call says so in its
+dialed). You add numbers, with one exception described below. A hosted agent's
+`do_not_call` outcome (from the `set_call_disposition` tool), and a workflow
+`cease_contact` interrupt when it is the last request the caller made, record
+that the caller asked not to be contacted and finish that contact for the
+campaign, but they never add the number to the register: a caller can say
+anything, so review those calls and add the numbers you decide to. A call says
+so in its
 [`workflow`](/docs/read-call-evidence#where-a-calls-workflow-ended):
-`"cease_contact"` is in `interrupts`, even when a later request followed. `GET /v1/do-not-call` lists the register;
-`DELETE /v1/do-not-call/{phone_number}` removes one entry. The
-[Contacts](/docs/contacts#do-not-call) page manages the same register.
+`"cease_contact"` is in `interrupts`, even when a later request followed.
+`GET /v1/do-not-call` lists the register, each entry with an `expires_at` that
+is `null` for a permanent entry; `DELETE /v1/do-not-call/{phone_number}` removes
+one entry. The [Contacts](/docs/contacts#do-not-call) page manages the same
+register.
+
+The one exception is a workflow call that ends `listener_unavailable` on a phone
+number. A request an AI agent heard on a working call stays a recorded outcome
+only; here the speech listener failed, so what it did not deliver is in no
+transcript. Skysay immediately pauses the number (the caller's number on an
+inbound call, the number dialled on an outbound one) with a pending entry that
+lapses after 24 hours, then checks the caller's side of the call's recording
+for a request not to be contacted. If it finds one, the entry becomes
+permanent. If it finds none, the pause is released. If it cannot tell, the
+pause stays until it lapses. [When a workflow's listener
+fails](/docs/post-call-results#when-a-workflows-listener-fails) describes the
+check and the `stop_request_check` field on the call.
+
+While the number is paused, every path the register guards refuses it, and
+queued calls to it are cancelled, as for any entry. The register's campaign
+enforcement is final, so a campaign contact for that number that a campaign
+reaches during the pause is finished as `do_not_call`, even if the check then
+finds no stop request. (The contact whose own call ended `listener_unavailable`
+was already finished for its campaign.) To end a pause early, remove the
+pending entry with `DELETE /v1/do-not-call/{phone_number}` or on the Contacts
+page; a stop request found afterwards is still added permanently. Adding the
+number yourself while it is paused makes the entry permanent. A lapsed pending
+entry refuses nothing and is not listed. The sources `listener_check_pending`
+and `recording_check` are written only by Skysay; `POST /v1/do-not-call`
+refuses them as `source`.
 
 ## Create and launch
 

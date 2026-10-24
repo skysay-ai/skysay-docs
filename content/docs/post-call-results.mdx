@@ -403,8 +403,75 @@ up. The call's `workflow.status` is still `incomplete`, because the workflow
 stopped before it finished; it did not fail on its own.
 
 Anything the caller said that the listener did not deliver is not in the
-transcript, and that includes a request to stop calling. Before you dial a
-contact again after this ending, check the call's recording.
+transcript, and that includes a request to stop calling. For a call on a phone
+number, Skysay therefore pauses the number and checks the call's recording
+itself.
+
+**The pause.** When the call ends, Skysay pauses the number on your workspace
+[do-not-call register](/docs/campaigns#do-not-call-register) with a pending
+entry: the caller's number on an inbound call, the number dialled on an
+outbound one. The entry has the source `listener_check_pending`, this call's id
+as `call_id`, and an `expires_at` 24 hours later. While it is in force, every
+path the register guards refuses the number: campaigns, `POST /v1/calls`, MCP
+and gateway call authorizations. Queued calls to the number are cancelled, as
+for any entry. A pending entry that has lapsed refuses nothing and is not
+listed.
+
+**The check.** An AI model listens to the caller's side of the call's
+recording, the whole of it up to one hour, for a request, in any language, not
+to be called or contacted again. Any form counts, including a partial or
+qualified request ("not at work") and one cut off by the end of the call. Only
+the verdict and, for a stop request, a short quote of the caller's words are
+kept; no transcript is stored.
+
+| The check | What happens to the pause |
+| --- | --- |
+| Finds a stop request | The entry becomes permanent: source `recording_check`, this call's id as `call_id`, `expires_at` `null`. |
+| Finds no stop request | The pause is released and the entry is removed. |
+| Cannot tell, fails, or has no recording to read (it never arrived, was deleted, or is longer than an hour) | The pause stays until it lapses at `expires_at`, and the call asks you to listen to the recording. |
+
+You can remove a pending entry early on the Contacts page or with
+`DELETE /v1/do-not-call/{phone_number}`. That releases the pause, and a stop
+request found afterwards is still added permanently. Adding the number yourself
+while it is pending makes the entry permanent.
+`listener_check_pending` and `recording_check` are written only by Skysay:
+`POST /v1/do-not-call` refuses them as `source`.
+
+**Campaigns.** The register's campaign enforcement is final. A campaign contact
+for that number that a campaign reaches during the pause is finished as
+`do_not_call`, even if the check then finds no stop request. The contact whose
+own call ended `listener_unavailable` was already finished for its campaign.
+
+This is the only automatic write to the register. A stop request an AI agent
+heard on a working call is still only a recorded outcome, as before.
+
+**On the call.** `GET /v1/calls/{call_id}` and the MCP `get_call` tool carry
+`stop_request_check`. It is `null` unless the call ended `listener_unavailable`
+on a phone number; otherwise it is an object with `status`, `reason`,
+`paused_until` and `checked_at`. The call list, `GET /v1/calls`, does not carry
+it. The workspace **Calls** details show the same check.
+
+| `status` | Meaning |
+| --- | --- |
+| `checking` | The recording has not arrived yet, or is being checked. |
+| `no_stop_request` | The check found no request to stop, and the pause was released. |
+| `stop_request_added` | The check found a request to stop, and the number is on the register permanently. |
+| `review_recording` | The check could not tell. Listen to the recording. |
+| `not_checked` | The recording never arrived, was deleted, was unreadable or was too long, or the check failed. Listen to the recording if it exists. |
+
+`reason` is an empty string unless `status` is `review_recording` or
+`not_checked`. Then it is one of:
+
+| `reason` | Meaning |
+| --- | --- |
+| `recording_never_arrived` | The call's recording never arrived. |
+| `recording_unavailable`, `recording_changed` | The recording was deleted, unreadable or otherwise not usable for the check. |
+| `check_failed` | The check itself failed. |
+| `too_long` | The recording is longer than an hour. |
+| `unclear` | The check could not tell whether the caller asked to stop. |
+
+`paused_until` is when the pending entry lapses, while it is in force, and
+`null` otherwise. `checked_at` is when the check ran, or `null` if it has not.
 
 ### When the agent stops answering
 

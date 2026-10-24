@@ -170,12 +170,16 @@ denial. Explicit wrong-party and cease-contact replies both end the call
 immediately, but they are two different outcomes and the starter templates keep
 them apart. A **wrong party** stops this call and leaves the number exactly
 where it was. A **cease contact** stops this call and records that the caller
-asked not to be contacted, for you to review. Nothing adds the number to your
+asked not to be contacted, for you to review. Nothing the workflow hears adds
+the number to your
 [do-not-call register](/docs/campaigns#do-not-call-register) automatically --
 a caller can say anything, so you decide whether a number goes on it, and the
-numbers you add are honoured on every outbound path. Each outcome keeps its own
-label, so an exported row or a review-inbox entry says which of the two
-happened.
+numbers you add are honoured on every outbound path. The one automatic addition
+follows a call that ends because the workflow's speech listener failed: Skysay
+checks that call's recording for a request to stop (see
+[When a workflow's listener fails](/docs/post-call-results#when-a-workflows-listener-fails)).
+Each outcome keeps its own label, so an exported row or a review-inbox entry
+says which of the two happened.
 
 The starter templates used to label the cease-contact outcome "Asked not to be
 contacted — call stopped, number added to the do-not-call register". Your
@@ -198,7 +202,8 @@ out if it does.
 Because the two mean different things, a workflow may not point both
 interrupts at one outcome step, and validation refuses a draft that does. Both
 outcomes are **review candidates** rather than automatic actions: neither writes
-to your do-not-call register. Global interrupt precedence is unchanged.
+to your do-not-call register (the listener-failure check above is not an outcome
+of either). Global interrupt precedence is unchanged.
 
 Any draft whose wrong-party and cease-contact interrupts point at one existing
 step was updated for you when this shipped -- drafts built from an earlier
