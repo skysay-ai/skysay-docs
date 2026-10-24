@@ -8520,6 +8520,54 @@
       }
     },
     "/v1/agents/{agent_id}/simulation-suites/{suite_id}": {
+      "delete": {
+        "description": "Permanently deletes the unused suite and its revisions. Suites with any run history return 409 and must be archived with PATCH status=archived instead. Saved run evidence is never deleted by this operation. The current revision is required; stale revisions return 409.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suite deleted"
+          },
+          "400": {
+            "description": "Invalid revision"
+          },
+          "404": {
+            "description": "Suite not found or unavailable"
+          },
+          "409": {
+            "description": "Suite revision changed or suite has run history"
+          }
+        },
+        "summary": "Delete a simulation suite that has never run",
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      },
       "get": {
         "parameters": [
           {

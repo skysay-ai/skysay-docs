@@ -267,8 +267,48 @@ else saved the suite in the meantime, nothing is overwritten: the page names the
 revision that won, keeps your changes on screen, and offers to reapply them on top
 of it.
 
+**Unfinished edits.** Scenario and policy fields save automatically in the current
+browser tab as you change them. **Draft saved in this tab** means your unfinished
+work can be recovered after navigating away or refreshing. **Close** keeps a
+scenario draft; **Resume draft** opens it again. **Discard draft** asks before
+removing unsaved changes. Drafts expire 24 hours after their last change, are
+cleared on sign-out, and do not sync across devices or survive closing the tab.
+If browser storage is unavailable, the editor warns you to keep it open until
+saving.
+
+Click **Save scenario** (or the policy save button) to save the completed changes
+to the workspace. A browser draft does not count as a saved scenario and cannot
+be run. Recovering a draft preserves its original revision: if someone else saved
+in the meantime, review and explicitly reapply your changes. If you left during
+a save, check the saved version before retrying; the editor keeps the new
+scenario’s identity so a retry cannot silently add a duplicate.
+
 **Duplicate suite** creates a copy at revision 1 with the same scenarios and rules.
 Run history and the baseline are not copied.
+
+## Removing a suite
+
+Use the suite’s **⋯** menu in the workspace or AI agent list, or beside
+**Duplicate suite** on its detail page.
+
+- **Delete suite** is available when the suite has never had a run. Confirming
+  permanently removes its scenarios, settings and revisions. It cannot be undone.
+- **Archive suite** is offered when run history exists. Runs already queued or
+  running keep their pinned content, and results remain available. Starting or
+  rerunning tests is blocked until you choose **Restore suite**. Archived suites
+  remain clearly marked in the list and still count toward the suite limit.
+
+The confirmation warns if removing or archiving the suite disables its publish
+check. Restoring it re-enables that configured check. If someone changes or runs
+the suite while the confirmation is open, the command refuses the outdated
+operation; review the refreshed suite before choosing again.
+
+API clients can delete a never-run suite with
+`DELETE /v1/agents/{agent_id}/simulation-suites/{suite_id}?revision=N`, using its
+current revision and `agents:write`. A stale revision or any run history returns
+409. Archive or restore through the existing PATCH endpoint with `revision` and
+`status: "archived"` or `"active"`. MCP clients can use `delete_simulation_suite`
+for never-run suites; history is protected by the same command.
 
 ## Running a suite
 
@@ -276,6 +316,8 @@ From the workspace, the suite page carries a **Run this suite** panel: the attem
 runner will make, what the run is estimated to cost, the ceilings it will be given, and a
 start button. Every figure there comes from the same calculation the run is created
 against, so the estimate you read before starting is the allowance the run enforces.
+
+If no scenario has been saved, the panel says **Save at least one scenario to start a run** and offers **Continue editing**. Saving a valid scenario refreshes readiness; workflow and runtime requirements still apply.
 
 The button refuses, before it is pressed, the three starts the API refuses anyway: an
 archived suite, a suite with no scenarios, and a suite naming a runner this deployment
@@ -644,3 +686,16 @@ that can be linked are listed) with an optional note.
 Simulation suites roll out per workspace. While the capability is not enabled for
 yours, every route above answers `404`. If you expect access and see `404`,
 contact support rather than retrying.
+
+## Knowledge-search validation
+
+Unlinking an AI agent’s knowledge sources does not remove steps from its
+workflow. If Flow reports `AGENT_TOOL_NEEDS_SOURCE` for `search_knowledge_base`,
+open that step. To keep knowledge search, choose the AI agent’s knowledge-search
+tool: its declaration uses `source: "agent"` and an empty `projection`, and its
+fixed result is `knowledge_answer`.
+
+If you do not want knowledge search, remove its step and unused tool declaration,
+reconnect the surrounding routes and remove references to its answer. Check
+validation again before testing. Repairing a tool declaration makes it valid;
+it does not remove the tool or change the workflow’s starting step.
