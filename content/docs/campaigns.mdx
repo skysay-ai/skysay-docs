@@ -176,15 +176,17 @@ is `null` for a permanent entry; `DELETE /v1/do-not-call/{phone_number}` removes
 one entry. The [Contacts](/docs/contacts#do-not-call) page manages the same
 register.
 
-The one exception is a workflow call that ends `listener_unavailable` on a phone
-number. A request an AI agent heard on a working call stays a recorded outcome
-only; here the speech listener failed, so what it did not deliver is in no
-transcript. Skysay immediately pauses the number (the caller's number on an
+The one exception is a workflow call that ends `listener_unavailable` on a
+phone number. A request an AI agent heard on a working call stays a recorded
+outcome only; here the speech listener failed, so what it did not deliver is in
+no transcript. Skysay immediately pauses the number (the caller's number on an
 inbound call, the number dialled on an outbound one) with a pending entry that
 lapses after 24 hours, then checks the caller's side of the call's recording
 for a request not to be contacted. If it finds one, the entry becomes
 permanent. If it finds none, the pause is released. If it cannot tell, the
-pause stays until it lapses. [When a workflow's listener
+pause stays until it lapses. The caller's side of the recording is sent to
+Google's Gemini API (Google LLC) to detect a stop request; only the verdict and
+a short quote of the caller's words are kept. [When a workflow's listener
 fails](/docs/post-call-results#when-a-workflows-listener-fails) describes the
 check and the `stop_request_check` field on the call.
 

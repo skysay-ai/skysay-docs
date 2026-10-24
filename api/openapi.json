@@ -2558,8 +2558,8 @@
               }
             },
             "required": [
-              "stop_request_check",
-              "workflow"
+              "workflow",
+              "stop_request_check"
             ],
             "type": "object"
           }
@@ -3223,6 +3223,7 @@
             ]
           },
           "paused_until": {
+            "description": "While the number's pending do-not-call entry is in force, when it lapses; null otherwise.",
             "format": "date-time",
             "type": [
               "string",
@@ -3230,6 +3231,7 @@
             ]
           },
           "reason": {
+            "description": "Why the status is `review_recording` or `not_checked`; empty otherwise. `too_long`: the caller's side is longer than the hour the check covers.",
             "enum": [
               "",
               "recording_never_arrived",
@@ -3242,6 +3244,7 @@
             "type": "string"
           },
           "status": {
+            "description": "`checking`: the recording has not arrived or is being checked. `no_stop_request`: none was found and the pause ended. `stop_request_added`: the number is permanently on the do-not-call register. `review_recording`: the check could not tell; listen to the recording before calling again. `not_checked`: the recording never arrived, was deleted, or could not be checked; listen to it if it exists. The pause of the last two ends at `paused_until`.",
             "enum": [
               "checking",
               "no_stop_request",
@@ -4632,7 +4635,7 @@
             "type": "string"
           },
           "source": {
-            "description": "How the numbers were added, shown on the register: api (the default), csv, mcp, or dashboard for the Contacts page.",
+            "description": "How the numbers were added, shown on the register: api (the default), csv, mcp, or dashboard for the Contacts page. `listener_check_pending` and `recording_check` are written only by Skysay and refused here.",
             "type": "string"
           }
         },
@@ -14596,6 +14599,7 @@
     },
     "/v1/do-not-call": {
       "get": {
+        "description": "Each entry has `phone_e164`, `reason`, `source`, `call_id`, `created_at` and `expires_at`. `expires_at` is null for a permanent entry. A time means a pending entry (`source` `listener_check_pending`): Skysay is checking the recording of the call in `call_id` for a request to stop calling, and the number is refused until then or until the time passes, whichever comes first. An entry Skysay added because that check found a stop request has `source` `recording_check`. A lapsed pending entry is not listed and refuses nothing.",
         "responses": {
           "200": {
             "description": "Do-not-call entries and pagination"
@@ -14607,7 +14611,7 @@
         ]
       },
       "post": {
-        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. Only the workspace adds numbers here: a caller asking not to be contacted is recorded as the call's outcome, never written to the register automatically.",
+        "description": "Every outbound path -- campaigns and the direct calls API -- refuses these numbers from then on. A caller asking not to be contacted on a call the agent heard is recorded as the call's outcome, never written to the register automatically. The one exception is a call whose speech listener failed after the caller spoke (`ended_reason` `listener_unavailable`): Skysay pauses the number with a pending entry while it checks the recording, and adds it permanently if the caller asked to stop (see the call's `stop_request_check`). Adding a number that has a pending entry makes it permanent.",
         "requestBody": {
           "content": {
             "application/json": {
