@@ -2534,6 +2534,17 @@
           },
           {
             "properties": {
+              "stop_request_check": {
+                "description": "null unless the call ended `listener_unavailable` on a phone number: the check of its recording for a request to stop calling.",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CallStopRequestCheck"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "workflow": {
                 "description": "null when the call ran no workflow (every GPT-Live and Gemini Live call).",
                 "oneOf": [
@@ -2547,6 +2558,7 @@
               }
             },
             "required": [
+              "stop_request_check",
               "workflow"
             ],
             "type": "object"
@@ -3196,6 +3208,55 @@
           "talk_seconds",
           "answered",
           "failed"
+        ],
+        "type": "object"
+      },
+      "CallStopRequestCheck": {
+        "additionalProperties": false,
+        "description": "When a workflow call's speech listener fails after the caller spoke (`ended_reason` `listener_unavailable`), what the caller said there is in no transcript. Skysay checks the caller's side of the recording for a request, in any language, not to be called or contacted, and pauses the number on the workspace do-not-call register until the check finishes or 24 hours pass, whichever comes first. A stop request found adds the number permanently, with this call as its `call_id`.",
+        "properties": {
+          "checked_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paused_until": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "",
+              "recording_never_arrived",
+              "recording_unavailable",
+              "recording_changed",
+              "check_failed",
+              "too_long",
+              "unclear"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "checking",
+              "no_stop_request",
+              "stop_request_added",
+              "review_recording",
+              "not_checked"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "paused_until",
+          "checked_at"
         ],
         "type": "object"
       },

@@ -165,13 +165,37 @@ Each entry shows when it was added, its reason, and its source:
 | **Script's cease contact step** | A script's **Cease contact** step, before it stopped adding numbers |
 | **Skysay support** | Skysay support |
 | **Contacts page** | You, on this page |
+| **Paused: checking a call's recording** | Skysay, after a workflow call ended because its speech listener failed, until it has checked the recording or 24 hours pass |
+| **Asked to stop (heard in a call's recording)** | Skysay, when that check found a request not to be contacted |
 
 Numbers are added by you: on this page, by CSV, or through the API or MCP.
 Skysay support can also add a number to your list. Nothing is added
-automatically from what a caller says: an AI agent's **Record the call
-outcome** tool and a script's **Cease contact** step record that the caller
-asked not to be contacted, on the call, for you to review, and never add the
-number. Entries they added before that change keep their source.
+automatically from what a caller says to an AI agent: an AI agent's **Record
+the call outcome** tool and a script's **Cease contact** step record that the
+caller asked not to be contacted, on the call, for you to review, and never add
+the number. Entries they added before that change keep their source.
+
+The one automatic addition follows a call that ended `listener_unavailable`
+on a phone number. The speech listener failed, so what it did not deliver is in
+no transcript. Skysay pauses the number at once and checks the caller's side of
+the call's recording for a request not to be contacted:
+
+- A **Paused: checking a call's recording** entry shows **Paused until** and
+  the time it lapses, 24 hours after the pause began. The number is refused
+  like any other entry, and a queued call to it is cancelled.
+- If the check finds a request to stop, the entry becomes permanent and its
+  source changes to **Asked to stop (heard in a call's recording)**.
+- If it finds none, the entry is removed.
+- If it cannot tell, the check fails, or the recording is missing or too long to
+  check, the entry stays until it lapses, and the call's details ask you to
+  listen to the recording. A lapsed entry refuses nothing and is no longer listed.
+
+**Remove** on a paused entry ends the pause early; a request to stop found
+afterwards is still added permanently. Adding the number yourself while it is
+paused makes the entry permanent. The campaign consequence and the call's
+`stop_request_check` are in [When a workflow's listener
+fails](/docs/post-call-results#when-a-workflows-listener-fails) and the
+[do-not-call register](/docs/campaigns#do-not-call-register).
 
 ## The API
 
