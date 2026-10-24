@@ -301,6 +301,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) — or, with an empty `reason_detail`, the agent's opening could not be produced and never reached the caller ([details](/docs/voice-behavior#when-the-opening-never-reaches-the-caller)) |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
 | `ivr_timeout` | an outbound call that was in a phone menu or a hold queue ended there: a limit ran out, the menu had no way to a person, or it asked for a value the call did not carry; `reason_detail` says which. [Phone menu navigation](/docs/phone-menu-navigation#how-these-calls-end) is on by default, so any call your AI agent places can end this way |
+| `listener_unavailable` | a workflow agent's speech listener (its speech-to-text provider) failed while the caller was on the line, so the agent could no longer hear them — see [When a workflow's listener fails](#when-a-workflows-listener-fails) |
 
 The workspace Calls detail explains funding-related endings. Read the full
 ending-reason vocabulary from the call resource or the `call.completed` webhook.
@@ -387,6 +388,23 @@ Before this release such a call stayed open until its maximum length or until
 the fault check below settled it, and carried no reason. As with
 `media_session_lost`, a hangup request that was in flight is answered
 separately, and the call is not reported as `hangup_requested`.
+
+### When a workflow's listener fails
+
+An agent that runs a workflow hears the caller through its speech listener,
+the speech-to-text provider the workflow is set to use. If that listener fails
+while the caller is on the line (it never connects, or its stream closes or
+fails), the agent can no longer hear the caller, and Skysay ends the call with
+`ended_reason` `listener_unavailable`.
+
+Nobody hung up, no limit was reached and the workflow did not finish. Such a
+call used to carry no reason, and its workflow read as if the caller had hung
+up. The call's `workflow.status` is still `incomplete`, because the workflow
+stopped before it finished; it did not fail on its own.
+
+Anything the caller said that the listener did not deliver is not in the
+transcript, and that includes a request to stop calling. Before you dial a
+contact again after this ending, check the call's recording.
 
 ### When the agent stops answering
 
