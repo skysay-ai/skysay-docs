@@ -12056,6 +12056,34 @@
       }
     },
     "/v1/campaigns/{campaign_id}": {
+      "delete": {
+        "description": "Takes a draft, needs_review, blocked, completed or cancelled campaign off every campaign listing and read (GET, list, contacts, results, reviews, export, PATCH, launch and duplicate then answer 404). Nothing else is removed: its run, contacts, review resolutions, calls, recordings, transcripts, billing records and the do-not-call register stay, and a call it placed still opens. A draft or needs_review campaign is also moved to cancelled. A launching, scheduled, running or paused campaign can still place calls and answers 409 with reason campaign_active and its status: cancel it first. A repeat delete answers 404, like a missing or foreign id. Bound to the campaign's own organization.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{id, deleted: true}"
+          },
+          "404": {
+            "description": "Not found: missing, in another workspace, or already deleted"
+          },
+          "409": {
+            "description": "reason campaign_active with the campaign's status: cancel it first"
+          }
+        },
+        "summary": "Delete a campaign that can no longer place calls",
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      },
       "get": {
         "parameters": [
           {
