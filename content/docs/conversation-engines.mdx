@@ -30,7 +30,8 @@ wizard's voice step.
 `GET /v1/agent-catalog` lists the engines under `conversation_engines`.
 Standard remains the default when you omit the field. Each row declares what
 the engine can do rather than leaving you to infer it from its name; today the
-properties include `has_language_axis` and `supports_manual_replies`.
+properties include `has_language_axis`, `supports_manual_replies` and
+`supports_deferred_tool_replies`.
 
 ## Engines and the language axis
 
@@ -239,9 +240,18 @@ tools using the same call permissions as other engines. Tools that change busine
 data require the independent confirmation listener configured for native engines;
 its transcription charges are separate from the native model charge. This integration does
 not support generated greetings, caller-first openings, phone-menu navigation,
-controlled workflows or manually forced replies. Silence can end a call without
+controlled workflows or manually forced replies. **Eleven Realtime Mini cannot
+use Transfer to human yet.** Remove `transfer_to_human` and `cancel_transfer`
+before choosing this engine, or choose an engine that supports deferred tool
+replies. Skysay refuses conflicting changes, publication and call starts; it
+does not silently disable a configured transfer. Synchronous tools, including
+webhooks, `end_call`, `send_sms` and an explicitly configured `request_callback`,
+remain available subject to their ordinary permissions and confirmation rules.
+Silence can end a call without
 an extra check-in or farewell. Native connections are not retried after failure,
 so a reconnect cannot repeat a tool action.
+
+With Eleven Realtime Mini, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech.
 
 There are 21 initial catalog voices and 90 base language choices, derived from
 the native API's 91 accepted locale codes. These are provider declarations;
