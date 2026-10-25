@@ -209,6 +209,28 @@ live-call gate (a direct
 `POST /v1/calls` request that reuses the campaign id as its
 `external_group_reference` is not touched).
 
+### Test call on a draft
+
+`POST /v1/campaigns/{campaign_id}/test-call` with `{"contact_id": "contact_123"}`
+places one real, billed call to one contact of a draft's list before you
+launch. It uses the campaign's AI agent, the caller ID its first attempt would
+use, and that contact's own values, so the call says what the campaign's call
+would say.
+
+- It is an ordinary outbound call with every check `POST /v1/calls` makes: the
+  do-not-call register (403), your workspace's policy and caps, and the balance.
+- The campaign's calling hours are checked first, in the contact's zone. Outside
+  them the answer is 409 with `reason: "outside_calling_window"` and
+  `next_window_at`.
+- The campaign stays a draft. There is no run and nothing is counted, and the
+  contact is not marked done, so launching calls them again unless you remove
+  them from the list.
+- Only a draft can do this (409 `campaign_not_draft`). While a test call to the
+  same contact is unfinished, a second one is refused (409
+  `test_call_in_progress`).
+- The call carries the campaign id as its `external_group_reference`, so the
+  **Calls** page's campaign filter finds it.
+
 ### Calling hours
 
 `calling_windows` is `{weekday: [{start, end}]}` in `HH:MM`, at most four
