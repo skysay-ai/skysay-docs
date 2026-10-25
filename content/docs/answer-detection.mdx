@@ -299,54 +299,44 @@ text.
 
 ### Languages
 
-Phone menu navigation works in English, German, French, Spanish, Italian, Dutch,
-Portuguese, Russian and Polish. Estonian and Finnish are not supported yet.
+There is no separate list of menu languages: navigation works in each of an
+agent's languages that a transcriber Skysay can use for phone menus listens in.
 
 To follow a menu or a queue the agent listens to the far end on its own
 speech-to-text connection for as long as the call is in a menu or on hold, using
-the transcribers Skysay supports. It uses at most **two connections at once**,
-chosen from your agent's selected languages:
+those transcribers. It uses at most **two connections at once**, chosen from
+your agent's selected languages:
 
-- An agent with one language gets one connection, provided navigation works in
-  that language (see above).
+- An agent with one language gets one connection.
 - An agent with several languages gets one connection when a single transcriber
   can listen for the whole set at once, and otherwise one connection per
   language, up to two.
 - If the set cannot be covered that way, nothing is refused: the AI agent's
   calls run without navigation, and `GET /v1/agents/{agent_id}/voice-stack`
   reports `navigation.eligible` `false` with `ineligible_reason`
-  `languages_uncovered` (no supported transcriber hears one of its languages) or
-  `too_many_sockets` (every language is covered, but not by two connections).
-  Remove a language to use navigation.
+  `languages_uncovered` (no transcriber hears one of its languages) or
+  `too_many_sockets` (every language is covered, but not by two connections),
+  and the languages in `ineligible_languages`. Remove a language to use
+  navigation.
 
-An AI agent set only to languages navigation does not support yet, such as
-Estonian or Finnish, saves and publishes too. Its calls run without navigation
-(`ineligible_reason` `languages_unreleased`), and it starts navigating by itself
-when one of its languages is supported.
-
-An AI agent's calls navigate only when at least one of its languages is
-supported and the transcribers above can listen to all of its languages with at
-most two connections; otherwise `ineligible_reason` is `languages_unreleased`,
-`languages_uncovered` or `too_many_sockets`. Its menus in unsupported languages
-are not navigated: the agent presses no key
-and says nothing at a menu in a language navigation does not support, and the
-time limits above decide when the call ends.
+A transcriber measured to fail on phone menus in a language is never used for
+it, and an agent whose own transcriber failed in one of its languages does not
+navigate (`ineligible_reason` `transcriber_unverified`).
 
 A menu can be in a different language from the call ("for English press 2").
-Within the supported languages, keys work whatever language the menu is in. For
-a menu spoken in a supported language the agent does not speak, the agent
-answers with keys or not at all: it never improvises a spoken answer in a
-language it was not set up for.
+The agent answers it with keys when a transcriber covers that language and none
+of the call's transcribers failed in it. For a menu spoken in a language the
+agent does not speak, the agent answers with keys or not at all: it never
+improvises a spoken answer in a language it was not set up for.
 
 Numbers read out in words need a word list per language. Skysay has one for
 English, German, French, Spanish, Italian, Dutch, Portuguese, Russian, Estonian
-and Finnish; Estonian and Finnish have a list, but navigation is not supported
-in them. Polish is supported for menus but has no word list yet, so an agent
-whose languages include Polish navigates Polish menus but cannot enter keypad
-values yet: a value is refused with `value_language_unsupported` and the menus
-are still navigated. Digits are recognised in every language. For a language
-with no list Skysay does not guess: it treats spoken numbers it cannot place as
-present, and holds back the words instead of risking a number you keyed in.
+and Finnish. An agent with any other language, such as Polish, navigates its
+menus but cannot enter keypad values yet: a value is refused with
+`value_language_unsupported` and the menus are still navigated. Digits are
+recognised in every language. For a language with no list Skysay does not guess:
+it treats spoken numbers it cannot place as present, and holds back the words
+instead of risking a number you keyed in.
 
 How well the agent understands a menu is measured language by language on a
 synthetic corpus before it is claimed; a language that works on keys can still
