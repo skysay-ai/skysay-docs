@@ -1,12 +1,13 @@
 ---
 title: Conversation engines
-description: Choose Standard speech-to-text, model, and text-to-speech, or GPT-Live 1, which listens and speaks at once.
+description: Choose a Standard voice stack or a live conversation engine.
 icon: ChatLines
 ---
 
 A hosted Skysay AI agent answers the phone with one **conversation engine**.
 The default is **Standard**: speech-to-text, a model, then text-to-speech. You
-can instead choose **GPT-Live 1**, which listens and speaks at the same time.
+can instead choose an available live engine, which listens and speaks within
+one session. The catalog states which engines can currently be selected.
 
 Telephony still uses Skysay numbers and LiveKit. GPT-Live 1 does not send
 the call to OpenAI SIP.
@@ -22,11 +23,14 @@ wizard's voice step.
 - **GPT-Live 1** replaces those three rows with a GPT-Live voice and a backend
   model for tools. The live model owns barge-in, backchannels, and waiting
   speech, so acknowledgements and turn-taking stay off for that engine.
+- **Eleven Realtime Mini**, when enabled, uses a native ElevenLabs session
+  for speech, reasoning and tool requests. It requires a written greeting and
+  an agent-first opening. See [Eleven Realtime Mini](#eleven-realtime-mini).
 
-`GET /v1/agent-catalog` lists both engines under `conversation_engines`.
+`GET /v1/agent-catalog` lists the engines under `conversation_engines`.
 Standard remains the default when you omit the field. Each row declares what
 the engine can do rather than leaving you to infer it from its name; today the
-one declared property is `has_language_axis`.
+properties include `has_language_axis` and `supports_manual_replies`.
 
 ## Engines and the language axis
 
@@ -75,8 +79,9 @@ session length and daily limits apply exactly as they do to a Standard agent.
 
 ## API and MCP
 
-The discriminator is `voice_frontend`: `cascade` or `gpt_live`. Omit it and
-the agent stays Standard.
+The discriminator is `voice_frontend`: use an engine identifier from the
+catalog, such as `cascade`, `gpt_live`, `gemini_live` or `eleven_realtime`.
+Omit it and the agent stays Standard. An unavailable engine cannot be selected.
 
 An engine whose catalog row says `has_language_axis: false` refuses
 `languages`, `language_profiles` and `follow_caller`. Both writers refuse them
@@ -218,6 +223,36 @@ Without an opening message, GPT-Live and Gemini Live write their own
 greeting. When the call carries per-call context, that greeting asks for the
 person by first name only, or who is speaking when the first name is unclear,
 and states no amount, reference or other account detail.
+
+## Eleven Realtime Mini
+
+When enabled, `eleven_realtime` selects `elevenlabs` and
+`eleven_realtime_v1_mini` for both the model and voice. Choose an exact voice
+from the catalog, a supported language, a nonempty literal first message and
+`opening.first_speaker: "agent"`. A draft browser test can carry this opening
+policy in `draft.stack.opening`; it does not change the published agent.
+
+The native model decides normal turns and requests tools. Skysay executes those
+tools using the same call permissions as other engines. Tools that change business
+data require the independent confirmation listener configured for native engines;
+its transcription charges are separate from the native model charge. This integration does
+not support generated greetings, caller-first openings, phone-menu navigation,
+controlled workflows or manually forced replies. Silence can end a call without
+an extra check-in or farewell. Native connections are not retried after failure,
+so a reconnect cannot repeat a tool action.
+
+There are 21 initial catalog voices and 90 base language choices, derived from
+the native API's 91 accepted locale codes. These are provider declarations;
+not every combination has been tested. Sinhala is not an accepted native API
+language. [Listening samples](/docs/voice-library#preview-only-conversation-models)
+use validated recordings and may cover fewer voice/language combinations.
+
+The native charge is ElevenLabs' reported USD cost **plus a 25% markup**.
+Platform, telephone and applicable tool charges are additional. The wallet
+reservation is an estimate; the final charge uses the recorded provider cost.
+Missing or inconsistent provider usage stays pending for reconciliation, and
+duplicate usage cannot charge the same call twice. A preview-only entry remains
+unavailable for calls until the deployed integration is enabled.
 
 ## Workflows
 
