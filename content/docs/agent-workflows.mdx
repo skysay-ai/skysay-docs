@@ -437,7 +437,8 @@ Which languages count:
   Skysay waits up to 3 seconds for the rest and plays it; the call's
   transcript shows a line only after it was played. A line before the end
   of the workflow that GPT-Live does not finish ends the call as a workflow
-  failure, rather than moving on to a step the caller never heard asked. If
+  failure, with `ended_reason` `workflow_line_undelivered`, rather than moving
+  on to a step the caller never heard asked. If
   the closing line is not finished, the call still ends as `agent_completed`
   with the outcome the workflow recorded, and the closing line is left out of
   the transcript. On a GPT-Live workflow call the listener
@@ -448,6 +449,15 @@ Which languages count:
 
 On both engines the workflow decides the route; GPT-Live's wording never
 changes which step comes next.
+
+On both engines, words the caller says before a step's line has been heard in
+full are never an answer to it; the step is spoken again. It is spoken again at
+most twice after the caller's words: if the caller speaks over it a third time,
+the call ends with `ended_reason` `workflow_line_undelivered` (see
+[When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)).
+A stop request, a wrong-person reply and the workflow's other global interrupts
+still apply on each of those turns. Background noise that cuts a line is not
+counted.
 
 ### When a spoken workflow call is refused
 
