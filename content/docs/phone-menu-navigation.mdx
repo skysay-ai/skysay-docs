@@ -221,7 +221,6 @@ For a GPT-Live AI agent that never chose:
 | `languages_uncovered` | No transcriber Skysay can use for phone menus listens in one of the AI agent's languages. | Remove that language. |
 | `too_many_sockets` | Listening in all of the AI agent's languages would need more than two transcriber connections. | Remove a language. |
 | `no_language` | The AI agent has no language selected. | Select a language. |
-| `languages_unverified` | One of the AI agent's languages failed phone-menu tests, today Estonian and Finnish (each alone, and the two together). | Remove that language. |
 | `transcriber_unverified` | The AI agent's own transcriber (on Gemini Live, its captions; for a workflow, its listener) was measured to fail on phone menus in one of its languages. | Choose another transcriber. |
 | `listener_uncovered` | The published workflow's listener does not listen in one of the AI agent's or the workflow's languages. | Add that language to the listener, or remove it from the AI agent. |
 | `controller_lines_missing` | A workflow AI agent answers menus with prepared lines, and one of its languages has none yet. | Its calls run without navigation until the lines exist. |
@@ -310,7 +309,7 @@ nothing.
 Most menus take a number on the keypad. Typed values work on every supported
 engine, everywhere keys are accepted, on agents whose every language is one
 Skysay can recognise numbers in: English, German, French, Spanish, Italian,
-Dutch, Portuguese, Russian, Estonian and Finnish (see [Languages](#languages)). Some menus accept a number only by voice
+Dutch, Portuguese and Russian (see [Languages](#languages)). Some menus accept a number only by voice
 ("say your account number"). The platform then speaks the digits itself, in the
 agent's own voice, without the model.
 
@@ -334,11 +333,11 @@ agent's own voice, without the model.
 There is no separate list of menu languages. Phone menu navigation works in
 each of an AI agent's languages that a transcriber Skysay can use for phone
 menus listens in, as long as all of the agent's languages can be listened to
-with at most two connections (see below). Estonian and Finnish are the
-exception today: both failed Skysay's tests on phone calls, so an AI agent with
-either of them among its languages does not navigate (`ineligible_reason`
-`languages_unverified`, naming the language) until they pass. Its calls are
-placed as usual, without navigation; remove the language to use navigation.
+with at most two connections (see below). How well a menu is understood
+depends on the transcriber and the language: Skysay has tested English, German
+and Polish end to end, while in Estonian and Finnish some menus and greetings are
+still misread. Those calls navigate on a best-effort basis. A keypad value is
+not given in Estonian or Finnish yet (see [Typed and spoken values](#typed-and-spoken-values)).
 
 Skysay tests each transcriber on recorded phone-menu lines, language by
 language. A transcriber that fails those tests in a language is not used for it:
@@ -346,8 +345,8 @@ another transcriber that passes takes its place, and an AI agent whose own
 transcriber failed in one of its languages does not navigate
 (`ineligible_reason` `transcriber_unverified`, naming the language) until you
 choose another one. Today that is Deepgram Nova-3 in Estonian: it misheard the
-words to say to Estonian speech menus (and Estonian does not navigate on any
-transcriber yet, see above).
+words to say to Estonian speech menus, so an Estonian AI agent on Deepgram
+navigates once it uses another transcriber, such as Azure or Soniox.
 
 The agent answers menus in its own languages only. A menu in a language the AI
 agent is not set up for, such as a German menu on an English-only agent, is not
