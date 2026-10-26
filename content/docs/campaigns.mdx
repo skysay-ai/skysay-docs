@@ -350,6 +350,38 @@ current status answers `409`, as does a status change that raced the edit
 **Edit** on a campaign opens the same wizard with the locked steps disabled;
 **Duplicate** opens the copy in the wizard before it is launched.
 
+## Delete a campaign
+
+`DELETE /v1/campaigns/{campaign_id}` deletes a campaign that can no longer
+place calls: a `draft`, `needs_review`, `blocked`, `completed` or `cancelled`
+one. It answers `200` with `{"id": "...", "deleted": true}` and the campaign
+leaves every campaign listing and read.
+
+- **What stays.** Its calls, recordings, transcripts, billing records and
+  call evidence stay in Calls and Billing, and a call it placed still opens.
+  Contact lists, contacts and your [do-not-call register](#do-not-call-register)
+  are not changed. Calls already in progress finish normally.
+- **What goes.** The campaign, its per-contact results and its review inbox
+  are no longer shown or returned: `GET`, the contact page, `/results`,
+  `/reviews`, `/export`, `PATCH`, `launch` and `duplicate` answer `404`
+  afterwards. Export the CSV first if you need it.
+- **Opt-outs.** A caller who asked not to be contacted is recorded as a
+  `do_not_call` outcome, never added to the register automatically. Check
+  those numbers are on your register before you delete the campaign.
+- **A campaign that can still dial is refused.** A `launching`, `scheduled`,
+  `running` or `paused` campaign answers `409` with
+  `"reason": "campaign_active"` and its `status`. Cancel it first
+  (`POST /v1/campaigns/{campaign_id}/cancel`), then delete it.
+- **A repeat is a `404`**, the same answer as an id that never existed or
+  belongs to another workspace. Scope: `calls:write`.
+
+A deleted campaign's id is never reused as an ordinary call-group label: a
+direct call that names it as its `campaign_id` is refused.
+
+In the workspace, **Delete** sits next to **Duplicate** on the campaign. It
+lists what stays and asks you to confirm; on a campaign that can still place
+calls it explains that you cancel it first.
+
 ## Export results
 
 `GET /v1/campaigns/{campaign_id}/export` downloads the latest run as a CSV
@@ -524,7 +556,7 @@ Resolving an item and adding its number are separate steps.
 
 The same operations are available over MCP as `create_contact_list`,
 `add_contacts`, `add_do_not_call`, `create_campaign`, `update_campaign`,
-`launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`,
+`launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`, `delete_campaign`,
 `list_campaigns` and `get_campaign`, and contact lists are readable with
 `list_contact_lists`, `get_contact_list` and `list_contacts` (`calls:read`). The CSV exports, the results page and
 the review inbox are REST-only.
