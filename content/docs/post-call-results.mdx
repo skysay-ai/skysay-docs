@@ -302,6 +302,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
 | `ivr_timeout` | an outbound call that was in a phone menu or a hold queue ended there: a limit ran out, the menu had no way to a person, or it asked for a value the call did not carry; `reason_detail` says which. [Phone menu navigation](/docs/phone-menu-navigation#how-these-calls-end) is on by default, so any call your AI agent places can end this way |
 | `listener_unavailable` | a workflow agent's speech listener (its speech-to-text provider) failed while the caller was on the line, so the agent could no longer hear them — see [When a workflow's listener fails](#when-a-workflows-listener-fails) |
+| `workflow_line_undelivered` | a workflow agent could not deliver one of its lines before the end of the workflow, so the workflow could not go on — see [When a workflow line is not delivered](#when-a-workflow-line-is-not-delivered) |
 
 The workspace Calls detail explains funding-related endings. Read the full
 ending-reason vocabulary from the call resource or the `call.completed` webhook.
@@ -425,6 +426,28 @@ stopped before it finished; it did not fail on its own.
 Anything the caller said that the listener did not deliver is not in the
 transcript, and that includes a request to stop calling. Before you dial a
 contact again after this ending, check the call's recording.
+
+### When a workflow line is not delivered
+
+A spoken workflow only moves on from a step once the caller has heard its line.
+Skysay ends the call with `ended_reason` `workflow_line_undelivered` when a line
+before the end of the workflow could not be delivered:
+
+- On GPT-Live 1, the line was played but GPT-Live did not say it in full (see
+  [how GPT-Live speaks a workflow](/docs/agent-workflows)). The workflow run's
+  `fail_reason` is `LINE_NOT_SPOKEN`.
+- On any engine, the caller spoke over the same step three times while its line
+  had still not been heard in full. Words said over a line that was not heard
+  are never taken as an answer to it, so the step is spoken again, at most
+  twice; the third time the workflow stops. The run's `fail_reason` is
+  `UNHEARD_REPEATS_EXHAUSTED`. A stop request, a wrong-person reply and your
+  workflow's other global interrupts are still recognised on every one of
+  those turns, exactly as before.
+
+Nobody hung up and no limit you set was reached. The call's `workflow.status`
+is `failed`: the workflow could not go on. Such a call used to carry no reason,
+and its workflow read as if the caller had hung up. Check the recording for
+what the caller heard and said before you contact them again.
 
 ### When the agent stops answering
 
