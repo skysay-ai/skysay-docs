@@ -23,9 +23,9 @@ wizard's voice step.
 - **GPT-Live 1** replaces those three rows with a GPT-Live voice and a backend
   model for tools. The live model owns barge-in, backchannels, and waiting
   speech, so acknowledgements and turn-taking stay off for that engine.
-- **Eleven Realtime Mini**, when enabled, uses a native ElevenLabs session
+- **Eleven Realtime**, when enabled, uses a native ElevenLabs session
   for speech, reasoning and tool requests. It requires a written greeting and
-  an agent-first opening. See [Eleven Realtime Mini](#eleven-realtime-mini).
+  an agent-first opening. See [Eleven Realtime](#eleven-realtime).
 
 `GET /v1/agent-catalog` lists the engines under `conversation_engines`.
 Standard remains the default when you omit the field. Each row declares what
@@ -74,7 +74,7 @@ section, rather than an error code.
 
 The anonymous homepage demo offers active agents in the Skysay demo workspace
 whose engine is supported by its platform-funded billing path. Eleven Realtime
-Mini is not yet offered in the anonymous demo; use its workspace browser test
+is not yet offered in the anonymous demo; use its workspace browser test
 panel instead. A GPT-Live or Gemini Live agent appears once,
 in its own language, and follows the visitor's language inside the session, as
 it does on a phone call. It opens with its configured greeting, and the demo's
@@ -227,20 +227,26 @@ greeting. When the call carries per-call context, that greeting asks for the
 person by first name only, or who is speaking when the first name is unclear,
 and states no amount, reference or other account detail.
 
-## Eleven Realtime Mini
+## Eleven Realtime
 
 When enabled, `eleven_realtime` selects `elevenlabs` and
-`eleven_realtime_v1_mini` for both the model and voice. Choose an exact voice
+`eleven_realtime_v1_max` for both the model and voice. Choose an exact voice
 from the catalog, a supported language, a nonempty literal first message and
 `opening.first_speaker: "agent"`. A draft browser test can carry this opening
 policy in `draft.stack.opening`; it does not change the published agent.
+
+The model can write delivery directions in square brackets into its replies,
+such as `[cheerful]` or `[slow]`. They shape how the voice sounds and are not
+spoken, so Skysay removes them from captions, the call transcript and anything
+derived from it, such as summaries. Other short bracketed text in a reply is
+treated the same way, so do not instruct the agent to say bracketed text.
 
 The native model decides normal turns and requests tools. Skysay executes those
 tools using the same call permissions as other engines. Tools that change business
 data require the independent confirmation listener configured for native engines;
 its transcription charges are separate from the native model charge. This integration does
 not support generated greetings, caller-first openings, phone-menu navigation,
-controlled workflows or manually forced replies. **Eleven Realtime Mini cannot
+controlled workflows or manually forced replies. **Eleven Realtime cannot
 use Transfer to human yet.** Remove `transfer_to_human` and `cancel_transfer`
 before choosing this engine, or choose an engine that supports deferred tool
 replies. Skysay refuses conflicting changes, publication and call starts; it
@@ -251,7 +257,7 @@ Silence can end a call without
 an extra check-in or farewell. Native connections are not retried after failure,
 so a reconnect cannot repeat a tool action.
 
-With Eleven Realtime Mini, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech.
+With Eleven Realtime, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech.
 
 There are 21 initial catalog voices and 90 base language choices, derived from
 the native API's 91 accepted locale codes. These are provider declarations;
@@ -259,13 +265,13 @@ not every combination has been tested. Sinhala is not an accepted native API
 language. [Listening samples](/docs/voice-library#preview-only-conversation-models)
 use validated recordings and may cover fewer voice/language combinations.
 
-Eleven Realtime Mini costs $0.15 per connected minute, charged by the second on
+Eleven Realtime costs $0.15 per connected minute, charged by the second on
 the call's own connected time: the same duration as the platform charge, so a
 2-minute call costs $0.30. Platform, telephone and applicable tool charges are
 additional. The wallet reservation is an estimate, not the final charge, and
 duplicate usage cannot charge the same call twice.
 
-An Eleven Realtime Mini agent's instructions can be at most 8,000 bytes of
+An Eleven Realtime agent's instructions can be at most 8,000 bytes of
 text, including the instructions Skysay adds for its tools. That is about
 8,000 characters of English and fewer in most other scripts. A longer prompt
 cannot be published on this engine, and the save or engine change names the
