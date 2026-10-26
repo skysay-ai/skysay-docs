@@ -12245,7 +12245,7 @@
     },
     "/v1/campaigns/{campaign_id}/export": {
       "get": {
-        "description": "One text/csv attachment with a fixed column set per contact: phone_e164, name, external_reference, language, time_zone, status, disposition, attempt_count, next_attempt_at, callback_at, skip_reason, last_call_id, last_call_status, termination_cause, termination_detail, updated_at, then the last call's business outcome: workflow_status, workflow_outcome_type (review_candidate, informational, terminal_note), workflow_outcome (the outcome step the run landed on), workflow_outcome_label, workflow_interrupt (wrong_party, cease_contact, dispute, hardship, callback, human_request, language_change), extraction_status (empty when no extraction was requested; pending, running, ready or failed), extraction_schema_version (the schema version the cells were extracted under; the column layout follows the agent's current schema), recording_available and transcript_available (true/false), and one extraction.<field> column per field of the agent's post-call extraction schema (advisory model output; empty unless extraction_status is ready). In list order, bounded by the contact-list cap (50,000 rows); X-Skysay-Row-Count carries the row count and X-Skysay-Truncated says whether rows beyond the cap were left out. Uploaded variables are not echoed back. Free-text cells that start with a formula character are prefixed; phone_e164 is written verbatim (import that column as text in a spreadsheet). Bound to the credential's own organization: an organization_id query value is ignored and a credential without an organization is refused.",
+        "description": "One text/csv attachment with a fixed column set per contact: phone_e164, name, external_reference, language, time_zone, status, disposition, attempt_count, next_attempt_at, callback_at, skip_reason, last_call_id, last_call_status, termination_cause, termination_detail, updated_at, then the last call's business outcome: workflow_status, workflow_outcome_type (review_candidate, informational, terminal_note), workflow_outcome (the outcome step the run landed on), workflow_outcome_label, workflow_interrupt (wrong_party, cease_contact, dispute, hardship, callback, human_request, language_change), extraction_status (empty when no extraction was requested; pending, running, ready or failed), extraction_schema_version (the schema version the cells were extracted under; the column layout follows the agent's current schema), recording_available and transcript_available (true/false), and one extraction.<field> column per field of the agent's post-call extraction schema (advisory model output; empty unless extraction_status is ready). In list order, bounded by the contact-list cap (50,000 rows); X-Skysay-Row-Count carries the row count and X-Skysay-Truncated says whether rows beyond the cap were left out. Uploaded variables are not echoed back. Free-text cells that start with a formula character are prefixed; phone_e164 is written verbatim (import that column as text in a spreadsheet). Bound to the credential's own organization: an organization_id query value is ignored and a credential without an organization is refused. The optional filter is the one the workspace's contact table applies (status or group, disposition, and one result field's answer; filters combine with AND), so the file holds exactly the rows the table shows, in the same order and under the same cap; an unknown or unfilterable value answers 400.",
         "parameters": [
           {
             "in": "path",
@@ -12253,6 +12253,91 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "description": "One contact status. Not combined with group.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "scheduled",
+                "dispatched",
+                "completed",
+                "failed",
+                "skipped",
+                "pre_dial_failed",
+                "do_not_call"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "A group of statuses, as the workspace's contact tabs: to_call (pending, scheduled, dispatched), done (completed), not_called (failed, skipped, pre_dial_failed, do_not_call).",
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "enum": [
+                "to_call",
+                "done",
+                "not_called"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "The contact's latest call outcome.",
+            "in": "query",
+            "name": "disposition",
+            "required": false,
+            "schema": {
+              "enum": [
+                "connected_completed",
+                "connected_wrong_party",
+                "connected_callback_requested",
+                "connected_refused",
+                "no_answer",
+                "busy",
+                "voicemail",
+                "invalid_number",
+                "carrier_rejected",
+                "do_not_call",
+                "cancelled",
+                "failed_technical"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "One of the AI agent's result fields with a closed set of answers (a string field with enum choices, or a boolean), named with ASCII letters, digits and underscores. Needs result_value or result_not_stated.",
+            "in": "query",
+            "name": "result_field",
+            "required": false,
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "description": "A choice of result_field, or true / false for a yes/no field. Matches the contact's last call when its extraction is ready and stated that answer.",
+            "in": "query",
+            "name": "result_value",
+            "required": false,
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "description": "true: the last call's extraction is ready and the AI agent did not state result_field. Never the same as false.",
+            "in": "query",
+            "name": "result_not_stated",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -12266,6 +12351,9 @@
               }
             },
             "description": "CSV file"
+          },
+          "400": {
+            "description": "Unknown filter value, or a result field without a closed set of answers"
           }
         },
         "summary": "Export the latest run's results as CSV",
@@ -13903,7 +13991,7 @@
     },
     "/v1/dashboard/campaign-reviews": {
       "get": {
-        "description": "Pure read: the campaign header (id, name, status, latest run), one filtered page of the campaign's review candidates with inline call evidence and resolutions, the counts and facets, and the compact wallet snapshot. `campaign` is null when the id is not in the session workspace (or the page's project). Fixed query budget; never a caller-selected tenant.",
+        "description": "Pure read: the campaign header (id, name, status, latest run), one filtered page of the campaign's review candidates with inline call evidence and resolutions, the counts and facets, and the compact wallet snapshot. Each item carries `on_do_not_call`: whether its number is already on the workspace's do-not-call register (a person adds it with POST /v1/do-not-call; nothing is added automatically). `campaign` is null when the id is not in the session workspace (or the page's project). Fixed query budget; never a caller-selected tenant.",
         "parameters": [
           {
             "in": "query",
@@ -13980,7 +14068,7 @@
     },
     "/v1/dashboard/campaigns": {
       "get": {
-        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). With `preview_agent_id` (an AI agent in the session workspace) the page also carries `agent_preview`: what that AI agent will say, rendered by the same preview the Contacts list detail serves (its DTO unchanged) for the first contact of `preview_list_id` by import order in the wizard's `preview_language` (a contact's own language still wins, as on the call), or state no_contact without a list and no_agent for an AI agent outside the workspace. The wizard sends one such request per AI agent selection its agent step shows. `agent_preview` is null when no AI agent is named. The same request carries `agent_opening`, how that AI agent's calls open, read from the publication a call freezes (its own settings while unpublished): `first_speaker` (`callee` or `agent`), `silence_wait_seconds`, `kind` (`literal`, `generated` or `workflow`), `line` (the written opening for `literal`, else empty), `published`, `language`, and `waits_without_line`, true when the AI agent waits for the callee and has no opening line, so a call where the person also waits can stay silent. A campaign has no opening of its own. `agent_opening` is null when no AI agent is named or it is outside the workspace. The selected campaign's summary carries the latest run's failure_breakdown, over the calls its dispatcher placed: failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. Fixed query budget; never a caller-selected tenant.",
+        "description": "Pure read: campaign list with latest run and counters, the selected campaign's summary (pick-up rate, disposition mix, spend) and one contact page, and the wizard reference data (agents, numbers, contact lists, retry presets, default windows, plan concurrency, and `launch_gates`: the workspace's record state, voice channel, destination allowlist, the sanctioned-country and blocked-purpose sets, the consent bases, whether every launch is reviewed, and the effective velocity caps -- what the wizard's review step previews a launch against; launch remains the authority). With `preview_agent_id` (an AI agent in the session workspace) the page also carries `agent_preview`: what that AI agent will say, rendered by the same preview the Contacts list detail serves (its DTO unchanged) for the first contact of `preview_list_id` by import order in the wizard's `preview_language` (a contact's own language still wins, as on the call), or state no_contact without a list and no_agent for an AI agent outside the workspace. The wizard sends one such request per AI agent selection its agent step shows. `agent_preview` is null when no AI agent is named. The same request carries `agent_opening`, how that AI agent's calls open, read from the publication a call freezes (its own settings while unpublished): `first_speaker` (`callee` or `agent`), `silence_wait_seconds`, `kind` (`literal`, `generated` or `workflow`), `line` (the written opening for `literal`, else empty), `published`, `language`, and `waits_without_line`, true when the AI agent waits for the callee and has no opening line, so a call where the person also waits can stay silent. A campaign has no opening of its own. `agent_opening` is null when no AI agent is named or it is outside the workspace. The selected campaign carries `audience` (its run's contacts once launched; before launch the contact count of its list, as the wizard's review step counts it; each listed campaign carries the same), `result_fields` (up to three of the AI agent's result fields with a closed set of answers, required first: name, type `choice` or `boolean`, choices, required, filterable) and its contact page under the filter in `contacts.filter`, with `contacts.total` the matching count; each contact carries `result` (the last call's extraction `status` and one cell per result field: state `stated` with its value, `not_stated`, or `not_asked` for an extraction made before the field existed). `wizard.contact_groups` names the contact tabs. The selected campaign's summary carries the latest run's failure_breakdown, over the calls its dispatcher placed: failure_breakdown counts the labelled calls (classified_calls), those with a failure (failed_calls), and the failures by layer (telephony, media, agent; only layers with a failure appear) and within each layer by category, most frequent first; a breakdown with no failure has an empty layers list. One grouped read; labels are never decided on this read. Fixed query budget; never a caller-selected tenant.",
         "parameters": [
           {
             "in": "query",
@@ -13999,11 +14087,88 @@
             }
           },
           {
+            "description": "One contact status. Not combined with contact_group.",
             "in": "query",
             "name": "contact_status",
             "required": false,
             "schema": {
+              "enum": [
+                "pending",
+                "scheduled",
+                "dispatched",
+                "completed",
+                "failed",
+                "skipped",
+                "pre_dial_failed",
+                "do_not_call"
+              ],
               "type": "string"
+            }
+          },
+          {
+            "description": "A group of statuses, as the workspace's contact tabs: to_call (pending, scheduled, dispatched), done (completed), not_called (failed, skipped, pre_dial_failed, do_not_call).",
+            "in": "query",
+            "name": "contact_group",
+            "required": false,
+            "schema": {
+              "enum": [
+                "to_call",
+                "done",
+                "not_called"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "The contact's latest call outcome.",
+            "in": "query",
+            "name": "contact_disposition",
+            "required": false,
+            "schema": {
+              "enum": [
+                "connected_completed",
+                "connected_wrong_party",
+                "connected_callback_requested",
+                "connected_refused",
+                "no_answer",
+                "busy",
+                "voicemail",
+                "invalid_number",
+                "carrier_rejected",
+                "do_not_call",
+                "cancelled",
+                "failed_technical"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "One of the AI agent's result fields with a closed set of answers (a string field with enum choices, or a boolean), named with ASCII letters, digits and underscores. Needs result_value or result_not_stated.",
+            "in": "query",
+            "name": "result_field",
+            "required": false,
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "description": "A choice of result_field, or true / false for a yes/no field. Matches the contact's last call when its extraction is ready and stated that answer.",
+            "in": "query",
+            "name": "result_value",
+            "required": false,
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "description": "true: the last call's extraction is ready and the AI agent did not state result_field. Never the same as false.",
+            "in": "query",
+            "name": "result_not_stated",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           },
           {

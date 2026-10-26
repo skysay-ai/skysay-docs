@@ -288,6 +288,39 @@ only from your own workspace.
   `external_reference` (the contact's reference) and
   `external_group_reference` (the campaign id).
 
+### On the campaign page
+
+The workspace campaign page shows the same run. Before launch, a draft counts
+the contacts in its list, the number the wizard's review step showed; once
+launched it counts the run's contacts.
+
+The contacts table has four tabs, each with its count:
+
+| Tab | Contact statuses |
+| --- | --- |
+| All | every contact |
+| To call | `pending`, `scheduled`, `dispatched` |
+| Done | `completed` |
+| Not called | `failed`, `skipped`, `pre_dial_failed`, `do_not_call` |
+
+Every row shows its status and, when there is one, the reason
+(`skip_reason`), for example that the number is on your do-not-call register,
+that no calling hours were left, or that the AI agent does not publish the
+contact's language.
+
+The **Result** column shows the AI agent's
+[result fields](/docs/post-call-results#optional-post-call-extraction) that
+have a closed set of answers, read from the contact's last call: a field with
+`enum` choices, or a yes/no (`boolean`) field. Required fields come first, up
+to three; the export carries every field. A field the AI agent left empty
+shows **not stated**, never "no". A call whose result is still being written
+shows **Result pending**, and a call made before a field existed shows a dash.
+
+Click a call outcome or a result answer to show only the contacts with it;
+click it again, or the chip above the table, to clear it. Filters combine
+with the tab. **Export CSV** then downloads exactly the rows the table shows,
+in the same order, and its label gives the count.
+
 ## Edit a campaign
 
 A draft (or a campaign held for review) accepts every setting through
@@ -333,6 +366,32 @@ spreadsheet so the leading plus survives. The export is bound to the credential'
 workspace (a caller-selected `organization_id` is ignored). Uploaded variables are not echoed back, and free-text cells that
 start with a formula character are prefixed so a spreadsheet does not execute
 them. The workspace offers the same file as **Export CSV** on the campaign.
+
+The export takes the same filter as the campaign page's contacts table, so a
+file holds exactly the rows the table showed, in the same order and under the
+same cap. Every parameter is optional and they combine:
+
+- `status` (one contact status) or `group` (`to_call`, `done`,
+  `not_called`), not both;
+- `disposition`: the contact's latest call outcome;
+- `result_field`: one of the AI agent's result fields with a closed set of
+  answers (`enum` choices, or a `boolean`), named with ASCII letters, digits
+  and underscores. Give it `result_value` (a choice, or `true` / `false`) for
+  the contacts whose last call's result is ready and states that answer, or
+  `result_not_stated=true` for those whose result is ready and leaves the
+  field empty. A field that was not stated never matches `false`.
+
+An unknown value, a field without a closed set of answers, or a
+`result_value` outside the field's choices answers `400`.
+
+```bash
+curl -G https://api.skysay.ai/v1/campaigns/camp_123/export \
+  -H "Authorization: Bearer $SKYSAY_TOKEN" \
+  --data-urlencode "group=done" \
+  --data-urlencode "result_field=payment_outcome" \
+  --data-urlencode "result_value=promised" \
+  -o promised.csv
+```
 
 ### Business outcomes
 
@@ -456,6 +515,12 @@ candidates still open; the inbox page filters by state, outcome and
 language, plays the recording, links the transcript, shows the extracted
 fields, and resolves each item with a note. The inbox covers the campaign's
 latest run.
+
+An item also offers **Add to do-not-call**. It adds that contact's number to
+your [do-not-call register](#do-not-call-register), the same as adding it on
+the Contacts page, and the item then shows **On do-not-call list**. It is a
+person's decision: no outcome, review or call adds a number on its own.
+Resolving an item and adding its number are separate steps.
 
 The same operations are available over MCP as `create_contact_list`,
 `add_contacts`, `add_do_not_call`, `create_campaign`, `update_campaign`,
