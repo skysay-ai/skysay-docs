@@ -257,7 +257,7 @@ Silence can end a call without
 an extra check-in or farewell. Native connections are not retried after failure,
 so a reconnect cannot repeat a tool action.
 
-With Eleven Realtime, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech.
+With Eleven Realtime, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech. When the AI agent says goodbye, it ends the call itself: the caller cannot talk over the goodbye to keep the call going.
 
 There are 21 initial catalog voices and 90 base language choices, derived from
 the native API's 91 accepted locale codes. These are provider declarations;
@@ -355,6 +355,14 @@ and speech the detector misses cannot stop closure. It does not establish
 identity, confirm a promise, count clarification questions, undo a goodbye
 already heard, or end a call when the model forgets to invoke `end_call`.
 Balance limits and other platform-enforced endings still close the call.
+
+Eleven Realtime is different: its `end_call` is ElevenLabs' own built-in
+tool, and the provider ends the conversation itself once the agent has said
+goodbye. Skysay plays the goodbye it has already received to its end, then
+hangs up. The caller cannot talk over that goodbye to keep the call going,
+and the withdrawal and 750 ms window above do not apply. On Eleven Realtime
+the farewell fallback below waits 8 seconds after the caller's closing words,
+so the agent's own ending normally comes first.
 
 On phone and workspace browser-test calls, the existing farewell fallback can
 also request closure after it recognizes the caller's closing words. If the
