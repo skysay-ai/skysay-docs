@@ -24,6 +24,56 @@ languages), [Call variables](/docs/call-variables) (numbers the agent may type)
 and [Post-call results](/docs/post-call-results#why-a-call-ended) (the ending
 values). Campaign retries are described in [Campaigns](/docs/campaigns).
 
+## Greetings and background music
+
+A short greeting or an unclear spoken menu fragment does not immediately take
+control away from the conversation. Clear keypad choices, multiple spoken
+choices, queue announcements, or further menu instructions provide stronger
+evidence. A speech menu that only asks an open question may hear the agent's
+opening before later instructions establish that it is a menu.
+
+After reaching a person, a menu phrase or repeated-recording signal alone
+starts bounded listening without muting the conversation. Further menu or queue
+instructions can confirm a transfer. When the separate navigation listener is
+available, its transcription supplies that confirmation; conversation captions
+can request listening but cannot count the same announcement again. Delayed
+captions, source outages, and a short menu that finishes before listening starts
+can delay or prevent detection.
+
+There are at most four hint-triggered listening windows per call, each lasting
+up to 60 seconds. Hints do not extend an open window. Once a listener-confirmed
+menu or queue label is awaiting a second confirmation, agent actions such as
+ending the call, sending an SMS, or transferring can be temporarily refused.
+The conversation stays audible; a new person response or the window's expiry
+releases that pending check. Listening during a confirmed menu, hold, or music
+is separate from this hint budget.
+
+If an attempted greeting produces no audible speech, the agent can retry it
+once while the person's greeting is still recent. An unanswered, silent
+attempt is not evidence that nobody is there. For AI agents on Cascade or
+Gemini Live that do not run a conversation workflow, an unheard first reply
+after pickup can also be retried once after the person speaks again, provided
+no other reply is still playing or has been heard. AI agents that run a
+conversation workflow do not retry that reply. Provider failures can still
+leave the person without a reply; these retries are bounded and do not
+guarantee recovery.
+
+After a person has been recognised, **music alone does not put the conversation
+on hold**, even during a long pause. The agent keeps listening normally. This
+protects conversations with background music, but an unannounced transfer
+straight to music may be detected late or missed. Ordinary conversation silence
+rules still apply in that case. Confirmed menu and queue instructions can still
+establish a new episode; music inside an established menu retains hold handling.
+Music at the initial answer, before a person is recognised, can still indicate
+a hold.
+
+This is not voice isolation or a guarantee of perfect recognition. Loud music
+and singing can hide a person's words; if no person is recognised, the initial
+music policy can still classify the call as a hold. Misclassified menu or queue
+speech can also affect navigation. Test representative greetings, transfers and
+background audio before an outbound campaign. Menu and hold time limits remain
+the limits configured below.
+
 ## Which agents can use it
 
 Phone menu navigation works for AI agents on the **Cascade** engine, including

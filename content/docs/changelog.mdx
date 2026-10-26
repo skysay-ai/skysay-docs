@@ -12,6 +12,62 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 26 October 2026
+
+### Workflow calls no longer end over a line that never played
+
+- A repeat of an unheard workflow line now counts toward the limit only if it actually began playing; a caller saying "Hello?" while the agent is still preparing its reply no longer ends the call.
+- A caller who keeps talking over lines that did play still ends with `ended_reason` `workflow_line_undelivered`, so a recording on the line is not answered forever.
+- [When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)
+
+### Workflow agents follow the navigation hint in phone menus
+
+- A workflow agent that reaches a phone menu now chooses with the call's `navigation_hint`, as other agents already did, instead of choosing without it.
+- [Phone menu navigation](/docs/phone-menu-navigation)
+
+### Simulated test calls are not summarized
+
+- A simulated test call, such as one placed with `POST /v1/web-calls`, gets a `skipped` summary with `reason` `no_conversation`, because its transcript is sample text rather than anything said.
+- [Read it](/docs/call-summaries#read-it)
+
+### Campaign results you can filter, export and act on
+
+- The campaign page has four contact tabs and a **Result** column that shows each contact's answers to your AI agent's result fields, read from their last call.
+- Click a call outcome or a result answer to show only those contacts; **Export CSV** then downloads exactly the rows the table shows.
+- From the review inbox you can add a number to your do-not-call register in one step.
+- [On the campaign page](/docs/campaigns#on-the-campaign-page) · [Export results](/docs/campaigns#export-results) · [Review inbox](/docs/campaigns#review-inbox)
+
+### Test a draft campaign with one call, and delete campaigns
+
+- **Call one contact now** on a draft places one real, billed call to a contact from its list, with the campaign's AI agent, caller ID and that contact's own values; through the API it is `POST /v1/campaigns/{campaign_id}/test-call`.
+- You can delete a campaign that can no longer place calls; its calls, recordings, transcripts and billing records stay, and your do-not-call register is unchanged.
+- [Test call on a draft](/docs/campaigns#test-call-on-a-draft) · [Delete a campaign](/docs/campaigns#delete-a-campaign)
+
+### A clearer campaign wizard and Calls page
+
+- The wizard's **Import check** shows, before launch, how many contacts are on your do-not-call register and which of the list's languages the AI agent has not published.
+- Retries start from a preset (sales, collections or single attempt), with one line per outcome saying how many attempts it gets.
+- The **Calls** page filters by campaign, and a call that has not been dialed yet can be cancelled from its detail with **Cancel call**.
+- [Launch a campaign](/docs/launch-a-campaign) · [Filter calls by campaign](/docs/read-call-evidence#filter-calls-by-campaign) · [Cancel a call that has not been dialed](/docs/read-call-evidence#cancel-a-call-that-has-not-been-dialed)
+
+### Ask steps take the route you wrote for the reply
+
+- On a workflow Ask step, a reply such as "I've already paid" now takes the route you wrote for it, instead of being treated as a dispute.
+- The dispute, hardship, callback and human-request interrupts are weighed against the step's own routes as one choice; wrong party, cease contact and language change still take priority over any route.
+- [The canvas](/docs/agent-workflows#the-canvas)
+
+### Workflow calls end truthfully when a line is not heard
+
+- If the caller keeps speaking over a step whose line they never heard in full, the step is spoken again at most twice, and the third time the workflow stops instead of repeating the line.
+- These calls, and GPT-Live 1 calls whose line was not said in full, end with `ended_reason` `workflow_line_undelivered` and a `failed` workflow, never as if the caller hung up.
+- [When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)
+
+### Skysay in Italian
+
+- The website and workspace are available in Italian: choose **Italiano** in the language selector or open the Italian homepage directly.
+- Italian customer notification emails follow the account's saved locale, and the homepage offers its three public demos in Italian.
+- [Website language and public demos](/docs/multilingual-outbound#website-language-and-public-demos)
+
 ## 24 October 2026
 
 ### Workflow calls report a listener failure truthfully

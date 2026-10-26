@@ -209,6 +209,28 @@ live-call gate (a direct
 `POST /v1/calls` request that reuses the campaign id as its
 `external_group_reference` is not touched).
 
+### Test call on a draft
+
+`POST /v1/campaigns/{campaign_id}/test-call` with `{"contact_id": "contact_123"}`
+places one real, billed call to one contact of a draft's list before you
+launch. It uses the campaign's AI agent, the caller ID its first attempt would
+use, and that contact's own values, so the call says what the campaign's call
+would say.
+
+- It is an ordinary outbound call with every check `POST /v1/calls` makes: the
+  do-not-call register (403), your workspace's policy and caps, and the balance.
+- The campaign's calling hours are checked first, in the contact's zone. Outside
+  them the answer is 409 with `reason: "outside_calling_window"` and
+  `next_window_at`.
+- The campaign stays a draft. There is no run and nothing is counted, and the
+  contact is not marked done, so launching calls them again unless you remove
+  them from the list.
+- Only a draft can do this (409 `campaign_not_draft`). A draft has one test
+  call at a time: while one is unfinished, another, to any contact, is refused
+  (409 `test_call_in_progress`).
+- The call carries the campaign id as its `external_group_reference`, so the
+  **Calls** page's campaign filter finds it.
+
 ### Calling hours
 
 `calling_windows` is `{weekday: [{start, end}]}` in `HH:MM`, at most four
@@ -216,7 +238,9 @@ windows a day, never spanning midnight. With `time_zone_mode: "contact"` each
 contact's own zone applies and `time_zone` is the fallback; with `"fixed"` the
 one zone applies to everyone. A contact outside its window is deferred to the
 next open window, never dropped. Defaults follow the destination country
-(Ghana: 08:00–19:00 Monday to Saturday).
+when the whole list is in one (Ghana: 08:00–19:00 Monday to Saturday; Sri
+Lanka: 09:00–17:00 Monday to Friday and 09:00–13:00 on Saturday); anywhere
+else, 09:00–18:00 Monday to Saturday.
 
 ### Retries
 
@@ -288,6 +312,39 @@ only from your own workspace.
   `external_reference` (the contact's reference) and
   `external_group_reference` (the campaign id).
 
+### On the campaign page
+
+The workspace campaign page shows the same run. Before launch, a draft counts
+the contacts in its list, the number the wizard's review step showed; once
+launched it counts the run's contacts.
+
+The contacts table has four tabs, each with its count:
+
+| Tab | Contact statuses |
+| --- | --- |
+| All | every contact |
+| To call | `pending`, `scheduled`, `dispatched` |
+| Done | `completed` |
+| Not called | `failed`, `skipped`, `pre_dial_failed`, `do_not_call` |
+
+Every row shows its status and, when there is one, the reason
+(`skip_reason`), for example that the number is on your do-not-call register,
+that no calling hours were left, or that the AI agent does not publish the
+contact's language.
+
+The **Result** column shows the AI agent's
+[result fields](/docs/post-call-results#optional-post-call-extraction) that
+have a closed set of answers, read from the contact's last call: a field with
+`enum` choices, or a yes/no (`boolean`) field. Required fields come first, up
+to three; the export carries every field. A field the AI agent left empty
+shows **not stated**, never "no". A call whose result is still being written
+shows **Result pending**, and a call made before a field existed shows a dash.
+
+Click a call outcome or a result answer to show only the contacts with it;
+click it again, or the chip above the table, to clear it. Filters combine
+with the tab. **Export CSV** then downloads exactly the rows the table shows,
+in the same order, and its label gives the count.
+
 ## Edit a campaign
 
 A draft (or a campaign held for review) accepts every setting through
@@ -317,6 +374,38 @@ current status answers `409`, as does a status change that raced the edit
 **Edit** on a campaign opens the same wizard with the locked steps disabled;
 **Duplicate** opens the copy in the wizard before it is launched.
 
+## Delete a campaign
+
+`DELETE /v1/campaigns/{campaign_id}` deletes a campaign that can no longer
+place calls: a `draft`, `needs_review`, `blocked`, `completed` or `cancelled`
+one. It answers `200` with `{"id": "...", "deleted": true}` and the campaign
+leaves every campaign listing and read.
+
+- **What stays.** Its calls, recordings, transcripts, billing records and
+  call evidence stay in Calls and Billing, and a call it placed still opens.
+  Contact lists, contacts and your [do-not-call register](#do-not-call-register)
+  are not changed. Calls already in progress finish normally.
+- **What goes.** The campaign, its per-contact results and its review inbox
+  are no longer shown or returned: `GET`, the contact page, `/results`,
+  `/reviews`, `/export`, `PATCH`, `launch` and `duplicate` answer `404`
+  afterwards. Export the CSV first if you need it.
+- **Opt-outs.** A caller who asked not to be contacted is recorded as a
+  `do_not_call` outcome, never added to the register automatically. Check
+  those numbers are on your register before you delete the campaign.
+- **A campaign that can still dial is refused.** A `launching`, `scheduled`,
+  `running` or `paused` campaign answers `409` with
+  `"reason": "campaign_active"` and its `status`. Cancel it first
+  (`POST /v1/campaigns/{campaign_id}/cancel`), then delete it.
+- **A repeat is a `404`**, the same answer as an id that never existed or
+  belongs to another workspace. Scope: `calls:write`.
+
+A deleted campaign's id is never reused as an ordinary call-group label: a
+direct call that names it as its `campaign_id` is refused.
+
+In the workspace, **Delete** sits next to **Duplicate** on the campaign. It
+lists what stays and asks you to confirm; on a campaign that can still place
+calls it explains that you cancel it first.
+
 ## Export results
 
 `GET /v1/campaigns/{campaign_id}/export` downloads the latest run as a CSV
@@ -333,6 +422,32 @@ spreadsheet so the leading plus survives. The export is bound to the credential'
 workspace (a caller-selected `organization_id` is ignored). Uploaded variables are not echoed back, and free-text cells that
 start with a formula character are prefixed so a spreadsheet does not execute
 them. The workspace offers the same file as **Export CSV** on the campaign.
+
+The export takes the same filter as the campaign page's contacts table, so a
+file holds exactly the rows the table showed, in the same order and under the
+same cap. Every parameter is optional and they combine:
+
+- `status` (one contact status) or `group` (`to_call`, `done`,
+  `not_called`), not both;
+- `disposition`: the contact's latest call outcome;
+- `result_field`: one of the AI agent's result fields with a closed set of
+  answers (`enum` choices, or a `boolean`), named with ASCII letters, digits
+  and underscores. Give it `result_value` (a choice, or `true` / `false`) for
+  the contacts whose last call's result is ready and states that answer, or
+  `result_not_stated=true` for those whose result is ready and leaves the
+  field empty. A field that was not stated never matches `false`.
+
+An unknown value, a field without a closed set of answers, or a
+`result_value` outside the field's choices answers `400`.
+
+```bash
+curl -G https://api.skysay.ai/v1/campaigns/camp_123/export \
+  -H "Authorization: Bearer $SKYSAY_TOKEN" \
+  --data-urlencode "group=done" \
+  --data-urlencode "result_field=payment_outcome" \
+  --data-urlencode "result_value=promised" \
+  -o promised.csv
+```
 
 ### Business outcomes
 
@@ -457,9 +572,15 @@ language, plays the recording, links the transcript, shows the extracted
 fields, and resolves each item with a note. The inbox covers the campaign's
 latest run.
 
+An item also offers **Add to do-not-call**. It adds that contact's number to
+your [do-not-call register](#do-not-call-register), the same as adding it on
+the Contacts page, and the item then shows **On do-not-call list**. It is a
+person's decision: no outcome, review or call adds a number on its own.
+Resolving an item and adding its number are separate steps.
+
 The same operations are available over MCP as `create_contact_list`,
 `add_contacts`, `add_do_not_call`, `create_campaign`, `update_campaign`,
-`launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`,
+`launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`, `delete_campaign`,
 `list_campaigns` and `get_campaign`, and contact lists are readable with
 `list_contact_lists`, `get_contact_list` and `list_contacts` (`calls:read`). The CSV exports, the results page and
 the review inbox are REST-only.
