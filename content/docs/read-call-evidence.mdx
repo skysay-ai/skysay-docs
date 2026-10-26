@@ -290,6 +290,45 @@ The Calls workspace receives bounded audio-source evidence with its existing
 call-detail read. The public waveform endpoint continues to return mixed-audio
 peaks; it does not expose the workspace's per-channel projection.
 
+## The call timeline
+
+Under the player, **Calls** shows the call as two lanes: the AI agent's audio
+above and the other person's below, drawn from the same verified audio
+channels as the waveform. The pause before each AI agent reply is a dashed
+bracket, marked with a gear when a tool ran during it. A red line marks where a
+reply was cut off, and tool calls, language switches, phone-menu moments and
+the end of the call appear on the **Events** row. Click, use the same keys as
+the player, or tap to jump to a moment; the transcript turn being played is
+highlighted. Hover or focus a bar, a pause or an event to see what it was.
+
+Five figures summarize the call. Hover or focus the **?** beside each one for
+a plain explanation:
+
+- **Turns**: how many times someone spoke.
+- **Median gap**: the typical pause between the caller finishing and the AI
+  agent starting to answer.
+- **Longest gap**: the longest such pause, with the tools that ran in it.
+- **Replies cut off**: how often the AI agent stopped mid-sentence, usually
+  because the caller started talking.
+- **Talk %**: how the speaking time split between the AI agent and the caller,
+  with how many turns it counts.
+
+**Times are estimates.** Skysay works out when each person starts and stops
+talking from the call audio, which can be off by a fraction of a second. Only
+turns whose start and end were measured this way count towards the figures;
+other turns appear as a tick and are left out. When only part of a long
+transcript is loaded, the figures say they cover the loaded turns. A call
+without a recording, without separately recorded channels, or whose recording
+is not on the transcript's clock shows the figures from the transcript and no
+lanes.
+
+The same information is in the Calls API: each transcript turn has `timing`
+(`measured`, `ambiguous`, `reconstructed`, `unmeasured` or `unknown`), an AI
+agent turn has `output_cut_off` (`yes`, `no` or `unknown`) with
+`output_cut_off_at_ms` when it can be placed, and the transcript has
+`timing_clock` (`recording` or `transcript`). See the
+[API reference](/docs/api-reference) for the exact shapes.
+
 ## Listen turn by turn in Calls
 
 The Calls workspace keeps the mixed recording player and can also show a compact
