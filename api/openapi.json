@@ -600,14 +600,14 @@
             ]
           },
           "ineligible_languages": {
-            "description": "The languages `ineligible_reason` is about (base codes), for `languages_uncovered`, `too_many_sockets`, `languages_unverified`, `transcriber_unverified`, `listener_uncovered` and `controller_lines_missing`; empty otherwise.",
+            "description": "The languages `ineligible_reason` is about (base codes), for `languages_uncovered`, `too_many_sockets`, `transcriber_unverified`, `listener_uncovered` and `controller_lines_missing`; empty otherwise.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "ineligible_reason": {
-            "description": "Why `eligible` is false, else null: `turned_off` (`enabled` is false), `not_released` (navigation is switched off platform-wide), `engine_not_supported` (the agent's conversation engine, GPT-Live today, does not navigate yet), `languages_uncovered` (no transcriber Skysay can use for phone menus listens to one of the agent's languages), `too_many_sockets` (listening to all of the agent's languages would need a third transcriber connection), `no_language` (the agent has no language), `languages_unverified` (the agent's languages include one measured to fail on phone menus, today Estonian and Finnish, or a combination measured to fail together), `transcriber_unverified` (the agent's own transcriber, its Gemini Live captions, or its workflow's listener was measured to fail on phone menus in one of its languages; choose another transcriber), `listener_uncovered` (the published workflow's listener does not listen to one of the agent's or the workflow's languages), `controller_lines_missing` (a workflow agent speaks only prepared lines while it navigates, and one of its languages has none yet), `tool_name_conflict` (one of the agent's own tools uses a reserved navigation tool name), or `tool_budget` (the agent's own tools leave no room under the 32-name tool contract for the three navigation tools). `ineligible_languages` names the languages a language reason is about.",
+            "description": "Why `eligible` is false, else null: `turned_off` (`enabled` is false), `not_released` (navigation is switched off platform-wide), `engine_not_supported` (the agent's conversation engine, GPT-Live today, does not navigate yet), `languages_uncovered` (no transcriber Skysay can use for phone menus listens to one of the agent's languages), `too_many_sockets` (listening to all of the agent's languages would need a third transcriber connection), `no_language` (the agent has no language), `transcriber_unverified` (the agent's own transcriber, its Gemini Live captions, or its workflow's listener was measured to fail on phone menus in one of its languages; choose another transcriber), `listener_uncovered` (the published workflow's listener does not listen to one of the agent's or the workflow's languages), `controller_lines_missing` (a workflow agent speaks only prepared lines while it navigates, and one of its languages has none yet), `tool_name_conflict` (one of the agent's own tools uses a reserved navigation tool name), or `tool_budget` (the agent's own tools leave no room under the 32-name tool contract for the three navigation tools). `ineligible_languages` names the languages a language reason is about.",
             "enum": [
               "turned_off",
               "not_released",
@@ -615,7 +615,6 @@
               "languages_uncovered",
               "too_many_sockets",
               "no_language",
-              "languages_unverified",
               "transcriber_unverified",
               "listener_uncovered",
               "controller_lines_missing",
@@ -1711,6 +1710,7 @@
               "transfer_to_human",
               "request_callback",
               "set_call_disposition",
+              "get_phone_number_coverage",
               "calendar_check_availability",
               "calendar_book_appointment"
             ],
@@ -8250,6 +8250,7 @@
         ]
       },
       "get": {
+        "description": "The same projection as the workspace suite editor, including run_setup: the upper-bound estimate, the runners this deployment admits, and voice_readiness -- whether this AI agent's own speech stack can drive an adaptive_voice attempt, per language, by the rule a run start refuses with 422 unsupported_voice_stack.",
         "parameters": [
           {
             "in": "path",
@@ -8435,7 +8436,7 @@
     },
     "/v1/agents/{agent_id}/simulation-suites/{suite_id}/runs": {
       "post": {
-        "description": "Returns 202 immediately with a durable queued run: request latency never depends on how long the suite takes to execute. The suite revision, its content hash and the compiled workflow snapshot are pinned at this moment, so an edit made while the run waits for a worker cannot change what it proves. idempotency_key is required and scoped to the organization -- replaying the same request returns the same run, and reusing one key for a different request is refused with 409. A run whose selected scenarios need a runner that is not deployed is refused with 422 unsupported_mode before anything is queued. Deterministic attempts make no model call and record a cost of zero; adaptive attempts are metered, and the run pins an upper-bound estimate, a model-call ceiling and the caller and evaluator identities before the first attempt starts. Nothing here is charged to a customer balance -- suite cost is reported by the simulation-suite ledger only.",
+        "description": "Returns 202 immediately with a durable queued run: request latency never depends on how long the suite takes to execute. The suite revision, its content hash and the compiled workflow snapshot are pinned at this moment, so an edit made while the run waits for a worker cannot change what it proves. idempotency_key is required and scoped to the organization -- replaying the same request returns the same run, and reusing one key for a different request is refused with 409. A run whose selected scenarios need a runner that is not deployed is refused with 422 unsupported_mode before anything is queued, and a run whose adaptive_voice scenarios this AI agent's speech stack cannot drive (for example a speech-to-speech engine such as GPT-Live 1) with 422 unsupported_voice_stack, naming the component, the language, a reason code and the stacks that could serve it. A workflow snapshot that cannot be run keeps its 404 or 400 and adds workflow_state (missing, unpublished, invalid or unknown). Deterministic attempts make no model call and record a cost of zero; adaptive attempts are metered, and the run pins an upper-bound estimate, a model-call ceiling and the caller and evaluator identities before the first attempt starts. Nothing here is charged to a customer balance -- suite cost is reported by the simulation-suite ledger only.",
         "parameters": [
           {
             "in": "path",
@@ -8492,16 +8493,16 @@
             "description": "Durable queued run"
           },
           "400": {
-            "description": "Missing idempotency_key or an unusable snapshot"
+            "description": "Missing idempotency_key, or an unusable snapshot (workflow_state invalid or unknown)"
           },
           "404": {
-            "description": "Suite not found, or Simulations Lab is not enabled"
+            "description": "Suite not found, Simulations Lab is not enabled, or the AI agent has no runnable workflow for the snapshot (workflow_state missing or unpublished)"
           },
           "409": {
             "description": "The idempotency key was already used for a different request"
           },
           "422": {
-            "description": "Typed refusal: unsupported_mode, no_scenarios, suite_archived, active_run_limit or organization_budget"
+            "description": "Typed refusal: unsupported_mode, unsupported_voice_stack, no_scenarios, suite_archived, active_run_limit or organization_budget"
           }
         },
         "summary": "Queue a run of this suite",
