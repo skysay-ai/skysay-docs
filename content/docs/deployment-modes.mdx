@@ -42,7 +42,7 @@ The gateway runs on your servers and carries the call's audio. From there:
   keys the gateway runs with.
 - **Skysay Cloud receives the call's metadata**: numbers, timestamps, duration,
   end reason, answer classification and usage for billing.
-- **During the call, Skysay Cloud receives** the arguments of each tool call,
+- **During the call, Skysay Cloud receives** the arguments of tool calls it runs,
   any knowledge-base question the agent sends and, when the agent has tools that
   write to your systems, what the caller says.
 - **After the call, the gateway uploads the recording and transcript** to
@@ -58,8 +58,9 @@ self-managed provider, and sandbox accounts apart.
 
 ## Credentials for a self-hosted gateway
 
-An inbound self-hosted gateway holds **one** runtime credential: the
-deployment-bound `skygw_` token. Create it in the **Gateway Tokens** card after
+The long-lived credential an inbound self-hosted gateway is configured with is
+the deployment-bound `skygw_` token; during a call the gateway also holds a call
+authorization and any provider keys leased to it. Create the token in the **Gateway Tokens** card after
 the gateway deployment is registered. Its one-time reveal includes this exact
 line; replace the blank `SKYSAY_GATEWAY_API_TOKEN=` assignment in the
 gateway host's `.env.livekit` with the whole revealed line:
