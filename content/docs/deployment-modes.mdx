@@ -29,9 +29,9 @@ run, no worker key to install and no gateway deployment to register before
 
 You run the **media gateway** yourself (Docker/media locally), while Skysay
 Cloud still manages the API account, carrier/provider numbers, billing, the
-compliance workflow, and abuse controls. Use this when you want to run the
-voice infrastructure on your own servers but still want Skysay to own numbers,
-compliance, and provider operations.
+compliance workflow, and abuse controls; you onboard the AI providers your
+agent uses. Use this when you want to run the voice infrastructure on your own
+servers but still want Skysay to own numbers and compliance.
 
 ### What leaves your gateway
 
@@ -42,8 +42,9 @@ The gateway runs on your servers and carries the call's audio. From there:
   keys the gateway runs with.
 - **Skysay Cloud receives the call's metadata**: numbers, timestamps, duration,
   end reason, answer classification and usage for billing.
-- **During the call, Skysay Cloud receives what the features it runs need**:
-  the arguments of each tool call and each knowledge question.
+- **During the call, Skysay Cloud receives** the arguments of each tool call,
+  any knowledge-base question the agent sends, and the caller's answers to
+  confirmation questions.
 - **After the call, the gateway uploads the recording and transcript** to
   Skysay Cloud (`POST /v1/calls/{call_id}/artifact-uploads`), where the
   dashboard, summaries and webhooks use them.
@@ -204,10 +205,9 @@ deployment-bound token deliberately does not carry.
 An inbound-only host, and a host in `local` outbound mode, therefore hold no
 organization-wide credential at all.
 
-<Callout title="Later: fully self-hosted / BYO provider">
-  Running a whole deployment on your own carrier account is a possible later
-  path, not one of the two MVP launch modes. The media gateway is open source;
-  the control plane is not.
+<Callout title="What is open source">
+  The media gateway is open source; the control plane runs only in Skysay
+  Cloud.
 </Callout>
 
 ## Picking a mode
