@@ -33,6 +33,21 @@ compliance workflow, and abuse controls. AI provider keys are your own, or ones
 Skysay issues for your workspace and leases to the gateway per call. Use this when you want to run the voice infrastructure on your own
 servers but still want Skysay to own numbers and compliance.
 
+### What a self-hosted gateway runs
+
+| Engine | On a self-hosted gateway, on your own keys? |
+|---|---|
+| Cascade (speech-to-text, model, text-to-speech) | Yes |
+| GPT-Live (free-form calls) | Yes (`OPENAI_API_KEY`) |
+| Gemini Live | Yes (`GEMINI_API_KEY`) |
+| Eleven Realtime | No, Skysay Cloud only |
+| Workflows (any engine) | No, Skysay Cloud only: workflow turns need Skysay's managed media |
+| Phone-menu navigation | No, Skysay Cloud only |
+
+A call your gateway cannot run is refused before any audio, with a named
+reason: `engine_not_self_hostable` or `workflow_not_self_hostable`. A workflow
+agent is never run free-form instead.
+
 ### What leaves your gateway
 
 The gateway runs on your servers and carries the call's audio. From there:
