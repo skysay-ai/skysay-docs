@@ -159,6 +159,20 @@ python3 scripts/scan_secrets.py
 python3 scripts/generate_openapi_reference.py --check   # against api/openapi.json; refresh it with scripts/refresh_openapi_snapshot.py
 ```
 
+`api/openapi.json` and `api/customer-api-coverage.json` always come from the
+same released application commit, never a hand edit. In the application
+checkout at that commit:
+
+```bash
+PYTHONPATH=src:packages/skysay-common:packages/skysay-gateway \
+  .venv/bin/python scripts/export_openapi.py \
+  | python3 <docs>/scripts/refresh_openapi_snapshot.py --from -
+cp docs/public-api-coverage.json <docs>/api/customer-api-coverage.json
+```
+
+The export is exactly what `GET /openapi.json` serves: only the operations a
+`sky_` key can call.
+
 The `X-Skysay-Docs-Revision` header is emitted only when the image was built
 with a `DOCS_REVISION` build argument; source builds omit it, and the deployed
 commit is read from the DigitalOcean deployment instead.
