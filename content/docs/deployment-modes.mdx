@@ -29,9 +29,83 @@ run, no worker key to install and no gateway deployment to register before
 
 You run the **media gateway** yourself (Docker/media locally), while Skysay
 Cloud still manages the API account, carrier/provider numbers, billing, the
-compliance workflow, and abuse controls. Use this when call media must stay in
-your own network but you still want Skysay to own numbers, compliance, and
-provider operations.
+compliance workflow, and abuse controls. AI provider keys are your own, or ones
+Skysay issues for your workspace and leases to the gateway per call. Use this when you want to run the voice infrastructure on your own
+servers but still want Skysay to own numbers and compliance.
+
+### What leaves your gateway
+
+The gateway runs on your servers and carries the call's audio. From there:
+
+- **Audio and text go to your carrier** and to the **speech and model providers**
+  your agent uses (for example Deepgram, Google, OpenAI or ElevenLabs), on the
+  keys the gateway runs with.
+- **Skysay Cloud receives the call's metadata**: numbers, timestamps, duration,
+  end reason, answer classification and usage for billing.
+- **During the call, Skysay Cloud receives** the arguments of tool calls it runs,
+  any knowledge-base question the agent sends and, when the agent has tools that
+  write to your systems, what the caller says.
+- **After the call, the gateway uploads the recording and transcript** to
+  Skysay Cloud (`POST /v1/calls/{call_id}/artifact-uploads`), where the
+  dashboard, summaries and webhooks use them.
+
+So a self-hosted gateway is not a data-residency boundary: it moves where the
+media is handled, not where the call's content ends up.
+
+### Keep call content on your gateway (content-local)
+
+A self-hosted deployment can keep call content on the gateway instead. Set it
+per deployment:
+
+```bash
+curl -X PATCH https://api.skysay.ai/v1/gateway-deployments/$GATEWAY_ID/content-storage \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"content_storage": "gateway"}'
+```
+
+or with **Settings → Gateway → Call content**. Then restart the gateway: the
+gateway reads the setting when it starts, and Skysay Cloud enforces it from the
+moment you save it.
+
+With `content_storage: gateway`:
+
+- **Skysay receives no call content** from an up-to-date gateway, and Skysay
+  Cloud accepts none from that deployment's token. Recordings, transcripts and
+  call evidence stay in the gateway's `call-evidence/` directory.
+- **What Skysay still receives:** the call id, direction, from and to numbers,
+  timestamps, duration, end reason and answer classification (machine values),
+  the SIP status code, protocol fields (event ids and types, hangup attempts and
+  outcomes) and usage quantities for billing.
+- **What Skysay sends the gateway:** the agent's configuration for each call.
+- **Audio and text still go to your carrier** and to the speech and model
+  providers your agent uses, from the gateway.
+- **Error reports** go only to a tracker you configure (`SKYSAY_GLITCHTIP_DSN`,
+  unset by default).
+
+Content-local needs `outbound_execution_mode: local`, and the gateway runs on
+its `skygw_` token alone (no `SKYSAY_WORKER_API_TOKEN`). Features that need
+Skysay Cloud to process call content are not available, and a call whose agent
+uses one is refused before it is answered, with a named reason:
+
+| Feature | Reason |
+| --- | --- |
+| Tools other than ending the call | `content_local_tools` |
+| Knowledge search | `content_local_knowledge` |
+| Workflows | `content_local_workflow` |
+| A component on a key from Skysay's own provider accounts | `content_local_platform_key` |
+
+Any other request from the deployment's token that would carry call content
+answers `409 content_retained_on_gateway`. The Calls page shows **Content stored
+on your gateway** for the recording and transcript. The `call.ended` webhook
+still fires; transcript-ready webhooks, summaries, extraction and translations do
+not run for these calls.
+
+<Callout title="Text you send to place a call is configuration">
+  Text you send to place a call (instructions, opening line, authorization
+  reason) is configuration that Skysay stores. Do not put patient or caller data
+  in it.
+</Callout>
 
 Every number and gateway response includes `provider_account_id` and
 `provider_account`, so you can always tell managed, customer-BYO,
@@ -39,8 +113,9 @@ self-managed provider, and sandbox accounts apart.
 
 ## Credentials for a self-hosted gateway
 
-An inbound self-hosted gateway holds **one** runtime credential: the
-deployment-bound `skygw_` token. Create it in the **Gateway Tokens** card after
+The long-lived credential an inbound self-hosted gateway is configured with is
+the deployment-bound `skygw_` token; during a call the gateway also holds a call
+authorization and any provider keys leased to it. Create the token in the **Gateway Tokens** card after
 the gateway deployment is registered. Its one-time reveal includes this exact
 line; replace the blank `SKYSAY_GATEWAY_API_TOKEN=` assignment in the
 gateway host's `.env.livekit` with the whole revealed line:
@@ -186,10 +261,9 @@ deployment-bound token deliberately does not carry.
 An inbound-only host, and a host in `local` outbound mode, therefore hold no
 organization-wide credential at all.
 
-<Callout title="Later: fully self-hosted / BYO provider">
-  A fully self-hosted / bring-your-own-provider path (your own carrier or a future
-  provider account) is designed into the same open-source stack, but it is a
-  later path — not one of the two MVP launch modes.
+<Callout title="What is open source">
+  The media gateway is open source; the control plane runs only in Skysay
+  Cloud.
 </Callout>
 
 ## Picking a mode
@@ -197,11 +271,12 @@ organization-wide credential at all.
 | | `fully_managed_cloud` | `managed_numbers_self_hosted_gateway` |
 | --- | --- | --- |
 | API account | Skysay | Skysay |
-| Numbers & provider ops | Skysay | Skysay |
+| Numbers | Skysay | Skysay |
+| AI provider keys | Skysay | Yours, or leased from Skysay |
 | Billing & compliance | Skysay | Skysay |
 | Media gateway | Skysay (hosted) | **You** (Docker/media local) |
 | Fastest to live | Yes | — |
-| Media stays in your network | — | Yes |
+| Recording and transcript stored by Skysay | Yes | Yes by default; no with `content_storage: gateway` |
 
 To scaffold the self-hosted path, the API returns an install plan:
 `GET /v1/self-hosted/install-plan?deployment_model_id=managed_numbers_self_hosted_gateway`
