@@ -10196,7 +10196,7 @@
     },
     "/v1/byo/sip-trunk/dids": {
       "post": {
-        "operationId": "listSipTrunkNumbers",
+        "operationId": "discoverSipTrunkNumbers",
         "responses": {
           "200": {
             "description": "Bounded DID list with channels, voice-only capability, and already-imported flags"
@@ -10210,7 +10210,7 @@
     },
     "/v1/byo/sip-trunk/import": {
       "post": {
-        "operationId": "importSipTrunkNumber",
+        "operationId": "setSipTrunkNumberConnection",
         "responses": {
           "201": {
             "description": "Number with separate incoming/outgoing configuration results, or local disconnect result"
@@ -10483,7 +10483,7 @@
     "/v1/call-results": {
       "get": {
         "description": "Reads a customer-owned external_group_reference inside the authenticated organization/project. This is a pure, provider-free reconciliation read: it does not create calls, retry recipients, classify a business outcome, or copy recordings/transcripts. It returns authoritative technical call facts and a versioned, allowlisted technical_failure envelope separately from optional advisory extraction, plus authenticated evidence anchors (turn identifiers and offsets only). Historical failures without versioned evidence remain unknown and are never inferred from duration. The answered_or_voicemail metric deliberately includes only observable SIP/media answer evidence and may include voicemail; human_answered remains not_provable until a separately validated signal exists. Treat pagination as mandatory: a page is not the whole group while pagination.has_more is true.",
-        "operationId": "getCallResults",
+        "operationId": "getCallGroupResults",
         "parameters": [
           {
             "description": "The authenticated organization; must match the bearer workspace.",
@@ -15195,7 +15195,7 @@
     "/v1/numbers/{number_id}/detach-agent": {
       "post": {
         "deprecated": true,
-        "operationId": "detachNumberAgentAlias",
+        "operationId": "detachNumberAgent",
         "parameters": [
           {
             "in": "path",
@@ -15223,7 +15223,7 @@
     "/v1/numbers/{number_id}/number-rules": {
       "get": {
         "deprecated": true,
-        "operationId": "getNumberRulesAlias",
+        "operationId": "getNumberRules",
         "parameters": [
           {
             "in": "path",
@@ -15246,7 +15246,7 @@
       },
       "patch": {
         "deprecated": true,
-        "operationId": "updateNumberRulesAlias",
+        "operationId": "updateNumberRules",
         "parameters": [
           {
             "in": "path",
@@ -15559,7 +15559,7 @@
     "/v1/phone-numbers/{number_id}/detach-agent": {
       "post": {
         "description": "A pure control-plane unbind: the number stays imported and owned by the workspace, its Number rules become disabled, and no carrier or provider operation happens. Inbound calls are then declined until an agent is attached again or the rules are changed. A number whose rules already answer without an agent replays as a no-op with idempotent: true. Optionally name the binding your confirmation showed with expected_agent_id, or expected_agent_endpoint_id for a rule that answers through an endpoint alone; if the number meanwhile answers with a different one the command refuses with 409 instead of detaching it.",
-        "operationId": "detachNumberAgent",
+        "operationId": "detachPhoneNumberAgent",
         "parameters": [
           {
             "in": "path",
@@ -15609,7 +15609,7 @@
     },
     "/v1/phone-numbers/{number_id}/number-rules": {
       "get": {
-        "operationId": "getNumberRules",
+        "operationId": "getPhoneNumberRules",
         "parameters": [
           {
             "in": "path",
@@ -15631,7 +15631,7 @@
         ]
       },
       "patch": {
-        "operationId": "updateNumberRules",
+        "operationId": "updatePhoneNumberRules",
         "parameters": [
           {
             "in": "path",
