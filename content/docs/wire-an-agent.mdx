@@ -192,6 +192,41 @@ Three settings belong to `set_agent_voice_stack`
   the workflow does not speak yet, and so does a switch back to `hosted` that
   would publish one.
 
+### Read Skysay phone-number coverage during a conversation
+
+Attach this built-in tool to a hosted AI agent when it should answer questions
+about Skysay's supported phone-number countries:
+
+```json
+{"type": "builtin", "name": "get_phone_number_coverage"}
+```
+
+The tool uses the same maintained, customer-safe coverage data as
+`GET /v1/coverage-matrix`. It works on inbound and outbound calls, browser tests,
+homepage demos, and SMS read-tool requests. It reads information without
+ordering a number or asking for confirmation. Each AI agent must explicitly
+have the tool attached; it is not enabled automatically.
+
+Use it with hosted AI agents without a conversation flow. A published
+conversation flow cannot run this built-in as a tool step.
+
+The model can call it with `{}` for a compact country list, or
+`{"countries":["Estonia","Germany"]}` for capabilities and onboarding details.
+Use up to ten English country names. Existing coverage aliases such as `EE`,
+`US` and `UK` also work. Unrecognized names appear in `not_listed`; they do not
+cause a fallback to all countries. Results include `returned_count`,
+`total_countries` and `has_more`, with at most 200 country rows returned.
+
+Coverage is not a live inventory check. `inventory_checked` is `false`:
+availability of an exact number, current pricing, and country and number-type
+activation requirements still need a current number-catalog check. Instruct
+the AI agent to answer from the tool result and avoid promising an immediately
+available number or instant activation.
+
+When attaching it through `PATCH /v1/agents/{agent_id}`, preserve the complete
+existing `tools` list and send its previously read value as `expected_tools`.
+Replacing the list with only this entry removes the other tools.
+
 ## 2. Choose a voice stack
 
 For hosted or external-text agents, pick a [conversation engine](/docs/conversation-engines)
