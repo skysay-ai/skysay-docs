@@ -348,12 +348,22 @@ choose another one. Today that is Deepgram Nova-3 in Estonian: it misheard the
 words to say to Estonian speech menus, so an Estonian AI agent on Deepgram
 navigates once it uses another transcriber, such as Azure or Soniox.
 
-The agent answers menus in its own languages only. A menu in a language the AI
-agent is not set up for, such as a German menu on an English-only agent, is not
-answered: add that language to the AI agent if its calls should navigate such
-menus. A choice read out in one of the agent's languages inside another
-language's menu ("for English press 2") can still be answered when Skysay hears
-that part in the agent's language.
+The line's language is not the AI agent's to choose: an outbound call reaches
+whatever menu and whatever person answers. So a call listens to the line in
+more than the agent's own languages. When the transcriber listening to the line
+can hear several languages at once without a list of candidates (Deepgram
+Nova-3's multilingual mode), the call listens in every language of that mode,
+less any it failed Skysay's phone-menu tests in. A menu, a queue or a person in
+a language the agent does not speak is then still heard: an English-only agent
+answers a Polish menu, and takes the "for English, press 2" read out inside it.
+The agent still speaks only its own languages.
+
+A call that holds a keypad value listens in the agent's own languages only,
+because a value read back on the line is hidden only in a language Skysay
+recognises numbers in.
+
+If a reply that would have pressed a key is cut off because the menu was still
+talking, the agent is shown the menu again once the line goes quiet.
 
 Agents that have a language Skysay cannot recognise numbers in yet, such as
 Polish, navigate their menus but cannot enter keypad values
