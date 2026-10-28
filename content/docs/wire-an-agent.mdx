@@ -671,6 +671,52 @@ call policy and carrier reachability are still checked when a call arrives.
 Outbound support depends on the selected destination and is checked when the
 call is requested. Refresh the page after correcting a prerequisite.
 
+## PBX connection keys
+
+A PBX connection key belongs to one AI agent in your workspace. Give each PBX
+its own named key so you can rotate or revoke one connection independently.
+An AI agent can have up to 20 active logical keys. A key authenticates a PBX;
+creating a key does not itself start a call or configure your PBX.
+
+Use an API key with `agents:write` to create, rotate or revoke a PBX key.
+`agents:read` is enough to list the keys. These operations use your API
+credential's workspace, including when the caller is an operator.
+
+```bash
+curl -X POST "$SKYSAY_API_URL/v1/agents/$AGENT_ID/pbx-keys" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"main-office"}'
+```
+
+The response contains `key` metadata and a one-time `password` beginning with
+`skypbx_`. Store the password securely. The PBX uses the AI agent ID as its
+HTTP Basic user name and this password as its password. It is not a workspace
+API key. Listings never return the full password or its hash.
+
+`GET /v1/agents/{agent_id}/pbx-keys?limit=20&offset=0` returns `keys`,
+`has_more`, `returned`, `limit` and `offset`. Each key has a stable `id`, its
+name and status, a redacted prefix/suffix, creation and last-use times, and
+`previous_expires_at` for the latest previous password, when one exists.
+A past expiry does not mean that password still works.
+
+Rotate a key with `POST /v1/agents/{agent_id}/pbx-keys/{key_id}/rotate` and an
+empty JSON object. The response reveals the new password once. The logical
+key ID stays unchanged, so changing a password does not create a different PBX
+call identity. By default the immediately previous password keeps working for
+24 hours. You may pass `grace_seconds` from `0` to `86400`; `0` invalidates the
+old password immediately. Repeated rotation preserves older passwords until their original deadlines; it never extends those deadlines. A shorter grace period also shortens any later existing deadline. Passing `0` invalidates every previous password immediately. For a compromised key, revoke it or rotate with zero grace.
+
+Revoke a key with `POST /v1/agents/{agent_id}/pbx-keys/{key_id}/revoke` and an
+empty JSON object. Revocation invalidates every password version of that
+logical key and is safe to repeat. Other named keys keep working. A revoked
+key cannot be rotated; create a new named key when needed.
+
+Over MCP, use `list_pbx_keys`, `create_pbx_key`, `rotate_pbx_key` and
+`revoke_pbx_key` with the same scopes. Passwords are returned only by creation
+and rotation. Copying an AI agent does not copy its PBX keys. Deleting the AI
+agent prevents those keys from authenticating.
+
 ## Bring your own agent
 
 Two of the three modes let your own application do the thinking. Both are
