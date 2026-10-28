@@ -483,15 +483,16 @@ A test runs in the mode a real call of your AI agent would run:
 
 If a phone pin on the AI agent's numbers sends inbound calls to a workflow its
 engine cannot run, a real call would be refused, so the test is refused too,
-and the run panel says why before you press **Start run**. A prompt test never
-needs a workflow.
+and the run panel says why before you press **Start run**. The same holds when a
+real call would refuse your AI agent's setup (for example a missing voice,
+prompt or greeting). A prompt test never needs a workflow.
 
 ### Conversation only, for now
 
 This release tests the conversation only. Your AI agent's tools and knowledge
 search are switched off in prompt test calls; in a workflow call, knowledge
-steps still run, and the test stops with an error if the workflow reaches a step
-that would run a tool (the run panel lists those steps). Tool rules
+steps still run, and the test stops if the workflow reaches a step that would
+run a tool (the run panel lists those steps). Tool rules
 (`required_tools`, `forbidden_tools`) are **not applicable**: they neither pass
 nor fail. In a prompt call the workflow rules (routes, steps, order, turns and
 `terminal_status`) are not applicable either. Timing rules and judge questions
@@ -507,15 +508,16 @@ of every attempt, so a scenario with no rules of its own is still a test.
 | --- | --- |
 | Pass | The call ended normally; the attempt's own rules decide. |
 | Fail | Your AI agent's side ended the call: its engine session dropped, it stopped responding, its speech provider failed, it failed to start, or it treated our caller as a machine or a phone menu. The attempt fails. |
-| Not settled | Our side ended or stopped the call (our caller went silent, the test room failed, the time limit was reached, or the test stopped itself). The attempt is an error. |
+| Not settled | Our side ended or stopped the call (our caller went silent, the test room failed, the time limit was reached, or the test stopped itself). The attempt is an error, unless a rule was already broken before the call was cut short. |
 
 ### Ceilings and cost
 
 Each test call lasts at most the call ceiling shown in the run panel (150 seconds
-by default) and at most 20 caller turns. A call that fails on our side is retried
-once automatically, while the run's retries last; a retry is never retried.
-Voice tests are **not charged** in this release, and the run's estimate leaves
-them out.
+by default) and at most 20 caller turns. The run panel shows the run's planned
+test calls, one per attempt. A call that fails on our side is retried once
+automatically, for at most two retries per run (one when the run plans a single
+call); a retry is never retried. Voice tests are **not charged** in this
+release: the run's estimate leaves them out and no money line is shown for them.
 
 ### What an attempt shows
 
@@ -527,13 +529,16 @@ Open **Test call detail** under an attempt to see:
   (for example, *the workflow reached a step that would run a tool*);
 - every **rule**, the built-in check first, with its state: pass, fail, not
   settled, not exercised or not applicable;
-- the **judge questions**, with each score and its passing score;
+- the **judge questions**, with each score and its passing score, when they were
+  judged (a verdict already decided by the call's ending or a stop needs no judge);
 - the **measured timings**: when your AI agent started replying after each of
   our caller's lines, how quickly it stopped when interrupted, how soon it hung
   up after its last words, and the call's length;
 - the **recording** state;
 - **what our caller heard** beside **what your AI agent recorded**, so a word
   one side misheard is visible;
+- every failed or unsettled rule's evidence, such as *expected at most 500 ms,
+  got 640 ms*, with the rule's code;
 - the cost: not charged.
 
 An attempt still in progress, being scored, or waiting for its automatic retry
@@ -541,14 +546,13 @@ says so; it is never shown as a pass, fail or error.
 
 An attempt can fail on evidence gathered before the call was cut short: a
 timing bound already broken or a forbidden route already taken still fails it.
-A rule more conversation could have satisfied is not failed by a call that was
-cut short.
 
 ### In the API
 
 `GET /v1/agents/{agent_id}/simulation-suite-runs/{run_id}` returns, for a
 live-call voice attempt, a `live_call` object: `mode`, `state`, `verdict`
-(`status`, `code`, `marks`, `retry`), `built_in_check`, `ending`, `stop`,
+(`status`, `code`, `marks`, `retry`), `built_in_check` (with the ending's code
+in `reason`), `ending`, `stop`,
 `timings`, `recording`, `charge` (`not_charged`) and `agent_recorded` (your AI
 agent's own transcript of the call, at most 200 lines, with
 `agent_recorded_page.has_more`). Its `facts` is empty, and its rubric rows carry
@@ -560,7 +564,8 @@ with its mode, call ceiling and the workflow steps it stops at.
 `GET /v1/agents/{agent_id}/simulation-suites/{suite_id}` returns
 `run_setup.live_call`: the mode a run started now would get, any refusal that
 start would meet, the rules that mode cannot apply, the built-in check, the
-call ceiling and that voice tests are not charged.
+call ceiling, `planned_calls`, `retry_allowance` and `max_calls`, and that voice
+tests are not charged. Voice rows of `run_setup.by_runner` are not metered.
 
 ## Voice proof: two different things
 
