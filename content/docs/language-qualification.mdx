@@ -218,15 +218,20 @@ ends that call visibly, with `ended_reason` `model_session_lost` and
 Nova-3 refused Amharic (`am`), Azerbaijani (`az`), Bhojpuri (`bho`), Javanese
 (`jv`), Khmer (`km`), Lao (`lo`), Maltese (`mt`) and Odia (`or`) at
 connection, so the table leaves it out for them; choose Azure AI Speech.
-Skysay does not pick Deepgram Nova-3 for these eight on its own: each
-transcriber in `GET /v1/agent-catalog` lists the languages it is picked for
-automatically in `default_languages`, and Deepgram's leaves them out. You can
-still choose it. A second language of an agent does not inherit Deepgram
-Nova-3 for one of the eight: publishing names that language and asks you to
-choose its transcriber, which may be Deepgram Nova-3 if you choose it. This
-comes up for an agent that opens in Belarusian (`be`) or Dari (`prs`), whose
-transcriber is Deepgram Nova-3, and also selects one of the eight. Azure AI Speech and Google Chirp 2 need a regional tag for each language, so they are offered for the
-languages Skysay has a tag for, shown below.
+You can still choose it for them, and an agent's other languages can use
+it: such a call ends visibly if Deepgram refuses it.
+
+A new agent starts on a transcriber Skysay qualified for its languages. Each
+transcriber in `GET /v1/agent-catalog` lists, in `default_languages`, the
+languages it is picked for automatically: the languages it was qualified for
+before it was offered for every call language, less any it refused. So Basque,
+Galician, Malayalam and Uzbek start on Azure AI Speech, and Estonian plus
+Finnish on Google Chirp 2. Deepgram Nova-3 is picked for a language set only
+when no qualified transcriber hears all of it, as with Sinhala plus Tamil.
+An agent whose transcriber is saved keeps it.
+
+Azure AI Speech and Google Chirp 2 need a regional tag for each language, so
+they are offered for the languages Skysay has a tag for, shown below.
 
 | Language | Code | Transcribers that hear callers |
 | --- | --- | --- |
