@@ -513,6 +513,21 @@
         ],
         "type": "object"
       },
+      "AgentListening": {
+        "additionalProperties": false,
+        "description": "Which languages this AI agent's calls listen for. `open` (the default, and what an absent section means): the call's transcriber hears the other party in any language when it has a mode that names no language (Deepgram Nova-3's multilingual mode), on outbound, inbound and browser-test calls alike; the AI agent still answers only in its own published languages. `agent_language`: the transcriber listens in the call's own language only, which is slightly more accurate in that language and hears nothing in others. Changes nothing for a transcriber without such a mode, for a call that follows the caller (its published setting decides), or for a call that holds a keypad value for a phone menu (it listens in the AI agent's language). Saved by voice-stack PATCH and frozen in each publication, so changing it republishes. An engine without a language axis refuses it with 400.",
+        "properties": {
+          "mode": {
+            "default": "open",
+            "enum": [
+              "open",
+              "agent_language"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AgentModelUnresponsive": {
         "additionalProperties": false,
         "description": "How long the agent may stay silent after the caller has finished speaking before the platform ends the call. It exists because a conversation engine can stop answering without saying so: a provider outage mid-call leaves the line up, the caller talking to nobody and the call billing, and on some engines nothing at all is reported. It counts only time the line was free: the clock starts when a caller turn ends, it does NOT run while the caller is speaking (their own speech is subtracted, so a caller who keeps talking is never cut off mid-sentence, and one who pauses between attempts still reaches the bound), and it is cleared the moment the agent produces anything \u2014 a reply, a tool call, or the end of the call. It also never runs while the agent is speaking, while a tool is running, before the caller's first turn, or on a call whose replies come from a workflow. A call ended this way reports `ended_reason` `agent_unresponsive` with `reason_detail` `model_unresponsive` (calls completed before 2026-09-25 reported `model_session_lost` with the same detail). On by default at the platform's own bound; an absent section is that default and is not stored.",
@@ -877,7 +892,7 @@
         "type": "object"
       },
       "AgentUpdate": {
-        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: opening, turn_taking, voice_polish, answer_detection, navigation, audio_environment, follow_caller, languages and language_profiles are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
+        "description": "Mutable agent configuration. The target agent, rather than organization_id or project_id in this body, defines the authenticated workspace boundary. Voice-stack settings are not part of this payload: opening, turn_taking, voice_polish, answer_detection, navigation, audio_environment, follow_caller, languages, language_profiles and listening are saved by PATCH /v1/agents/{agent_id}/voice-stack, and sending one here is refused with 400 naming that route rather than accepted and dropped.",
         "properties": {
           "audio_stream_url": {
             "type": "string"
@@ -1232,6 +1247,9 @@
           "latency": {
             "type": "object"
           },
+          "listening": {
+            "$ref": "#/components/schemas/AgentListening"
+          },
           "model": {
             "type": "object"
           },
@@ -1378,6 +1396,9 @@
             "maxItems": 32,
             "minItems": 1,
             "type": "array"
+          },
+          "listening": {
+            "$ref": "#/components/schemas/AgentListening"
           },
           "model": {
             "$ref": "#/components/schemas/VoiceComponentSelection"
@@ -1997,7 +2018,7 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `insufficient_balance` and `renewal_unavailable` qualify only `funding_exhausted`: confirmed insufficient funds versus unavailable authorization, respectively. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path` and `data_not_authorised` appear only with `ended_reason` `ivr_timeout`, `during_hold` only with `remote_party_disconnected`, `recorded_message_only` only with `no_human_after_answer` and `navigation_detector_lost` only with `media_session_lost`, as described on `ended_reason`. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `insufficient_balance` and `renewal_unavailable` qualify only `funding_exhausted`: confirmed insufficient funds versus unavailable authorization, respectively. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path` and `data_not_authorised` appear only with `ended_reason` `ivr_timeout`, `during_hold` only with `remote_party_disconnected`, `recorded_message_only` only with `no_human_after_answer` and `navigation_detector_lost` only with `media_session_lost`, as described on `ended_reason`. `transcriber_refused_request` appears with `ended_reason` `model_session_lost` and says the engine was lost because the call's speech-to-text provider refused the request it was opened with (an HTTP 400). The usual cause is a language or language code the provider does not take: Skysay keeps no list of which languages each provider runs, so this is where one a provider does not run shows itself, per call. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
@@ -2014,7 +2035,8 @@
               "navigation_limit",
               "no_audio",
               "recorded_message_only",
-              "renewal_unavailable"
+              "renewal_unavailable",
+              "transcriber_refused_request"
             ],
             "type": "string"
           },
@@ -2051,6 +2073,7 @@
                 ]
               },
               "retention_days": {
+                "description": "Stored with the recording; nothing deletes recordings automatically today. DELETE /v1/calls/{call_id}/recording deletes one.",
                 "type": [
                   "integer",
                   "null"
@@ -2571,7 +2594,7 @@
             "type": "string"
           },
           "payload": {
-            "description": "Event-specific detail; shape varies by writer, not just by type -- call.failed alone has at least four shapes: a policy block carries {reason, reasons}; local/queued-origination failure carries {reason} (the worker-queue originate failure adds worker_job_id and error); a reconciler repair carries {source, reason, previous_status, evidence, observed_at}; a gateway-lifecycle failure (SIP/room) carries an unrelated {gateway_event_id, gateway_id, source_component, source, observed_at, details}. Always thinner than the richer result body the call.failed webhook delivers separately.",
+            "description": "Event-specific detail; shape varies by writer, not just by type -- call.failed alone has at least four shapes: a policy block carries {reason, reasons}; local/queued-origination failure carries {reason} (the worker-queue originate failure adds worker_job_id and error); a reconciler repair carries {source, reason, previous_status, evidence, observed_at}; a gateway-lifecycle failure (SIP/room) carries an unrelated {gateway_event_id, gateway_id, source_component, source, observed_at, details}. Always thinner than the richer result body the call.failed webhook delivers separately. On wallet.reserved and wallet.settled, `pricing` states the price and its unit (policy_id, usage_kind, tier, unit, billing_increment, price_micro_usd_per_min, pricing_confidence), never how it was derived.",
             "type": "object"
           },
           "type": {
@@ -2799,6 +2822,7 @@
             "type": "string"
           },
           "retention_days": {
+            "description": "Stored with the recording; nothing deletes recordings automatically today. DELETE /v1/calls/{call_id}/recording deletes one.",
             "type": "integer"
           },
           "status": {
@@ -2872,7 +2896,8 @@
               "navigation_limit",
               "no_audio",
               "recorded_message_only",
-              "renewal_unavailable"
+              "renewal_unavailable",
+              "transcriber_refused_request"
             ],
             "type": "string"
           },
@@ -4370,6 +4395,21 @@
         ],
         "type": "object"
       },
+      "GatewayContentStorage": {
+        "properties": {
+          "content_storage": {
+            "enum": [
+              "skysay",
+              "gateway"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "content_storage"
+        ],
+        "type": "object"
+      },
       "GatewayDeployment": {
         "properties": {
           "carrier_account_id": {
@@ -4768,6 +4808,7 @@
                 "type": "boolean"
               },
               "retention_days": {
+                "description": "Stored with the rule but not yet applied: recordings are kept until deleted.",
                 "type": "integer"
               }
             },
@@ -10939,7 +10980,7 @@
     },
     "/v1/calls/{call_id}/events": {
       "get": {
-        "description": "One bounded page of this call's call_events rows, oldest first, each with its raw event payload. This is the platform's own internal bookkeeping log, not a webhook replay: it includes types never delivered to any webhook endpoint at all (e.g. wallet.reserved, call.authorization, call.policy_evaluated, number.matched), and every row here is this row's own id/type/payload, never the signed webhook envelope. call.failed is written here too (payload shape varies by writer -- see CallEvent.payload), always thinner than the richer result body its webhook delivers separately. call.completed is the one terminal type NEVER written here at all -- it is derived from the call's final status and delivered only to webhooks; look at status on GET /v1/calls/{call_id} for that outcome instead. The response body is the plain array it has always been; the paging state is in headers. Do NOT read one page as the whole history: check X-Has-More, and continue with after=<the last row's page_cursor> until it is false. A long-running call with many agent tool invocations (each is its own call.agent_tool_call row) is exactly the case that needs more than one page.",
+        "description": "One bounded page of this call's call_events rows, oldest first, each with its event payload (the pricing block of a wallet.reserved or wallet.settled row states the price and its unit only). This is the platform's own internal bookkeeping log, not a webhook replay: it includes types never delivered to any webhook endpoint at all (e.g. wallet.reserved, call.authorization, call.policy_evaluated, number.matched), and every row here is this row's own id/type/payload, never the signed webhook envelope. call.failed is written here too (payload shape varies by writer -- see CallEvent.payload), always thinner than the richer result body its webhook delivers separately. call.completed is the one terminal type NEVER written here at all -- it is derived from the call's final status and delivered only to webhooks; look at status on GET /v1/calls/{call_id} for that outcome instead. The response body is the plain array it has always been; the paging state is in headers. Do NOT read one page as the whole history: check X-Has-More, and continue with after=<the last row's page_cursor> until it is false. A long-running call with many agent tool invocations (each is its own call.agent_tool_call row) is exactly the case that needs more than one page.",
         "operationId": "listCallEvents",
         "parameters": [
           {
@@ -11158,10 +11199,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Deleted recording"
+            "description": "Recording marked deleted; storage_deletions says whether each stored audio file was deleted"
           }
         },
-        "summary": "Delete the active call recording metadata and audit the action",
+        "summary": "Delete the call recording's transcript, AI summary and extracted results and try to delete its stored audio; the call record stays",
         "tags": [
           "Calls"
         ]
@@ -13539,6 +13580,44 @@
         "summary": "Create a deployment",
         "tags": [
           "Self-hosting"
+        ]
+      }
+    },
+    "/v1/gateway-deployments/{gateway_id}/content-storage": {
+      "patch": {
+        "description": "Sets content_storage to 'skysay' (the default: after the call the gateway uploads the recording and transcript; during the call it sends the arguments of each tool call, any knowledge-base question the agent sends and, when the agent has tools that write to your systems, what the caller says) or 'gateway' (content-local: recordings, transcripts and evidence stay in the gateway's call-evidence/ directory and Skysay accepts no call content from this deployment's token). Only a self-hosted deployment in outbound_execution_mode 'local' may be 'gateway', and it cannot go back to 'queue' while it is. In 'gateway' mode Skysay receives call metadata only: call id, direction, from/to numbers, timestamps, duration, end reason and answer classification as machine values, SIP status code and usage quantities for billing; any other POST from the deployment's token answers 409 content_retained_on_gateway. Agents that need Skysay Cloud to process call content -- tools other than end_call, knowledge search, workflows, or a component on a key from Skysay's own provider accounts -- are refused before media with a named reason. The gateway applies the setting from its next restart: change it, then restart the gateway. Text you send to place a call (instructions, opening line, authorization reason) is configuration that Skysay stores. Do not put patient or caller data in it.",
+        "operationId": "setGatewayContentStorage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gateway_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatewayContentStorage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated gateway deployment"
+          }
+        },
+        "summary": "Choose where a self-hosted deployment keeps call content",
+        "tags": [
+          "Self-hosting"
+        ],
+        "x-required-scopes": [
+          "gateways:write"
         ]
       }
     },
