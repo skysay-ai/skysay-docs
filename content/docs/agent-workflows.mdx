@@ -337,7 +337,7 @@ its own to edit, and nothing on the canvas or in the graph sets one.
 | **Caller languages** | **Voice → Transcriber** | Every language the workflow speaks, and every language the agent is set up to speak, must be in this list, and the model must accept each of them. The list offers every language Skysay lists for the model; the ones Skysay has tested with that model carry a **Tested by Skysay** badge. |
 | **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
 | **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
-| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller speech it takes to cut off a line being spoken: 0 to 1000 for a workflow. Shorter noise does not interrupt; recognized words always do. |
+| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off. On the Cascade engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
 
 A published workflow keeps hearing callers through that setup. Publishing
 freezes a copy of the saved listener and timing into the version, so each
@@ -470,6 +470,13 @@ A stop request, a wrong-person reply and the workflow's other global interrupts
 still apply on each of those turns. Background noise that cuts a line is not
 counted, and neither are words said before a repeat began playing: only a
 repeat the caller could hear start counts toward the three.
+
+On the Cascade engine, a sound with no words in it does not cut a line. The
+line pauses while the caller's sound is recognized and then continues from
+where it paused, so it is heard in full once and is not spoken again. The
+caller can answer as soon as it ends. Recognized words still cut the line off,
+as above. On GPT-Live, any caller sound long enough to interrupt still cuts the
+line off.
 
 ### When a spoken workflow call is refused
 
