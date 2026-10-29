@@ -162,7 +162,7 @@
             "type": "string"
           },
           "voicemail": {
-            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only one kind of evidence counts as proof, the same in every language: a record beep that follows a spoken greeting. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted. On a call that does not run a workflow, the platform's language model also reads the far end's words, in any language, and a short greeting it reads as a voicemail greeting counts instead, when that reading arrives before the beep is judged (a few seconds after the beep); a reading in a language the call's transcription is known to handle unreliably is ignored. A mailbox instruction such as \"leave a message\", the model's reading on its own, a fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
+            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only one kind of evidence counts as proof, the same in every language: a record beep that follows a spoken greeting. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted. The platform's language model also reads the far end's words, in any language, and a short greeting it reads as a voicemail greeting counts instead, when that reading arrives before the beep is judged (a few seconds after the beep); a reading in a language the call's transcription is known to handle unreliably is ignored. A mailbox instruction such as \"leave a message\", the model's reading on its own, a fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
             "enum": [
               "shadow",
               "hang_up",
@@ -1493,6 +1493,13 @@
               },
               "draft": {
                 "properties": {
+                  "question_groups": {
+                    "items": {
+                      "$ref": "#/components/schemas/WorkflowQuestionGroup"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  },
                   "voice_input": {
                     "anyOf": [
                       {
@@ -6334,6 +6341,39 @@
         ],
         "type": "object"
       },
+      "WorkflowQuestionGroup": {
+        "additionalProperties": false,
+        "description": "Speak-and-wait steps (ask, or say with ends_turn) that ask one question and share one budget of presentations. One presentation is spent for each reply whose line of a member began playing to the caller, whether it played to the end or was cut; a line that never began playing is not spent. Once max_presentations are spent, the run goes to on_exhausted instead of presenting any member again, and the run's path records route question_group_exhausted. Global interrupts are decided first, so a stop or wrong-person request is never held back. A step belongs to at most one group; on_exhausted may not be a group step or lead back into its own group. Optional: a workflow without groups keeps every other limit unchanged.",
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "max_presentations": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "on_exhausted": {
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "steps",
+          "max_presentations",
+          "on_exhausted"
+        ],
+        "type": "object"
+      },
       "WorkflowVersionSummary": {
         "description": "Safe immutable version metadata. The separate published field is null before the first explicit publish.",
         "properties": {
@@ -9031,6 +9071,13 @@
                       ]
                     },
                     "properties": {
+                      "question_groups": {
+                        "items": {
+                          "$ref": "#/components/schemas/WorkflowQuestionGroup"
+                        },
+                        "maxItems": 20,
+                        "type": "array"
+                      },
                       "steps": {
                         "items": {
                           "oneOf": [
