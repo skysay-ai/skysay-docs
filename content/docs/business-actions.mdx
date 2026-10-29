@@ -130,6 +130,10 @@ uncertain and use their provider-specific reconciliation process.
 
 Read an action through `GET /v1/calls/{call_id}/actions/{action_id}` or
 `GET /v1/sms-conversations/{conversation_id}/actions/{action_id}`. These reads do
-not execute, repair or retry anything. The confirmation ledger retains input
+not execute, repair or retry anything. Native calendar booking actions include
+an optional `calendar_outcome` field with the platform's current result. Pending
+confirmation, an unknown result and a refused request do not prove a booking;
+a confirmed result requires the successful canonical booking receipt. Other
+business actions omit this calendar-specific metadata. The confirmation ledger retains input
 ordering and hashes, not a second raw transcript; business receipts remain
 separate from recording and transcript retention.
