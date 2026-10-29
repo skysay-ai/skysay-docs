@@ -32,13 +32,14 @@ lopsided on purpose:
 There are two kinds of proof, and nothing else counts:
 
 - **A record beep after a spoken greeting, in any language.** A single,
-  clean tone that follows a greeting which was recognised as speech, and
-  either had at least three words in it or was read as a voicemail greeting
-  by the classifier described below. Words are counted by the spaces and
-  punctuation between them, so in Chinese, Japanese, Thai and other scripts
-  written without spaces a short greeting is undercounted. The classifier
-  reads the words in any language, so a beep after such a greeting still
-  counts. A tone that repeats, a keypad tone, a
+  clean tone that follows a greeting which was recognised as speech with at
+  least three words in it. Words are counted by the spaces and punctuation
+  between them, so in Chinese, Japanese, Thai and other scripts written
+  without spaces a short greeting is undercounted. On a call that does not
+  run a workflow, a short greeting the language model described below reads
+  as a voicemail greeting counts instead, when that reading arrives before
+  the beep is judged, a few seconds after the beep. A tone that repeats, a
+  keypad tone, a
   fax tone or a network information tone is not a record beep. Neither is a
   tone that overlaps the AI agent's own voice, or a tone after music or
   silence rather than speech.
@@ -55,11 +56,13 @@ There are two kinds of proof, and nothing else counts:
 - music or tones with no speech in them, such as a caller tune;
 - a beep after music or silence rather than after speech. A caller tune
   followed by network beeps sounds much like a mailbox, and often is not one;
-- the far end's words read as a voicemail greeting. A language model reads
-  each thing the far end says in the first moments of the call, in any
-  language, and says whether it sounds like a voicemail greeting. On its own
-  this is only suspicion, because a person can say the same words. Together
-  with a record beep after it, it is proof (above).
+- the far end's words read as a voicemail greeting. On a call that does not
+  run a workflow, a language model reads what the far end says in the first
+  moments of the call, in any language, and says whether it sounds like a
+  voicemail greeting. A reading in a language the call's transcription is
+  known to handle unreliably is ignored. On its own this is only suspicion,
+  because a person can say the same words. Together with a record beep after
+  it, it can be proof (above).
 
 Recognising known mailbox recordings by their sound, so-called fingerprints,
 is planned and is not used today.
