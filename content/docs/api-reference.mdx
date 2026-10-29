@@ -246,12 +246,18 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 
 The API repository generates `/openapi.json` from its canonical schema. This docs
 repository checks in a snapshot so builds and reviews do not depend on the network.
-Refresh that snapshot from the reviewed API source, then run:
+One command, run in the API checkout of the commit this documentation describes,
+rewrites the snapshot, its coverage list and this page together:
 
 ```bash
-python3 scripts/generate_openapi_reference.py --check
-python3 -m unittest discover -s tests
+PYTHONPATH=src:packages/skysay-common:packages/skysay-gateway \
+  .venv/bin/python scripts/export_openapi.py \
+  | python3 <docs>/scripts/refresh_openapi_snapshot.py --from - \
+      --coverage docs/public-api-coverage.json
 ```
+
+CI runs `python3 scripts/generate_openapi_reference.py --check` and fails when this
+page no longer matches the snapshot.
 
 If the snapshot contains a new customer route, update the conceptual guide that
 explains its product model as well. Do not hand-copy request schemas into prose.
