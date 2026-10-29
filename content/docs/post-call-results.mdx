@@ -291,7 +291,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | --- | --- |
 | `remote_party_disconnected` | the other party hung up |
 | `hangup_requested` | someone ended the call from your workspace or through the hangup endpoint |
-| `max_call_duration_reached` | the call reached its configured maximum length, or a workspace browser test reached its 3 minute limit |
+| `max_call_duration_reached` | the call reached its configured maximum length, or a browser test from the AI agent's test panel reached its 3 minute limit |
 | `funding_exhausted` | the current credit reservation could not be extended before its funded deadline — see [Funding a running call](/docs/billing#funding-a-call-while-it-is-running) |
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
 | `agent_completed` | the agent finished the conversation and ended the call |
@@ -541,10 +541,11 @@ default and reports `max_call_duration_reached`. The limit sits just under the 3
 ceiling of the underlying media session, so the call ends with a stated reason
 rather than being cut off without one.
 
-**A browser test reached its limit.** A test call you start from your
-workspace in the browser lasts at most **3 minutes** of conversation. It then
-ends and reports `max_call_duration_reached`, the same reason as any other
-call that reached its maximum length. Earlier browser tests that ended at
+**A browser test reached its limit.** A browser test you start from the AI
+agent's test panel lasts at most **3 minutes** of conversation; in its last 30
+seconds the panel counts down. It then ends and reports
+`max_call_duration_reached`, the same reason as any other call that reached
+its maximum length. Earlier browser tests that ended at
 this limit were reported as `media_session_lost`.
 
 **Nobody spoke after the call was answered.** If no speech is heard from the
