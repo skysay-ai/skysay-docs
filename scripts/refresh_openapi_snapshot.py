@@ -57,11 +57,12 @@ def refresh(
     coverage_path: Path = generator.COVERAGE_PATH,
     output_path: Path = generator.OUTPUT_PATH,
 ) -> list[Path]:
-    """Write the snapshot, the coverage list and the page, or nothing at all.
+    """Write the snapshot, the coverage list and the page.
 
     The page is rendered before any file is written, so inputs that cannot
     form a page (a coverage entry absent from the snapshot, a missing required
-    operation) leave the checkout exactly as it was.
+    operation) leave the checkout exactly as it was. A failed write is not
+    rolled back: the command exits non-zero and the CI check fails the page.
     """
     if not isinstance(schema, dict) or not isinstance(schema.get("paths"), dict):
         raise SnapshotError("source must be an OpenAPI object with paths")
