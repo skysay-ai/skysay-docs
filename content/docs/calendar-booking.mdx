@@ -143,6 +143,9 @@ external MCP client is not required. Their definitions are part of the
    Unclear or past dates/times require clarification. A failed or incomplete
    search does not mean there are no free times. The result also identifies
    required caller details and whether the caller receives a confirmation email.
+   The offers are the earliest five, so an omitted time is not necessarily
+   unavailable. For an exact requested time, the agent narrows the search to
+   that appointment before rejecting it.
 2. The caller chooses a time. The AI agent collects the caller's name, any
    required email and event-type answers. It must not invent an email or fill
    in the owner's.
@@ -202,6 +205,13 @@ those requests.
   "end_time": "17:00"
 }
 ```
+
+Successful results include `returned_count` (at most five) and `has_more`.
+`complete: true` means the provider search finished; the offer list can still
+omit later times when `has_more: true`. The fixed `offer_guidance` in the result
+reminds the agent to search a caller's exact time with paired clock bounds
+before saying it is unavailable. That narrower query uses the normal search
+budget and replaces previous offers; Skysay does not retry automatically.
 
 Dates use strict `YYYY-MM-DD`. Omit `end_date` for a single day; for a range,
 `end_date` is the last included date. An explicitly null or empty end date is
