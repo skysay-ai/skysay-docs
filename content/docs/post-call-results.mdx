@@ -324,7 +324,7 @@ and it qualifies one of the two, which you can tell from its value:
 | `model_unresponsive` | `ended_reason` `agent_unresponsive` | the agent stopped answering: see below |
 | `insufficient_balance` | `ended_reason` `funding_exhausted` | the latest renewal confirmed insufficient eligible credit |
 | `renewal_unavailable` | `ended_reason` `funding_exhausted` | additional funded time was not confirmed by the deadline |
-| `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path`, `data_not_authorised` | `ended_reason` `ivr_timeout` | the time allowed on hold, the time allowed in menus, or the call's overall maximum length ran out while the call was waiting; or the menu offered no way to a person; or it asked for a value the call did not supply. See [How these calls end](/docs/phone-menu-navigation#how-these-calls-end) |
+| `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path`, `data_not_authorised`, `keys_not_accepted` | `ended_reason` `ivr_timeout` | the time allowed on hold, the time allowed in menus, or the call's overall maximum length ran out while the call was waiting; or the menu offered no way to a person; or it asked for a value the call did not supply; or it never acted on the call's key presses. See [How these calls end](/docs/phone-menu-navigation#how-these-calls-end) |
 | `during_hold` | `ended_reason` `remote_party_disconnected` | the other party hung up while the call was waiting in a menu or on hold |
 | `recorded_message_only` | `ended_reason` `no_human_after_answer` | a recording and nothing else answered: no menu, no person |
 | `navigation_detector_lost` | `ended_reason` `media_session_lost` | the listening a waiting call depends on stopped delivering |
@@ -349,8 +349,8 @@ did not decide). It matters for the three endings that mean "the call waited and
 | `null` | `connected_completed`: missing information never starts a redial | excluded, as it was before the field existed |
 
 A conversation followed by a transfer into a queue that ran out of time has reached its contact, so
-it is neither redialled nor discounted. `ivr_timeout` with `navigation_limit`, `menu_no_path` or
-`data_not_authorised` is terminal whatever `person_reached` says, and `no_human_after_answer` is never
+it is neither redialled nor discounted. `ivr_timeout` with `navigation_limit`, `menu_no_path`,
+`data_not_authorised` or `keys_not_accepted` is terminal whatever `person_reached` says, and `no_human_after_answer` is never
 a pick-up. The same field is in the `call.completed` webhook, and the terminal `call.ended` event's `details` carries it as a boolean when the platform reported one.
 
 ### When the media session is lost
