@@ -98,7 +98,7 @@ at midnight when working hours close at 24:00. Google/Outlook invitations requir
 the caller's confirmed email. Scheduling providers require an email and apply
 the event type's notification rules.
 
-Tokens are encrypted and refreshed server-side. A failed or interrupted refresh requires account reconnection because a rotating refresh token might already have been consumed. They are never included in an
+Tokens are encrypted and refreshed server-side. A refresh is sent only when at least five seconds remain in its request budget. If less time remains, the step is unavailable without revoking the connection; a later step with a full budget can refresh it. A failed or interrupted refresh that was actually sent requires account reconnection because a rotating refresh token might already have been consumed. They are never included in an
 AI agent prompt or a workspace response. **Disconnect** erases the locally
 stored credentials and invalidates offers. Revoke the application in the
 provider account as well if you want to remove its consent grant there.
@@ -205,6 +205,17 @@ those requests.
   "end_time": "17:00"
 }
 ```
+
+Each explicit `start_time`/`end_time` window must fit the configured appointment
+length in elapsed minutes on every searched date. A shorter window, including
+one shortened by a daylight-saving transition, is refused before checking the
+provider; it does not mean the requested appointment is unavailable. The agent's
+initial calendar instructions include the configured appointment length.
+
+Explicit times run from `00:00` to `23:59` and require start before end; `24:00`
+and windows crossing local midnight are refused. Use a date-only search for
+that case. Searches do not snap to the provider's slot grid or automatically
+widen or retry a refused range.
 
 Successful results include `returned_count` (at most five) and `has_more`.
 `complete: true` means the provider search finished; the offer list can still
