@@ -10,12 +10,12 @@ you like. Every attempt leaves a transcript, the exact workflow path it walked,
 and a verdict against rules you wrote — not an impression, and not a score you
 have to interpret.
 
-Simulation suites never dial a phone number. Automated attempts run against
-simulation-only tool mocks: read tools return the fixtures you declared, and mutation tools — SMS,
-transfers, customer integrations — are unreachable by construction rather than
-by configuration. A suite cannot send a real customer message or execute a
-payment action. Adaptive attempts can still incur model and speech-provider
-costs within the run's budget.
+Simulation suites never dial a phone number. Scripted and chat attempts use
+simulation-only tool mocks. Voice attempts make a real call in a test room,
+using your AI agent's saved engine. Business writes such as sending an SMS,
+transferring a customer or changing an integration are blocked. Voice tests
+retain conversation controls such as ending the call and switching language.
+Provider usage is bounded; tests are not charged to your workspace balance.
 
 ## The shape of a suite
 
@@ -33,78 +33,24 @@ beat it, rather than silently replacing someone else's work.
 
 ## Runners
 
-The runner is a property of each scenario, not of the suite — one suite can mix
-a free deterministic check with metered adaptive attempts. The modes you can
-start depend on the deployment's enabled capabilities.
+The runner is a property of each scenario. One suite can mix these runners
+when Simulations Lab is enabled:
 
-| Runner | What it tests | Availability when Simulations Lab is enabled |
+| Runner | Workspace name | What it tests |
 | --- | --- | --- |
-| **Deterministic** | Exact routes, tool calls and terminal outcomes. No model or provider cost. | Available |
-| **Adaptive chat** | An AI caller that paraphrases, objects, changes its mind and interrupts. Text only. | Available |
-| **Adaptive voice** | Speech synthesis and recognition through a pinned voice stack. Timing needs separate real-time evidence. | Requires the voice runtime to be enabled |
+| **Deterministic** | Scripted | Exact workflow routes, mocked tools and terminal outcomes, without model calls. |
+| **Adaptive chat** | AI caller · chat | An AI caller conversing with the workflow in text. |
+| **Adaptive voice** | AI caller · voice | A synthetic caller speaking to the real AI agent in a live test room. |
 
-In the workspace the three runners are called **Scripted** (deterministic),
-**AI caller · chat** (adaptive chat) and **AI caller · voice** (adaptive voice).
+Voice tests support cascade, GPT-Live, Gemini Live and Eleven Realtime agents.
+They use the agent's own configuration. They do not substitute a different
+transcriber or voice engine to make a test run. The caller has its own voice
+and listener, selected for the scenario language.
 
-**Adaptive voice is a speech test, not a phone campaign.** Instead of testing
-only text, the runner synthesizes scenario lines and transcribes the audio
-through the pinned speech stack. This helps expose words the voice mispronounces
-or the transcriber mishears. For example, a payment-reminder scenario can test
-whether a promised date survives the speech round trip.
-
-There are two distinct levels of voice evidence:
-
-- **Offline robustness:** synthesize and transcribe lines without a live room.
-  This tests the speech round trip, not interruption or playback timing.
-- **Real-time:** an additional synthetic caller joins a live audio room and
-  speaks to the agent. This can measure supported interruptions and turn timing.
-  It requires the real-time runtime as well as the voice runner. Duration and
-  teardown are reported only when that caller observes the tested agent leave
-  or observes the server close the room; a successful room attempt alone is
-  not terminal evidence.
-
-Neither level dials a carrier or proves what a person hears over a telephone
-network. That needs a separate, authorized phone test. See
-[Voice proof](#voice-proof-two-different-things) for how results distinguish
-measured timing from unproven assertions.
-
-Before starting, check the suite's **Run this suite** panel or call
-`preview_simulation_run` over MCP. Its `supported_runners` tells you whether
-`adaptive_voice` is enabled on the deployment you are using. The implementation
-being present does not by itself enable that runner, and enabling the real-time
-runtime alone does not enable it either.
-
-### Supported offline voice stacks
-
-Offline adaptive voice supports **Deepgram or Azure Speech transcription** with
-an eligible ElevenLabs, Fish Audio, Gemini, Soniox, or Azure neural voice, where
-the pinned model and language are supported. Azure uses the exact locale
-declared for that language and the submitted WAV's measured duration. Google
-Chirp and Cartesia synthesis are not implemented in this offline runner. An
-unsupported or unavailable
-stack is refused; the test does not silently switch your agent to another
-provider. These limits apply to this test mode, not to normal agent calls.
-
-Keep **Offline robustness** and **Real-time** results separate. Enabling offline
-voice does not enable real-time tests. Real-time additionally requires the
-real-time runtime and a runnable synthetic caller — but nothing you provision.
-One [shared Skysay runner](/docs/authentication#hosted-workers-hold-no-workspace-credential)
-drives real-time sessions for every workspace: there is no room dispatcher to
-deploy for yours, no host credential to install, and no restart to wait for.
-Each session's room metadata and evidence receipts stay bound to the workspace
-and run that asked for it. None of this removes the caller runtime, the authored
-audio, or the evidence-readiness requirements below.
-The caller uses an exact recorded line when the deployed readiness pack contains
-one. Otherwise, supported Azure scenarios synthesize the authored line with the
-exact provider, voice, language, and locale pinned into that immutable run. It
-does not translate the line, choose a default voice, or switch providers; a
-missing credential, unsupported stack, or incompatible audio response refuses
-the attempt before audio is published. This is not a general arbitrary-audio
-replay endpoint.
-Do not use an offline Deepgram result to assess Google/Azure recognition, or an
-offline Azure result to assess Deepgram or Google recognition. Do not use either
-to claim that a live call's clipping, floor holds, interruption timing, or
-teardown has been fixed.
+The **Run this suite** panel checks the selected configuration and explains
+whether the test will be a workflow call or a prompt call. A prompt voice test
+can run without a workflow. Scripted and chat scenarios still require one.
+See [Live-call voice tests](#live-call-voice-tests) for the mode and rule details.
 
 ### Caller-input environments
 
@@ -119,21 +65,13 @@ agent's TTS, outgoing ambience, or production STT configuration. Off with
 whole-number level. The scenario must also give a non-blank explicit
 `language`; Skysay does not silently fall back to English.
 
-Saving that condition records what the synthetic caller should receive. An
-offline-only run still does **not** prove live caller noise, barge-in, overlap,
-playout, or timing. Treat it as offline speech robustness only; obtain
-real-time room evidence for those live-audio claims.
-
-A scenario may name a runner that is not enabled on the deployment you are
-using — authoring is not gated on it. **Starting** a run that needs one is
-refused at the API with `422 unsupported_mode`, listing the runners that do
-work. Nothing is queued and nothing is charged: a run that could never finish is
-never accepted in the first place.
+The condition applies to caller audio in the live room. It does not qualify
+real microphones, all accents, echo cancellation or a carrier's telephone
+network. Test those separately before relying on them in production.
 
 ## The adaptive caller
 
-An `adaptive_chat` scenario has no scripted turns. Instead it carries a
-**persona** — who the caller is, what they want, how they behave, and bounded
+An adaptive scenario uses a **persona** instead of a fixed sequence of turns: — who the caller is, what they want, how they behave, and bounded
 lists of when they cut in and when they change direction — and a caller model
 writes each turn by reading the AI agent's last reply.
 
@@ -143,17 +81,17 @@ anything else — a tool call, a transfer destination, an extra field, or
 something that is not valid JSON — that attempt ends as a typed **error**, not
 as a failure. A caller that misbehaved tells you nothing about your AI agent,
 and recording it as a verdict would let a bad caller make a healthy agent look
-broken. Nothing is retried: a retry would double the spend for a model that is
-already misbehaving.
+broken. Chat attempts do not retry a malformed caller response. Voice attempts have
+the bounded test-side retry policy described below.
 
 Two things the caller can never do, by construction:
 
 - **It does not decide anything.** Your AI agent's own model still answers every
   routing and interrupt question — that is the thing being tested. The caller
   can influence what your agent hears, never what it decides.
-- **It cannot reach a real tool.** Adaptive attempts run against the same
-  test-only mocks deterministic ones use. There is no code path from a suite to
-  a live integration, however persuasively the caller asks.
+- **It cannot reach a real tool.** Chat attempts use the same
+  test-only mocks as scripted attempts. Voice calls block business writes and
+  stop at workflow tool steps, as described below.
 
 Repeating an adaptive scenario measures **consistency, not luck** — set
 `attempts` above 1 when you want to know whether a behaviour holds up, rather
@@ -198,14 +136,14 @@ telling you something it does not know.
 ## What a run may spend
 
 Deterministic attempts make no model call and genuinely cost nothing. Adaptive
-attempts are metered, and a run pins its whole spending envelope before the
+chat attempts are metered, and a run pins its whole spending envelope before the
 first attempt starts: an upper-bound cost estimate and a ceiling on model calls.
 
 The estimate is an **upper bound**, not a forecast — it assumes every attempt
 uses its whole turn budget and every rubric is judged. Being charged less than a
 stated ceiling is a better surprise than the reverse.
 
-Every model call is claimed against that ceiling *before* it is made, including
+For chat tests, every model call is claimed against that ceiling *before* it is made, including
 your AI agent's own calls: they are the thing being tested, but they are still
 calls the run caused. If a run exhausts its budget it stops and ends with status
 `budget_exceeded` — every verdict already recorded is kept and final, and the
@@ -241,7 +179,7 @@ A suite's page in **Simulations Lab** has three tabs: **Scenarios**, **Pass rule
 budget** and **Run history**.
 
 **Scenarios.** Add or edit a scenario of any type your workspace can run. The
-**AI caller · voice** type appears only where the voice runtime is enabled. Each
+**AI caller · voice** type is available when Simulations Lab is enabled. Each
 scenario takes a name, how many attempts it makes per run (1 to 25), whether it is
 critical (a failed critical scenario fails the run), and a language. A scripted
 scenario takes the caller's lines in order; an AI caller takes a goal, first words,
@@ -319,17 +257,12 @@ against, so the estimate you read before starting is the allowance the run enfor
 
 If no scenario has been saved, the panel says **Save at least one scenario to start a run** and offers **Continue editing**. Saving a valid scenario refreshes readiness; workflow and runtime requirements still apply.
 
-The button refuses, before it is pressed, the starts the API refuses anyway: an
-archived suite, a suite with no scenarios, a suite naming a runner this deployment
-does not admit, and an **AI caller · voice** scenario your AI agent's own voice cannot
-drive. The last two are refused as a whole run rather than scenario by scenario, so the
-panel says so rather than letting the click fail. The panel shows a price only for a run that can start.
-
-A voice scenario your AI agent cannot run is marked in the panel, and the reason sits
-beside the button — for example, an AI agent that speaks with GPT-Live 1 cannot be
-driven by voice tests yet. Run that scenario as an **AI caller · chat** test instead, or
-change the AI agent's voice in its voice settings. The scenario editor shows the same
-note when you choose **AI caller · voice**; it never stops you saving the scenario.
+The panel explains refusals such as an archived or empty suite, an invalid
+saved configuration, or a workflow that cannot be admitted. Voice setup is
+checked against the same admission decision as Start. It displays the call
+mode, planned calls and retries, unsupported rules, and any workflow steps at
+which testing will stop. GPT-Live and other live engines are supported; there
+is no separate offline speech-stack requirement.
 
 Submitting twice returns the same run. The key that guarantees that belongs to the page
 you are looking at, so a retry after a failed or lost response reuses it rather than
@@ -342,7 +275,7 @@ so its latency never depends on how long the suite takes; you can close the page
 and come back.
 
 At that moment the run pins everything a verdict will depend on: the suite
-revision and its content hash, and the **compiled workflow contract itself**.
+revision and its content hash, the saved voice configuration and, when applicable, the **compiled workflow contract itself**.
 Editing the agent's draft while the run waits for a worker therefore cannot
 change what the run proves.
 
@@ -362,9 +295,7 @@ curl -X POST \
 Other typed refusals you may see, all before anything is queued:
 `422 no_scenarios` (a suite with nothing to run), `422 suite_archived`,
 `422 active_run_limit` (this workspace already has the maximum runs in flight),
-`422 organization_budget` (too much spend is committed to active runs), and
-`422 unsupported_voice_stack` (see
-[When a speech stack cannot serve a scenario](#when-a-speech-stack-cannot-serve-a-scenario)).
+`422 organization_budget` (too much spend is committed to active runs), and configuration-specific refusals explained in the run panel.
 A workflow that cannot be run keeps its `404` (no workflow, or nothing published for a
 suite pinned to the published version) or `400` (a draft with validation errors) and
 adds `workflow_state`: `missing`, `unpublished`, `invalid` or `unknown`. The workspace
@@ -398,13 +329,9 @@ the run continues — and it is recorded as an error rather than being scored fo
 or against the AI agent. Every attempt is persisted independently, so one bad
 attempt never takes a suite down with it.
 
-The same applies when a run was priced for real-time evidence and an attempt's
-room produced none: the synthetic caller never joined, was refused, or could not
-deliver its lines, the agent never joined, or the room ended without reporting.
-That attempt is an error, never a pass, even when its offline checks passed.
-Its `error_code` is `caller_delivery_failed` when the caller joined and could
-not deliver its lines, and `realtime_evidence_missing` otherwise. An attempt
-whose offline checks already failed keeps that failure.
+Voice attempts grade the actual conversation and its ending. Missing caller
+or room evidence is an error, never a pass. The live-call rules below explain
+how an established violation can still fail a call stopped by the test.
 
 ## Reruns and regressions
 
@@ -417,16 +344,15 @@ every verdict it holds are untouched.
 promotes one attempt into a permanent critical scenario by appending a new suite
 revision. The historical run keeps pointing at the revision it executed.
 
-Cancelling stops work that has not started. An attempt a worker already claimed
-finishes and keeps its verdict; completed results are never altered or deleted
-by a cancellation.
+**Cancel run** stops remaining work and closes live voice attempts. Completed
+verdicts remain unchanged. **Rerun failed** opens a child run using the frozen
+configuration; editing today's agent does not silently change the rerun.
 
-On a run's page in the workspace, **Cancel run** asks for confirmation in the page
-before it stops the attempts that have not finished; one already running finishes
-and keeps its result. **Rerun failed** queues the child run and opens it. **Save as
-regression** on a failed attempt adds it to the suite as a critical scenario and
-names the new revision. Failed attempts (the AI agent broke a rule) and errored
-attempts (the test itself broke) are counted separately.
+Runs made by the retired offline voice runner remain read-only history. They
+cannot be rerun or saved as new regressions. Start a new run from the suite to
+use live-call testing. The old `min_recognition_bps` rule is no longer accepted;
+the cutover removes it from current suites in a new revision while preserving
+past revisions.
 
 ## Suite activity is not production activity
 
@@ -493,9 +419,9 @@ written in are translated then. A prompt test never needs a workflow.
 
 ### Conversation only, for now
 
-This release tests the conversation only. Your AI agent's tools and knowledge
-search are switched off in prompt test calls; in a workflow call, knowledge
-steps still run, and the test stops if the workflow reaches a step that would
+This release tests the conversation only. Business tools and knowledge
+search are switched off in prompt test calls. Conversation controls remain
+available. In a workflow call, knowledge steps still run, and the test stops if the workflow reaches a step that would
 run a tool (the run panel lists those steps). Tool rules
 (`required_tools`, `forbidden_tools`) are **not applicable**: they neither pass
 nor fail. In a prompt call the workflow rules (routes, steps, order, turns and
@@ -573,46 +499,23 @@ tests are not charged. Voice rows of `run_setup.by_runner` are not metered.
 
 ## Voice proof: two different things
 
-"Voice testing" covers two capabilities that are easy to confuse and dangerous
-to conflate, so a suite tells you which one an attempt produced.
+New voice attempts produce **real-time** evidence from the caller in the test
+room. Old runs labelled **Offline robustness** remain historical speech round
+trips. They measured no live conversation and cannot prove interruption,
+response or teardown timing. They are not an alternative execution mode.
 
-**Offline robustness** synthesizes scenario lines with your AI agent's pinned
-voice and transcribes the generated audio through its pinned transcriber. It
-tests whether that speech stack can say and recognize those lines; it does not
-prove recognition of every human speaker, accent or telephone connection. A
-workflow that reads perfectly can still contain a name the voice mangles or a
-phrase the transcriber mishears.
-
-It measures no room, no clock and no interruption. It therefore says nothing
-about barge-in, overlapping audio, playout or how long a call actually took.
-
-**Real-time evidence** requires a synthetic caller participant that joins the
-room and speaks to the agent, including authored interruptions. Only that can
-support the room-level timing assertions. It does not measure a carrier's audio
-path or certify that the final word arrived at a phone handset.
-
-Every attempt carries `voice_evidence_kind`, which is `offline_robustness`,
-`realtime`, or empty for a text attempt. A timing rule evaluated against
-anything but real-time evidence resolves to **`unknown`** — neither a pass nor a
-failure. Your AI agent is never marked down for a proof the platform did not
-run, and a result is never presented as evidence of something it did not
-measure. `unproven_assertions` counts those rules per attempt.
-
-This applies to `max_duration_ms` as well. On a text attempt it means what it
-has always meant. On a voice attempt, where you would reasonably read it as the
-answer-to-teardown duration of a call, it is `unknown` unless the synthetic
-caller observed the tested agent leave or the server close the room.
-`voice_evidence_kind: realtime` alone is not enough. If the observer leaves
-without either remote terminal event, duration and teardown remain unproven;
-local disconnection is not a substitute measurement.
+Each timing rule needs its own measured observation. A `realtime` label alone
+is not proof. Missing observations remain unsettled or not exercised; an
+authored applicable rule cannot become a pass without evidence. A completed
+recording is also separate from the timing measurements.
 
 ### Shared capacity and recording availability
 
 Real-time simulation callers use bounded capacity shared across workspaces.
-When that capacity is busy or temporarily paused, new real-time work must wait
-or be retried after the reported refusal. It does not silently switch to an
-offline test: an attempt whose real-time room could not run is reported as an
-error (see above), not as a pass on its offline evidence. Homepage demos use a separate capacity limit.
+When capacity is busy or paused for a voice release, tests wait within a
+bounded retry window. They do not take the last reserved customer slot or fall
+back to offline execution. If the wait expires, the result explains that
+capacity was unavailable. Homepage demos use a separate capacity limit.
 
 A room's measured timing and its recording are separate evidence. A recording
 can become available after the timing result has arrived. Reopen the existing
@@ -626,41 +529,16 @@ arrives later.
 
 ## When a speech stack cannot serve a scenario
 
-A run whose selected scenarios need a language your AI agent's pinned speech
-stack cannot speak is refused before anything is queued, with `422
-unsupported_voice_stack`. The response names the component (`tts` or `stt`), the
-language, a machine-readable `reason`, and `supported_stacks` — the stacks that
-*do* serve that language. Nothing is charged and nothing is queued; change the
-AI agent's voice stack or the scenario's language and run again.
+Check the run panel before starting. It identifies an invalid agent setup or
+an unavailable caller voice/listener for a scenario language. Correct the
+configuration or choose a supported scenario language; the test never silently
+changes the agent's providers. GPT-Live and Gemini Live do not need a separate
+TTS or STT configuration for the tested agent.
 
-This is deliberately separate from `422 unsupported_mode`, which means the
-runner itself is not available in your workspace yet. The two need different
-actions from you.
-
-An AI agent on a speech-to-speech engine such as GPT-Live 1 is refused for every
-language, with `reason: offline_synthesis_unsupported`: offline voice tests synthesize
-the caller's lines and drive a separate voice and transcriber, and these engines have
-neither. Test such an AI agent with **AI caller · chat** scenarios.
-
-You do not need to start a run to find out. Reading the suite
-(`GET /v1/agents/{agent_id}/simulation-suites/{suite_id}`) returns
-`run_setup.voice_readiness`, decided by the same rule as the refusal: `stack` answers
-for any language, and `languages` answers each language a voice scenario of the suite
-speaks plus each language the AI agent is set up for. Each answer carries `ready`, and
-when it is `false`, the `component`, the `reason` and the `engine` display name.
-
-The offline voice runner currently supports **Deepgram STT**, paired with
-supported ElevenLabs, Fish Audio, Gemini or Soniox synthesis configurations.
-This is narrower than the production voice catalog. A production agent using
-Google Chirp 2 is not automatically eligible for offline Adaptive voice.
-Skysay must not replace that transcriber silently: doing so would test a
-different stack. Keep the production configuration intact and check the run
-preview before choosing the appropriate validation path.
-
-Real-time attempts also need a configured room worker, caller worker and the
-authored caller audio available on the host. Enabling a feature flag does not
-provide missing audio or install a missing runtime adapter. Availability in the
-workspace and a completed, evidence-bearing run are separate checks.
+The platform operates the shared caller and room workers. A workspace does not
+need to deploy its own dispatcher, upload a recorded-line pack or install host
+credentials. A saved scenario still needs a successful, evidence-bearing run
+before it proves any behavior.
 
 ## Retention
 
@@ -709,11 +587,9 @@ suite in a single tool call rather than one call per scenario.
 
 **Ask what a run costs before you start one.** `preview_simulation_run` is
 read-only: it creates no run, queues nothing and reserves no budget. It returns
-the attempt counts, the estimated spend and the model-call ceiling — and
-`supported_runners`, the runners *this* deployment admits. Read that rather than
-discovering from a `422 unsupported_mode` that the spoken runner is not deployed
-where you are pointed. The estimate covers the whole suite, so it is an upper
-bound: a run confined with `scenario_ids` costs no more, and usually much less.
+the attempt counts, the text-run estimate and the model-call ceiling, plus
+`supported_runners`. Voice tests are excluded from the customer cost estimate
+in this release. Read the suite detail for the live-call configuration preview.
 
 **Starting an adaptive run incurs metered provider costs.** These are tracked
 against the suite budget, not charged to the workspace balance, as described
