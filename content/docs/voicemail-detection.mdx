@@ -29,23 +29,26 @@ lopsided on purpose:
 
 ### Proof: the only evidence that can make the agent act
 
-There are two kinds of proof, and nothing else counts:
+There is one kind of proof, the same in every language, and nothing else
+counts:
 
-- **A record beep after a spoken greeting, in any language.** A single,
+- **A record beep after a spoken greeting.** A single,
   clean tone that follows a greeting which was recognised as speech with at
-  least three words in it. It listens to the sound and counts the words, but
-  never needs to understand them. Words are counted by the spaces and
-  punctuation between them, so in Chinese, Japanese, Thai and other scripts
-  written without spaces a short greeting is undercounted, and a beep after
-  it only raises suspicion. A tone that repeats, a keypad tone, a
+  least three words in it. Words are counted by the spaces and punctuation
+  between them, so in Chinese, Japanese, Thai and other scripts written
+  without spaces a short greeting is undercounted. On a call that does not
+  run a workflow, a short greeting the language model described below reads
+  as a voicemail greeting counts instead, when that reading arrives before
+  the beep is judged, a few seconds after the beep. A tone that repeats, a
+  keypad tone, a
   fax tone or a network information tone is not a record beep. Neither is a
   tone that overlaps the AI agent's own voice, or a tone after music or
   silence rather than speech.
-- **A mailbox instruction** such as "please leave a message after the tone",
-  only in a language whose phrase list has been verified. Today that is
-  **English**, and English is checked on every call, whatever the call's
-  language. A person talking *about* a message ("did you leave me a
-  message?", "please don't leave a message") is not an instruction.
+
+A mailbox instruction such as "please leave a message after the tone" is not
+proof on its own, in any language: a person can say it too, and in the call
+records we checked it was sometimes said while a person was still on the line.
+It is shown in the call's evidence as suspicion.
 
 ### Suspicion: signals that never act alone
 
@@ -53,15 +56,24 @@ There are two kinds of proof, and nothing else counts:
 - the shape of the greeting: a long greeting that never pauses for a reply;
 - music or tones with no speech in them, such as a caller tune;
 - a beep after music or silence rather than after speech. A caller tune
-  followed by network beeps sounds much like a mailbox, and often is not one.
+  followed by network beeps sounds much like a mailbox, and often is not one;
+- a mailbox instruction such as "leave a message after the tone". A person
+  talking *about* a message ("did you leave me a message?", "please don't
+  leave a message") is not even that;
+- the far end's words read as a voicemail greeting. On a call that does not
+  run a workflow, a language model reads what the far end says in the first
+  moments of the call, in any language, and says whether it sounds like a
+  voicemail greeting. A reading in a language the call's transcription is
+  known to handle unreliably is ignored. On its own this is only suspicion,
+  because a person can say the same words. Together with a record beep after
+  it, it can be proof (above).
 
 Recognising known mailbox recordings by their sound, so-called fingerprints,
 is planned and is not used today.
 
 Phone menus, call screening services and "the number you have dialled is not
 available" announcements are recognised as their own kinds of answer. They are
-never treated as a mailbox by themselves, and a phone menu heard around a
-mailbox phrase stops that phrase from counting.
+never treated as a mailbox by themselves.
 
 Our own voice is excluded. When the AI agent's words come back down the line,
 for example from a speakerphone, they are recognised as echo and never count
@@ -69,18 +81,9 @@ as evidence.
 
 ### Languages
 
-| Language | Mailbox phrases |
-| --- | --- |
-| English | Verified: an instruction can prove a mailbox. Checked on every call. |
-| Estonian, German, Spanish, French, Russian | Candidates, not yet verified: an instruction is shown in the call's evidence but never proves a mailbox. |
-| Any other language, including Sinhala and Tamil | No phrase list. |
-
-In a language without a verified phrase list, detection still works: a record
-beep after a spoken greeting proves a mailbox in any language, including
-Sinhala and Tamil, and an English mailbox instruction still counts. Each call's evidence says when its
-language has no verified list. A candidate list becomes verified once a native
-speaker or real local mailbox recordings have confirmed it, and this table
-will change when that happens.
+Detection works the same way in every language, including Sinhala and Tamil:
+the proof is the beep, and the language model that reads the far end's words
+is not limited to a list of languages.
 
 ## The four settings
 
@@ -179,8 +182,8 @@ that detection ran on shows a **Voicemail detection** block:
 - whether a person was heard after that moment. This is the case the accuracy
   check exists to catch: a call where acting would have cut somebody off;
 - each piece of evidence, marked as proof, suspicion, a sign of a person, or
-  ignored, with when it was heard. A mailbox phrase that did not count says
-  why, for example that its language's phrase list is not verified yet.
+  ignored, with when it was heard. A mailbox phrase that was set aside says
+  why, for example that a phone menu was heard right around it.
 
 Inbound calls, and calls from before this feature, show no block. That means
 nothing was checked, not that no voicemail was found.
