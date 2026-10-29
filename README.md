@@ -156,19 +156,24 @@ Before merging, run what the build and the reviewers rely on:
 npm ci && npm run build
 python3 -m unittest discover -s tests
 python3 scripts/scan_secrets.py
-python3 scripts/generate_openapi_reference.py --check   # against api/openapi.json; refresh it with scripts/refresh_openapi_snapshot.py
+python3 scripts/generate_openapi_reference.py --check   # the page matches api/openapi.json
 ```
 
-`api/openapi.json` and `api/customer-api-coverage.json` always come from the
-same released application commit, never a hand edit. In the application
-checkout at that commit:
+`api/openapi.json`, `api/customer-api-coverage.json` and the generated
+`content/docs/api-reference.mdx` are written together by one command, never by
+hand and never one without the others. In the application checkout of the
+commit the documentation describes:
 
 ```bash
 PYTHONPATH=src:packages/skysay-common:packages/skysay-gateway \
   .venv/bin/python scripts/export_openapi.py \
-  | python3 <docs>/scripts/refresh_openapi_snapshot.py --from -
-cp docs/public-api-coverage.json <docs>/api/customer-api-coverage.json
+  | python3 <docs>/scripts/refresh_openapi_snapshot.py --from - \
+      --coverage docs/public-api-coverage.json
 ```
+
+After resolving a merge conflict in `api/openapi.json`, rerun that command, or
+run `python3 scripts/generate_openapi_reference.py` to rebuild the page from the
+merged snapshot.
 
 The export is exactly what `GET /openapi.json` serves: only the operations a
 `sky_` key can call.
