@@ -158,7 +158,47 @@ and a hardship, all of them are reported and the fixed order above decides
 which one applies. This applies to an Ask step that chooses one of its routes.
 It does not apply to an Ask step that checks the caller's answer against a
 protected value, or to speech that starts before the question has been fully
-spoken; there the interrupts are checked on their own, as before.
+spoken; there the interrupts are checked on their own, as before, unless you
+marked a route for it (below).
+
+### Statements the caller makes over a line
+
+A caller sometimes says something on their own while a line is still playing,
+such as "I already paid" over the balance explanation. Those words are not an
+answer to a question they have not heard, so by default only the global
+interrupts are checked, and a payment claim can land on the dispute interrupt.
+
+To give such a statement a step of its own, mark the route that should take it:
+in the editor, tick **The caller may say this while the line is still playing**
+on the route, or set `"while_speaking": true` on it through the API. Words over the line are then also decided against
+the marked routes, as one choice with the dispute, hardship, callback and
+human-request interrupts. A marked route is taken only when the caller's words
+themselves state what its label says. A bare "yes", a plan to pay or "let me
+check" takes none, and the line is spoken again as before.
+
+```json
+{ "id": "already_paid", "label": "Says this balance is already paid",
+  "target": "ask_payment_date", "while_speaking": true }
+```
+
+The rules, which validation enforces:
+
+- Only routes on an **Ask** step, or on a **Branch** that a waiting spoken line
+  leads to directly, can be marked. Unmarked routes are never offered over a
+  line.
+- A marked route can't be one of the step's `verified_routes`, and can't be on
+  a step that checks a protected value. A statement over a line never confirms
+  who the caller is.
+- A marked route may lead only to a spoken line, a Branch, a Read tool step, or
+  an Ask step that does not verify identity. It may not lead straight to an
+  action (a write, a transfer or an SMS), an outcome or an end; reach those
+  through a line or a question.
+- Wrong party, cease contact and language change still preempt a marked route,
+  and a dispute or another want the caller states still wins over it. The
+  call's opening is never decided against marked routes.
+
+The turn's evidence records the route with the policy reason `while_speaking`,
+and the line the caller spoke over is not repeated.
 
 Every semantic edit is also available from the form/list editor without
 drag-and-drop, and edits autosave to the draft only. If someone else edits the
@@ -462,7 +502,9 @@ On both engines the workflow decides the route; GPT-Live's wording never
 changes which step comes next.
 
 On both engines, words the caller says before a step's line has been heard in
-full are never an answer to it; the step is spoken again. It is spoken again at
+full are never an answer to it; the step is spoken again, unless the words take
+a route you marked for statements over a line (see
+[Statements the caller makes over a line](#statements-the-caller-makes-over-a-line)). It is spoken again at
 most twice after the caller's words: if the caller speaks over it a third time,
 the call ends with `ended_reason` `workflow_line_undelivered` (see
 [When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)).
