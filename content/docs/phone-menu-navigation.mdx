@@ -221,7 +221,7 @@ For a GPT-Live AI agent that never chose:
 | `languages_uncovered` | No transcriber Skysay can use for phone menus listens in one of the AI agent's languages. | Remove that language. |
 | `too_many_sockets` | Listening in all of the AI agent's languages would need more than two transcriber connections. | Remove a language. |
 | `no_language` | The AI agent has no language selected. | Select a language. |
-| `transcriber_unverified` | The AI agent's own transcriber (on Gemini Live, its captions; for a workflow, its listener) was measured to fail on phone menus in one of its languages. | Choose another transcriber. |
+| `transcriber_unverified` | The AI agent's live engine reads the line through captions Skysay has no phone-menu record for. A transcriber measured to mishear menus in a language is not a reason (see below). | Switch to an engine whose captions are recorded, or to Cascade. |
 | `listener_uncovered` | The published workflow's listener does not listen in one of the AI agent's or the workflow's languages. | Add that language to the listener, or remove it from the AI agent. |
 | `controller_lines_missing` | A workflow AI agent answers menus with prepared lines, and one of its languages has none yet. | Its calls run without navigation until the lines exist. |
 | `tool_name_conflict` | One of the AI agent's own tools is named `press_digits`, `wait_on_hold` or `abandon_navigation`. | Rename that tool. |
@@ -340,22 +340,23 @@ still misread. Those calls navigate on a best-effort basis. A keypad value is
 not given in Estonian or Finnish yet (see [Typed and spoken values](#typed-and-spoken-values)).
 
 Skysay tests each transcriber on recorded phone-menu lines, language by
-language. A transcriber that fails those tests in a language is not used for it:
-another transcriber that passes takes its place, and an AI agent whose own
-transcriber failed in one of its languages does not navigate
-(`ineligible_reason` `transcriber_unverified`, naming the language) until you
-choose another one. Today that is Deepgram Nova-3 in Estonian: it misheard the
-words to say to Estonian speech menus, so an Estonian AI agent on Deepgram
-navigates once it uses another transcriber, such as Azure or Soniox.
+language, and records where one mishears. That record is information, not a
+refusal: the transcriber is still used and the call still navigates, and the
+call's events note it the first time a menu is heard in that language
+(`navigation_unverified_language`). Today that is Deepgram Nova-3 in Estonian:
+it misheard some words to say to Estonian speech menus, so an Estonian AI agent
+on Deepgram may give a speech menu a word it does not listen for. Azure and
+Soniox heard the same lines correctly; choose one of them if Estonian speech
+menus matter to your calls.
 
 The line's language is not the AI agent's to choose: an outbound call reaches
 whatever menu and whatever person answers. So a call listens to the line in
 more than the agent's own languages. When the transcriber listening to the line
 can hear several languages at once without a list of candidates (Deepgram
-Nova-3's multilingual mode), the call listens in every language of that mode,
-less any it failed Skysay's phone-menu tests in. A menu, a queue or a person in
-a language the agent does not speak is then still heard: an English-only agent
-answers a Polish menu, and takes the "for English, press 2" read out inside it.
+Nova-3's multilingual mode), the call listens in every language of that mode.
+A menu, a queue or a person in a language the agent does not speak is then
+still heard: an English-only agent answers a Polish menu, and takes the "for
+English, press 2" read out inside it.
 The agent still speaks only its own languages.
 
 A call that holds a keypad value listens in the agent's own languages only,
