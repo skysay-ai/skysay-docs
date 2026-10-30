@@ -18,7 +18,7 @@
                 "$ref": "#/components/schemas/AgentFollowCaller"
               }
             ],
-            "description": "Answer each caller in whichever selected language they speak. Accepted at creation so a multilingual agent can be created in one request; enabling it requires at least two languages and is refused with 400 otherwise. Creation stores the opt-in only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set, and refuses the publication when none can. Changing it afterwards is a voice-stack save, not an agent update. An engine without a language axis (see voice_frontend) REFUSES this field with 400 rather than accepting and dropping it."
+            "description": "Answer each caller in whichever selected language they speak. On by default for an agent with two or more languages whose transcriber can listen for them all (see AgentFollowCaller); send it only to record an explicit choice. Accepted at creation so a multilingual agent can be created in one request; enabling it explicitly requires at least two languages and is refused with 400 otherwise. Creation stores the choice only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set: an explicit enabled true is refused there when none can, and an agent that never chose publishes in its opening language instead. Changing it afterwards is a voice-stack save, not an agent update. An engine without a language axis (see voice_frontend) REFUSES this field with 400 rather than accepting and dropping it."
           },
           "language": {
             "type": "string"
@@ -371,8 +371,13 @@
       },
       "AgentFollowCaller": {
         "additionalProperties": false,
-        "description": "Explicit saved and published automatic multilingual policy. Existing clients may send only enabled; omitted scope means selected. With scope all, the server resolves every language compatible with the exact stack at publication and freezes that concrete set. With selected, languages supplies the allowed subset. Clients cannot supply runtime adapter options, bindings, or rates.",
+        "description": "Saved and published automatic multilingual policy. On by default: an AI agent that never set it follows its caller wherever one transcriber can listen for its whole selected language set, and answers in its opening language elsewhere, never refused for it. Sending enabled records an explicit choice that stays when the language set or transcriber changes: false keeps the AI agent in its opening language, and true is refused where the transcriber cannot follow. Sending the value the AI agent already resolves to publishes nothing new. Read responses always carry the resolved value, so a client that never wants to choose omits the field. Existing clients may send only enabled; omitted scope means selected. With scope all, the server resolves every language compatible with the exact stack at publication and freezes that concrete set. With selected, languages supplies the allowed subset. Clients cannot supply runtime adapter options, bindings, or rates.",
         "properties": {
+          "default": {
+            "description": "Read responses only: true when the AI agent never chose and this is the resolved default, false when it is the owner's choice. A voice-stack write that echoes a read with default true and the same value records no choice; at creation the field is stored as sent.",
+            "readOnly": true,
+            "type": "boolean"
+          },
           "enabled": {
             "type": "boolean"
           },
