@@ -63,8 +63,12 @@ verify the read-back word for word.
 ## Voice setup
 
 Every free-form voice agent with write tools needs a supported confirmation
-listener covering its configured call languages. Select it in **Voice →
-Transcriber**; native voice engines show a separate confirmation listener there.
+listener covering its configured call languages. For native voice engines, **Voice → Booking confirmation** shows the managed
+selection and its additional per-unit usage price. Explicitly enabling writes
+selects the exact qualified managed default only when no selection was saved
+and it covers every call language. **Custom confirmation setup** keeps manual
+model and BYOK controls; existing selections are never replaced. Cascade voice
+setup keeps its existing transcriber selection.
 **Tuning → Turn-taking** controls its silence and interruption settings.
 
 This finite listener runs alongside the free-form engine, including a cascade
@@ -126,6 +130,10 @@ uncertain and use their provider-specific reconciliation process.
 
 Read an action through `GET /v1/calls/{call_id}/actions/{action_id}` or
 `GET /v1/sms-conversations/{conversation_id}/actions/{action_id}`. These reads do
-not execute, repair or retry anything. The confirmation ledger retains input
+not execute, repair or retry anything. Native calendar booking actions include
+an optional `calendar_outcome` field with the platform's current result. Pending
+confirmation, an unknown result and a refused request do not prove a booking;
+a confirmed result requires the successful canonical booking receipt. Other
+business actions omit this calendar-specific metadata. The confirmation ledger retains input
 ordering and hashes, not a second raw transcript; business receipts remain
 separate from recording and transcript retention.
