@@ -174,7 +174,9 @@ on the route, or set `"while_speaking": true` on it through the API. Words over 
 the marked routes, as one choice with the dispute, hardship, callback and
 human-request interrupts. A marked route is taken only when the caller's words
 themselves state what its label says. A bare "yes", a plan to pay or "let me
-check" takes none, and the line is spoken again as before.
+check" takes none, and the line goes on (Cascade) or is spoken again
+(GPT-Live 1), as for any words over a line (see
+[How the lines are spoken](#how-the-lines-are-spoken)).
 
 ```json
 { "id": "already_paid", "label": "Says this balance is already paid",
@@ -502,9 +504,23 @@ On both engines the workflow decides the route; GPT-Live's wording never
 changes which step comes next.
 
 On both engines, words the caller says before a step's line has been heard in
-full are never an answer to it; the step is spoken again, unless the words take
-a route you marked for statements over a line (see
-[Statements the caller makes over a line](#statements-the-caller-makes-over-a-line)). It is spoken again at
+full are never an answer to it.
+
+On **Cascade**, a line pauses as soon as the caller makes a sound over it. A
+cough or line noise lets it go on. When the caller's words take one of the
+workflow's global interrupts, a language switch or a route you marked for
+statements over a line (see
+[Statements the caller makes over a line](#statements-the-caller-makes-over-a-line)),
+the line stops and the call goes there. Any other words, such as "mm-hmm",
+"okay, go on" or a question the workflow has no interrupt or marked route for,
+change nothing: the same line goes on from where it paused, and the caller can
+answer or ask again once it ends. They are kept in the call's transcript but
+are not a turn, and they do not count toward the repeat limit below. If
+Skysay cannot tell within 3 seconds, or the caller speaks again meanwhile, the
+line stops as described next.
+
+On **GPT-Live 1**, and on Cascade whenever the words stop the line without
+taking an interrupt or a marked route, the step is spoken again. It is spoken again at
 most twice after the caller's words: if the caller speaks over it a third time,
 the call ends with `ended_reason` `workflow_line_undelivered` (see
 [When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)).
