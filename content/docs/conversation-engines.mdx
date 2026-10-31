@@ -203,8 +203,19 @@ still checking that quiet period. Skysay briefly retains this post-greeting
 audio and passes it to the engine once the opening check succeeds, before new
 live audio. Silent intervals are not replayed; a recovered reply includes at most
 200 milliseconds of leading quiet. Retention is limited to two seconds and stays
-in memory. This does not recover words spoken over the audible greeting or establish what the
-person meant.
+in memory.
+
+A reply can also begin over the greeting's last words, when the person starts
+answering in a pause or before the final syllable has finished. If they are
+still speaking when the greeting ends, Skysay passes that reply to the engine
+from its first word, not only the part after the greeting. Up to about a second
+of speech from before the greeting ended is included. Skysay does this only if
+part of the reply arrived when the greeting's own echo could not have caused it.
+If the start of the sound cannot be established, for example because it was
+already going on long before the greeting ended, Skysay passes it on only from
+the point where the greeting's echo could no longer explain it. Sound that the
+greeting's echo could explain throughout is not passed on. This recovery does
+not establish what the person meant.
 
 Recovery is skipped when opening delivery cannot be established, the connection
 restarts, observation is interrupted, delayed audio arrives in a burst, the
@@ -215,7 +226,7 @@ to repeat it.
 Two consequences to plan for:
 
 - A short sound during the opening, such as a "hello?", is not passed to the
-  engine afterwards. On GPT-Live, if the person keeps speaking for more than
+  engine afterwards if it ended before the greeting did. On GPT-Live, if the person keeps speaking for more than
   about a second, the engine starts hearing the line again and is first given the
   last two seconds of what they said, so it can stop its greeting and answer
   them. This is the same one-second rule the Standard engine uses for its
