@@ -10,6 +10,7 @@ checks.
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import sys
 from pathlib import Path
@@ -145,12 +146,18 @@ def render(schema: dict[str, Any], coverage: dict[str, Any]) -> str:
             "",
             "The API repository generates `/openapi.json` from its canonical schema. This docs",
             "repository checks in a snapshot so builds and reviews do not depend on the network.",
-            "Refresh that snapshot from the reviewed API source, then run:",
+            "One command, run in the API checkout of the commit this documentation describes,",
+            "rewrites the snapshot, its coverage list and this page together:",
             "",
             "```bash",
-            "python3 scripts/generate_openapi_reference.py --check",
-            "python3 -m unittest discover -s tests",
+            "PYTHONPATH=src:packages/skysay-common:packages/skysay-gateway \\",
+            "  .venv/bin/python scripts/export_openapi.py \\",
+            "  | python3 <docs>/scripts/refresh_openapi_snapshot.py --from - \\",
+            "      --coverage docs/public-api-coverage.json",
             "```",
+            "",
+            "CI runs `python3 scripts/generate_openapi_reference.py --check` and fails when this",
+            "page no longer matches the snapshot.",
             "",
             "If the snapshot contains a new customer route, update the conceptual guide that",
             "explains its product model as well. Do not hand-copy request schemas into prose.",
@@ -169,8 +176,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         if actual != expected:
             print(
-                "generated API reference is stale; run python3 scripts/generate_openapi_reference.py",
+                "generated API reference is stale: content/docs/api-reference.mdx does not match"
+                " api/openapi.json and api/customer-api-coverage.json. Refresh all three with"
+                " scripts/refresh_openapi_snapshot.py, or after a merge run"
+                " python3 scripts/generate_openapi_reference.py. Difference (committed -> generated):",
                 file=sys.stderr,
+            )
+            sys.stderr.writelines(
+                difflib.unified_diff(
+                    actual.splitlines(keepends=True),
+                    expected.splitlines(keepends=True),
+                    fromfile="content/docs/api-reference.mdx (committed)",
+                    tofile="content/docs/api-reference.mdx (generated)",
+                )
             )
             return 1
         print("Generated API reference is current.")
