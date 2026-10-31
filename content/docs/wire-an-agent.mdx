@@ -251,6 +251,24 @@ alone does not establish that its complete call stack is runnable.
 The tool maps to `PATCH /v1/agents/{agent_id}/voice-stack`; its language fields
 match the [generated API reference](/docs/api-reference).
 
+### Deepgram Flux, an alternative transcriber
+
+**Deepgram Flux** (`deepgram` / `flux-general-multi`) is a faster multilingual
+transcriber that decides itself when the caller has finished speaking. It is an
+alternative you select; Skysay never picks it as a default, for a new agent or
+when you change an agent's language. Deepgram documents the languages Flux
+serves (currently about ten) on its
+[Flux language page](https://developers.deepgram.com/docs/flux/language-prompting).
+Skysay keeps no list of its own: you can select Flux for any agent, and a call
+in a language Flux does not serve ends visibly, with the reason
+`transcriber_refused_request`, as it would on any transcriber that refuses a
+language. Flux is billed at the same rate as Deepgram Nova-3.
+
+On Flux the `interruption_sensitivity` presets move Flux's own end-of-turn
+settings instead of a hold after the turn; see
+[Turn detection by language](/docs/turn-detection-by-language#deepgram-flux).
+Workflow agents do not use Flux yet.
+
 Keep a fixed language per call, or enable **Auto multilingual** and choose all
 supported languages or your own subset. The underlying **Follow the caller**
 setting is optional: publish it only with a listening configuration that
