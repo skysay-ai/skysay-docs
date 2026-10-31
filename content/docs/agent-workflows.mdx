@@ -42,17 +42,17 @@ languages** picker offers those languages. See
 
 | Listener | Accepted for spoken workflows | Tested by Skysay | Credentials |
 | --- | --- | --- | --- |
-| Deepgram Nova-3 | All the languages it lists | English, Tamil | Skysay or your supported credential |
-| Azure Realtime | All the languages it lists | English, Sinhala | Skysay only |
-| Soniox STT-RT v5 | All the languages it lists | English | Skysay or your supported credential |
-| OpenAI GPT-Live Transcribe | English | English | Skysay only |
+| Deepgram Nova-3 | Every call language | English, Tamil | Skysay or your supported credential |
+| Azure Realtime | Every call language Skysay has an Azure regional tag for | English, Sinhala | Skysay only |
+| Soniox STT-RT v5 | Every call language | English | Skysay or your supported credential |
+| OpenAI GPT-Live Transcribe | Every call language | English | Skysay only |
 
 GPT-Live Transcribe is a finite **workflow listener**. It is not offered as a
 transcriber for an ordinary cascade conversation. It uses OpenAI's transcription
 connection directly, and bills provider-reported audio seconds, including the
 provider's rounding. It does not provide detected-language evidence for
-**Follow the caller**. It accepts English only, and makes no claim about
-automatic language switching.
+**Follow the caller**. It accepts every call language, Skysay has tested
+English only, and it makes no claim about automatic language switching.
 
 For ordinary GPT-Live or Gemini Live conversations, the live engine handles
 listening and turn-taking. A GPT-Live spoken workflow instead uses the listener
@@ -506,10 +506,10 @@ Test your own languages before you launch.
 
 | Used as | Provider and model | Accepted | Tested by Skysay |
 | --- | --- | --- | --- |
-| Listener | Deepgram Nova-3 (`nova-3`) | All the languages it lists | English, Tamil |
-| Listener | Azure AI Speech real-time transcription | All the languages it lists | English, Sinhala |
-| Listener | Soniox Real-time v5 (`stt-rt-v5`) | All the languages it lists | English |
-| Listener | OpenAI GPT-Live Transcribe (`gpt-live-transcribe`) | English | English |
+| Listener | Deepgram Nova-3 (`nova-3`) | Every call language | English, Tamil |
+| Listener | Azure AI Speech real-time transcription | Every call language Skysay has an Azure regional tag for | English, Sinhala |
+| Listener | Soniox Real-time v5 (`stt-rt-v5`) | Every call language | English |
+| Listener | OpenAI GPT-Live Transcribe (`gpt-live-transcribe`) | Every call language | English |
 | Voice (Cascade) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English | English |
 | Voice (Cascade) | Azure AI Speech neural voices | All the languages it lists | Sinhala, English |
 | Voice (Cascade) | Fish Audio S2 Pro (`s2-pro`) | English, Tamil | Tamil |
@@ -559,14 +559,16 @@ Which languages count:
   word, such as a legal disclosure.
   A line counts as spoken only once GPT-Live has played it to the caller in
   full, its ending included. If the model pauses partway through a line,
-  Skysay waits up to 3 seconds for the rest and plays it; the call's
-  transcript shows a line only after it was played. A line before the end
-  of the workflow that GPT-Live does not finish ends the call as a workflow
-  failure, with `ended_reason` `workflow_line_undelivered`, rather than moving
-  on to a step the caller never heard asked. If
-  the closing line is not finished, the call still ends as `agent_completed`
-  with the outcome the workflow recorded, and the closing line is left out of
-  the transcript. On a GPT-Live workflow call the listener
+  Skysay waits up to 3 seconds for the rest and plays it. The call's
+  transcript shows what GPT-Live said, in its own words, with the audio it
+  played, rather than the line as you wrote it. A line the caller
+  cut off is shown as far as it was played and marked as interrupted. A line
+  before the end of the workflow that GPT-Live does not finish ends the call
+  as a workflow failure, with `ended_reason` `workflow_line_undelivered`,
+  rather than moving on to a step the caller never heard asked. If the closing
+  line is not finished, the call still ends as `agent_completed` with the
+  outcome the workflow recorded, and the transcript shows only the part of it
+  that was played. On a GPT-Live workflow call the listener
   saved under **Voice → Transcriber** hears the caller, not GPT-Live, so a
   listener is required there too. GPT-Live does not navigate phone menus, so a GPT-Live
   workflow call runs without
