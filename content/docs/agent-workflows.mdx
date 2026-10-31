@@ -68,6 +68,18 @@ model. Silence holds accept 300–3000 ms and minimum interruption speech accept
 80–2000 ms bounds. The settings express the same intent across modes; their
 underlying turn detectors differ.
 
+A spoken workflow starts deciding while the caller finishes. After the caller
+stops speaking, the listener keeps hearing the line through the silence hold,
+for up to 950 ms (the whole hold when it is shorter), so the listener can
+finalize the caller's words before the hold ends. The workflow then decides the
+caller's turn ahead of time, and uses that decision only if the words the turn
+ends with are exactly the same. If the caller keeps talking, or the words
+change, it decides again from the final words. The turn still ends when the hold
+ends; before then nothing is said or disclosed and the workflow does not move to
+another step. The extra listening is billed as listener audio: up to 0.95
+seconds more per caller turn. GPT-Live Transcribe finalizes only when the turn
+ends, so with it the workflow decides after the hold, as before.
+
 ### Configure shared input through the API
 
 Read `GET /v1/agents/{agent_id}/voice-stack` and retain
