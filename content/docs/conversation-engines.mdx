@@ -342,27 +342,36 @@ and response shapes.
 
 ## When a live agent proposes to end a call
 
-For a live voice model, Skysay waits for the model's goodbye to finish before
-closing the connection. Caller input stays open during that wait. If local
-speech detection says the caller is already speaking, the model's `end_call`
-request is refused. If the caller starts speaking while that close is pending,
-Skysay withdraws the close and leaves the conversation open. After the goodbye,
-there is up to 750 ms for the caller to take the floor, within the existing
-shutdown time limit.
+Native agents with `end_call` use the speech-recognition model selected in
+**Voice → Transcriber** to check complete caller turns before accepting a
+model's request to hang up. The live model still hears, responds and speaks;
+this additional listener does not generate its replies. When business actions
+also require confirmation, they share the same listener.
 
-This safeguard is automatic; there is no new agent-editor switch or API field.
-It detects speech activity rather than meaning: noise can keep a call open,
-and speech the detector misses cannot stop closure. It does not establish
-identity, confirm a promise, count clarification questions, undo a goodbye
-already heard, or end a call when the model forgets to invoke `end_call`.
-Balance limits and other platform-enforced endings still close the call.
+Select a qualified listener covering every selected call language before
+starting native calls with `end_call`. Calls are refused before admission when
+that selection or its credentials are missing. Listener usage is reserved and
+settled separately from the live conversation model at the selected source's
+rate. Existing agents need their listener selection reviewed before this change
+is released.
 
-On phone and workspace browser-test calls, the existing farewell fallback can
-also request closure after it recognizes the caller's closing words. If the
-caller takes the floor again, that pending request is withdrawn; a later
-goodbye can request a fresh close. A fallback close does not mean the model
-invoked `end_call`. Model tool use and actual call disconnection are separate
-evidence.
+The model must still request `end_call`. The guard checks the caller's complete
+recognised words and refuses unclear, unfinished or continuing turns. A
+mid-conversation thank-you or summary confirmation is not permission to hang
+up. Pending recognition, an unavailable source or a failed decision keeps the
+call open. Recognition and model judgements can still be wrong; these checks
+are safeguards, not guarantees of intent.
+
+Caller input remains open while the farewell plays. New words take back a
+pending close; a finite recognition result can distinguish blank line noise
+from caller words. Skysay checks the source again before disconnecting. Other
+platform limits, such as funding, duration and remote disconnection, remain
+authoritative. There is no caption-keyword hang-up fallback.
+
+A spoken goodbye and a tool invocation are separate events. This safeguard
+cannot guarantee that the live model will invoke a missing tool, and does not
+make an unqualified agent or demonstration customer-ready. Validate both
+successful endings and calls that must stay open before relying on it.
 
 ## Workflow listening
 
