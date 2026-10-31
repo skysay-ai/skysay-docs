@@ -68,6 +68,18 @@ model. Silence holds accept 300–3000 ms and minimum interruption speech accept
 80–2000 ms bounds. The settings express the same intent across modes; their
 underlying turn detectors differ.
 
+A spoken workflow starts deciding while the caller finishes. After the caller
+stops speaking, the listener keeps hearing the line through the silence hold,
+for up to 950 ms (the whole hold when it is shorter), so the listener can
+finalize the caller's words before the hold ends. The workflow then decides the
+caller's turn ahead of time, and uses that decision only if the words the turn
+ends with are exactly the same. If the caller keeps talking, or the words
+change, it decides again from the final words. The turn still ends when the hold
+ends; before then nothing is said or disclosed and the workflow does not move to
+another step. The extra listening is billed as listener audio: up to 0.95
+seconds more per caller turn. GPT-Live Transcribe finalizes only when the turn
+ends, so with it the workflow decides after the hold, as before.
+
 ### Configure shared input through the API
 
 Read `GET /v1/agents/{agent_id}/voice-stack` and retain
@@ -145,9 +157,18 @@ interrupts are weighed against your routes as one choice: a route you wrote for
 the reply ("Already paid", "Has a question", "Wants to leave a message") is
 taken when it fits what the caller said better, so the step you laid out
 answers them, and when none of your routes fits, the interrupt applies as
-before. Wrong party, cease contact and language change are always checked on
-their own and still preempt any route. When a read tool sits between the line
-and the branch, the branch decides after that step, separately, as before.
+before. Wrong party and cease contact are always checked on their own and still
+preempt any route. When a read tool sits between the line and the branch, the
+branch decides after that step, separately, as before.
+
+**Language change on an agent that follows the caller.** When the caller
+speaks, or asks for, another language the agent publishes, the call switches to
+that language and the same reply is still decided against your routes: a
+question asked in Spanish takes your "Has a question" route and is answered in
+Spanish, in the same turn. Only a reply that is about the language alone ("Can
+you help me in Spanish?") speaks the current step again, in the new language. A
+language the agent does not publish takes the language-change interrupt's own
+route, as before.
 
 On an Ask step the caller still gets what they ask for alongside an answer:
 "Yes, it's me, but I want to speak to a person" takes the human-request
@@ -158,7 +179,47 @@ and a hardship, all of them are reported and the fixed order above decides
 which one applies. This applies to an Ask step that chooses one of its routes.
 It does not apply to an Ask step that checks the caller's answer against a
 protected value, or to speech that starts before the question has been fully
-spoken; there the interrupts are checked on their own, as before.
+spoken; there the interrupts are checked on their own, as before, unless you
+marked a route for it (below).
+
+### Statements the caller makes over a line
+
+A caller sometimes says something on their own while a line is still playing,
+such as "I already paid" over the balance explanation. Those words are not an
+answer to a question they have not heard, so by default only the global
+interrupts are checked, and a payment claim can land on the dispute interrupt.
+
+To give such a statement a step of its own, mark the route that should take it:
+in the editor, tick **The caller may say this while the line is still playing**
+on the route, or set `"while_speaking": true` on it through the API. Words over the line are then also decided against
+the marked routes, as one choice with the dispute, hardship, callback and
+human-request interrupts. A marked route is taken only when the caller's words
+themselves state what its label says. A bare "yes", a plan to pay or "let me
+check" takes none, and the line is spoken again as before.
+
+```json
+{ "id": "already_paid", "label": "Says this balance is already paid",
+  "target": "ask_payment_date", "while_speaking": true }
+```
+
+The rules, which validation enforces:
+
+- Only routes on an **Ask** step, or on a **Branch** that a waiting spoken line
+  leads to directly, can be marked. Unmarked routes are never offered over a
+  line.
+- A marked route can't be one of the step's `verified_routes`, and can't be on
+  a step that checks a protected value. A statement over a line never confirms
+  who the caller is.
+- A marked route may lead only to a spoken line, a Branch, a Read tool step, or
+  an Ask step that does not verify identity. It may not lead straight to an
+  action (a write, a transfer or an SMS), an outcome or an end; reach those
+  through a line or a question.
+- Wrong party, cease contact and language change still preempt a marked route,
+  and a dispute or another want the caller states still wins over it. The
+  call's opening is never decided against marked routes.
+
+The turn's evidence records the route with the policy reason `while_speaking`,
+and the line the caller spoke over is not repeated.
 
 Every semantic edit is also available from the form/list editor without
 drag-and-drop, and edits autosave to the draft only. If someone else edits the
@@ -241,6 +302,52 @@ does not advance the clarification steps.
 Template updates do not rewrite existing drafts, custom workflows, or immutable
 published versions. To adopt the clarification steps on an existing agent,
 explicitly update its draft, test the new routes, and publish a new version.
+
+### Ask one question over several steps
+
+A question can take several steps to ask: the identity question above is one
+question and two clarifications. Each step is spoken again when the caller talks
+over it (see [How the lines are spoken](#how-the-lines-are-spoken)), so a caller
+who keeps talking over three steps can hear the question up to nine times. A
+**question group** gives those steps one shared limit.
+
+```json
+"question_groups": [
+  {
+    "id": "identity",
+    "steps": ["verify_person", "clarify_identity", "clarify_identity_final"],
+    "max_presentations": 3,
+    "on_exhausted": "identity_unconfirmed"
+  }
+]
+```
+
+- `steps` are **Ask** steps, or **Tell / Say** steps that wait for the caller.
+  A step belongs to at most one group.
+- `max_presentations` is 1 to 20. One is spent each time a line of one of the
+  steps starts playing to the caller, whether it plays to the end or the caller
+  talks over it. A line that never started playing is not counted, and a retried
+  or repeated request does not count it twice.
+- Once the limit is spent, the workflow goes to `on_exhausted` instead of
+  asking any of the steps again, and the call's workflow path shows the route
+  `question_group_exhausted` with the reason
+  `question_group_exhausted:<id>:<spent>/<max_presentations>`. `on_exhausted`
+  may not be a step of any group, and may not lead back into its own group.
+- A caller who answers on the last allowed presentation is still heard: a
+  confirmation then takes its route as usual. A stop request, a wrong-person
+  reply and the other global interrupts are decided first, so a spent group
+  never holds them back.
+- A presentation the caller talked over still counts toward the limit, but it
+  never confirms anyone. Only an answer to a question the caller heard in full
+  can.
+- Protected values follow the same rule as everywhere else: `on_exhausted` and
+  the steps after it may not say one the group's steps have not released.
+
+Groups are optional. A workflow without them keeps every limit described on this
+page exactly as before, and the starter templates declare none. Set them with
+`PATCH /v1/agents/{id}/workflow` (the `question_groups` field of `workflow`);
+the canvas keeps them when you edit the draft there, and validation reports a
+group that does not fit the rules above.
 
 ## Validation, then testing, then publishing
 
@@ -337,7 +444,7 @@ its own to edit, and nothing on the canvas or in the graph sets one.
 | **Caller languages** | **Voice → Transcriber** | Every language the workflow speaks, and every language the agent is set up to speak, must be in this list, and the model must accept each of them. The list offers every language Skysay lists for the model; the ones Skysay has tested with that model carry a **Tested by Skysay** badge. |
 | **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
 | **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
-| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller speech it takes to cut off a line being spoken: 0 to 1000 for a workflow. Shorter noise does not interrupt; recognized words always do. |
+| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off. On the Cascade engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
 
 A published workflow keeps hearing callers through that setup. Publishing
 freezes a copy of the saved listener and timing into the version, so each
@@ -462,14 +569,26 @@ On both engines the workflow decides the route; GPT-Live's wording never
 changes which step comes next.
 
 On both engines, words the caller says before a step's line has been heard in
-full are never an answer to it; the step is spoken again. It is spoken again at
+full are never an answer to it; the step is spoken again, unless the words take
+a route you marked for statements over a line (see
+[Statements the caller makes over a line](#statements-the-caller-makes-over-a-line)). It is spoken again at
 most twice after the caller's words: if the caller speaks over it a third time,
 the call ends with `ended_reason` `workflow_line_undelivered` (see
 [When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)).
 A stop request, a wrong-person reply and the workflow's other global interrupts
 still apply on each of those turns. Background noise that cuts a line is not
 counted, and neither are words said before a repeat began playing: only a
-repeat the caller could hear start counts toward the three.
+repeat the caller could hear start counts toward the three. A step in a
+[question group](#ask-one-question-over-several-steps) whose limit is spent is
+not spoken again at all: the workflow goes to the group's `on_exhausted` step
+instead of ending the call this way.
+
+On the Cascade engine, a sound with no words in it does not cut a line. The
+line pauses while the caller's sound is recognized and then continues from
+where it paused, so it is heard in full once and is not spoken again. The
+caller can answer as soon as it ends. Recognized words still cut the line off,
+as above. On GPT-Live, any caller sound long enough to interrupt still cuts the
+line off.
 
 ### When a spoken workflow call is refused
 
@@ -933,7 +1052,7 @@ remain conversation controls. Protected values keep their existing disclosure
 and tool restrictions; adding an Action never bypasses them.
 
 A workflow's tool results are kept with the call's transcript and deleted with
-it, when the call's recording is deleted or its retention period ends.
+it, when the call's recording is deleted.
 
 ## Runtime guarantees
 
@@ -947,8 +1066,8 @@ The compiled contract enforces, server-side, on every turn:
   caller's later explicit yes to its read-back;
 - a protected value leaves the server only after the caller's confirmation is
   stored, and only in the lines after it;
-- per-step visit counts, a total turn budget, and a per-turn timeout are hard
-  limits;
+- per-step visit counts, a total turn budget, a per-turn timeout and each
+  question group's presentation limit are hard limits;
 - unknown routes, malformed decisions, missing capabilities, and exhausted
   budgets fail closed with a spoken, localized farewell rather than an open
   line.
