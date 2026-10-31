@@ -251,8 +251,8 @@ You turn navigation off, or change its limits, per AI agent with the
 | Setting | Meaning |
 | --- | --- |
 | `enabled` | Required in every write of the section. `true` turns navigation on for this AI agent's outbound calls, `false` turns it off and is kept by every save, and `null` follows the platform default, which is on. |
-| `max_hold_seconds` | The most time one call may spend waiting in a hold queue (10-3600, default 600). |
-| `max_navigation_seconds` | The most time one call may spend answering menus (10-900, default 180). |
+| `max_hold_seconds` | The most time one call may spend waiting in a hold queue (10-3600, default 600). After a person was confirmed, only menu or queue time counts. |
+| `max_navigation_seconds` | The most time one call may spend answering menus (10-900, default 180). After a person was confirmed, only menu or queue time counts. |
 
 ```bash
 curl -X PATCH https://api.skysay.ai/v1/agents/agt_123/voice-stack \
@@ -319,10 +319,10 @@ your agent's selected languages:
   and the languages in `ineligible_languages`. Remove a language to use
   navigation.
 
-A transcriber measured to fail on phone menus in a language is never used for
-it, and an agent whose own transcriber failed in one of its languages does not
-navigate (`ineligible_reason` `transcriber_unverified`; today Deepgram Nova-3 in
-Estonian).
+Skysay records where a transcriber was measured to mishear phone menus in a
+language (today Deepgram Nova-3 in Estonian). That record does not stop a
+call from navigating: the transcriber is still used, and the call's events note
+the language it was heard in (`navigation_unverified_language`).
 
 The agent answers menus in its own languages only: a menu in another language is
 not answered, by keys or by speech. Add the language to the agent if its calls
