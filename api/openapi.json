@@ -1493,6 +1493,13 @@
               },
               "draft": {
                 "properties": {
+                  "question_groups": {
+                    "items": {
+                      "$ref": "#/components/schemas/WorkflowQuestionGroup"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  },
                   "voice_input": {
                     "anyOf": [
                       {
@@ -6334,6 +6341,39 @@
         ],
         "type": "object"
       },
+      "WorkflowQuestionGroup": {
+        "additionalProperties": false,
+        "description": "Speak-and-wait steps (ask, or say with ends_turn) that ask one question and share one budget of presentations. One presentation is spent for each reply whose line of a member began playing to the caller, whether it played to the end or was cut; a line that never began playing is not spent. Once max_presentations are spent, the run goes to on_exhausted instead of presenting any member again, and the run's path records route question_group_exhausted. Global interrupts are decided first, so a stop or wrong-person request is never held back. A step belongs to at most one group; on_exhausted may not be a group step or lead back into its own group. Optional: a workflow without groups keeps every other limit unchanged.",
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "max_presentations": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "on_exhausted": {
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "steps",
+          "max_presentations",
+          "on_exhausted"
+        ],
+        "type": "object"
+      },
       "WorkflowVersionSummary": {
         "description": "Safe immutable version metadata. The separate published field is null before the first explicit publish.",
         "properties": {
@@ -9031,6 +9071,13 @@
                       ]
                     },
                     "properties": {
+                      "question_groups": {
+                        "items": {
+                          "$ref": "#/components/schemas/WorkflowQuestionGroup"
+                        },
+                        "maxItems": 20,
+                        "type": "array"
+                      },
                       "steps": {
                         "items": {
                           "oneOf": [
