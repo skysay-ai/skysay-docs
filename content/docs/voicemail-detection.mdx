@@ -1,6 +1,6 @@
 ---
 title: Voicemail detection
-description: How Skysay tells a voicemail box from a person on an outbound call, which evidence can prove a mailbox in which languages, the four per-agent settings, and what each one does today.
+description: How Skysay tells a voicemail box from a person on an outbound call, which evidence can prove a mailbox in which languages, the four per-agent settings, and what each one does today, including how a Hang up call ends.
 icon: VoiceScan
 ---
 
@@ -93,16 +93,16 @@ answers** card of the agent editor or through
 | Value | In the editor | What it does |
 | --- | --- | --- |
 | `shadow` | Watch only | Keeps talking as now and records what it would have done. |
-| `hang_up` | Hang up | Ends the call without a message on proof of a mailbox. |
+| `hang_up` | Hang up | Ends the call without a message on proof of a mailbox, a few seconds after the beep. |
 | `leave_message` | Leave a message | Plays your approved message after the beep, then ends the call. |
 | `off` | Off | Detects nothing and records nothing. |
 
 <Callout type="warn">
-**Today every agent watches only.** `hang_up` and `leave_message` are accepted
-and saved now, but they start acting only after the detector has passed its
-accuracy check on real calls. Until then an agent set to either of them
-behaves exactly like `shadow`, and each call's evidence shows both the setting
-you chose and the one that ran.
+**Leave a message still watches only.** `hang_up` acts. `leave_message` is
+accepted and saved now, but it starts acting only after the detector has
+passed its accuracy check on real calls. Until then an agent set to it behaves
+exactly like `shadow`: it never hangs up instead. Each call's evidence shows
+both the setting you chose and the one that ran.
 </Callout>
 
 `shadow` is what an agent with no stored value gets. As with
@@ -157,13 +157,39 @@ message is not played by any call today; see the note above.
 
 ## What happens on a call today
 
-With `shadow`, and with the other two settings until they are released:
+With `shadow`, and with `leave_message` until it is released:
 
 - the call runs exactly as it would without detection. The agent's opening,
   its conversation, its workflow and how the call ends are unchanged;
 - nothing about detection appears in the call's `answer_classification`,
   `ended_reason`, webhooks or campaign results;
 - the verdict and the evidence behind it are recorded with the call.
+
+With `hang_up`, on proof of a mailbox:
+
+- the call is ended without a message once the beep is confirmed as a single
+  beep and the line has then stayed quiet, about six and a half seconds after
+  the beep, on every conversation engine and on calls that run a workflow;
+- it ends with `ended_reason: no_human_after_answer` and
+  `reason_detail: recorded_message_only`: a recording and nothing else
+  answered. The same pair is used when only recordings were heard on a call
+  navigating a phone menu; the call's voicemail evidence says which;
+- its `answer_classification` is `unknown`, not `human`: a mailbox greeting is
+  words, but no person answered;
+- a person heard before the proof, any sound on the line after the beep (a
+  quiet reply included), audio after the beep that did not arrive, an answer
+  the phone network did not confirm, or a call waiting in a phone menu or a
+  queue keeps the call going;
+- anything the agent was saying stops with the call, so a mailbox can record
+  the start of the agent's opening before the call ends;
+- a beep heard while the agent is speaking is never taken as proof, so a
+  `hang_up` agent does not act when its opening covers the beep. Today the
+  opening starts once the person or mailbox pauses for about half a second,
+  which on a mailbox whose greeting pauses, or beeps right after it ends, is
+  often while the beep sounds; those calls continue as with `shadow`. Holding
+  the opening until a suspected mailbox has beeped is planned;
+- retries stay with your campaign's retry rule, and minutes up to the end of
+  the call are billed as usual.
 
 ## Reading the evidence
 
@@ -173,11 +199,12 @@ that detection ran on shows a **Voicemail detection** block:
 
 - the verdict: Voicemail, Voicemail? (suspicion only), Person, Not sure, Phone
   menu or queue, Call screener, or Unavailable announcement;
-- the setting you chose and the one that ran, for example "Set to Hang up —
-  watching only until the accuracy check";
-- what the agent would have done and when, marked "not applied". For an agent
-  on `leave_message` this is when the message would have started, measured
-  from the end of the beep;
+- the setting you chose and the one that ran, for example "Hang up — on", or
+  "Set to Leave a message — watching only until the accuracy check";
+- what the agent did, or would have done, and when. A Hang up call that ended
+  on the proof says "Hung up at … s: a voicemail answered"; everything that
+  did not act is marked "not applied". For an agent on `leave_message` this is
+  when the message would have started, measured from the end of the beep;
 - whether a person was heard after that moment. This is the case the accuracy
   check exists to catch: a call where acting would have cut somebody off;
 - each piece of evidence, marked as proof, suspicion, a sign of a person, or
@@ -189,7 +216,6 @@ nothing was checked, not that no voicemail was found.
 
 ## What comes next
 
-When `hang_up` and `leave_message` are released, calls they end will carry
-their own ended reason, and this page will list it. Retries stay with your
-campaign's retry rule, and minutes up to the end of the call are billed as
-usual.
+`leave_message` acts once it is released. A voicemail outcome of its own, for
+example as an event a workflow can branch on, is planned; until then a Hang up
+call is recognised by the pair above and its voicemail evidence.
