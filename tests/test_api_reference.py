@@ -65,8 +65,9 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("no AI or provider call", workflows)
 
     def test_call_evidence_guide_explains_safe_per_turn_audio(self) -> None:
-        calls = self.schema["paths"]["/v1/dashboard/calls"]["get"]
-        self.assertIn("has_audio", calls["description"])
+        # has_audio is a field of the Calls workspace read, which the public
+        # snapshot deliberately does not carry; the guide is its documentation.
+        self.assertNotIn("/v1/dashboard/calls", self.schema["paths"])
         guide = (ROOT / "content" / "docs" / "read-call-evidence.mdx").read_text(
             encoding="utf-8"
         )
