@@ -59,6 +59,16 @@ automatically detect a change. Some transcribers supply stable language
 evidence for automatic switching; others support switching only after the
 caller clearly asks. Check the capability shown for the chosen configuration.
 
+Deepgram Nova-3 now supplies that evidence: it reports the language of each
+final result, so an Auto multilingual agent on Deepgram switches when the
+caller is heard speaking another published language, after two agreeing
+results, as well as on request. This applies to agents that are already
+published from their next call; you do not need to republish. Follow the caller
+is on by default for an agent with more than one language, so this reaches
+every such agent on Deepgram that has not turned Follow the caller off. A
+language the caller speaks that is not one of the agent's published languages
+never switches the reply language.
+
 The call surface also matters: **Standard anonymous homepage demos currently
 support explicit-request switching, but do not connect provider language
 evidence to automatic switching.** Authenticated workspace browser tests use
@@ -126,6 +136,46 @@ opt-in for controlled switching among that call's admitted language profiles.
 Neither mode accepts arbitrary stack changes from `call_context`, extraction
 results, or a model instruction. A language request cannot add a new voice,
 provider, or language to an active call.
+
+### Hearing the other party in any language
+
+The language of the person or the phone menu that answers an outbound call, or
+of the person who calls you, is not yours to choose. So a call **listens** in
+any language, whatever the AI agent speaks: when the agent's transcriber can
+hear several languages at once without a list of candidates (Deepgram Nova-3), a
+Standard call uses that mode for the whole call — outbound, inbound, a browser
+test or a Simulations Lab room alike. An English-only agent that reaches, or is
+called by, a Polish speaker then understands what they say; before, the
+transcriber heard nothing of it.
+
+What the agent **says** does not change: it still speaks its own published
+languages, and it does not switch to a language it is not set up for. Two kinds
+of call keep listening in the agent's own language:
+
+- a call that follows the caller, whose own published setting already decides
+  how it listens;
+- a call that holds a keypad value for a phone menu, because a value read back
+  on the line is hidden only in a language Skysay recognises numbers in.
+
+A browser test that tries an unpublished transcriber, model or voice from the
+editor also listens in the agent's language.
+
+Listening in many languages at once can be slightly less accurate in the agent's
+own language than a transcriber set to that language alone (Skysay measured
+about one more word in a hundred on English phone-menu recordings).
+
+#### Locking listening to the agent's language
+
+If accuracy in the agent's own language matters more than hearing other
+languages, open the AI agent's **Languages** section and choose **Listening →
+The AI agent's language only**. Through the API, send
+`"listening": {"mode": "agent_language"}` to
+`PATCH /v1/agents/{agent_id}/voice-stack` (MCP tool `set_agent_voice_stack`);
+`"open"` restores the default. The setting is frozen in the published
+configuration, so changing it republishes the agent's languages, and it applies
+to every call from then on. It changes nothing for a transcriber without a
+multi-language mode, and an engine without a language axis (GPT-Live, Gemini
+Live) refuses it.
 
 ## Configure languages on one agent
 
@@ -396,17 +446,18 @@ Keep **Single language per call** when each call should stay in its selected
 language. The opening language determines how the agent starts; it does not
 force the caller to stay in that language.
 
-Whether **Follow the caller** starts on depends on where the agent came from:
+**Follow the caller** is on by default for an AI agent with two or more
+languages. Unless you choose otherwise, the agent answers each caller in
+whichever of its selected languages they speak, wherever its transcriber can
+listen for all of them at once. Where the transcriber cannot, the agent keeps
+single-language behaviour and nothing is blocked. An AI agent that is already
+published changes only when you next publish it.
 
-- **Agents that already exist, and any change you make in the editor.** Off
-  until you enable and publish it yourself. Adding a second language in the
-  editor's **Languages** section does not switch it on.
-- **Agents created through the new-agent flow.** On, but only when both are
-  true at the moment you create it: you chose two or more languages, *and* the
-  transcriber you chose declares that it can listen for all of them at once. If
-  either is not true it is off, and nothing about the agent is blocked -- you
-  simply get single-language behaviour until you change the transcriber and
-  publish.
+A choice you make is kept: turning it off stays off when you later add
+languages or change the transcriber, and turning it on is refused where the
+transcriber cannot follow. While Follow the caller is published, a **Current
+draft** test of an unpublished voice change runs in the test's selected
+language only, without following the caller; published calls still follow.
 
 An agent created through the API with Follow the caller for all languages
 (`"follow_caller": {"enabled": true, "scope": "all"}`) is published at
@@ -415,7 +466,7 @@ save would publish it. If that publication is refused, the agent keeps the
 languages it was created with and stays unpublished, with the reason in its
 `metadata.publication`.
 
-To turn it off on a newly created agent, open the AI agent editor, go to
+To turn it off, open the AI agent editor, go to
 **Languages**, choose **Single language per call**, and publish. The
 [voice-stack API](#optional-follow-the-caller) does the same thing with
 `{"follow_caller": {"enabled": false}}`.

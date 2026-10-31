@@ -162,7 +162,7 @@
             "type": "string"
           },
           "voicemail": {
-            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only one kind of evidence counts as proof, the same in every language: a record beep that follows a spoken greeting. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted. On a call that does not run a workflow, the platform's language model also reads the far end's words, in any language, and a short greeting it reads as a voicemail greeting counts instead, when that reading arrives before the beep is judged (a few seconds after the beep); a reading in a language the call's transcription is known to handle unreliably is ignored. A mailbox instruction such as \"leave a message\", the model's reading on its own, a fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
+            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only mailbox-specific evidence counts as proof: a record beep that follows a spoken greeting, or a mailbox instruction such as \"leave a message\", from a language whose phrase list is verified (en; English is checked on every call). The beep works in every language. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted. On a call that does not run a workflow, the platform's language model also reads the far end's words, in any language, and a short greeting it reads as a voicemail greeting counts instead, when that reading arrives before the beep is judged (a few seconds after the beep); a reading in a language the call's transcription is known to handle unreliably is ignored. The model's reading on its own only raises suspicion. Candidate phrase lists (de, es, et, fr, ru) are not yet verified: what they recognise is shown as evidence and never proves a mailbox. In any other language only the beep or an English instruction can. A fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
             "enum": [
               "shadow",
               "hang_up",
@@ -541,7 +541,7 @@
       },
       "AgentNavigation": {
         "additionalProperties": false,
-        "description": "Whether the AI agent answers automated phone menus and waits in hold queues on the calls it places, and for how long. On by default: an agent that never chose (`enabled` null) navigates, and a customer who does not want it turns it off once with `enabled: false`, which every save keeps. A write of this section must say what `enabled` is: `true` (on), `false` (off) or `null` (follow the platform default, which is on). An empty object, `null` for the whole section, or a section without `enabled` is refused with 400 `navigation_enabled_required` (an older client used `{}` for off, and it is never guessed at). The section is replaced whole: limits you leave out return to their defaults. Agent create accepts the same section as `metadata.navigation` under the same rules; the generic agent update keeps the stored section and refuses a different one, naming this route. Navigation applies only to outbound calls (calls the agent places, campaign calls included); inbound calls (a phone test you dial in to included), browser tests, simulations, chat and SMS never navigate. Time in menus and on hold is billed at the normal call rate, and a campaign retries a call that ended at the hold limit or the call's maximum length, or whose other side hung up during the hold, without a person reached earlier (running out of the menu limit is final), so a waiting call can cost far more than one that ends at once. While a call is in a menu or on hold, the answer-detection non-human-audio ending is suspended; turn navigation off if an agent must hang up on hold music. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. While navigation is on (chosen or by default), a limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set, and when you switch navigation back on beside such a limit. A limit kept beside `enabled: false` is kept as it is. Applied when a call starts; saving never changes an in-progress call, and no republish is needed. Navigation works in any of the agent's languages that the transcribers Skysay can use for phone menus listen to, with at most two connections for all of the agent's languages; there is no separate list of menu languages. A transcriber measured to fail on phone menus in a language is not used for it, and an agent whose own transcriber (or, on Gemini Live, its captions) is such a transcriber for one of its languages does not navigate. Saving and publishing are never refused because an agent cannot navigate yet: an agent on GPT-Live, or one whose languages cannot all be listened to, keeps its setting, its calls run without navigation, and the voice-stack response says why in `navigation.eligible`, `navigation.ineligible_reason` and `navigation.ineligible_languages`. Such agents start navigating when support ships, with no change on your side. The tool names `press_digits`, `wait_on_hold` and `abandon_navigation` are reserved for navigation and refused for your own tools.",
+        "description": "Whether the AI agent answers automated phone menus and waits in hold queues on the calls it places, and for how long. On by default: an agent that never chose (`enabled` null) navigates, and a customer who does not want it turns it off once with `enabled: false`, which every save keeps. A write of this section must say what `enabled` is: `true` (on), `false` (off) or `null` (follow the platform default, which is on). An empty object, `null` for the whole section, or a section without `enabled` is refused with 400 `navigation_enabled_required` (an older client used `{}` for off, and it is never guessed at). The section is replaced whole: limits you leave out return to their defaults. Agent create accepts the same section as `metadata.navigation` under the same rules; the generic agent update keeps the stored section and refuses a different one, naming this route. Navigation applies only to outbound calls (calls the agent places, campaign calls included); inbound calls (a phone test you dial in to included), browser tests, simulations, chat and SMS never navigate. Time in menus and on hold is billed at the normal call rate, and a campaign retries a call that ended at the hold limit or the call's maximum length, or whose other side hung up during the hold, without a person reached earlier (running out of the menu limit is final), so a waiting call can cost far more than one that ends at once. While a call is in a menu or on hold, the answer-detection non-human-audio ending is suspended; turn navigation off if an agent must hang up on hold music. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. While navigation is on (chosen or by default), a limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set, and when you switch navigation back on beside such a limit. A limit kept beside `enabled: false` is kept as it is. Applied when a call starts; saving never changes an in-progress call, and no republish is needed. Navigation works in any of the agent's languages that the transcribers Skysay can use for phone menus listen to, with at most two connections for all of the agent's languages; there is no separate list of menu languages. A transcriber measured to mishear phone menus in a language is still used for it: the measurement is recorded and the call's events report it, and it never stops an agent from navigating. Saving and publishing are never refused because an agent cannot navigate yet: an agent on GPT-Live, or one whose languages cannot all be listened to, keeps its setting, its calls run without navigation, and the voice-stack response says why in `navigation.eligible`, `navigation.ineligible_reason` and `navigation.ineligible_languages`. Such agents start navigating when support ships, with no change on your side. The tool names `press_digits`, `wait_on_hold` and `abandon_navigation` are reserved for navigation and refused for your own tools.",
         "properties": {
           "effective": {
             "description": "Read-only (see AgentNavigationStatus). Accepted and ignored on write, so a section read back from GET can be sent as it is.",
@@ -622,7 +622,7 @@
             "type": "array"
           },
           "ineligible_reason": {
-            "description": "Why `eligible` is false, else null: `turned_off` (`enabled` is false), `not_released` (navigation is switched off platform-wide), `engine_not_supported` (the agent's conversation engine, GPT-Live today, does not navigate yet), `languages_uncovered` (no transcriber Skysay can use for phone menus listens to one of the agent's languages), `too_many_sockets` (listening to all of the agent's languages would need a third transcriber connection), `no_language` (the agent has no language), `transcriber_unverified` (the agent's own transcriber, its Gemini Live captions, or its workflow's listener was measured to fail on phone menus in one of its languages; choose another transcriber), `listener_uncovered` (the published workflow's listener does not listen to one of the agent's or the workflow's languages), `controller_lines_missing` (a workflow agent speaks only prepared lines while it navigates, and one of its languages has none yet), `tool_name_conflict` (one of the agent's own tools uses a reserved navigation tool name), or `tool_budget` (the agent's own tools leave no room under the 32-name tool contract for the three navigation tools). `ineligible_languages` names the languages a language reason is about.",
+            "description": "Why `eligible` is false, else null: `turned_off` (`enabled` is false), `not_released` (navigation is switched off platform-wide), `engine_not_supported` (the agent's conversation engine, GPT-Live today, does not navigate yet), `languages_uncovered` (no transcriber Skysay can use for phone menus listens to one of the agent's languages), `too_many_sockets` (listening to all of the agent's languages would need a third transcriber connection), `no_language` (the agent has no language), `transcriber_unverified` (the agent's live engine reads the line through captions Skysay has no phone-menu record for; a transcriber merely measured to mishear menus in a language is never this reason), `listener_uncovered` (the published workflow's listener does not listen to one of the agent's or the workflow's languages), `controller_lines_missing` (a workflow agent speaks only prepared lines while it navigates, and one of its languages has none yet), `tool_name_conflict` (one of the agent's own tools uses a reserved navigation tool name), or `tool_budget` (the agent's own tools leave no room under the 32-name tool contract for the three navigation tools). `ineligible_languages` names the languages a language reason is about.",
             "enum": [
               "turned_off",
               "not_released",
@@ -1493,6 +1493,13 @@
               },
               "draft": {
                 "properties": {
+                  "question_groups": {
+                    "items": {
+                      "$ref": "#/components/schemas/WorkflowQuestionGroup"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                  },
                   "voice_input": {
                     "anyOf": [
                       {
@@ -6334,6 +6341,39 @@
         ],
         "type": "object"
       },
+      "WorkflowQuestionGroup": {
+        "additionalProperties": false,
+        "description": "Speak-and-wait steps (ask, or say with ends_turn) that ask one question and share one budget of presentations. One presentation is spent for each reply whose line of a member began playing to the caller, whether it played to the end or was cut; a line that never began playing is not spent. Once max_presentations are spent, the run goes to on_exhausted instead of presenting any member again, and the run's path records route question_group_exhausted. Global interrupts are decided first, so a stop or wrong-person request is never held back. A step belongs to at most one group; on_exhausted may not be a group step or lead back into its own group. Optional: a workflow without groups keeps every other limit unchanged.",
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "max_presentations": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "on_exhausted": {
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "steps",
+          "max_presentations",
+          "on_exhausted"
+        ],
+        "type": "object"
+      },
       "WorkflowVersionSummary": {
         "description": "Safe immutable version metadata. The separate published field is null before the first explicit publish.",
         "properties": {
@@ -7891,7 +7931,7 @@
     },
     "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}": {
       "get": {
-        "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers. A live-call voice attempt (a voice attempt of a run admitted as a live call) also carries live_call: its verdict and marks, the built-in check ended_normally (also its first assertion row; its code in reason), how the call ended, the stop record, the caller's measured timings, the recording state, charge not_charged, and agent_recorded, the AI agent's own transcript of the call (at most 200 lines, with agent_recorded_page.has_more). Its facts is empty and its rubric rows carry only id, result, score, threshold, reason and rationale; without recordings:read agent_recorded is omitted too. A live-call run also carries run.live_call: its call mode, whether the engine refuses workflow calls, the call ceiling and the workflow steps it stops at.",
+        "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers.",
         "operationId": "getSimulationRun",
         "parameters": [
           {
@@ -8440,7 +8480,7 @@
         ]
       },
       "get": {
-        "description": "The same projection as the workspace suite editor, including run_setup: the upper-bound estimate, the runners this deployment admits, and voice_readiness -- whether this AI agent's own speech stack can drive an adaptive_voice attempt, per language, by the rule a run start refuses with 422 unsupported_voice_stack. Once voice tests run as live calls, run_setup.live_call carries the call mode a run started now would get (workflow_call or prompt_call), any refusal that start would meet, the rules that mode cannot apply, the built-in check ended_normally, the per-call ceiling, planned_calls, retry_allowance and max_calls, and that voice tests are not charged; voice scenarios then add nothing to the estimate and their by_runner rows are not metered. voice_readiness keeps the speech-stack answer a start applies today.",
+        "description": "The same projection as the workspace suite editor, including run_setup: the upper-bound estimate, the runners this deployment admits, and voice_readiness -- whether this AI agent's own speech stack can drive an adaptive_voice attempt, per language, by the rule a run start refuses with 422 unsupported_voice_stack.",
         "operationId": "getSimulationSuite",
         "parameters": [
           {
@@ -9031,6 +9071,13 @@
                       ]
                     },
                     "properties": {
+                      "question_groups": {
+                        "items": {
+                          "$ref": "#/components/schemas/WorkflowQuestionGroup"
+                        },
+                        "maxItems": 20,
+                        "type": "array"
+                      },
                       "steps": {
                         "items": {
                           "oneOf": [
