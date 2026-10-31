@@ -297,7 +297,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `agent_completed` | the agent finished the conversation and ended the call |
 | `media_session_lost` | the media session went away while the call was still live |
 | `no_human_after_answer` | the call was answered but only music or tones were ever heard |
-| `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
+| `model_session_lost` | the conversation engine behind the call failed and could not be recovered; with `reason_detail` `transcriber_refused_request`, the call's transcriber refused the request it was opened with — see [When the transcriber refuses the request](#when-the-transcriber-refuses-the-request) |
 | `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) — or, with an empty `reason_detail`, the agent's opening could not be produced and never reached the caller ([details](/docs/voice-behavior#when-the-opening-never-reaches-the-caller)) |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
 | `ivr_timeout` | an outbound call that was in a phone menu or a hold queue ended there: a limit ran out, the menu had no way to a person, or it asked for a value the call did not carry; `reason_detail` says which. [Phone menu navigation](/docs/phone-menu-navigation#how-these-calls-end) is on by default, so any call your AI agent places can end this way |
@@ -389,6 +389,22 @@ Before this release such a call stayed open until its maximum length or until
 the fault check below settled it, and carried no reason. As with
 `media_session_lost`, a hangup request that was in flight is answered
 separately, and the call is not reported as `hangup_requested`.
+
+### When the transcriber refuses the request
+
+A call that ends as `model_session_lost` with `reason_detail`
+`transcriber_refused_request` lost its conversation engine because the call's
+transcriber (its speech-to-text provider) refused the request Skysay opened it
+with. The usual cause is a language or language code that provider does not
+take. Skysay does not keep its own list of the languages each provider runs, so
+a language a provider does not run shows up here, on the call, rather than being
+hidden behind a list. Skysay ends the call rather than leave the line open with
+nobody able to hear the other party.
+
+If you see this detail, choose another transcriber for that language, or
+remove the language from the AI agent. A campaign contact whose call ended this
+way is treated like any other completed call and is not retried automatically:
+a retry would be refused the same way.
 
 ### When a workflow's listener fails
 
