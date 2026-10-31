@@ -18,7 +18,7 @@
                 "$ref": "#/components/schemas/AgentFollowCaller"
               }
             ],
-            "description": "Answer each caller in whichever selected language they speak. Accepted at creation so a multilingual agent can be created in one request; enabling it requires at least two languages and is refused with 400 otherwise. Creation stores the opt-in only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set, and refuses the publication when none can. Changing it afterwards is a voice-stack save, not an agent update. An engine without a language axis (see voice_frontend) REFUSES this field with 400 rather than accepting and dropping it."
+            "description": "Answer each caller in whichever selected language they speak. On by default for an agent with two or more languages whose transcriber can listen for them all (see AgentFollowCaller); send it only to record an explicit choice. Accepted at creation so a multilingual agent can be created in one request; enabling it explicitly requires at least two languages and is refused with 400 otherwise. Creation stores the choice only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set: an explicit enabled true is refused there when none can, and an agent that never chose publishes in its opening language instead. Changing it afterwards is a voice-stack save, not an agent update. An engine without a language axis (see voice_frontend) REFUSES this field with 400 rather than accepting and dropping it."
           },
           "language": {
             "type": "string"
@@ -162,7 +162,7 @@
             "type": "string"
           },
           "voicemail": {
-            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only one kind of evidence counts as proof, the same in every language: a record beep that follows a spoken greeting. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted. The platform's language model also reads the far end's words, in any language, and a short greeting it reads as a voicemail greeting counts instead, when that reading arrives before the beep is judged (a few seconds after the beep); a reading in a language the call's transcription is known to handle unreliably is ignored. A mailbox instruction such as \"leave a message\", the model's reading on its own, a fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox, with `ended_reason: no_human_after_answer`, `reason_detail: recorded_message_only` and `answer_classification: unknown`, once the beep is confirmed as a single beep and the line has then stayed quiet, about 6.5 seconds after the beep; a person heard before the proof, any sound on the line after the beep (a quiet reply included), audio after the beep that did not arrive, a call waiting in a phone menu or queue, or an answer the carrier did not confirm keeps the call going. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `leave_message` is accepted and stored now but currently runs as `shadow`: it starts acting only after the detector has passed its accuracy check. Each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
+            "description": "What the AI agent does when a voicemail box answers an outbound call. Voicemail is judged from the first seconds of audio after the answer; the phone network does not report it. Only mailbox-specific evidence counts as proof: a record beep that follows a spoken greeting, or a mailbox instruction such as \"leave a message\", from a language whose phrase list is verified (en; English is checked on every call). The beep works in every language. The greeting before it must reach three recognised words, counted by the spaces and punctuation between them, so in Chinese, Japanese, Thai and other scripts written without spaces a short greeting is undercounted. On a call that does not run a workflow, the platform's language model also reads the far end's words, in any language, and a short greeting it reads as a voicemail greeting counts instead, when that reading arrives before the beep is judged (a few seconds after the beep); a reading in a language the call's transcription is known to handle unreliably is ignored. The model's reading on its own only raises suspicion. Candidate phrase lists (de, es, et, fr, ru) are not yet verified: what they recognise is shown as evidence and never proves a mailbox. In any other language only the beep or an English instruction can. A fast answer, a long greeting or music only raise suspicion, and a call the platform is unsure about is treated as a person. `shadow` (watch only) records the verdict and what the platform would have done on the call in Calls, and changes nothing the caller experiences. `hang_up` ends the call without a message on proof of a mailbox. `leave_message` plays the `voicemail_messages` entry for the call's language after the beep, once per contact, and hangs up without a message when there is none for that language. `off` detects nothing. `hang_up` and `leave_message` are accepted and stored now but currently run as `shadow`: they start acting only after the detector has passed its accuracy check, and each call's evidence shows both the chosen and the effective mode. `shadow` is the platform default; like `non_human_audio`, an explicitly sent value is stored even when it equals the default, and this property carries no JSON Schema `default`. The `answer_detection` object is replaced as a whole on save, so send every key you want to keep.",
             "enum": [
               "shadow",
               "hang_up",
@@ -371,8 +371,13 @@
       },
       "AgentFollowCaller": {
         "additionalProperties": false,
-        "description": "Explicit saved and published automatic multilingual policy. Existing clients may send only enabled; omitted scope means selected. With scope all, the server resolves every language compatible with the exact stack at publication and freezes that concrete set. With selected, languages supplies the allowed subset. Clients cannot supply runtime adapter options, bindings, or rates.",
+        "description": "Saved and published automatic multilingual policy. On by default: an AI agent that never set it follows its caller wherever one transcriber can listen for its whole selected language set, and answers in its opening language elsewhere, never refused for it. Sending enabled records an explicit choice that stays when the language set or transcriber changes: false keeps the AI agent in its opening language, and true is refused where the transcriber cannot follow. Sending the value the AI agent already resolves to publishes nothing new. Read responses always carry the resolved value, so a client that never wants to choose omits the field. Existing clients may send only enabled; omitted scope means selected. With scope all, the server resolves every language compatible with the exact stack at publication and freezes that concrete set. With selected, languages supplies the allowed subset. Clients cannot supply runtime adapter options, bindings, or rates.",
         "properties": {
+          "default": {
+            "description": "Read responses only: true when the AI agent never chose and this is the resolved default, false when it is the owner's choice. A voice-stack write that echoes a read with default true and the same value records no choice; at creation the field is stored as sent.",
+            "readOnly": true,
+            "type": "boolean"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -541,7 +546,7 @@
       },
       "AgentNavigation": {
         "additionalProperties": false,
-        "description": "Whether the AI agent answers automated phone menus and waits in hold queues on the calls it places, and for how long. On by default: an agent that never chose (`enabled` null) navigates, and a customer who does not want it turns it off once with `enabled: false`, which every save keeps. A write of this section must say what `enabled` is: `true` (on), `false` (off) or `null` (follow the platform default, which is on). An empty object, `null` for the whole section, or a section without `enabled` is refused with 400 `navigation_enabled_required` (an older client used `{}` for off, and it is never guessed at). The section is replaced whole: limits you leave out return to their defaults. Agent create accepts the same section as `metadata.navigation` under the same rules; the generic agent update keeps the stored section and refuses a different one, naming this route. Navigation applies only to outbound calls (calls the agent places, campaign calls included); inbound calls (a phone test you dial in to included), browser tests, simulations, chat and SMS never navigate. Time in menus and on hold is billed at the normal call rate, and a campaign retries a call that ended at the hold limit or the call's maximum length, or whose other side hung up during the hold, without a person reached earlier (running out of the menu limit is final), so a waiting call can cost far more than one that ends at once. While a call is in a menu or on hold, the answer-detection non-human-audio ending is suspended; turn navigation off if an agent must hang up on hold music. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. While navigation is on (chosen or by default), a limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set, and when you switch navigation back on beside such a limit. A limit kept beside `enabled: false` is kept as it is. Applied when a call starts; saving never changes an in-progress call, and no republish is needed. Navigation works in any of the agent's languages that the transcribers Skysay can use for phone menus listen to, with at most two connections for all of the agent's languages; there is no separate list of menu languages. A transcriber measured to fail on phone menus in a language is not used for it, and an agent whose own transcriber (or, on Gemini Live, its captions) is such a transcriber for one of its languages does not navigate. Saving and publishing are never refused because an agent cannot navigate yet: an agent on GPT-Live, or one whose languages cannot all be listened to, keeps its setting, its calls run without navigation, and the voice-stack response says why in `navigation.eligible`, `navigation.ineligible_reason` and `navigation.ineligible_languages`. Such agents start navigating when support ships, with no change on your side. The tool names `press_digits`, `wait_on_hold` and `abandon_navigation` are reserved for navigation and refused for your own tools.",
+        "description": "Whether the AI agent answers automated phone menus and waits in hold queues on the calls it places, and for how long. On by default: an agent that never chose (`enabled` null) navigates, and a customer who does not want it turns it off once with `enabled: false`, which every save keeps. A write of this section must say what `enabled` is: `true` (on), `false` (off) or `null` (follow the platform default, which is on). An empty object, `null` for the whole section, or a section without `enabled` is refused with 400 `navigation_enabled_required` (an older client used `{}` for off, and it is never guessed at). The section is replaced whole: limits you leave out return to their defaults. Agent create accepts the same section as `metadata.navigation` under the same rules; the generic agent update keeps the stored section and refuses a different one, naming this route. Navigation applies only to outbound calls (calls the agent places, campaign calls included); inbound calls (a phone test you dial in to included), browser tests, simulations, chat and SMS never navigate. Time in menus and on hold is billed at the normal call rate, and a campaign retries a call that ended at the hold limit or the call's maximum length, or whose other side hung up during the hold, without a person reached earlier (running out of the menu limit is final), so a waiting call can cost far more than one that ends at once. While a call is in a menu or on hold, the answer-detection non-human-audio ending is suspended; turn navigation off if an agent must hang up on hold music. The two limits are per agent and apply to the whole call, never to one menu or one queue: time spent in menus and time spent on hold are counted separately, and the call also ends if it reaches its overall maximum length (`turn_taking.max_call_seconds`). A single call cannot change them. While navigation is on (chosen or by default), a limit longer than the AI agent's maximum call length (`turn_taking.max_call_seconds`, at most 1740 seconds) is refused with 400, because a hold or a menu cannot outlast the call; the same refusal applies when you shorten the maximum call length below a limit already set, and when you switch navigation back on beside such a limit. A limit kept beside `enabled: false` is kept as it is. Applied when a call starts; saving never changes an in-progress call, and no republish is needed. Navigation works in any of the agent's languages that the transcribers Skysay can use for phone menus listen to, with at most two connections for all of the agent's languages; there is no separate list of menu languages. A transcriber measured to mishear phone menus in a language is still used for it: the measurement is recorded and the call's events report it, and it never stops an agent from navigating. Saving and publishing are never refused because an agent cannot navigate yet: an agent on GPT-Live, or one whose languages cannot all be listened to, keeps its setting, its calls run without navigation, and the voice-stack response says why in `navigation.eligible`, `navigation.ineligible_reason` and `navigation.ineligible_languages`. Such agents start navigating when support ships, with no change on your side. The tool names `press_digits`, `wait_on_hold` and `abandon_navigation` are reserved for navigation and refused for your own tools.",
         "properties": {
           "effective": {
             "description": "Read-only (see AgentNavigationStatus). Accepted and ignored on write, so a section read back from GET can be sent as it is.",
@@ -578,14 +583,14 @@
           },
           "max_hold_seconds": {
             "default": 600,
-            "description": "The most time a call may spend waiting in a hold queue before it ends. When it runs out the call ends with `ended_reason` `ivr_timeout` and `reason_detail` `hold_limit`.",
+            "description": "The most time a call may spend waiting in a hold queue before it ends. When it runs out the call ends with `ended_reason` `ivr_timeout` and `reason_detail` `hold_limit`. Only time the other end is a menu or a queue counts: after a person was confirmed, the platform's own checks of whether a person is speaking are not counted.",
             "maximum": 3600,
             "minimum": 10,
             "type": "integer"
           },
           "max_navigation_seconds": {
             "default": 180,
-            "description": "The most time a call may spend answering phone menus before it ends. When it runs out the call ends with `ended_reason` `ivr_timeout` and `reason_detail` `navigation_limit`.",
+            "description": "The most time a call may spend answering phone menus before it ends. When it runs out the call ends with `ended_reason` `ivr_timeout` and `reason_detail` `navigation_limit`. Only time the other end is a menu or a queue counts: after a person was confirmed, the platform's own checks of whether a person is speaking are not counted.",
             "maximum": 900,
             "minimum": 10,
             "type": "integer"
@@ -622,7 +627,7 @@
             "type": "array"
           },
           "ineligible_reason": {
-            "description": "Why `eligible` is false, else null: `turned_off` (`enabled` is false), `not_released` (navigation is switched off platform-wide), `engine_not_supported` (the agent's conversation engine, GPT-Live today, does not navigate yet), `languages_uncovered` (no transcriber Skysay can use for phone menus listens to one of the agent's languages), `too_many_sockets` (listening to all of the agent's languages would need a third transcriber connection), `no_language` (the agent has no language), `transcriber_unverified` (the agent's own transcriber, its Gemini Live captions, or its workflow's listener was measured to fail on phone menus in one of its languages; choose another transcriber), `listener_uncovered` (the published workflow's listener does not listen to one of the agent's or the workflow's languages), `controller_lines_missing` (a workflow agent speaks only prepared lines while it navigates, and one of its languages has none yet), `tool_name_conflict` (one of the agent's own tools uses a reserved navigation tool name), or `tool_budget` (the agent's own tools leave no room under the 32-name tool contract for the three navigation tools). `ineligible_languages` names the languages a language reason is about.",
+            "description": "Why `eligible` is false, else null: `turned_off` (`enabled` is false), `not_released` (navigation is switched off platform-wide), `engine_not_supported` (the agent's conversation engine, GPT-Live today, does not navigate yet), `languages_uncovered` (no transcriber Skysay can use for phone menus listens to one of the agent's languages), `too_many_sockets` (listening to all of the agent's languages would need a third transcriber connection), `no_language` (the agent has no language), `transcriber_unverified` (the agent's live engine reads the line through captions Skysay has no phone-menu record for; a transcriber merely measured to mishear menus in a language is never this reason), `listener_uncovered` (the published workflow's listener does not listen to one of the agent's or the workflow's languages), `controller_lines_missing` (a workflow agent speaks only prepared lines while it navigates, and one of its languages has none yet), `tool_name_conflict` (one of the agent's own tools uses a reserved navigation tool name), or `tool_budget` (the agent's own tools leave no room under the 32-name tool contract for the three navigation tools). `ineligible_languages` names the languages a language reason is about.",
             "enum": [
               "turned_off",
               "not_released",
@@ -1767,6 +1772,23 @@
         "additionalProperties": false,
         "description": "Frozen read-back and durable outcome. A read is side-effect free. Replay returns the same action; unknown never authorizes an automatic retry.",
         "properties": {
+          "calendar_outcome": {
+            "description": "Server-owned calendar outcome, present only for a native calendar booking action. Pending confirmation and unknown outcomes never prove a booking.",
+            "enum": [
+              "availability_empty",
+              "availability_found",
+              "booking_confirmed",
+              "booking_not_created",
+              "booking_unavailable",
+              "booking_unconfirmed",
+              "confirmation_declined",
+              "confirmation_required",
+              "provider_unavailable",
+              "request_refused",
+              "unknown"
+            ],
+            "type": "string"
+          },
           "clarifications": {
             "maximum": 1,
             "minimum": 0,
@@ -1945,7 +1967,7 @@
             "type": "string"
           },
           "direction": {
-            "description": "inbound, outbound, web_test (a live browser test), or homepage_demo (a conversation with one of your AI agents in the live demo on the Skysay homepage, recorded like a call and never billed to your wallet) for a call your agent placed or answered. A call seeded by the demo/artifact-import tooling can carry other values, such as imported, verbatim from that import.",
+            "description": "inbound, outbound, pbx_websocket (a call connected through the customer PBX; from_e164 reports the remote party and to_e164 reports the service line, without asserting an incoming or outgoing external leg or Skysay ownership), web_test (a live browser test), or homepage_demo (a conversation with one of your AI agents in the live demo on the Skysay homepage, recorded like a call and never billed to your wallet) for a call your agent placed or answered. A call seeded by the demo/artifact-import tooling can carry other values, such as imported, verbatim from that import.",
             "type": "string"
           },
           "ended_reason": {
@@ -2000,6 +2022,13 @@
           "organization_id": {
             "type": "string"
           },
+          "pbx_protocol": {
+            "description": "Protocol of an admitted customer PBX call, read from its canonical session; null on other surfaces. The initial supported protocol is asterisk_chan_websocket. Reported caller/line identifiers confer no Skysay number, SMS or carrier authority.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "person_reached": {
             "description": "Whether a person was reached earlier in the call, as the platform's phone-menu and hold handling reported it with the ending: `true` when someone was spoken to before the call ended (a conversation, then a transfer into a queue that ran out of time), `false` when nobody was reached, and null when the call did not report it (a call that completed before this field shipped, one whose agent does not navigate phone menus, and one that ended another way). It is what separates a wait that ran out after a conversation from one that never reached anyone: `ivr_timeout` with `hold_limit` or `deadline`, and `remote_party_disconnected` with `during_hold`, are retried by a campaign only when this is `false`, and the recording of such a call counts as talk time (and the call as a pick-up) only when it is `true`.",
             "type": [
@@ -2035,6 +2064,7 @@
               "hold_limit",
               "hold_music",
               "insufficient_balance",
+              "keys_not_accepted",
               "looping_recording",
               "menu_no_path",
               "model_unresponsive",
@@ -2896,6 +2926,7 @@
               "hold_limit",
               "hold_music",
               "insufficient_balance",
+              "keys_not_accepted",
               "looping_recording",
               "menu_no_path",
               "model_unresponsive",
@@ -4961,6 +4992,147 @@
             "maxLength": 35,
             "minLength": 2,
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PbxConnectionKey": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "current_generation": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "previous_expires_at": {
+            "description": "Expiry of the latest previous password, if any. Older passwords can expire sooner. Remains visible after a refresh.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "token_prefix": {
+            "type": "string"
+          },
+          "token_suffix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "current_generation"
+        ],
+        "type": "object"
+      },
+      "PbxConnectionKeyIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "PbxConnectionKeyIssued": {
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/PbxConnectionKey"
+          },
+          "password": {
+            "description": "One-time PBX Basic-auth password. Store it securely; listings never return it.",
+            "readOnly": true,
+            "type": "string"
+          },
+          "previous_expires_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "password"
+        ],
+        "type": "object"
+      },
+      "PbxConnectionKeyPage": {
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/PbxConnectionKey"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "limit": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "returned": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "keys",
+          "has_more",
+          "returned",
+          "limit",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "PbxConnectionKeyRotate": {
+        "additionalProperties": false,
+        "properties": {
+          "grace_seconds": {
+            "default": 86400,
+            "maximum": 86400,
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "type": "object"
@@ -7304,6 +7476,15 @@
             "application/json": {
               "schema": {
                 "properties": {
+                  "calendar_test_mode": {
+                    "default": "availability",
+                    "description": "Availability excludes the calendar booking tool from this test before admission and billing. Booking requires the selected saved snapshot to permit booking and the connection to be an active dedicated test calendar with real test writes allowed. This command changes no saved tools or connection settings. Workflows declaring booking cannot run in availability-only mode.",
+                    "enum": [
+                      "availability",
+                      "booking"
+                    ],
+                    "type": "string"
+                  },
                   "draft": {
                     "description": "Only read when snapshot is 'draft'. `first_message`, `instructions` and `language` apply to an agent without a selected language set (a published set pins the per-locale greeting, prompt and language). `stack` applies to every draft test and names its conversation engine in `stack.voice_frontend` (a declared engine) plus that engine's own fields: for cascade the `transcriber`, `model` and `voice` selections (`{provider, model, voice_id}`; leaving GPT-Live needs all three); for GPT-Live the `voice` (`{provider: 'openai', model: 'gpt-live-1', voice_id}`) and `model` (`{provider: 'openai', model: <backend>}`) -- no transcriber, a cascade one riding along is refused. A stack with no `voice_frontend` is a partial cascade overlay on the stored engine. Gemini Live uses its own model and voice. Eleven Realtime uses provider elevenlabs and model eleven_realtime_v1_max; it requires a literal first_message and an agent-first opening. It bills a flat $0.15 per connected minute, and its instructions, including Skysay's tool instructions, are limited to 8,000 bytes. A draft stack is refused while Follow the caller is published for the agent.",
                     "properties": {
@@ -7851,6 +8032,264 @@
         ]
       }
     },
+    "/v1/agents/{agent_id}/pbx-keys": {
+      "get": {
+        "description": "Workspace-bound, bounded pure read. Multiple independently revocable logical keys may belong to an AI agent. Never returns passwords or secret hashes.",
+        "operationId": "listAgentPbxKeys",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PbxConnectionKeyPage"
+                }
+              }
+            },
+            "description": "Keys with has_more/returned/limit/offset pagination metadata"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing authority"
+          },
+          "404": {
+            "description": "AI agent or key not in your workspace"
+          },
+          "409": {
+            "description": "Key limit or revoked key"
+          }
+        },
+        "summary": "List an AI agent's PBX connection keys",
+        "tags": [
+          "Agents"
+        ],
+        "x-required-scopes": [
+          "agents:read"
+        ]
+      },
+      "post": {
+        "description": "Requires agents:write in the AI agent's own workspace. Reveals the password once. At most 20 active keys per AI agent; this issues credentials, not a running bridge or call.",
+        "operationId": "createAgentPbxKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PbxConnectionKeyIssue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PbxConnectionKeyIssued"
+                }
+              }
+            },
+            "description": "Key and one-time password"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing authority"
+          },
+          "404": {
+            "description": "AI agent or key not in your workspace"
+          },
+          "409": {
+            "description": "Key limit or revoked key"
+          }
+        },
+        "summary": "Create a named PBX connection key",
+        "tags": [
+          "Agents"
+        ],
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/pbx-keys/{key_id}/revoke": {
+      "post": {
+        "description": "Idempotently revokes every secret version of this logical key; other PBX keys remain valid.",
+        "operationId": "revokeAgentPbxKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated key"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing authority"
+          },
+          "404": {
+            "description": "AI agent or key not in your workspace"
+          },
+          "409": {
+            "description": "Key limit or revoked key"
+          }
+        },
+        "summary": "Revoke a PBX connection key",
+        "tags": [
+          "Agents"
+        ],
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/pbx-keys/{key_id}/rotate": {
+      "post": {
+        "description": "Reveals a new password once. The logical key id stays unchanged. By default the previous password works for 24 hours. Repeated rotation never extends an older password's original deadline; a shorter grace clamps previous deadlines, and zero invalidates all previous passwords immediately.",
+        "operationId": "rotateAgentPbxKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PbxConnectionKeyRotate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PbxConnectionKeyIssued"
+                }
+              }
+            },
+            "description": "Updated key and one-time password"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing authority"
+          },
+          "404": {
+            "description": "AI agent or key not in your workspace"
+          },
+          "409": {
+            "description": "Key limit or revoked key"
+          }
+        },
+        "summary": "Rotate a PBX connection key",
+        "tags": [
+          "Agents"
+        ],
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
     "/v1/agents/{agent_id}/post-call-extraction": {
       "get": {
         "description": "Returns only the active bounded schema for this agent. A configured schema does not run inline or change a call; the separately-gated worker runs only after a completed call has a transcript.",
@@ -7931,7 +8370,7 @@
     },
     "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}": {
       "get": {
-        "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers. A live-call voice attempt (a voice attempt of a run admitted as a live call) also carries live_call: its verdict and marks, the built-in check ended_normally (also its first assertion row; its code in reason), how the call ended, the stop record, the caller's measured timings, the recording state, charge not_charged, and agent_recorded, the AI agent's own transcript of the call (at most 200 lines, with agent_recorded_page.has_more). Its facts is empty and its rubric rows carry only id, result, score, threshold, reason and rationale; without recordings:read agent_recorded is omitted too. A live-call run also carries run.live_call: its call mode, whether the engine refuses workflow calls, the call ceiling and the workflow steps it stops at.",
+        "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers.",
         "operationId": "getSimulationRun",
         "parameters": [
           {
@@ -8480,7 +8919,7 @@
         ]
       },
       "get": {
-        "description": "The same projection as the workspace suite editor, including run_setup: the upper-bound estimate, the runners this deployment admits, and voice_readiness -- whether this AI agent's own speech stack can drive an adaptive_voice attempt, per language, by the rule a run start refuses with 422 unsupported_voice_stack. Once voice tests run as live calls, run_setup.live_call carries the call mode a run started now would get (workflow_call or prompt_call), any refusal that start would meet, the rules that mode cannot apply, the built-in check ended_normally, the per-call ceiling, planned_calls, retry_allowance and max_calls, and that voice tests are not charged; voice scenarios then add nothing to the estimate and their by_runner rows are not metered. voice_readiness keeps the speech-stack answer a start applies today.",
+        "description": "The same projection as the workspace suite editor, including run_setup: the upper-bound estimate, the runners this deployment admits, and voice_readiness -- whether this AI agent's own speech stack can drive an adaptive_voice attempt, per language, by the rule a run start refuses with 422 unsupported_voice_stack.",
         "operationId": "getSimulationSuite",
         "parameters": [
           {

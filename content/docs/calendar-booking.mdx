@@ -4,12 +4,11 @@ description: Connect a calendar or scheduling account so an AI agent can offer a
 icon: Calendar
 ---
 
-<Callout title="Implementation preview">
-The implementation for Google Calendar, Microsoft 365 / Outlook, Calendly and
-Cal.com is merged, with production availability pending. Google has local
-real-account and browser-call proof. Outlook, Calendly and Cal.com still need
-real booking/call proof. None has PSTN or production certification. Changes to
-calendar call behavior require fresh call proof before release.
+<Callout title="Provider and account readiness">
+Connect actions depend on the providers provisioned for your deployment.
+A connected account still needs a writable destination and compatible booking
+settings. Real-account, browser-call and PSTN verification are separate checks;
+a fixture test is not proof that your account can book.
 </Callout>
 
 Calendar booking gives a hosted AI agent two permitted tools: check available
@@ -80,33 +79,57 @@ booking horizon, location, invitations and test permissions. Closing Advanced
 preserves those settings.
 
 For Calendly/Cal.com, choosing an event type prefills its duration when available;
-it must match that event type. New connections use the provider's availability
-across the week with no extra notice, within Skysay's 60-day maximum horizon.
-Existing custom hours and limits are preserved; additional Skysay hours are
-optional under Advanced. Slots must fit within one local calendar day; an appointment may end exactly at midnight when working hours close at 24:00. Optional email invitations require the caller's
-confirmed email. Scheduling providers require an email and may apply their own
-notification rules even when a Skysay invitation checkbox is off.
+it must match that event type. Availability, buffers, notice, location and
+invitations follow the selected provider event type. Use **Edit settings in
+Cal.com/Calendly** to change those rules there. Skysay does not mirror or sync
+those settings.
 
-Tokens are encrypted and refreshed server-side. A failed or interrupted refresh requires account reconnection because a rotating refresh token might already have been consumed. They are never included in an
+**Advanced → Add additional restrictions** optionally narrows what Skysay offers.
+Existing extra hours, notice and spacing remain active when Advanced is closed.
+**Remove additional restrictions** explicitly resets Skysay to provider hours,
+zero extra notice/spacing and a 60-day horizon. It does not loosen the provider's
+rules. Extra spacing covers bookings tracked by Skysay; configure provider
+buffers for other events. A connection's settings affect every AI agent using it.
+Google/Outlook keep their Skysay working hours, conflict-calendar, location and
+invitation controls.
+
+Slots must fit within one local calendar day; an appointment may end exactly
+at midnight when working hours close at 24:00. Google/Outlook invitations require
+the caller's confirmed email. Scheduling providers require an email and apply
+the event type's notification rules.
+
+Tokens are encrypted and refreshed server-side. A refresh is sent only when at least five seconds remain in its request budget. If less time remains, the step is unavailable without revoking the connection; a later step with a full budget can refresh it. A failed or interrupted refresh that was actually sent requires account reconnection because a rotating refresh token might already have been consumed. They are never included in an
 AI agent prompt or a workspace response. **Disconnect** erases the locally
 stored credentials and invalidates offers. Revoke the application in the
 provider account as well if you want to remove its consent grant there.
 
 ## Give an AI agent permission
 
-Select a hosted AI agent on the calendar connection and choose **Enable booking**.
-This attaches `calendar_check_availability` and `calendar_book_appointment` to
-that connection while keeping the agent's other tools. If another editor changed the tool list since it was read, the save is refused; reload before trying again. An AI agent can use one
-calendar connection at a time. Native tools become available once the managed
-voice workers support both operations; a workflow's calendar steps do not wait
-for that (see [In a workflow](#in-a-workflow)). The agent page's
-[What runs on calls](/docs/what-runs-on-calls) shows where they run, and why
-not when they do not.
+Open the AI agent's **Tools → Calendar booking** and select a configured
+workspace calendar. New selections default to **Check availability only**:
+`calendar_check_availability` can offer times but cannot create appointments.
+Choose **Check availability and book** to add `calendar_book_appointment`.
+Save through the editor's existing save action. Removing calendar tools preserves
+other tools; read-only access is a complete configuration, not a broken pairing.
 
-The AI agent editor shows its calendar card after these tools are attached.
-Its toggle disables that binding while preserving the AI agent's other tools.
-After publishing the disabled binding, re-attach it from Integrations with
-**Enable booking**.
+A connection can be selected by multiple AI agents. Each AI agent has its own
+read/book permission and uses one calendar connection at a time. The connection's
+shared destination and rules apply to all of them. Saved tools are shared by
+Draft and Published voice snapshots; unsaved editor changes do not alter a test.
+If another editor changed the saved tool list, reload before saving.
+
+For a native engine with no saved confirmation setup, explicitly enabling writes
+selects Skysay's exact managed default only when it supports every configured
+language. An existing custom listener or BYOK selection is preserved. **Voice →
+Booking confirmation** shows the selected model, language coverage and additional
+usage price; **Custom confirmation setup** exposes manual controls. Unsupported
+language/source selections need correction before write-enabled calls start.
+Cascade and workflow speech setup keeps its existing ownership. Read-only
+calendar access alone needs no confirmation listener; other write tools still do.
+
+Native tools are available only on workers that support them. Workflow calendar
+steps use their own execution path; see [In a workflow](#in-a-workflow) and
+[What runs on calls](/docs/what-runs-on-calls).
 
 These are agent tools within Skysay's existing execution path; a generic
 external MCP client is not required. Their definitions are part of the
@@ -114,12 +137,15 @@ external MCP client is not required. Their definitions are part of the
 
 ## During a conversation
 
-1. The AI agent checks a future UTC range against your calendar and rules. It
-   receives up to five offers with local time, timezone and a three-minute expiry.
-   If the range is in the past or outside your booking window, Skysay refuses it
-   and tells the AI agent the current time, so it can work out "tomorrow" or
-   "next Tuesday" and ask again. The result also says whether the caller will
-   get a confirmation email, and which details a booking needs.
+1. The AI agent checks local civil dates in an IANA timezone against your
+   calendar and rules. It receives up to five offers with local time, timezone,
+   current server time, exact searched bounds and a three-minute expiry.
+   Unclear or past dates/times require clarification. A failed or incomplete
+   search does not mean there are no free times. The result also identifies
+   required caller details and whether the caller receives a confirmation email.
+   The offers are the earliest five, so an omitted time is not necessarily
+   unavailable. For an exact requested time, the agent narrows the search to
+   that appointment before rejecting it.
 2. The caller chooses a time. The AI agent collects the caller's name, any
    required email and event-type answers. It must not invent an email or fill
    in the owner's.
@@ -167,12 +193,62 @@ connections to the same destination. Google Calendar's free/busy check and event
 insertion cannot prevent an unrelated external application from writing between
 those requests.
 
+### Availability tool arguments
+
+`calendar_check_availability` accepts one structured range:
+
+```json
+{
+  "start_date": "2026-11-02",
+  "timezone": "Asia/Dubai",
+  "start_time": "13:00",
+  "end_time": "17:00"
+}
+```
+
+Each explicit `start_time`/`end_time` window must fit the configured appointment
+length in elapsed minutes on every searched date. A shorter window, including
+one shortened by a daylight-saving transition, is refused before checking the
+provider; it does not mean the requested appointment is unavailable. The agent's
+initial calendar instructions include the configured appointment length.
+
+Explicit times run from `00:00` to `23:59` and require start before end; `24:00`
+and windows crossing local midnight are refused. Use a date-only search for
+that case. Searches do not snap to the provider's slot grid or automatically
+widen or retry a refused range.
+
+Successful results include `returned_count` (at most five) and `has_more`.
+`complete: true` means the provider search finished; the offer list can still
+omit later times when `has_more: true`. The fixed `offer_guidance` in the result
+reminds the agent to search a caller's exact time with paired clock bounds
+before saying it is unavailable. That narrower query uses the normal search
+budget and replaces previous offers; Skysay does not retry automatically.
+
+Dates use strict `YYYY-MM-DD`. Omit `end_date` for a single day; for a range,
+`end_date` is the last included date. An explicitly null or empty end date is
+refused. The former `end_date_exclusive` field is not accepted. Omit both time fields
+to search full civil days, or provide both in strict `HH:mm` to restrict each
+day. End time must be later than start time. Overnight or ambiguous preferences
+need clarification; an afternoon is never silently widened into a full day.
+The former `start_utc`/`end_utc` model arguments are not accepted.
+
+A single call searches at most 14 civil dates, within the connection's booking
+horizon. DST dates may contain 23 or 25 hours. Date-only today trims elapsed time
+and minimum notice; an explicitly past clock time is refused. A clock time in
+a DST gap or fold is refused rather than guessed. Civil date boundaries use
+the earliest valid instant on or after midnight.
+
+A refusal supplies a typed reason and trusted current clock. A corrected request
+is a new tool call within the daily limit; Skysay does not sweep later dates or
+retry a failed read automatically. A new search withdraws the previous offers,
+including when the new search is refused or incomplete.
+
 ## In a workflow
 
 An AI agent with a published [workflow](/docs/agent-workflows) books through
 the workflow's own steps: a **Read tool** step that checks availability and
 one that books, as in the **Appointment booking** starter template. They use
-the calendar the AI agent has, so choose **Enable booking** for it here first;
+the calendar the AI agent has, so select **Check availability and book** first;
 nothing is attached for you. Without it, those steps take their error routes.
 How to build them is in
 [Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call).
@@ -195,6 +271,16 @@ below. The builder's **Chat** test books nothing.
 
 ## Read the result
 
+The browser test timeline labels availability, pending caller confirmation,
+declines, provider failure, uncertain outcomes and confirmed bookings separately.
+The server reports terminal booking outcomes directly after a confirmed answer,
+including a decline when the model does not make another tool call. This live
+result is a separate action event, not an extra tool invocation. A tool finishing
+successfully is not itself a booking. **Technical details** expands the bounded
+diagnostics on actual tool calls. Older stored tool rows without typed outcome
+proof say the result was not recorded; the durable appointment state below is
+the source for whether the appointment exists.
+
 The selected **Calls** detail shows the appointment's interval, timezone and
 state:
 
@@ -214,15 +300,27 @@ its state is unconfirmed.
 
 ## Test without accidental appointments
 
-Attaching a calendar to an AI agent is what lets its callers book there,
-including the anonymous visitors of Skysay's homepage demo, which runs normal
-AI agents of the demo workspace with their attached calendars and knowledge
-bases. A workspace browser test, the workflow builder's **Talk** test included,
-can write only when the owner has selected a
-**dedicated test connection** and explicitly enabled **real calendar writes in
-browser tests**.
-These settings do not themselves authorize someone to run real test bookings;
-obtain the account owner's permission first.
+Browser voice tests default to **Check availability only**. Booking is removed
+from the server-frozen tool list before admission and funding; directly invoking
+the booking tool is refused too. This does not disable other write tools or
+change the saved AI agent's permissions.
+
+To create real test appointments, first save booking permission on the AI agent
+and configure its connection as a **Dedicated test connection** with **Allow real
+calendar writes from authenticated browser tests**. Then select **Allow real test
+bookings** in the voice test panel. These connection flags affect all AI agents
+using that connection; the test panel never changes them for you. Clearing the
+dedicated-test flag also clears test-write permission.
+
+The workflow builder's **Talk** panel has the same choice. A workflow that names
+a booking step cannot run in availability-only mode: select permitted real test
+bookings or remove booking from that workflow. Skysay does not rewrite its graph.
+Chat and scripted simulations book nothing.
+
+Attaching booking permission also affects real callers and anonymous homepage
+demo visitors of that workspace. Run real booking tests only with the account
+owner's authorization and an explicitly disposable target. Track and clean up
+exact run-created appointments; test calls can send real email invitations.
 
 Required validation includes consent, token refresh, an authenticated browser
 call and a PSTN call with the appointment visible in the real selected calendar
