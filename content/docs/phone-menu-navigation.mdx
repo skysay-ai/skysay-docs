@@ -417,6 +417,16 @@ timeline says **Keys not supported on this line**, and a menu that needs keys
 ends the call as **Menu had no matching option**. Menus you can answer by
 speaking, and holds, work on every line.
 
+Even on a proven line, some menus never act on keys sent as telephone events.
+When a menu answers a key with words of its own ("Sorry, we did not recognise
+that") and then offers the same choice again, the agent sends every later key
+of the call as the key's two tones, in the call's own audio, the way a handset
+does. If the menu ignores three key answers in a row (the first as a telephone
+event, the next two as tones), the call ends as `ivr_timeout` /
+`keys_not_accepted` (**Menu had no matching option** in the workspace) and is
+not redialled. Typed values are never sent as tones. A call that runs an
+[agent workflow](/docs/agent-workflows) keeps sending telephone events.
+
 A self-hosted (open-source) worker does not send keys either. The table that says
 which carrier lines can carry key presses is not part of the open-source export,
 so a self-hosted worker refuses key presses and reports **Keys not supported on
@@ -483,6 +493,7 @@ same per-outcome rules as other calls (see [Campaigns](/docs/campaigns)):
 | `ivr_timeout` | `menu_no_path` | `connected_completed` | no, terminal |
 | `ivr_timeout` | `navigation_limit` | `connected_completed` | no, terminal |
 | `ivr_timeout` | `data_not_authorised` | `connected_completed` | no, terminal |
+| `ivr_timeout` | `keys_not_accepted` | `connected_completed` | no, terminal |
 | `no_human_after_answer` | `recorded_message_only` | `no_answer` | yes, like any other machine answer |
 | `media_session_lost` | `navigation_detector_lost` | `connected_completed` | no, terminal |
 
@@ -517,7 +528,7 @@ three endings: `ivr_timeout` with `hold_limit` (the hold limit ran out) or
 `deadline` (the call reached its maximum length), and
 `remote_party_disconnected` with `during_hold`. So one contact can be billed
 for several long waits. `ivr_timeout` with `navigation_limit` (the menu limit
-ran out), `menu_no_path` or `data_not_authorised` is final and is not retried
+ran out), `menu_no_path`, `data_not_authorised` or `keys_not_accepted` is final and is not retried
 (see [How these calls end](#how-these-calls-end)). Lower **Max hold time**, or turn navigation off for the AI
 agent a campaign uses, if that matters more than reaching a person.
 
