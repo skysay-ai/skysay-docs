@@ -457,7 +457,7 @@ an in-progress call.
 | `interruption_sensitivity` | Every language. `balanced` is the default: the 500 ms threshold and the platform hold. `low` requires 750 ms of continuous speech and holds longer after it. `high` uses 150 ms for callers who need a more responsive threshold, and holds for less. The hold each preset sets depends on whether the language has the trained turn detector (table above), and it is a minimum wait, not the reply time. `min_speech_ms` and `silence_hold_ms`, when set, take precedence for their knob. |
 | `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call it is honoured down to 150 ms; a value below 150 ms is raised to 150 ms. A phone call without it, and without a preset, uses the 500 ms default. Browser and web calls store it but do not apply it. |
 | `silence_hold_ms` | Every language. The shortest wait, 100–2000 ms, after the caller stops speaking before their turn can end. It overrides the platform hold and any sensitivity preset. A value below about 250 ms has no effect, because voice detection needs that much silence to report the end of speech, and the wait is longer whenever the final transcript arrives later than this value. |
-| `min_interruption_words` | 0–5. Defaults to `1` on hosted **English** calls and to `0` (off) everywhere else. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
+| `min_interruption_words` | 0–5. Defaults to `1` on hosted phone calls in every language and to `0` (off) on browser and web calls. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
 | `barge_in_speech_rms` | **Deprecated.** Accepted, stored and returned for compatibility only; the runtime does not apply it to call behavior. Use `interruption_sensitivity`, `min_speech_ms` and `min_interruption_words` to control interruptions. |
 
 A wordless burst that clears the threshold does not end the reply. If no caller
@@ -479,20 +479,19 @@ never makes an interruption happen sooner.
 
 #### The default
 
-A hosted **English** agent that has not set `min_interruption_words` runs with
-`1`: one recognized word as well as the duration threshold. Agents in every
-other language default to `0` and run on the duration threshold alone, because
-the requirement is only enforceable where the transcriber can report a word in
-time (see below).
+A hosted agent that has not set `min_interruption_words` runs with `1`, in
+every language: one recognized word as well as the duration threshold. Where
+the transcriber cannot report a word in time (see below), the call runs on the
+duration threshold alone instead.
 
-To turn the requirement off on an English agent, set `min_interruption_words`
-to `0` explicitly. An explicit `0` is stored and returned; leaving the setting
-out is what selects the default.
+To turn the requirement off, set `min_interruption_words` to `0` explicitly.
+An explicit `0` is stored and returned; leaving the setting out is what selects
+the default.
 
 It is accepted and returned for any agent in any language, but it is
 **effective only where the transcriber emits words fast enough to land inside
-the interruption decision** — today that is the Deepgram stacks, which serve
-English and Estonian. On every other stack the setting is stored, returned
+the interruption decision** — today that is the Deepgram Nova-3 stacks, in
+every language they serve. On every other stack the setting is stored, returned
 unchanged by `get_agent_voice_stack`, and ignored at call time: those calls run
 on the duration threshold alone, exactly as they do with the setting unset. The
 distinction is the transcriber's timing, not the language: a transcriber that
@@ -502,19 +501,19 @@ worse than not having the setting.
 
 #### Sounds that do not count as words
 
-On hosted **English** calls, short listening noises from the caller do not count
-toward `min_interruption_words`. "mm-hm", "uh-huh", "yes", "yeah", "okay",
-"right", "sure", and hesitation sounds such as "uh" and "um" are what a caller
-says to show they are following, not to take the floor, so a transcript
-containing nothing but one or two of them will not interrupt the agent however
-long the caller holds it.
+Short listening noises from the caller do not count toward
+`min_interruption_words`. Each language has its own list, and today the list
+exists for **English**: "mm-hm", "uh-huh", "yes", "yeah", "okay", "right",
+"all right", "sure", "I see", and hesitation sounds such as "uh" and "um" are
+what a caller says to show they are following, not to take the floor. A
+transcript of at most two words that are all on the list, or one that is
+exactly a listed phrase such as "I see", will not interrupt the agent, however
+long the caller holds it. Longer combinations, such as "I see, okay", count as
+words.
 
-This is English-only, and deliberately so. Estonian is the other language whose
-transcriber is fast enough for `min_interruption_words` to take effect, and an
-Estonian agent that sets it runs the word requirement in full — but every word
-counts there, including "jah" and "okei", because the equivalent list has not
-been measured for that language. Applying an English list to it would refuse
-nothing while this page claimed otherwise.
+In every other language every word counts, including "jah" and "okei" in
+Estonian, until that language's list is measured. A list written for one
+language would refuse nothing in another while this page claimed otherwise.
 
 The caller is still heard. What they said is delivered to the agent when the
 reply ends, so a caller who says "okay" is answered afterwards rather than
@@ -532,7 +531,7 @@ next result, by up to about half a second. A word recognized *before* the
 threshold opens costs nothing — the interruption still happens the moment the
 caller has spoken for long enough.
 
-`1` is the English default for this reason. Values above `1` require most of a
+`1` is the default for this reason. Values above `1` require most of a
 phrase before the agent will stop, which callers experience as an agent that
 does not listen.
 
@@ -570,11 +569,12 @@ phone call, in any language:
   own language is played in its place; that substitute exists for English,
   Estonian, Sinhala and Tamil, and a call in another language, or one whose
   substitute also fails to synthesise, still opens in silence.
-  **GPT-Live 1** and **Gemini Live** agents handle barge-in on the model side:
-  the opening line is not held uninterruptible by this protection, and a
-  pickup-shaped "hello?" may still cut it. Workflow-bound calls cannot use
-  either engine, so the early-speech hold described above applies to Standard
-  agents only.
+  **GPT-Live 1** follows the same rule when the agent speaks first: the engine
+  does not hear a short "hello?" over its opening, and a caller who keeps
+  speaking for more than a second is heard, from the start of what they said,
+  and answered. On **Gemini Live**, **Eleven Realtime** and on outbound
+  GPT-Live calls where the person speaks first, barge-in is handled on the
+  model side and a pickup-shaped "hello?" may still cut the opening.
 - When an interruption does qualify, the agent plays on for a bounded moment
   instead of stopping at the exact instant it is cut, so the sound it is part way
   through finishes rather than being clipped. This is a time budget of up to
@@ -602,7 +602,7 @@ people nearby — can sound like the start of speech, so on a hosted phone call
 the agent does not wait on sound alone forever:
 
 - On hosted **English** calls transcribed by Deepgram, with
-  `min_interruption_words` at 1 or more (the English default), the agent waits
+  `min_interruption_words` at 1 or more (the default), the agent waits
   at most **1.5 seconds** when no words are recognized, then speaks. Listening
   sounds such as "mm-hm", "okay" or "uh" do not count as words. That is longer
   than it takes the transcriber to report a caller's first word. If the caller
@@ -690,7 +690,13 @@ speaks SIP, use the existing SIP trunk setup instead.
 
 The generated configuration uses encrypted WebSocket transport and HTTP Basic
 authentication: the agent ID is the user name and the connection password is
-the password. Keep certificate and hostname verification enabled. The `n`
+the password. Keep certificate and hostname verification enabled. Asterisk's
+WebSocket client trusts no certificate authority until you name one, so add a
+`ca_list_file` line for your system's CA bundle to the `websocket_client.conf`
+block, for example `ca_list_file=/etc/ssl/certs/ca-certificates.crt` on Debian
+or Ubuntu or `ca_list_file=/etc/pki/tls/certs/ca-bundle.crt` on RHEL-based
+systems. Without it the connection fails certificate verification and the
+`Dial` returns `CHANUNAVAIL`. The `n`
 option in the generated `Dial(WebSocket/...)` line is required: Skysay checks
 the published configuration, funds, capacity and worker readiness before
 instructing Asterisk to answer. A refused attempt does not answer the call.
