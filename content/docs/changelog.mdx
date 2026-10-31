@@ -12,6 +12,52 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 31 October 2026
+
+### Deepgram agents follow the caller's language on their own
+
+- AI agents on Deepgram that follow the caller now switch to another published language when the caller is heard speaking it, from their next call, with no republish needed.
+- Follow the caller is on by default for an agent with two or more languages unless you turned it off; an agent published earlier takes the default at its next publish.
+- [Optional: follow the caller](/docs/multilingual-outbound#optional-follow-the-caller) · [Automatic switching availability by language](/docs/language-qualification#automatic-switching-availability-by-language)
+
+### Browser tests count down and end at 3 minutes
+
+- A browser test from an AI agent's test panel lasts at most 3 minutes of conversation, and the panel counts down its last 30 seconds.
+- It then ends with `ended_reason` `max_call_duration_reached`; earlier browser tests that reached this limit were reported as `media_session_lost`.
+- [A browser test reached its limit](/docs/post-call-results#when-a-call-ends-automatically) · [Why a call ended](/docs/post-call-results#why-a-call-ended)
+
+### Voice simulations run as live calls
+
+- An **AI caller · voice** test is now a live call in a test room: a synthetic caller talks to your real AI agent on its own engine, with no phone number.
+- Voice tests keep your configured business tools and use your scenario's mock responses for the final effect; every test first checks that the call ended normally.
+- Voice tests reserve funds from your workspace wallet and charge measured usage up to the maximum shown before you start; scripted tests stay free.
+- [Live-call voice tests](/docs/simulations-lab#live-call-voice-tests) · [Business tools with scenario mocks](/docs/simulations-lab#business-tools-with-scenario-mocks)
+
+### Calls listen in any language
+
+- A call now listens for the other party in any language its transcriber can hear, with no fixed list of listening languages; what the agent says does not change.
+- To keep an AI agent's calls listening only in its own language, choose **Listening → The AI agent's language only** or send `"listening": {"mode": "agent_language"}`.
+- [Hearing the other party in any language](/docs/multilingual-outbound#hearing-the-other-party-in-any-language) · [Locking listening to the agent's language](/docs/multilingual-outbound#locking-listening-to-the-agents-language)
+
+### Voicemail Hang up acts on proof of a mailbox
+
+- An agent set to **Hang up** now ends the call without a message when a record beep after a greeting proves a mailbox and the line then stays quiet, about 6.5 seconds later.
+- The call ends with `ended_reason` `no_human_after_answer` and `reason_detail` `recorded_message_only`; **Leave a message** still only watches.
+- A beep after a greeting is the only proof of a mailbox, in every language, and a mailbox phrase on its own is only suspicion.
+- [Voicemail detection](/docs/voicemail-detection) · [What happens on a call today](/docs/voicemail-detection#what-happens-on-a-call-today)
+
+### Interruptions count one word in every language
+
+- On a hosted phone call, `min_interruption_words` now defaults to 1 in every language, so an interruption needs one recognized word as well as the speech duration.
+- It takes effect where the transcriber reports words in time, today Deepgram Nova-3; listening sounds such as "mm-hm" and "okay" are not counted in English.
+- [Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in) · [Sounds that do not count as words](/docs/wire-an-agent#sounds-that-do-not-count-as-words)
+
+### Calendar booking is availability-only until you allow booking
+
+- Selecting a calendar on an AI agent now defaults to **Check availability only**; choose **Check availability and book** to let it create appointments.
+- Browser voice tests also default to availability only; real test bookings need saved booking permission, a dedicated test connection and **Allow real test bookings**.
+- [Give an AI agent permission](/docs/calendar-booking#give-an-ai-agent-permission) · [Test without accidental appointments](/docs/calendar-booking#test-without-accidental-appointments)
+
 ## 27 October 2026
 
 ### AI agents can check phone-number coverage
