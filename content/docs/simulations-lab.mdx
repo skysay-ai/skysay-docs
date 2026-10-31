@@ -15,7 +15,8 @@ simulation-only tool mocks. Voice attempts make a real call in a test room,
 using your AI agent's saved engine. Business writes such as sending an SMS,
 transferring a customer or changing an integration are blocked. Voice tests
 retain conversation controls such as ending the call and switching language.
-Provider usage is bounded; tests are not charged to your workspace balance.
+Voice tests use your workspace wallet for measured usage. Scripted tests are free;
+adaptive chat costs remain tracked against the suite budget.
 
 ## The shape of a suite
 
@@ -373,14 +374,15 @@ past revisions.
 
 Every workflow run an attempt produces carries immutable synthetic provenance.
 Synthetic runs are excluded by default from your call and message lists,
-analytics, live success metrics, billing, and provider-usage reporting — so
+analytics, live success metrics, and production provider-usage reporting — so
 running a suite a hundred times a day never distorts what your workspace
 reports about real callers. This holds for adaptive attempts too — a synthetic
 conversation is more convincing than a scripted one, which makes marking it
 synthetic more important, not less.
 
-Suite cost is reported only by the suite itself and is never charged to your
-balance. Deterministic attempts genuinely cost nothing.
+Voice-test charges appear in your normal workspace wallet. Keeping test calls out
+of production analytics does not make their provider usage free. Scripted attempts
+cost nothing; adaptive chat costs remain tracked against the suite budget.
 
 ### Finding a lab call in Calls
 
@@ -504,8 +506,25 @@ Each test call lasts at most the call ceiling shown in the run panel (150 second
 by default) and at most 20 caller turns. The run panel shows the run's planned
 test calls, one per attempt. A call that fails on our side is retried once
 automatically, for at most two retries per run (one when the run plans a single
-call); a retry is never retried. Voice tests are **not charged** in this
-release: the run's estimate leaves them out and no money line is shown for them.
+call); a retry is never retried.
+
+The run panel shows the **maximum reservation**, including possible retries, in
+your wallet currency. Each voice attempt reserves its own allowance from purchased
+funds in the normal workspace wallet before opening a room. Promotional browser
+credit does not fund simulations. If available purchased funds cannot cover an
+attempt, that attempt does not start.
+
+The charge includes measured usage by your AI agent, the synthetic caller's model,
+voice and speech recognition, workflow model requests, and any evaluator requests.
+The attempt settles once: measured costs are summed, rounded up once to the
+smallest currency unit, and capped at its reservation. The unused amount returns
+to your available balance. Missing usage is never charged as an estimate; late
+usage cannot add another charge after settlement.
+
+A failed or cancelled attempt can still have measured provider usage. It is charged
+for that usage within the same cap; a call that never used a provider costs zero.
+Each automatic retry has a separate allowance within the maximum shown before
+starting. Historical free runs remain free.
 
 ### What an attempt shows
 
@@ -527,7 +546,8 @@ Open **Test call detail** under an attempt to see:
   one side misheard is visible;
 - every failed or unsettled rule's evidence, such as *expected at most 500 ms,
   got 640 ms*, with the rule's code;
-- the cost: not charged.
+- the **reserved amount** while running, then the **final charge** once settled.
+  Historical free attempts continue to say they were not charged.
 
 An attempt still in progress, being scored, or waiting for its automatic retry
 says so; it is never shown as a pass, fail or error.
@@ -541,7 +561,8 @@ timing bound already broken or a forbidden route already taken still fails it.
 live-call voice attempt, a `live_call` object: `mode`, `state`, `verdict`
 (`status`, `code`, `marks`, `retry`), `built_in_check` (with the ending's code
 in `reason`), `ending`, `stop`,
-`timings`, `recording`, `charge` (`not_charged`) and `agent_recorded` (your AI
+`timings`, `recording`, `charge` (`workspace_wallet` for funded attempts,
+`not_charged` for historical free attempts), `billing` and `agent_recorded` (your AI
 agent's own transcript of the call, at most 200 lines, with
 `agent_recorded_page.has_more`). Its `facts` is empty, and its rubric rows carry
 `id`, `result`, `score`, `threshold`, `reason` and `rationale`. Without the
@@ -552,8 +573,9 @@ with its mode, call ceiling and the workflow steps it stops at.
 `GET /v1/agents/{agent_id}/simulation-suites/{suite_id}` returns
 `run_setup.live_call`: the mode a run started now would get, any refusal that
 start would meet, the rules that mode cannot apply, the built-in check, the
-call ceiling, `planned_calls`, `retry_allowance` and `max_calls`, and that voice
-tests are not charged. Voice rows of `run_setup.by_runner` are not metered.
+call ceiling, `planned_calls`, `retry_allowance`, `max_calls` and
+`billing.maximum_minor` in `billing.currency`. The live-call billing object is the
+voice reservation preview; the text-run estimate is separate.
 
 ## Voice proof: two different things
 
@@ -646,12 +668,12 @@ suite in a single tool call rather than one call per scenario.
 **Ask what a run costs before you start one.** `preview_simulation_run` is
 read-only: it creates no run, queues nothing and reserves no budget. It returns
 the attempt counts, the text-run estimate and the model-call ceiling, plus
-`supported_runners`. Voice tests are excluded from the customer cost estimate
-in this release. Read the suite detail for the live-call configuration preview.
+`supported_runners`. Read the suite detail's `run_setup.live_call.billing` for
+the voice-test maximum reservation and currency.
 
-**Starting an adaptive run incurs metered provider costs.** These are tracked
-against the suite budget, not charged to the workspace balance, as described
-above. `start_simulation_run` is
+**Starting an adaptive run incurs provider costs.** Voice attempts use the
+workspace wallet as described above; adaptive chat costs remain tracked against
+the suite budget. `start_simulation_run` is
 annotated `destructiveHint`, and it requires the same `idempotency_key` the REST
 route does — never generated for you, because a key you choose is the only thing
 that makes a retried start return the first run instead of paying for a second.
