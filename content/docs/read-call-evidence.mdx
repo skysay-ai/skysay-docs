@@ -1,6 +1,6 @@
 ---
 title: Read call evidence
-description: Recordings, waveform peaks, transcript turns, summaries, and retention/disclosure state for every call.
+description: Recordings, waveform peaks, transcript turns, summaries, and disclosure state for every call.
 icon: DocMagnifyingGlass
 ---
 
@@ -156,9 +156,11 @@ standard STT/LLM/TTS pipeline, consecutive recorded agent replies remain separat
 entries even when the caller has not spoken between them. For example, a short
 acknowledgement followed by the answer should show both replies. An interrupted
 reply can contain text that was not heard in full; check its playback evidence
-and the recording. Text prepared for speech that never played is not proof the
-caller heard it. This applies to newly recorded calls, not a repair of old
-transcripts.
+and the recording. On a workflow call spoken in its configured voice, a line
+the caller cut off is shown as written, marked as interrupted, with the audio
+that played; a line cut before any of it played is not shown. Text prepared
+for speech that never played is not proof the caller heard it. This applies
+to newly recorded calls, not a repair of old transcripts.
 
 A `recording` is the call's audio metadata plus:
 
@@ -166,8 +168,8 @@ A `recording` is the call's audio metadata plus:
   rendering a scrubbable waveform. Recordings saved before 26 September 2026
   are recomputed to the same detail.
 - **Transcript turns** — speaker-attributed turns of the conversation.
-- **Retention / disclosure state** — how long the audio is kept and whether the
-  required call disclosure was made.
+- **Disclosure state** — whether the required call disclosure was made, plus
+  the retention value stored with the recording, which is not applied yet.
 
 `get_call` returns the call status, recording state and [where its workflow ended](#where-a-calls-workflow-ended); `get_call_recording`
 returns recording metadata, disclosure state, and a relative `download_url`;
@@ -190,9 +192,11 @@ require the `recordings:read` scope, which is distinct from `calls:read` so you
 can grant transcript access without call metadata, or vice versa.
 
 <Callout type="info" title="Retention">
-  Recording retention runs on the Skysay side (dry-run or execute). The
-  disclosure state on each recording tells you whether the call was announced as
-  recorded — surface it when you summarize a call back to a human.
+  Recordings and transcripts are kept until you delete them; nothing deletes
+  them automatically today. `DELETE /v1/calls/{call_id}/recording` deletes a
+  call's recording together with its transcript, summary and extracted results.
+  The disclosure state on each recording tells you whether the call was
+  announced as recorded — surface it when you summarize a call back to a human.
 </Callout>
 
 ## The call event log
@@ -490,8 +494,8 @@ Ordering is by offset on the recording clock. A tool row marks when the call
 finished, not which turn caused it, so a row sits between turns rather than
 being attributed to one of them.
 
-Deleting a recording, a retention expiry, or re-importing a corrected recording
-removes these rows along with it.
+Deleting a recording or re-importing a corrected recording removes these rows
+along with it.
 
 ### When the other party spoke but has no transcript
 
