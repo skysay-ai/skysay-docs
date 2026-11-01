@@ -1,0 +1,106 @@
+---
+title: Keep your existing number
+description: Forward selected voice calls from your current provider to a Skysay AI line.
+icon: Phone
+---
+
+Keep your public business number and its current provider. Your provider or
+phone-system administrator forwards the calls you choose to a separate Skysay
+number. This does not port your number, import it as a Skysay-owned number, or
+forward its SMS.
+
+## Set up forwarding
+
+Open **Numbers → Keep your number**. The four steps save a draft in your
+workspace, so you can leave to prepare an agent, add funds or complete a number
+request and return later.
+
+1. Enter your business number with its country code. Choose busy, unanswered,
+   unreachable, or always forwarding. Always cannot be combined with the other
+   conditions. Select the AI agent that should answer.
+2. Choose a dedicated Skysay line already routed to that agent. Its activation,
+   agent configuration, route and available paid funds must pass the normal
+   incoming-call checks. If you need another line, use the existing number
+   request flow and accept its price and requirements there. Saving this setup
+   never buys or reroutes a number.
+3. Ask your current provider or administrator to enable the selected conditions
+   and give you instructions for turning them off. Confirm destination
+   compatibility and charges before renting a new destination. A provider help
+   article alone is not a qualified dial-code recipe; unqualified providers get
+   an administrator request rather than guessed star codes. Selecting **I've
+   followed the instructions** records your report; it does not change carrier
+   settings.
+4. Start a test watch, then call your original business number from another
+   phone. Follow the instructions for that particular condition. Enter the
+   displayed six-digit test code once the AI answers. A watch lasts three
+   minutes and does not place a call for you.
+
+Your original provider may charge for the forwarded leg. Skysay usage and any
+AI-line rental are billed separately. Test calls use the normal admission and
+billing paths.
+
+## Understand the result
+
+- **No test call received:** no matching test marker reached the selected AI
+  line within the watch. Check your provider settings and try again.
+- **Received; forwarding unconfirmed:** the AI line received the test marker,
+  but there is insufficient trusted evidence of the original number or the
+  particular forwarding condition. A direct call to the AI line does not prove
+  forwarding.
+- **Condition verified:** both the same-call marker and qualified independent
+  evidence prove the original-number path and that condition for this setup.
+  Test busy and unanswered separately; one result does not verify the other.
+
+Carrier headers are not automatically trusted. In particular, relayed
+`Diversion` headers from DIDWW are unqualified until their exact provenance and
+meaning have been demonstrated. Ordinary manual tests on an unqualified
+provider therefore remain unconfirmed, even when you heard the AI answer.
+A controlled lab test can instead retain its original-number dial record,
+business-line branch trace and receiving-call evidence. It is restricted to
+the isolated test workspace and configured test numbers.
+
+Declining an incoming call is not universally a busy test. Call waiting and
+carrier voicemail can affect what happens. An unanswered test must really ring
+without being answered. An always-forwarded call cannot verify busy forwarding.
+
+Editing the business number, destination, agent or conditions invalidates old
+results for the current setup. History remains available. A changed route or
+agent configuration requires another test. Verification is a functional
+observation, not proof of ownership of a phone number.
+
+## Stop forwarding
+
+Use **Show how to stop forwarding**, then turn it off with your original
+provider. Recording that you have done so is a user report, not a carrier
+confirmation. Keep the destination line active while calls may still be
+forwarded to it. This action never releases its rental automatically.
+
+Before changing the business number or its AI destination, follow the stop
+instructions and report that you have stopped forwarding. This keeps the
+previous destination protected while your provider may still be sending
+calls there. Changing an agent or condition requires following the updated
+instructions and testing again.
+
+There is no qualified non-AI overflow or voicemail promise in this initial
+flow. If the AI line cannot accept a call, its ordinary admission behavior
+applies. Arrange a backup with your provider before relying on forwarding for
+critical calls.
+
+## API and MCP
+
+Use the same workspace-owned resources as the UI:
+
+- `POST /v1/call-forwarding-setups` creates an idempotent draft.
+- `GET /v1/call-forwarding-setups` returns a bounded, paginated list.
+- `GET` and `PATCH /v1/call-forwarding-setups/{id}` read or revise a setup.
+- `GET .../{id}/instructions` reads readiness and provider guidance.
+- `POST .../{id}/instructions-followed` records your confirmation.
+- `POST .../{id}/test-attempts` arms a test; `GET` its returned attempt ID to
+  poll the result, or `POST .../{id}/test-attempts/{attempt_id}/cancel` to stop
+  watching.
+- `POST .../{id}/stop-report` records your report that forwarding was disabled.
+
+Writes use `numbers:write`; reads use the scopes listed in the generated API
+reference. Revision-checked writes refuse stale changes instead of overwriting
+a colleague's work. MCP forwarding tools call these same services; they do not
+buy lines, dial, enable forwarding or send messages implicitly.

@@ -1317,6 +1317,13 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "workflow_warnings": {
+            "description": "On a PATCH that sends `tools` only: every step of the agent's published workflow version this save left unable to run. The save still succeeds.",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowToolWarning"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -1356,6 +1363,10 @@
             },
             "description": "Optional stt/llm/tts map to existing hosted-AI credential IDs (or null to use platform-managed selection). References are validated; secret upload is a separate write-only API.",
             "type": "object"
+          },
+          "expected_system_prompt": {
+            "description": "Optional previously read prompt. When system_prompt is supplied, a mismatch returns 409 prompt_publication_conflict without publishing or writing any configuration.",
+            "type": "string"
           },
           "expected_tools": {
             "description": "Optional previously read complete tools array, including read-only refs. With a tools replacement, a mismatch returns 409 with error AgentToolsChangedError and writes nothing. Workspace editors and calendar attachment send it to avoid lost changes.",
@@ -1971,7 +1982,7 @@
             "type": "string"
           },
           "ended_reason": {
-            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit (a browser test started from the AI agent's test panel in the workspace is limited to 3 minutes and ends this way when it reaches them; the workflow builder's Talk test is not), `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. The last three name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it, and `listener_unavailable`, when a workflow agent's speech listener (its speech-to-text provider) failed while the caller was on the line -- it never connected, or its stream closed or failed -- so the platform ended the call rather than leave the caller talking to an agent that could no longer hear them. `workflow_line_undelivered` is the platform ending a workflow call that could not deliver a line before the workflow's end: on GPT-Live 1 the line was played but not said in full, or the caller spoke three times over a step whose line had begun playing but had still not been heard in full (words over a repeat that never began playing are not counted). The workflow cannot go on as if the caller had heard the question, so the call ends and its `workflow.status` is `failed`; nobody hung up. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all four, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. `ivr_timeout` is the platform ending a call that was waiting in a phone menu or a hold queue (phone menu navigation); `reason_detail` says why: `hold_limit` (the hold time ran out), `navigation_limit` (the time allowed in menus ran out), `deadline` (the call's overall maximum length was reached while waiting), `menu_no_path` (the menu offered no way to a person), `data_not_authorised` (the menu asked for a value the call did not supply or may not give) or `keys_not_accepted` (the menu never acted on the call's key presses: it read the same choices again after each, whether the keys were sent as telephone events or as tones). When the other party hangs up while a call is waiting in a menu or on hold, the reason stays `remote_party_disconnected` and `reason_detail` is `during_hold`. `no_human_after_answer` can carry `recorded_message_only` (a recording and nothing else answered) and `media_session_lost` can carry `navigation_detector_lost`. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
+            "description": "Why the call ended. `browser_startup_failed` means a workspace browser test requested an opening that failed before observed agent output; it does not promise a refund. `funding_exhausted` means the last funded runtime allowance expired; `reason_detail` is `insufficient_balance` for a confirmed funding refusal or `renewal_unavailable` when renewal could not be confirmed. Holds estimate usage and do not cap the final cost. Other reasons fall into three groups. Two are the ordinary end of a call that went well: `agent_completed` when the agent finished the conversation and ended the call itself, which is the usual outcome of a workflow that runs to its last step, and `remote_party_disconnected` when the other party hung up. Six are endings the platform initiates: `agent_unresponsive`, described below, `hangup_requested` when someone ends the call from the workspace or through POST /v1/calls/{call_id}/hangup, `max_call_duration_reached` when the call hits its configured limit (a browser test started from the AI agent's test panel in the workspace is limited to 3 minutes and ends this way when it reaches them; the workflow builder's Talk test is not), `no_caller_speech_after_answer` when the call is answered but nobody ever speaks, `no_human_after_answer` when the call is answered but nothing on the line was a person: only music or tones were ever heard, or a recording repeated the same cycle of things over and over, and `caller_unresponsive` when both sides fell silent after the agent had spoken: after 30 seconds of silence the agent asks whether the caller is still there (once per silent stretch, at most three times per call), and the call ends politely 15 seconds after that question if nobody answers. This ending is rolling out: while it is in observation the platform records what it would have done and does not end calls, so the value does not yet appear. A caller who answers, even with one word, simply continues the conversation. On a workflow call, `caller_unresponsive` with `reason_detail` `not_understood` means the caller was heard after a question but no words were recognised, three times in a row at the same question: the agent says a short apology and asks the question again, at most twice in a row (any reply with recognised words resets the count; there is no setting for it), then says the workflow's goodbye line and ends the call. A question group's own presentation limit, the workflow's `max_turns`, or the call's duration limit can end it sooner. `reason_detail` `silent` is the same ending reached when nothing at all was heard after the question; it is in observation and does not yet appear. The last three name an ending nobody chose, neither the people on the call nor the platform: `media_session_lost`, when the media session went away underneath a live call -- the room was deleted, or the connection to it failed -- `model_session_lost`, when the conversation engine behind the call failed and could not be recovered while the media session was still up, so the platform ended the call rather than leave the line open with nobody on it, and `listener_unavailable`, when a workflow agent's speech listener (its speech-to-text provider) failed while the caller was on the line -- it never connected, or its stream closed or failed -- so the platform ended the call rather than leave the caller talking to an agent that could no longer hear them. `workflow_line_undelivered` is the platform ending a workflow call that could not deliver a line before the workflow's end: on GPT-Live 1 the line was played but not said in full, or the caller spoke three times over a step whose line had begun playing but had still not been heard in full (words over a repeat that never began playing are not counted). The workflow cannot go on as if the caller had heard the question, so the call ends and its `workflow.status` is `failed`; nobody hung up. Whenever a workflow run itself fails (its `workflow.status` is `failed` with a `fail_reason` such as `UNHEARD_REPEATS_EXHAUSTED`, `NO_WORDS_EXHAUSTED`, `MAX_VISITS_EXHAUSTED` or `TURN_TIMEOUT`), the agent first says the workflow's goodbye line once, in the call's language (\"Sorry, I'm having trouble continuing this call. Goodbye.\", rendered into each published language when the workflow is published), and then ends the call. `agent_unresponsive` is the platform ending a call whose agent stopped answering while its engine stayed connected: the caller finished speaking and the agent produced nothing for the whole of the agent's `voice_polish.model_unresponsive` bound, which counts only the time the caller was NOT speaking. It reports `reason_detail` `model_unresponsive`. It says what was observed -- a silent agent -- and not that anything failed, because a voice-to-voice engine reports nothing when it stops answering. The same ending, with an empty `reason_detail`, closes a call whose agent could not produce its opening: when the opening fails before anything is heard, the platform asks for it once more if that cannot repeat or overlap anything already said, and if the opening still never reaches the caller it ends the call instead of leaving them in silence (on an incoming call answered by a voice-to-voice engine, which already hears and answers the caller, the call continues instead). Calls completed before 2026-09-25 reported this ending as `model_session_lost` with the same `reason_detail`. In all four, nobody hung up, no limit fired and the agent did not finish. Each reports what was observed rather than guessing at a cause, so a call that ends this way is not reported as an operator hang-up even when an operator had just asked for one; that request is answered separately and says the call was already gone. `ivr_timeout` is the platform ending a call that was waiting in a phone menu or a hold queue (phone menu navigation); `reason_detail` says why: `hold_limit` (the hold time ran out), `navigation_limit` (the time allowed in menus ran out), `deadline` (the call's overall maximum length was reached while waiting), `menu_no_path` (the menu offered no way to a person), `data_not_authorised` (the menu asked for a value the call did not supply or may not give) or `keys_not_accepted` (the menu never acted on the call's key presses: it read the same choices again after each, whether the keys were sent as telephone events or as tones). When the other party hangs up while a call is waiting in a menu or on hold, the reason stays `remote_party_disconnected` and `reason_detail` is `during_hold`. `no_human_after_answer` can carry `recorded_message_only` (a recording and nothing else answered) and `media_session_lost` can carry `navigation_detector_lost`. Empty on a call that completed before this field shipped, and on a call that has not completed. A call that FAILED reports its reason in `technical_failure.failure_reason_code` instead; the two vocabularies are separate.",
             "enum": [
               "",
               "hangup_requested",
@@ -2054,7 +2065,7 @@
             "type": "string"
           },
           "reason_detail": {
-            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `insufficient_balance` and `renewal_unavailable` qualify only `funding_exhausted`: confirmed insufficient funds versus unavailable authorization, respectively. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path`, `data_not_authorised` and `keys_not_accepted` appear only with `ended_reason` `ivr_timeout`, `during_hold` only with `remote_party_disconnected`, `recorded_message_only` only with `no_human_after_answer` and `navigation_detector_lost` only with `media_session_lost`, as described on `ended_reason`. `transcriber_refused_request` appears with `ended_reason` `model_session_lost` and says the engine was lost because the call's speech-to-text provider refused the request it was opened with (an HTTP 400). The usual cause is a language or language code the provider does not take: Skysay keeps no list of which languages each provider runs, so this is where one a provider does not run shows itself, per call. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
+            "description": "Qualifies either `answer_classification` or `ended_reason`, and says which by the value. `insufficient_balance` and `renewal_unavailable` qualify only `funding_exhausted`: confirmed insufficient funds versus unavailable authorization, respectively. `caller_tune`, `hold_music` and `looping_recording` appear only with `answer_classification` `non_human_audio`, and `no_audio` only with `silent`: `looping_recording` means the far end said the same cycle of things over and over, a recording on repeat, rather than music or tones. `model_unresponsive` appears with `ended_reason` `agent_unresponsive` -- and, on calls completed before 2026-09-25, with `model_session_lost` -- and means the call was ended by the platform because the agent produced nothing at all for the whole of its bound of caller-free time after the caller finished speaking -- as opposed to the same reason reached because the conversation engine reported its own failure. `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path`, `data_not_authorised` and `keys_not_accepted` appear only with `ended_reason` `ivr_timeout`, `during_hold` only with `remote_party_disconnected`, `recorded_message_only` only with `no_human_after_answer` and `navigation_detector_lost` only with `media_session_lost`, as described on `ended_reason`. `not_understood` and `silent` appear only with `ended_reason` `caller_unresponsive` on a workflow call, as described there. `transcriber_refused_request` appears with `ended_reason` `model_session_lost` and says the engine was lost because the call's speech-to-text provider refused the request it was opened with (an HTTP 400). The usual cause is a language or language code the provider does not take: Skysay keeps no list of which languages each provider runs, so this is where one a provider does not run shows itself, per call. Empty when neither needs qualifying, which is most calls. This is not `ended_reason` itself: that one names the ending, this one adds to it.",
             "enum": [
               "",
               "caller_tune",
@@ -2071,8 +2082,10 @@
               "navigation_detector_lost",
               "navigation_limit",
               "no_audio",
+              "not_understood",
               "recorded_message_only",
               "renewal_unavailable",
+              "silent",
               "transcriber_refused_request"
             ],
             "type": "string"
@@ -2650,6 +2663,167 @@
         ],
         "type": "object"
       },
+      "CallForwardingSetup": {
+        "description": "A durable draft. UI revision protects autosaves; configuration_revision changes only when call-affecting setup fields change. A carrier stop or instructions report is user-reported and never verified forwarding.",
+        "properties": {
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "carrier_report": {
+            "enum": [
+              "unknown",
+              "stop_reported",
+              "instructions_reported"
+            ],
+            "type": "string"
+          },
+          "conditions": {
+            "description": "always is exclusive with conditional forwarding.",
+            "items": {
+              "enum": [
+                "busy",
+                "unanswered",
+                "unreachable",
+                "always"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "configuration_revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "instructions_revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "line_type": {
+            "enum": [
+              "office",
+              "mobile",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider_key": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "reported_source_number": {
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_number": {
+            "description": "Existing business E.164 voice number; empty only for an unfinished draft. Ownership is not inferred.",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "step": {
+            "enum": [
+              "setup",
+              "line",
+              "connect",
+              "test",
+              "manage"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CallForwardingTest": {
+        "description": "One selected condition, bounded expiry and one active attempt per setup. A direct AI-line call does not prove forwarding; ordinary calls retain normal billing.",
+        "properties": {
+          "call_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "challenge": {
+            "description": "Only returned by start/retry while watching. Six DTMF digits for same-call correlation; not identity or ownership proof.",
+            "type": "string"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "condition": {
+            "enum": [
+              "busy",
+              "unanswered",
+              "unreachable",
+              "always"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "setup_id": {
+            "type": "string"
+          },
+          "setup_revision": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "watching",
+              "expired",
+              "cancelled",
+              "received_unconfirmed",
+              "verified"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CallGroupResultItem": {
         "properties": {
           "analysis": {
@@ -2933,8 +3107,10 @@
               "navigation_detector_lost",
               "navigation_limit",
               "no_audio",
+              "not_understood",
               "recorded_message_only",
               "renewal_unavailable",
+              "silent",
               "transcriber_refused_request"
             ],
             "type": "string"
@@ -6546,6 +6722,96 @@
         ],
         "type": "object"
       },
+      "WorkflowToolWarning": {
+        "description": "An action step this AI agent cannot run is reported as `AGENT_TOOL_NOT_CONFIGURED` (see the WorkflowToolWarning schema): the step's agent tool is missing, does not change anything, is an Integration action that no longer matches its integration in this project, or is the Transfer tool with no phone number or one that cannot be dialled. It never blocks; on a call the step takes its on_error route.",
+        "properties": {
+          "agent_id": {
+            "description": "On an agent save's workflow_warnings only.",
+            "type": "string"
+          },
+          "agent_name": {
+            "description": "On an agent save's workflow_warnings only.",
+            "type": "string"
+          },
+          "code": {
+            "enum": [
+              "AGENT_TOOL_NOT_CONFIGURED"
+            ],
+            "type": "string"
+          },
+          "details": {
+            "properties": {
+              "interrupts": {
+                "description": "Global interrupts that lead to this step, such as human_request.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "on_error": {
+                "description": "The step a call goes to instead.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "on_error_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
+                "enum": [
+                  "tool_missing",
+                  "tool_not_write",
+                  "integration_action_unavailable",
+                  "transfer_number_missing",
+                  "transfer_number_invalid"
+                ],
+                "type": "string"
+              },
+              "step_name": {
+                "type": "string"
+              },
+              "tool": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "tool",
+              "reason",
+              "step_name",
+              "on_error",
+              "on_error_name",
+              "interrupts"
+            ],
+            "type": "object"
+          },
+          "message": {
+            "description": "What a call will do, and how to fix it, in English.",
+            "type": "string"
+          },
+          "step_id": {
+            "type": "string"
+          },
+          "version": {
+            "description": "The published version, on an agent save's workflow_warnings only.",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "description": "On an agent save's workflow_warnings only.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "step_id",
+          "details"
+        ],
+        "type": "object"
+      },
       "WorkflowVersionSummary": {
         "description": "Safe immutable version metadata. The separate published field is null before the first explicit publish.",
         "properties": {
@@ -7439,7 +7705,7 @@
         },
         "responses": {
           "200": {
-            "description": "Agent"
+            "description": "Agent. A save that sends `tools` also carries `workflow_warnings`: every step of the agent's published workflow version that this save left unable to run, as WorkflowToolWarning with agent_id, agent_name, workflow_id and version (empty when none). The save still succeeds; calls take each step's on_error route until the tool is restored."
           },
           "400": {
             "description": "Invalid field value, a voice-stack setting sent to this route, or a status this route may not write"
@@ -9420,7 +9686,7 @@
     },
     "/v1/agents/{agent_id}/workflow": {
       "get": {
-        "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation, a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404, and an agent in another workspace answers exactly as one that never existed.",
+        "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation (its warnings include AGENT_TOOL_NOT_CONFIGURED for every action step this AI agent cannot run, see WorkflowToolWarning), a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404, and an agent in another workspace answers exactly as one that never existed.",
         "operationId": "getAgentWorkflow",
         "parameters": [
           {
@@ -9828,7 +10094,7 @@
     },
     "/v1/agents/{agent_id}/workflow/publish": {
       "post": {
-        "description": "Blocks with 400 if the compiled draft has validation errors, or if it has warnings the caller has not acknowledged -- warnings never block by themselves, but publishing an immutable version is where the author has to have seen them. The rejection lists the outstanding codes; send them back in acknowledged_warning_codes to proceed. Version numbering is monotonic per workflow; a call always pins the exact published version it started with.",
+        "description": "Blocks with 400 if the compiled draft has validation errors, or if it has warnings the caller has not acknowledged -- warnings never block by themselves, but publishing an immutable version is where the author has to have seen them. The rejection lists the outstanding codes; send them back in acknowledged_warning_codes to proceed. An action step this AI agent cannot run is reported as `AGENT_TOOL_NOT_CONFIGURED` (see the WorkflowToolWarning schema): the step's agent tool is missing, does not change anything, is an Integration action that no longer matches its integration in this project, or is the Transfer tool with no phone number or one that cannot be dialled. It never blocks; on a call the step takes its on_error route. It is not one of the codes to acknowledge: the response's `warnings` carries it with the draft's other warnings. Version numbering is monotonic per workflow; a call always pins the exact published version it started with.",
         "operationId": "publishAgentWorkflow",
         "parameters": [
           {
@@ -9870,7 +10136,7 @@
         },
         "responses": {
           "201": {
-            "description": "New published version"
+            "description": "New published version, with `warnings`: the draft's warnings and every AGENT_TOOL_NOT_CONFIGURED action step (WorkflowToolWarning)"
           },
           "400": {
             "description": "Draft has validation errors, or unacknowledged warnings, or has no voice_input while the active version has a listener"
@@ -11004,6 +11270,820 @@
         "summary": "Fetch account calendar or event-type choices",
         "tags": [
           "Integrations"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "listCallForwardingSetups",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/CallForwardingSetup"
+                      },
+                      "maxItems": 100,
+                      "type": "array"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    },
+                    "returned": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "List forwarding setups",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      },
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "createCallForwardingSetup",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "conditions": {
+                    "description": "always is exclusive with conditional forwarding.",
+                    "items": {
+                      "enum": [
+                        "busy",
+                        "unanswered",
+                        "unreachable",
+                        "always"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 4,
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "idempotency_key": {
+                    "maxLength": 100,
+                    "minLength": 8,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "type": "string"
+                  },
+                  "line_type": {
+                    "enum": [
+                      "office",
+                      "mobile",
+                      "unknown"
+                    ],
+                    "type": "string"
+                  },
+                  "number_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "provider_key": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "source_number": {
+                    "description": "Existing business E.164 voice number; empty only for an unfinished draft. Ownership is not inferred.",
+                    "maxLength": 40,
+                    "type": "string"
+                  },
+                  "step": {
+                    "enum": [
+                      "setup",
+                      "line",
+                      "connect",
+                      "test",
+                      "manage"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "idempotency_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Create forwarding setup",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "getCallForwardingSetup",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Get forwarding setup",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      },
+      "patch": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "updateCallForwardingSetup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "conditions": {
+                    "description": "always is exclusive with conditional forwarding.",
+                    "items": {
+                      "enum": [
+                        "busy",
+                        "unanswered",
+                        "unreachable",
+                        "always"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 4,
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "line_type": {
+                    "enum": [
+                      "office",
+                      "mobile",
+                      "unknown"
+                    ],
+                    "type": "string"
+                  },
+                  "number_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "provider_key": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "source_number": {
+                    "description": "Existing business E.164 voice number; empty only for an unfinished draft. Ownership is not inferred.",
+                    "maxLength": 40,
+                    "type": "string"
+                  },
+                  "step": {
+                    "enum": [
+                      "setup",
+                      "line",
+                      "connect",
+                      "test",
+                      "manage"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Update forwarding setup",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/instructions": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "getCallForwardingInstructions",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Canonical readiness and qualified instructions, or null instructions while the line needs attention. Unknown products receive provider/admin guidance and no dial codes.",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Get forwarding instructions",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read",
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/instructions-followed": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "recordCallForwardingInstructions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Record forwarding instructions",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/stop-report": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "recordCallForwardingStop",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Record forwarding stop",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/test-attempts": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "startCallForwardingTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "condition": {
+                    "enum": [
+                      "busy",
+                      "unanswered",
+                      "unreachable",
+                      "always"
+                    ],
+                    "type": "string"
+                  },
+                  "idempotency_key": {
+                    "maxLength": 100,
+                    "minLength": 8,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision",
+                  "condition",
+                  "idempotency_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingTest"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Start forwarding test",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/test-attempts/{attempt_id}": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "getCallForwardingTest",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingTest"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Get forwarding test",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read",
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/test-attempts/{attempt_id}/cancel": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "cancelCallForwardingTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingTest"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Cancel forwarding test",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
         ]
       }
     },
