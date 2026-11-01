@@ -119,10 +119,15 @@ Skysay records how each call's transfer ended:
 | --- | --- |
 | `answered` | The person picked up and the caller was connected to them. |
 | `no_answer`, `busy`, `rejected` | The person did not pick up, the line was busy, or the call was declined. The caller stays with the agent. |
-| `failed` | The transfer could not be placed. The caller stays with the agent. |
+| `failed` | The transfer could not be placed or its result could not be confirmed. Skysay attempts to end the transfer leg and does not retry the number. |
 | `caller_cancelled` | The caller changed their mind while it rang, and the agent stopped it. Nobody was connected. |
 | `caller_hangup` | The caller hung up before anyone was connected. |
 | `outcome_unknown` | The call ended before the outcome was reported. |
+
+A busy, declined or unanswered result requires a confirmed SIP response. A
+network timeout or an ambiguous cancellation is reported as `failed`; it is
+not proof that the destination never rang or answered. The AI conversation
+resumes if the call is still connected and the transfer cleanup succeeds.
 
 Only `failed`, `rejected`, `busy`, `no_answer` and `outcome_unknown` count as a
 transfer that went wrong in [why calls fail](/docs/why-calls-fail); a caller
