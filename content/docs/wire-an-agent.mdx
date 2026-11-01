@@ -671,6 +671,136 @@ call policy and carrier reachability are still checked when a call arrives.
 Outbound support depends on the selected destination and is checked when the
 call is requested. Refresh the page after correcting a prerequisite.
 
+## Connect your PBX
+
+Open a hosted AI agent and choose **PBX**. This connects calls from your own
+PBX to that agent without ordering a Skysay phone number. The Asterisk adapter
+uses `chan_websocket`; Asterisk 22.10 is the version qualified in the local
+integration lab. FreeSWITCH and 3CX adapters are planned. For a PBX that only
+speaks SIP, use the existing SIP trunk setup instead.
+
+1. Publish the agent's voice setup, instructions and required call variables.
+2. Under **Connection keys**, create a named key for this PBX. Copy its
+   password immediately; it is shown once.
+3. Copy the generated `websocket_client.conf` and dialplan snippets into
+   Asterisk. Replace `<CONNECTION_PASSWORD>` with the saved password and supply
+   each required variable from your own dialplan.
+4. Reload Asterisk and place a test call. **Recent connections** shows whether
+   Skysay admitted the call or refused it, with the next action when available.
+
+The generated configuration uses encrypted WebSocket transport and HTTP Basic
+authentication: the agent ID is the user name and the connection password is
+the password. Keep certificate and hostname verification enabled. Asterisk's
+WebSocket client trusts no certificate authority until you name one, so the
+generated block includes `ca_list_file=/etc/ssl/certs/ca-certificates.crt`, the
+Debian and Ubuntu CA bundle. On RHEL-based systems change it to
+`/etc/pki/tls/certs/ca-bundle.crt`. Without a valid CA list the connection
+fails certificate verification and the `Dial` returns `CHANUNAVAIL`. The `n`
+option in the generated `Dial(WebSocket/...)` line is required: Skysay checks
+the published configuration, funds, capacity and worker readiness before
+instructing Asterisk to answer. A refused attempt does not answer the call.
+Do not remove that option or add an earlier `Answer()`.
+
+The setup includes an inbound dialplan context and an outbound AMI Originate
+example. For outbound calls, Asterisk calls your destination first, then joins
+the answered channel to the AI agent. You still own the PBX dialplan, trunk,
+carrier charges, and what happens after that AI leg ends.
+
+### Call details and variables
+
+The generated dialplan carries Asterisk's original `UNIQUEID`, the remote
+party, the service line, and the agent's published string variables. Set the
+business values in your PBX; Skysay does not invent missing required values.
+If a published variable uses a type the adapter cannot send, the setup panel
+asks you to repair it instead of generating an unusable configuration.
+
+Repeated connection attempts for the same logical key and original Asterisk
+call ID refer to one Skysay call. They cannot reserve capacity or bill that
+same call twice. Give separate PBXs their own keys so their identifiers do not
+collide. Caller and service-line labels are PBX-supplied context; they do not
+verify ownership of a telephone number or authorize outbound calls or SMS.
+
+### Calls and billing
+
+On **Calls**, choose the **PBX** transport filter to find these calls. A row
+shows **PBX call · Asterisk**; call details show the original PBX call ID and
+native channel ID when available. These are live calls, separate from browser
+tests and simulations. The duration follows the native AI media leg.
+
+PBX calls consume live-call capacity and use the selected engine's AI billing
+components. They do not add a Skysay carrier leg. Billing reserves an estimate
+before admission, then settles from the engine's actual usage. **Awaiting
+usage** means that settlement is pending; a completed call is not proof that
+its final charge is already known. An admitted call that never starts releases
+its unused reservation and capacity after its startup deadline.
+
+### Transfer to a department
+
+Under **Tools**, the department preset creates an action on an existing signed
+integration. You provide an HTTPS endpoint, a signing secret, and the allowed
+department names. The AI agent selects one of those names; it does not choose
+a raw extension or an arbitrary destination.
+Save the agent settings after creating the action and publish the changes
+before testing the published setup.
+
+Your endpoint receives the confirmed action with server-owned PBX context,
+including `external_call_id`, which identifies the original Asterisk call.
+Verify the signature and deduplicate the action ID before resolving that call
+to an active PBX channel and transferring it through your own PBX controller.
+Do not use the WebSocket child channel as the original caller channel.
+
+The caller must hear the action's read-back and explicitly confirm it before
+the write is released. Skysay checks that the native call remains active
+before sending the action. Returning `{"accepted":true}` means your endpoint
+accepted the request; it does not prove that a department answered. Your PBX
+owns the subsequent connection, unavailable destination and fallback behavior.
+
+## PBX connection keys
+
+A PBX connection key belongs to one AI agent in your workspace. Give each PBX
+its own named key so you can rotate or revoke one connection independently.
+An AI agent can have up to 20 active logical keys. A key authenticates a PBX;
+creating a key does not itself start a call or configure your PBX.
+
+Use an API key with `agents:write` to create, rotate or revoke a PBX key.
+`agents:read` is enough to list the keys. These operations use your API
+credential's workspace, including when the caller is an operator.
+
+```bash
+curl -X POST "$SKYSAY_API_URL/v1/agents/$AGENT_ID/pbx-keys" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"main-office"}'
+```
+
+The response contains `key` metadata and a one-time `password` beginning with
+`skypbx_`. Store the password securely. The PBX uses the AI agent ID as its
+HTTP Basic user name and this password as its password. It is not a workspace
+API key. Listings never return the full password or its hash.
+
+`GET /v1/agents/{agent_id}/pbx-keys?limit=20&offset=0` returns `keys`,
+`has_more`, `returned`, `limit` and `offset`. Each key has a stable `id`, its
+name and status, a redacted prefix/suffix, creation and last-use times, and
+`previous_expires_at` for the latest previous password, when one exists.
+A past expiry does not mean that password still works.
+
+Rotate a key with `POST /v1/agents/{agent_id}/pbx-keys/{key_id}/rotate` and an
+empty JSON object. The response reveals the new password once. The logical
+key ID stays unchanged, so changing a password does not create a different PBX
+call identity. By default the immediately previous password keeps working for
+24 hours. You may pass `grace_seconds` from `0` to `86400`; `0` invalidates the
+old password immediately. Repeated rotation preserves older passwords until their original deadlines; it never extends those deadlines. A shorter grace period also shortens any later existing deadline. Passing `0` invalidates every previous password immediately. For a compromised key, revoke it or rotate with zero grace.
+
+Revoke a key with `POST /v1/agents/{agent_id}/pbx-keys/{key_id}/revoke` and an
+empty JSON object. Revocation invalidates every password version of that
+logical key and is safe to repeat. Other named keys keep working. A revoked
+key cannot be rotated; create a new named key when needed.
+
+Over MCP, use `list_pbx_keys`, `create_pbx_key`, `rotate_pbx_key` and
+`revoke_pbx_key` with the same scopes. Passwords are returned only by creation
+and rotation. Copying an AI agent does not copy its PBX keys. Deleting the AI
+agent prevents those keys from authenticating.
+
 ## Bring your own agent
 
 Two of the three modes let your own application do the thinking. Both are
