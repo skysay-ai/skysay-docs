@@ -1317,6 +1317,13 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "workflow_warnings": {
+            "description": "On a PATCH that sends `tools` only: every step of the agent's published workflow version this save left unable to run. The save still succeeds.",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowToolWarning"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -6546,6 +6553,96 @@
         ],
         "type": "object"
       },
+      "WorkflowToolWarning": {
+        "description": "An action step this AI agent cannot run is reported as `AGENT_TOOL_NOT_CONFIGURED` (see the WorkflowToolWarning schema): the step's agent tool is missing, does not change anything, is an Integration action that no longer matches its integration in this project, or is the Transfer tool with no phone number or one that cannot be dialled. It never blocks; on a call the step takes its on_error route.",
+        "properties": {
+          "agent_id": {
+            "description": "On an agent save's workflow_warnings only.",
+            "type": "string"
+          },
+          "agent_name": {
+            "description": "On an agent save's workflow_warnings only.",
+            "type": "string"
+          },
+          "code": {
+            "enum": [
+              "AGENT_TOOL_NOT_CONFIGURED"
+            ],
+            "type": "string"
+          },
+          "details": {
+            "properties": {
+              "interrupts": {
+                "description": "Global interrupts that lead to this step, such as human_request.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "on_error": {
+                "description": "The step a call goes to instead.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "on_error_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
+                "enum": [
+                  "tool_missing",
+                  "tool_not_write",
+                  "integration_action_unavailable",
+                  "transfer_number_missing",
+                  "transfer_number_invalid"
+                ],
+                "type": "string"
+              },
+              "step_name": {
+                "type": "string"
+              },
+              "tool": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "tool",
+              "reason",
+              "step_name",
+              "on_error",
+              "on_error_name",
+              "interrupts"
+            ],
+            "type": "object"
+          },
+          "message": {
+            "description": "What a call will do, and how to fix it, in English.",
+            "type": "string"
+          },
+          "step_id": {
+            "type": "string"
+          },
+          "version": {
+            "description": "The published version, on an agent save's workflow_warnings only.",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "description": "On an agent save's workflow_warnings only.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "step_id",
+          "details"
+        ],
+        "type": "object"
+      },
       "WorkflowVersionSummary": {
         "description": "Safe immutable version metadata. The separate published field is null before the first explicit publish.",
         "properties": {
@@ -7439,7 +7536,7 @@
         },
         "responses": {
           "200": {
-            "description": "Agent"
+            "description": "Agent. A save that sends `tools` also carries `workflow_warnings`: every step of the agent's published workflow version that this save left unable to run, as WorkflowToolWarning with agent_id, agent_name, workflow_id and version (empty when none). The save still succeeds; calls take each step's on_error route until the tool is restored."
           },
           "400": {
             "description": "Invalid field value, a voice-stack setting sent to this route, or a status this route may not write"
@@ -9420,7 +9517,7 @@
     },
     "/v1/agents/{agent_id}/workflow": {
       "get": {
-        "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation, a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404, and an agent in another workspace answers exactly as one that never existed.",
+        "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation (its warnings include AGENT_TOOL_NOT_CONFIGURED for every action step this AI agent cannot run, see WorkflowToolWarning), a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404, and an agent in another workspace answers exactly as one that never existed.",
         "operationId": "getAgentWorkflow",
         "parameters": [
           {
@@ -9828,7 +9925,7 @@
     },
     "/v1/agents/{agent_id}/workflow/publish": {
       "post": {
-        "description": "Blocks with 400 if the compiled draft has validation errors, or if it has warnings the caller has not acknowledged -- warnings never block by themselves, but publishing an immutable version is where the author has to have seen them. The rejection lists the outstanding codes; send them back in acknowledged_warning_codes to proceed. Version numbering is monotonic per workflow; a call always pins the exact published version it started with.",
+        "description": "Blocks with 400 if the compiled draft has validation errors, or if it has warnings the caller has not acknowledged -- warnings never block by themselves, but publishing an immutable version is where the author has to have seen them. The rejection lists the outstanding codes; send them back in acknowledged_warning_codes to proceed. An action step this AI agent cannot run is reported as `AGENT_TOOL_NOT_CONFIGURED` (see the WorkflowToolWarning schema): the step's agent tool is missing, does not change anything, is an Integration action that no longer matches its integration in this project, or is the Transfer tool with no phone number or one that cannot be dialled. It never blocks; on a call the step takes its on_error route. It is not one of the codes to acknowledge: the response's `warnings` carries it with the draft's other warnings. Version numbering is monotonic per workflow; a call always pins the exact published version it started with.",
         "operationId": "publishAgentWorkflow",
         "parameters": [
           {
@@ -9870,7 +9967,7 @@
         },
         "responses": {
           "201": {
-            "description": "New published version"
+            "description": "New published version, with `warnings`: the draft's warnings and every AGENT_TOOL_NOT_CONFIGURED action step (WorkflowToolWarning)"
           },
           "400": {
             "description": "Draft has validation errors, or unacknowledged warnings, or has no voice_input while the active version has a listener"

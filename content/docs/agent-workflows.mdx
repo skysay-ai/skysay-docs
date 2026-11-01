@@ -152,6 +152,16 @@ rail. They can preempt any ordinary step, and when a caller's utterance
 matches more than one, the server picks the highest-precedence interrupt from
 a fixed order; the model never decides precedence.
 
+**What counts as a request for a person.** The human-request interrupt means an
+explicit request to speak to a person instead of the AI agent ("Can I talk to
+someone at reception?", "Put me through to a real person"). Asking a question,
+asking about an order or a delivery, asking to be called back later, or simply
+answering the agent's question is not one: a caller who is asked "May I have
+your name and what you would like me to pass on?" and gives their name and a
+booking request is answering, and the step continues on its own route. The
+definition has no setting; to send particular replies somewhere of their own,
+give the step a route for them.
+
 **A reply to an Ask step's question, or to a spoken line that leads straight
 to a branch,** is decided once, against that step's or branch's routes and the
 global interrupts together. The dispute, hardship, callback and human-request
@@ -387,6 +397,46 @@ listener in the agent's voice setup (`INVALID_VOICE_INPUT`) blocks publishing
 too; see
 [Choose how the workflow hears callers](#choose-how-the-workflow-hears-callers).
 Warnings are separate and must be explicitly acknowledged before publishing.
+
+### A step this AI agent can't run
+
+An **Action** step runs one of the AI agent's own tools. When the AI agent does
+not have that tool in a form the step can use, the step can't run on a call,
+and the workflow tells you before you publish. The warning is
+`AGENT_TOOL_NOT_CONFIGURED`, one per step, and it names the step, the tool,
+where callers go instead and how to fix it:
+
+| Reason (`details.reason`) | What it means |
+| --- | --- |
+| `tool_missing` | The AI agent has no tool with the step's name. |
+| `tool_not_write` | The tool exists, but it only looks things up; an Action needs a tool set up as an action that changes something. |
+| `integration_action_unavailable` | The Integration action saved on the AI agent no longer matches an action of its integration in this project (it was removed, renamed or moved). |
+| `transfer_number_missing` | The step transfers the caller, and the AI agent's Transfer to a human tool has no phone number. |
+| `transfer_number_invalid` | The Transfer to a human tool's phone number can't be dialled. Enter it in international format, starting with `+` and the country code. |
+
+On a call such a step takes its `on_error` route. In the Receptionist starter,
+for example, a caller who asks for a person on an agent with no transfer number
+goes to the step's error route instead of being connected.
+
+The warning never blocks publishing. It appears in the draft's validation (the
+editor's **Validation** view and the publish panel, and `validation.warnings`
+over the API) and in the publish response's `warnings`. Unlike other warnings it
+is never acknowledged: you don't send it in `acknowledged_warning_codes`, and
+the editor's publish panel lists each step without asking you to tick it. Health that can change after publishing, such as a
+calendar or integration that is switched off later, is not part of this
+warning; the step's `on_error` route handles it on the call.
+
+**Removing a tool a published workflow uses.** Saving the agent's tools with
+`PATCH /v1/agents/{id}` or `PATCH /v1/agents/{id}/voice-stack` still succeeds
+when it takes away a tool, or clears a transfer number, that a step of the
+published workflow needs. The response then carries `workflow_warnings`: one
+entry per step this save left unable to run, with the agent, the workflow and
+its published `version`, the step and the reason, in the same shape as the
+warning above. The editor says so when you save and lists each step under the
+agent's problems, and the workflow's publish panel shows the live version's
+steps that can't run, until the tool is back. Calls take each step's error
+route meanwhile. You don't need to publish again: restoring the tool is enough,
+because a call looks up the agent's tools when it reaches the step.
 
 Four test modes run against the exact draft — its voice stack, knowledge,
 tools, and workflow:
@@ -871,7 +921,8 @@ The run's trace records how the step went: `tool_status` `success` when the
 person answered, otherwise `error` with a `policy_reason` such as
 `transfer:busy`, `transfer:no_answer`, `transfer:rejected`, `transfer:failed`
 or `transfer:caller_hangup`, or `write_not_configured` when the AI agent has no
-Transfer to a human tool.
+Transfer to a human tool. The workflow warns about a missing tool or transfer
+number before you publish; see [A step this AI agent can't run](#a-step-this-ai-agent-cant-run).
 
 A browser **Talk** test has no phone number on the line and cannot dial a
 person. **Chat** and scripted simulations use recorded-only outcomes after
@@ -1034,6 +1085,9 @@ provider rules and browser-test restrictions still apply. Read the full
 
 - **Customer support** searches the AI agent's knowledge base and says the
   answer, or escalates when nothing is found.
+- **Receptionist** answers a question from the AI agent's knowledge base and
+  takes a message when nothing is found. When a transfer can't connect, it
+  apologises and offers to take a message instead of ending the call.
 - **Appointment booking** answers questions from the knowledge base, offers
   free times from the attached calendar, and books one after the read-back and
   a yes, with one clarification for an unclear answer and a new read-back for
