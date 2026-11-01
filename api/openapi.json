@@ -2603,6 +2603,16 @@
           },
           {
             "properties": {
+              "forwarding_context": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CallForwardingContext"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "workflow": {
                 "description": "null when the call ran no workflow (every GPT-Live and Gemini Live call).",
                 "oneOf": [
@@ -2663,6 +2673,64 @@
         ],
         "type": "object"
       },
+      "CallForwardingContext": {
+        "description": "Immutable call-time configuration. Only private qualified path evidence can confirm the original called number and forwarding reason; a direct call to a configured AI line remains unconfirmed.",
+        "properties": {
+          "configured_business_number": {
+            "type": "string"
+          },
+          "destination_number": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "original_called_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provenance": {
+            "enum": [
+              "user_configuration",
+              "controlled_harness",
+              "qualified_carrier"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "busy",
+              "unanswered",
+              "unreachable",
+              "always",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "unconfirmed",
+              "verified"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CallForwardingSetup": {
         "description": "A durable draft. UI revision protects autosaves; configuration_revision changes only when call-affecting setup fields change. A carrier stop or instructions report is user-reported and never verified forwarding.",
         "properties": {
@@ -2671,6 +2739,11 @@
               "string",
               "null"
             ]
+          },
+          "attention_emails_enabled": {
+            "default": false,
+            "description": "Opt in verified workspace owners to route/AI-line attention emails. Does not verify or enable carrier forwarding.",
+            "type": "boolean"
           },
           "carrier_report": {
             "enum": [
@@ -11367,6 +11440,11 @@
                     "maxLength": 100,
                     "type": "string"
                   },
+                  "attention_emails_enabled": {
+                    "default": false,
+                    "description": "Opt in verified workspace owners to route/AI-line attention emails. Does not verify or enable carrier forwarding.",
+                    "type": "boolean"
+                  },
                   "conditions": {
                     "description": "always is exclusive with conditional forwarding.",
                     "items": {
@@ -11548,6 +11626,11 @@
                   "agent_id": {
                     "maxLength": 100,
                     "type": "string"
+                  },
+                  "attention_emails_enabled": {
+                    "default": false,
+                    "description": "Opt in verified workspace owners to route/AI-line attention emails. Does not verify or enable carrier forwarding.",
+                    "type": "boolean"
                   },
                   "base_revision": {
                     "minimum": 1,
