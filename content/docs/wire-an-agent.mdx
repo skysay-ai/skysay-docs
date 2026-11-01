@@ -691,12 +691,11 @@ speaks SIP, use the existing SIP trunk setup instead.
 The generated configuration uses encrypted WebSocket transport and HTTP Basic
 authentication: the agent ID is the user name and the connection password is
 the password. Keep certificate and hostname verification enabled. Asterisk's
-WebSocket client trusts no certificate authority until you name one, so add a
-`ca_list_file` line for your system's CA bundle to the `websocket_client.conf`
-block, for example `ca_list_file=/etc/ssl/certs/ca-certificates.crt` on Debian
-or Ubuntu or `ca_list_file=/etc/pki/tls/certs/ca-bundle.crt` on RHEL-based
-systems. Without it the connection fails certificate verification and the
-`Dial` returns `CHANUNAVAIL`. The `n`
+WebSocket client trusts no certificate authority until you name one, so the
+generated block includes `ca_list_file=/etc/ssl/certs/ca-certificates.crt`, the
+Debian and Ubuntu CA bundle. On RHEL-based systems change it to
+`/etc/pki/tls/certs/ca-bundle.crt`. Without a valid CA list the connection
+fails certificate verification and the `Dial` returns `CHANUNAVAIL`. The `n`
 option in the generated `Dial(WebSocket/...)` line is required: Skysay checks
 the published configuration, funds, capacity and worker readiness before
 instructing Asterisk to answer. A refused attempt does not answer the call.
