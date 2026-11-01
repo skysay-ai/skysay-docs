@@ -613,6 +613,63 @@ caller can answer as soon as it ends. Recognized words still cut the line off,
 as above. On GPT-Live, any caller sound long enough to interrupt still cuts the
 line off.
 
+### When the caller isn't understood
+
+Sometimes the caller answers a question, but the workflow's listener recognises
+no words in what they said. They may be speaking a language the listener does
+not hear, or the line may be too noisy. This applies only after the step's line
+has been heard in full. Then:
+
+- **The agent asks the same question again, after a short apology.** The
+  apology is *"Sorry, I didn't catch that."*, said in the call's language. Like
+  the workflow's own lines, it is rendered into each published language when you
+  publish. A version published before the apology existed asks the question
+  again without it until you publish it again.
+- **It asks again at most twice in a row for one question.** The third time,
+  the workflow run fails with `fail_reason` `NO_WORDS_EXHAUSTED`. The agent says
+  the workflow's goodbye line (see
+  [When a workflow run fails](#when-a-workflow-run-fails)), and the call ends with
+  `ended_reason` `caller_unresponsive` and `reason_detail` `not_understood`.
+- **Any reply with recognised words resets the count.** The question then has
+  its two repeats again.
+- **A short sound changes nothing.** A cough, a breath or a click (less than
+  about a second of speech) is not treated as an answer. The question is not
+  asked again, and the agent keeps waiting.
+
+A question asked again counts as one of the workflow's turns (`max_turns`), but
+not as another visit to the step (`max_visits_per_step`). Other limits can end
+the call sooner: a [question group](#ask-one-question-over-several-steps)
+whose limit is spent goes to its `on_exhausted` step, and `max_turns` or the
+call's maximum length still apply. While an action is being carried out, a
+sound with no words changes nothing and is not counted.
+
+The limit of two is the same for every workflow and has no setting.
+
+**Silence after a question** is handled by the same rule, but only after the
+caller has spoken at least once on the call. A caller who never speaks is
+covered by the call's no-speech ending instead. If the line stays quiet for 30
+seconds after a question, the question will be asked again, and for 15 seconds
+after each repeat. When the third attempt also gets no reply, the call ends with
+`reason_detail` `silent`. This part is rolling out: for now Skysay only records
+what it would have done and does not change the call, so `silent` does not yet
+appear.
+
+### When a workflow run fails
+
+A workflow run can stop before its end. A step can be spoken over too many
+times, the caller may never be understood, or a limit may run out. When that
+happens, the run's `workflow.status` is `failed` and its `fail_reason` names
+the cause, for example `UNHEARD_REPEATS_EXHAUSTED`, `NO_WORDS_EXHAUSTED`,
+`MAX_VISITS_EXHAUSTED`, `MAX_TURNS_EXHAUSTED` or `TURN_TIMEOUT`.
+
+The agent then says the workflow's goodbye line once, in the call's language,
+and ends the call. The line is *"Sorry, I'm having trouble continuing this
+call. Goodbye."*. It is rendered into each published language when you publish,
+like the apology above, and it is the only thing said after the failure: a line
+the failed turn would otherwise have said is not spoken. A run stopped by a
+problem outside the workflow (for example the decision model being unavailable)
+can still end the call without it.
+
 ### When a spoken workflow call is refused
 
 These checks run before Skysay reserves funds for the call. An outbound call,
