@@ -2650,6 +2650,167 @@
         ],
         "type": "object"
       },
+      "CallForwardingSetup": {
+        "description": "A durable draft. UI revision protects autosaves; configuration_revision changes only when call-affecting setup fields change. A carrier stop or instructions report is user-reported and never verified forwarding.",
+        "properties": {
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "carrier_report": {
+            "enum": [
+              "unknown",
+              "stop_reported",
+              "instructions_reported"
+            ],
+            "type": "string"
+          },
+          "conditions": {
+            "description": "always is exclusive with conditional forwarding.",
+            "items": {
+              "enum": [
+                "busy",
+                "unanswered",
+                "unreachable",
+                "always"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "configuration_revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "instructions_revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "line_type": {
+            "enum": [
+              "office",
+              "mobile",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider_key": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "reported_source_number": {
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_number": {
+            "description": "Existing business E.164 voice number; empty only for an unfinished draft. Ownership is not inferred.",
+            "maxLength": 40,
+            "type": "string"
+          },
+          "step": {
+            "enum": [
+              "setup",
+              "line",
+              "connect",
+              "test",
+              "manage"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CallForwardingTest": {
+        "description": "One selected condition, bounded expiry and one active attempt per setup. A direct AI-line call does not prove forwarding; ordinary calls retain normal billing.",
+        "properties": {
+          "call_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "challenge": {
+            "description": "Only returned by start/retry while watching. Six DTMF digits for same-call correlation; not identity or ownership proof.",
+            "type": "string"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "condition": {
+            "enum": [
+              "busy",
+              "unanswered",
+              "unreachable",
+              "always"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "setup_id": {
+            "type": "string"
+          },
+          "setup_revision": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "watching",
+              "expired",
+              "cancelled",
+              "received_unconfirmed",
+              "verified"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CallGroupResultItem": {
         "properties": {
           "analysis": {
@@ -11004,6 +11165,820 @@
         "summary": "Fetch account calendar or event-type choices",
         "tags": [
           "Integrations"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "listCallForwardingSetups",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/CallForwardingSetup"
+                      },
+                      "maxItems": 100,
+                      "type": "array"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    },
+                    "returned": {
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "List forwarding setups",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      },
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "createCallForwardingSetup",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "conditions": {
+                    "description": "always is exclusive with conditional forwarding.",
+                    "items": {
+                      "enum": [
+                        "busy",
+                        "unanswered",
+                        "unreachable",
+                        "always"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 4,
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "idempotency_key": {
+                    "maxLength": 100,
+                    "minLength": 8,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "type": "string"
+                  },
+                  "line_type": {
+                    "enum": [
+                      "office",
+                      "mobile",
+                      "unknown"
+                    ],
+                    "type": "string"
+                  },
+                  "number_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "provider_key": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "source_number": {
+                    "description": "Existing business E.164 voice number; empty only for an unfinished draft. Ownership is not inferred.",
+                    "maxLength": 40,
+                    "type": "string"
+                  },
+                  "step": {
+                    "enum": [
+                      "setup",
+                      "line",
+                      "connect",
+                      "test",
+                      "manage"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "idempotency_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Create forwarding setup",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "getCallForwardingSetup",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Get forwarding setup",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      },
+      "patch": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "updateCallForwardingSetup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "conditions": {
+                    "description": "always is exclusive with conditional forwarding.",
+                    "items": {
+                      "enum": [
+                        "busy",
+                        "unanswered",
+                        "unreachable",
+                        "always"
+                      ],
+                      "type": "string"
+                    },
+                    "maxItems": 4,
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "line_type": {
+                    "enum": [
+                      "office",
+                      "mobile",
+                      "unknown"
+                    ],
+                    "type": "string"
+                  },
+                  "number_id": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "provider_key": {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  "source_number": {
+                    "description": "Existing business E.164 voice number; empty only for an unfinished draft. Ownership is not inferred.",
+                    "maxLength": 40,
+                    "type": "string"
+                  },
+                  "step": {
+                    "enum": [
+                      "setup",
+                      "line",
+                      "connect",
+                      "test",
+                      "manage"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Update forwarding setup",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/instructions": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "getCallForwardingInstructions",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Canonical readiness and qualified instructions, or null instructions while the line needs attention. Unknown products receive provider/admin guidance and no dial codes.",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Get forwarding instructions",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read",
+          "agents:read"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/instructions-followed": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "recordCallForwardingInstructions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Record forwarding instructions",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/stop-report": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "recordCallForwardingStop",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingSetup"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Record forwarding stop",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/test-attempts": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "startCallForwardingTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "base_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "condition": {
+                    "enum": [
+                      "busy",
+                      "unanswered",
+                      "unreachable",
+                      "always"
+                    ],
+                    "type": "string"
+                  },
+                  "idempotency_key": {
+                    "maxLength": 100,
+                    "minLength": 8,
+                    "pattern": "^[A-Za-z0-9_-]+$",
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "base_revision",
+                  "condition",
+                  "idempotency_key"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingTest"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Start forwarding test",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/test-attempts/{attempt_id}": {
+      "get": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "getCallForwardingTest",
+        "parameters": [
+          {
+            "description": "Must belong to the authenticated workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingTest"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Get forwarding test",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read",
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/call-forwarding-setups/{setup_id}/test-attempts/{attempt_id}/cancel": {
+      "post": {
+        "description": "Workspace/project bound. Saving or reporting instructions does not change the phone provider. Test watches do not place calls, purchase numbers or send messages. Verification requires retained path and condition evidence.",
+        "operationId": "cancelCallForwardingTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "setup_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallForwardingTest"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Resource not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, binding conflict or line not ready"
+          }
+        },
+        "summary": "Cancel forwarding test",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
         ]
       }
     },
