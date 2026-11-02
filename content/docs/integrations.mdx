@@ -178,6 +178,20 @@ Built-in tools that need a phone caller (`send_sms`, `transfer_to_human`,
 Nothing is sent or dialled. The agent is told that the conversation is in a
 browser, so it can explain that the action is not available there.
 
+A homepage session that ends before any conversation, because of the visitor,
+is recorded as a **canceled** call, not a failed one, and sends the
+`call.canceled` webhook. The call's `call.canceled` event in
+`GET /v1/calls/{call_id}/events` carries a `reason` that names the ending:
+
+| `reason` | When |
+| --- | --- |
+| `visitor_left_before_join` | The visitor's browser left before the AI agent joined. |
+| `no_caller_audio` | The visitor joined but their microphone did not reach the AI agent within 30 seconds, or they left first. Skysay then closes the session. |
+
+The 30-second wait applies to AI agents that use business-action
+confirmation. It cannot be changed. The AI agent's greeting starts once the
+visitor's microphone arrives.
+
 ### Verify the signature, then dispatch the Action
 
 Skysay sends `Content-Type: application/json` plus these headers:
