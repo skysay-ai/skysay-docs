@@ -203,8 +203,31 @@ still checking that quiet period. Skysay briefly retains this post-greeting
 audio and passes it to the engine once the opening check succeeds, before new
 live audio. Silent intervals are not replayed; a recovered reply includes at most
 200 milliseconds of leading quiet. Retention is limited to two seconds and stays
-in memory. This does not recover words spoken over the audible greeting or establish what the
-person meant.
+in memory.
+
+A reply can also begin over the greeting's last words, when the person starts
+answering in a pause or before the final syllable has finished. If they are
+still speaking when the greeting ends, Skysay passes that reply to the engine
+from its first word, not only the part after the greeting. Up to about a second
+of speech from before the greeting ended is included. Skysay does this only if
+part of the reply was heard at least about 0.3 seconds away from the
+greeting's audio, where the greeting's own echo on the line could not have
+caused it. Otherwise only the part after the greeting is passed on, as before.
+This also happens when the reply started more than about a second before the
+greeting ended, or when the caller's audio stopped arriving for more than a
+quarter of a second while they spoke.
+
+Limits to plan for:
+
+- Skysay cannot tell speech from other sound. Music or an automated
+  announcement that starts in the last second of the greeting and continues
+  after it is also passed on from where it started.
+- The 0.3-second margin assumes the greeting's echo returns within that time.
+  On a line whose echo takes longer to come back, the echo of the greeting's
+  last word can be passed on with the reply. Echo delay on real phone networks
+  has not been measured. Audio that starts after the greeting is passed on
+  with no echo margin, as it was before this change.
+- This recovery does not establish what the person meant.
 
 Recovery is skipped when opening delivery cannot be established, the connection
 restarts, observation is interrupted, delayed audio arrives in a burst, the
@@ -215,7 +238,7 @@ to repeat it.
 Two consequences to plan for:
 
 - A short sound during the opening, such as a "hello?", is not passed to the
-  engine afterwards. On GPT-Live, if the person keeps speaking for more than
+  engine afterwards if it ended before the greeting did. On GPT-Live, if the person keeps speaking for more than
   about a second, the engine starts hearing the line again and is first given the
   last two seconds of what they said, so it can stop its greeting and answer
   them. This is the same one-second rule the Standard engine uses for its
