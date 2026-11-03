@@ -30,6 +30,27 @@ Every other language — including Sinhala, Tamil and Estonian — runs on voice
 activity alone. With no model judging intent, the length of silence itself is
 the whole decision, so the hold that follows it matters much more.
 
+## Deepgram Flux
+
+An agent whose transcriber is [Deepgram Flux](/docs/wire-an-agent#deepgram-flux-an-alternative-transcriber)
+leaves the end of the turn to Flux: it judges from the words and the pause
+together, so the call runs no separate turn model and adds no hold after it.
+Voice activity still decides interruptions, with the same threshold as every
+other call. The `interruption_sensitivity` presets move Flux's own two
+settings: how sure it must be that the caller has finished, and the longest
+silence after which the turn ends anyway.
+
+| Flux | `low` | `balanced` (default) | `high` |
+| --- | --- | --- | --- |
+| Certainty that the turn has ended | 0.8 | 0.7 | 0.6 |
+| Longest silence before the turn ends | 2050 ms | 1450 ms | 850 ms |
+
+The agent starts preparing its reply a little earlier, when Flux first judges
+the turn likely over (0.6, 0.5 and 0.4), and discards it if the caller keeps
+talking. An explicit `silence_hold_ms` is still honoured: the agent waits that
+much longer after Flux ends the turn. Browser test calls run the `balanced`
+row.
+
 ## How long the agent waits
 
 After the caller stops speaking, the agent holds for a moment before treating
