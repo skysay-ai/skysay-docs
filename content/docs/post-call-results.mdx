@@ -553,9 +553,11 @@ routes report `remote_party_disconnected`, because they are the same ending;
 by the backstop the call ends within about 30 seconds of the line going empty.
 
 **The call reached its maximum length.** A call ends after **29 minutes** by
-default and reports `max_call_duration_reached`. The limit sits just under the 30 minute
-ceiling of the underlying media session, so the call ends with a stated reason
-rather than being cut off without one.
+default and reports `max_call_duration_reached`. The worker reports this reason before the configured 30-minute native SIP
+backstop. The backstop applies to configured managed trunks; existing or
+imported trunks need it configured separately. Changing a trunk limit affects
+new calls, not a call already in progress. The 29-minute AI worker limit is
+unchanged.
 
 **A browser test reached its limit.** A browser test you start from the AI
 agent's test panel lasts at most **3 minutes** of conversation; in its last 30
@@ -655,10 +657,8 @@ API accepted is the setting your call runs. An agent that sets neither uses the
 defaults above, and existing agents are unaffected.
 
 Each range has a reason worth knowing before you pick a value. `max_call_seconds`
-cannot exceed its default, so this setting can only make a call end sooner: the
-media session behind a call is dropped at 30 minutes, and a limit above the
-ceiling could never fire, which would leave the call ending with no reason
-attached. `no_caller_speech_seconds` has a floor because the platform listens
+cannot exceed its default, so this setting can only make a call end sooner: it leaves time to close the call and report its reason before a configured
+native SIP backstop. `no_caller_speech_seconds` has a floor because the platform listens
 for voice activity rather than for meaning, so somebody who is merely listening
 looks the same as somebody who is not there; a shorter window would end the
 call partway through the agent's own opening line.
