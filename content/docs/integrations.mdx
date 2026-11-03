@@ -97,9 +97,27 @@ test.
 
 ## Attach an Action to a hosted agent
 
-In the Workspace, select an active hosted agent under **Agent access**, choose
-the Action, and save. Access is explicit and can be removed without deleting the
-Integration. Disabled Integrations are removed from the active worker allowlist.
+Connect the application and define its allowed Actions in **Integrations**.
+Then open the hosted AI agent's **Tools → Connected business actions** and select
+its individual Actions. Workspace **Manage AI agent tools** links open that same
+editor; they do not immediately grant access in a separate save.
+
+Apply selections using the editor's existing save or publish action. A successful
+save can update the AI agent's live configuration. Uncheck an Action and save to
+remove its access without deleting the Integration. Assigned connection Actions
+are included in the editor's tool count. Read/write labels use the Action's
+declared operation kind, not its name or HTTP method; an undeclared kind is not
+presented as read-only.
+
+Disconnected, inactive or unlisted saved Actions stay visible for explicit
+removal. A limited list never silently erases an assignment outside its page.
+Disabled Integrations are excluded from the worker allowlist. Choosing an Action
+in the editor does not override the execution rules of a workflow or call type;
+review [What runs on calls](/docs/what-runs-on-calls) for the actual restrictions.
+
+Calendar and application connections share this per-AI-agent assignment pattern,
+while account credentials and reusable connection preferences stay in Integrations.
+No access is granted merely because two applications share a connection.
 
 With the API, update the hosted agent using `PATCH /v1/agents/{agent_id}` and
 include the selected Action in its `tools` array:
