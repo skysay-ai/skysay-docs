@@ -128,6 +128,28 @@ count toward your voice spend cap. It does count toward your call-count limits,
 because it was a submitted call. To clear it, cancel it with
 `POST /v1/calls/{call_id}/cancel`.
 
+### The caller number's own limits
+
+Each number's Number rules can narrow what it may call out to, on top of your
+workspace capabilities. In the workspace they are under **Numbers →** the
+number **→ Advanced call policy**; through the API they are the `outgoing`
+object of `PATCH /v1/numbers/{number_id}/number-rules`:
+
+- `can_be_used_as_caller_id`: `false` stops the number from placing calls.
+- `allowed_countries`: when not empty, the number may only call these
+  countries (ISO 3166-1 alpha-2, decided from the destination number). An
+  empty list, the default, adds no limit.
+- `allowed_agents`: when not empty, only these AI agents may call from it.
+- `max_concurrent_calls`: how many calls the number may have live at once
+  (`0` means no number limit).
+
+A call these rules refuse is answered `403` and no call is created. The
+message names the number, its list and the destination country, for example:
+
+```text
++15551230001 may only place outbound calls to EE, US, AE, PL under its Number rules, so this call to destination country IT was refused. Change Allowed countries under Numbers > Advanced call policy (outgoing.allowed_countries in PATCH /v1/numbers/{number_id}/number-rules), or clear the list to remove the limit.
+```
+
 ### Why a call was refused before dialling
 
 A call is checked twice before it dials, in this order:
@@ -165,11 +187,21 @@ retried for you.
 anything. For a voice call it answers with the first check that refuses,
 naming it in `stage`. When both checks pass, it answers `allowed` with
 `stage: "outbound_authorization"` and the policy evaluation in `policy`.
-It is a preflight of those two checks, not a full admission: number rules,
-concurrency, maintenance windows and the wallet reservation are not checked.
-Spend caps are checked only against the `amount_minor` you send. Caller-number
-readiness is checked only when you send `from_number_id`; the call itself
-always needs one.
+
+When you send `from_number_id`, it first asks that number's own limits, as
+the call does: whether the number may be used as caller ID and whether its
+`allowed_countries` cover the destination. A refusal there answers `blocked`
+with `stage: "outbound_number_rules"`, `reason_code`
+`number_rules.caller_id_disabled` or `number_rules.country_not_allowed`, and
+the same sentence `POST /v1/calls` would refuse with in `customer_reason`.
+The number's `allowed_agents` are not checked, because the preflight does not
+name an AI agent.
+
+It is a preflight, not a full admission: concurrency (the plan's and the
+number's `max_concurrent_calls`), maintenance windows and the wallet
+reservation are not checked. Spend caps are checked only against the
+`amount_minor` you send. Caller-number readiness and the number's limits are
+checked only when you send `from_number_id`; the call itself always needs one.
 
 ### Authorized application batches
 
