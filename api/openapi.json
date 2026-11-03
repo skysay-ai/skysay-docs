@@ -5028,6 +5028,75 @@
         ],
         "type": "object"
       },
+      "NumberBackupAuthorization": {
+        "additionalProperties": false,
+        "description": "Current permission for the exact saved number route and destination. Permission does not establish live availability; native qualification, caller identity, wallet and policy are checked again before each call.",
+        "properties": {
+          "authorized": {
+            "type": "boolean"
+          },
+          "authorized_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destination_e164": {
+            "type": "string"
+          },
+          "generation": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotent": {
+            "type": "boolean"
+          },
+          "number_id": {
+            "type": "string"
+          },
+          "route_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "granted",
+              "revoked",
+              "not_authorized"
+            ],
+            "type": "string"
+          },
+          "terms_revision": {
+            "type": "string"
+          },
+          "unavailable_reason": {
+            "enum": [
+              "",
+              "route_unavailable",
+              "not_configured",
+              "recording_enabled",
+              "number_unavailable",
+              "needs_confirmation"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "number_id",
+          "route_id",
+          "generation",
+          "authorized",
+          "state",
+          "destination_e164",
+          "terms_revision",
+          "authorized_at",
+          "unavailable_reason"
+        ],
+        "type": "object"
+      },
       "NumberRules": {
         "properties": {
           "incoming": {
@@ -16917,6 +16986,223 @@
         "summary": "Customer-facing number activation state: instant | pending_verification | approved | needs_info | rejected with blocking items",
         "tags": [
           "Numbers"
+        ]
+      }
+    },
+    "/v1/numbers/{number_id}/backup-authorization": {
+      "get": {
+        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. Routing must select an enabled AI agent with a separate team phone fallback and recording disabled before charges can be authorized. Changing the saved route invalidates its permission. Agent pause and policy refusals do not trigger backup.",
+        "operationId": "getNumberBackupAuthorization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NumberBackupAuthorization"
+                }
+              }
+            },
+            "description": "Current permission"
+          },
+          "400": {
+            "description": "Invalid or unknown fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Workspace authority or required scope missing"
+          },
+          "404": {
+            "description": "Number or project not found in your workspace"
+          },
+          "409": {
+            "description": "Route, destination, terms or authorization changed; read the current state"
+          }
+        },
+        "summary": "Read phone backup permission",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      },
+      "post": {
+        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. Routing must select an enabled AI agent with a separate team phone fallback and recording disabled before charges can be authorized. Changing the saved route invalidates its permission. Agent pause and policy refusals do not trigger backup.",
+        "operationId": "setNumberBackupAuthorization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9_]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "accept_charges": {
+                        "const": true,
+                        "type": "boolean"
+                      },
+                      "destination_e164": {
+                        "pattern": "^\\+[1-9][0-9]{6,14}$",
+                        "type": "string"
+                      },
+                      "expected_generation": {
+                        "maximum": 9223372036854775806,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "expected_route_id": {
+                        "maxLength": 100,
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "project_id": {
+                        "maxLength": 100,
+                        "type": "string"
+                      },
+                      "request_key": {
+                        "maxLength": 100,
+                        "minLength": 8,
+                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "type": "string"
+                      },
+                      "terms_revision": {
+                        "const": "carrier-backup-1",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "expected_generation",
+                      "expected_route_id",
+                      "request_key",
+                      "accept_charges",
+                      "destination_e164",
+                      "terms_revision"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "accept_charges": {
+                        "const": false,
+                        "type": "boolean"
+                      },
+                      "destination_e164": {
+                        "pattern": "^\\+[1-9][0-9]{6,14}$",
+                        "type": "string"
+                      },
+                      "expected_generation": {
+                        "maximum": 9223372036854775806,
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "expected_route_id": {
+                        "maxLength": 100,
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "project_id": {
+                        "maxLength": 100,
+                        "type": "string"
+                      },
+                      "request_key": {
+                        "maxLength": 100,
+                        "minLength": 8,
+                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "type": "string"
+                      },
+                      "terms_revision": {
+                        "maxLength": 100,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "expected_generation",
+                      "expected_route_id",
+                      "request_key",
+                      "accept_charges"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NumberBackupAuthorization"
+                }
+              }
+            },
+            "description": "Current permission"
+          },
+          "400": {
+            "description": "Invalid or unknown fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Workspace authority or required scope missing"
+          },
+          "404": {
+            "description": "Number or project not found in your workspace"
+          },
+          "409": {
+            "description": "Route, destination, terms or authorization changed; read the current state"
+          }
+        },
+        "summary": "Authorize or revoke paid phone backup",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write",
+          "wallet:write"
         ]
       }
     },
