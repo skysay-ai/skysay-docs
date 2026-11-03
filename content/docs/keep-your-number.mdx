@@ -104,3 +104,37 @@ Writes use `numbers:write`; reads use the scopes listed in the generated API
 reference. Revision-checked writes refuse stale changes instead of overwriting
 a colleague's work. MCP forwarding tools call these same services; they do not
 buy lines, dial, enable forwarding or send messages implicitly.
+
+## Call history and optional alerts
+
+When an incoming call reaches the AI line assigned to a reported forwarding
+setup, its Calls detail retains the **configured business number** and AI-line
+number from that moment. This is configuration context, not proof of the path
+the caller took. A direct call to the AI line stays **forwarding unconfirmed**.
+Only qualified same-call path evidence plus the test marker can mark a call as
+confirmed; the detail identifies whether that evidence came from a controlled
+test or a qualified carrier. Later setup edits do not rewrite these historical
+call facts. Calls predating this feature have no forwarding context.
+
+You can enable **Email workspace owners if this setup needs attention** on the
+Test or Manage step. It is off by default. A recorded stop of the AI agent,
+pause or automatic disabling of its endpoint, or disconnection of an imported
+AI line can open an attention incident. The existing email worker notifies
+current verified workspace owners, with a link to that setup. It checks the
+current state again before sending: recovery, opting out, reporting forwarding
+stopped or leaving the workspace suppresses a queued notice. Repeated writes
+for the same incident do not send another notice; recovery followed by another
+failure opens a new incident.
+
+These notices describe recorded workspace state. They do not continuously
+monitor your provider's forwarding settings or detect every network outage.
+They do not wait 24 hours: the existing worker processes them normally and
+expires an unsent notice after 24 hours. Insufficient-paid-funds notices use
+the platform's existing billing notification, rather than a second forwarding
+reminder.
+
+The setup API accepts the boolean `attention_emails_enabled`. The call-detail
+API and MCP `get_call` can return optional `forwarding_context`, with separate
+`configured_business_number`, `original_called_number`, `reason`, `provenance`
+and `status` fields. Unconfirmed context does not claim an original called
+number or forwarding reason. See the generated reference for exact fields.
