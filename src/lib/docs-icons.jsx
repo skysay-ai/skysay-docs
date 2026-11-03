@@ -58,6 +58,9 @@ import {
   Server,
   SecurityPass,
   ShieldCheck,
+  ClipboardCheck,
+  Import,
+  MagicWand,
   SineWave,
   SoundHigh,
   Sparks,
@@ -157,6 +160,9 @@ const ICONS = {
   Forward,
   ShieldCheck,
   SecurityPass,
+  ClipboardCheck,
+  Import,
+  MagicWand,
 
   // --- Customer applications ---
   DataTransferBoth,
