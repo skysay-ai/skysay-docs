@@ -226,7 +226,7 @@ Example:
 - Upload a contact list, set calling windows and a retry policy, and launch an agent at your own customers or consented contacts, without an operator.
 - The four-step wizard checks column mapping, calling hours and the cost estimate before launch.
 - Every campaign call clears the do-not-call register when placed and again when the agent starts talking.
-- Cold sales and telemarketing still go through operator review.
+- A destination outside your workspace's country list still goes through operator review.
 - [Read Campaigns](/docs/campaigns) · [Build your do-not-call register](/docs/campaigns#do-not-call-register)
 ```
 

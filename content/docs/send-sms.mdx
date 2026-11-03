@@ -11,15 +11,17 @@ agent can follow a thread without ever being able to send.
 ## Send your first approved SMS
 
 Start with an active number whose carrier connection actually supports outgoing
-SMS, purchased funds and an approved outbound envelope. A number's country
+SMS and purchased funds; there is no separate outbound approval. A number's country
 being listed is not evidence that SMS sending is enabled. The refusal cases
 below explain platform-wide and number-specific blocks.
 
 Use `sms:send` to send and `sms:read` if you need the returned body or message
 history. Your application should obtain explicit approval of the **exact
-recipient, sender, purpose and text** before sending. `user_authorization`
-records the real approver and reason; it does not obtain consent on its own.
-Do not let a model fill those values in as a way to bypass approval.
+recipient, sender and text** before sending. `purpose` and
+`user_authorization` are optional: when you send them they record the purpose
+and the real approver and reason, and no message is ever refused for leaving
+them out. They do not obtain consent on their own; do not let a model fill
+them in with placeholders.
 
 The request goes to `POST https://api.skysay.ai/v1/messages`. Use the
 [authenticated curl helper](/docs/make-first-outbound-call#read-your-workspace)
@@ -113,11 +115,11 @@ Sending requires `sms:send`; reading the returned message content also requires
 applies through both MCP and REST, including template sends and retries using
 an existing idempotency key.
 
-<Callout type="warn" title="Sending is policy-gated">
-  `send_sms` requires the `sms:send` scope and is subject to the same outbound
-  policy as calls — blocked categories (telemarketing, mass outreach,
-  lead generation, and more) fail closed. Evaluate policy and get explicit human
-  approval before sending live. See [Policy & outbound](/docs/policy-and-outbound).
+<Callout type="warn" title="Sending is checked like a call">
+  `send_sms` requires the `sms:send` scope and is checked like a call:
+  suspensions, sanctioned destinations, your workspace's country list and the
+  sending number's carrier registration. No purpose or wording is refused. Get
+  explicit human approval before sending live. See [Policy & outbound](/docs/policy-and-outbound).
 </Callout>
 
 ## Check SMS sending setup
