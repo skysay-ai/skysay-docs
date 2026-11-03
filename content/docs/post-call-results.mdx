@@ -149,8 +149,10 @@ arrived while every agent line on the platform's phone host was already in a
 call. Skysay does not answer that call: the caller hears a busy signal straight
 away, instead of ringing with nobody to pick up, and the call is recorded
 failed, once, with nothing charged. `sip_status_code` is null on this reason.
-A number's rule `fallback` is not applied to these calls yet, so the call is
-not forwarded anywhere.
+Unless the number has [phone backup](/docs/phone-backup) authorized on an
+enabled connection, its rule `fallback` is not applied to these calls, so the
+call is not forwarded anywhere. With backup, Skysay connects the caller to the
+saved team number and records a phone backup call instead of this failure.
 
 An outgoing call never gets a busy for this: when every agent line is in a call
 as an outgoing call is about to be dialled, Skysay does not dial it. The call
@@ -193,6 +195,10 @@ workspace reports the same missing pieces before you place a call, and a
 browser test against an agent in this state is refused rather than connected.
 Calls that failed this way before this release carry no reason at all; they are
 not backfilled.
+
+A number with [phone backup](/docs/phone-backup) authorized on an enabled
+connection connects the caller to its team number when the agent's
+configuration cannot run, instead of refusing the call.
 
 
 ## Read evidence and optional extraction
