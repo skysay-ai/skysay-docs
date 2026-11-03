@@ -8,10 +8,12 @@ Phone backup is an optional safety net for a Skysay number that an AI agent
 answers. When the AI cannot take a call, Skysay connects the caller to a phone
 number you chose, such as your office or an on-call mobile. No AI agent joins
 that call, so there is no recording, transcript, summary or AI charge. You pay
-the two carrier legs of the call and nothing else.
+the two carrier legs of the call and nothing else. Backup calls are never
+recorded; the number's recording setting keeps applying to the calls your AI
+agent answers.
 
-Backup is off until you turn it on for a number, and it does nothing on a
-phone connection Skysay has not enabled for it.
+Backup is off until you turn it on for a number. It is offered only on a phone
+connection Skysay has enabled for it.
 
 ## When backup is used
 
@@ -34,35 +36,35 @@ backup off.
 
 ## What a number needs
 
-Backup can be authorized only when the number's saved routing is ready:
+Backup can be authorized when:
 
-- **An AI agent answers it.** Routing is set to answer with a Skysay AI agent
-  that is enabled.
-- **A separate team number is saved.** Add the team phone number as the
-  number's fallback in **Advanced call policy**. It must be a different phone
-  number: not a Skysay number and not a number that forwards back to Skysay.
-- **Recording is off.** Backup calls are not recorded, so turn recording off in
-  **Advanced call policy** and save before authorizing.
-- **The number is active.**
+- **An AI agent answers the number.** Its routing is set to answer with a
+  Skysay AI agent, and the number is active.
+- **Its phone connection is enabled for backup.** Skysay enables backup per
+  connection. Until then the Numbers page does not show **Phone backup** for
+  the number, and the API refuses to authorize it.
 
-Authorization also depends on the phone connection the call arrives on.
-Skysay enables backup per connection. On a connection that has not been
-enabled, the Numbers page shows **Connection not configured** and no backup
-call is placed, even when you have authorized it.
+You choose the team phone when you authorize. It must be a phone outside
+Skysay, in international format, and it must not forward calls back to this
+number, for example a business line that your provider already forwards to
+it. Recording does not need to change: backup calls are never recorded,
+whatever the number records for its AI calls.
 
 ## Turn it on in the workspace
 
 1. Open **Numbers** and select the number.
-2. In **Phone backup**, check that the team number shown is the one you want.
+2. In **Phone backup**, enter your team's number, starting with `+` and the
+   country code.
 3. Select **I authorize carrier charges for calls to this backup number**, then
    **Authorize phone backup**.
 
-The badge changes to **Charges authorized**. Select **Revoke authorization** at
-any time to stop backup for that number. Changing the number's saved routing or
-its team number cancels the authorization: the page shows **Not authorized**
-until you review the new details and authorize again. **Add funds**, next to
-the button, opens billing; on a connection that is not enabled it reads **Ask
-support** instead.
+One save stores the team number and the authorization together, and the badge
+changes to **Charges authorized**. To ring a different phone, enter it and
+authorize again. Select **Revoke authorization** at any time to stop backup
+for that number. Saving any change to the number's routing or call policy
+cancels the authorization: the page shows **Not authorized** with the team
+number filled in, and you authorize again to restore it. **Add funds**, next
+to the button, opens billing.
 
 ## Turn it on with the API
 
@@ -87,27 +89,28 @@ curl -s "$SKYSAY_BASE_URL/v1/numbers/$NUMBER_ID/backup-authorization" \
   "generation": 0,
   "authorized": false,
   "state": "not_authorized",
-  "destination_e164": "+15550142",
+  "destination_e164": "",
   "terms_revision": "carrier-backup-1",
   "authorized_at": null,
   "unavailable_reason": "needs_confirmation"
 }
 ```
 
-`destination_e164` is the team number saved on the number's routing.
-`unavailable_reason` is empty once backup is authorized. Otherwise it says why
-authorization is not possible yet, or that routing is ready:
+`destination_e164` is the team number saved with the authorization, or an empty
+string before one is saved. It is kept after a revoke or a routing change, so
+you can authorize the same phone again. `unavailable_reason` is empty once
+backup is authorized. Otherwise it says why authorization is not possible yet,
+or that the number is ready:
 
 | `unavailable_reason` | Meaning |
 | --- | --- |
 | `route_unavailable` | The number has no saved routing to authorize. |
-| `not_configured` | Routing is not set to an AI agent, or no team number is saved. |
-| `recording_enabled` | Recording is on; backup calls are not recorded. |
+| `not_configured` | Routing is not set to answer with an AI agent. |
 | `number_unavailable` | The number is not active. |
-| `needs_confirmation` | Routing is ready and has not been authorized yet. |
+| `needs_confirmation` | The number is ready and backup is not authorized. |
 
-To authorize, send the values you just read. The request is refused unless each
-one still matches:
+To authorize, send the team number with the values you just read. The request
+is refused unless each value you read still matches:
 
 ```bash
 curl -s -X POST "$SKYSAY_BASE_URL/v1/numbers/$NUMBER_ID/backup-authorization" \
@@ -125,22 +128,27 @@ curl -s -X POST "$SKYSAY_BASE_URL/v1/numbers/$NUMBER_ID/backup-authorization" \
 
 - `accept_charges` is `true` to authorize carrier charges and `false` to revoke.
   Authorizing is the consent: nothing is charged by sending it.
-- `destination_e164` must be exactly the team number now saved on the number,
-  and `terms_revision` must be the current `terms_revision` the `GET` returned.
-  Revoking needs neither.
+- `destination_e164` is the team number to ring, in E.164 format such as
+  `+15550142`. The same request saves it and authorizes it; sending a
+  different number replaces the saved one. `terms_revision` must be the
+  current `terms_revision` the `GET` returned. Revoking needs neither; if you
+  send `destination_e164` with a revoke, it must equal the saved number.
 - `expected_generation` and `expected_route_id` name the state you reviewed.
-  Each accepted authorize or revoke adds one to `generation`. If a colleague changed the
-  routing, the team number, the terms or the authorization in the meantime, the
+  Each accepted authorize or revoke adds one to `generation`. If a colleague
+  changed the routing, the terms or the authorization in the meantime, the
   request fails with `409` and nothing changes, so read again and decide again.
 - `request_key` is 8 to 100 letters, digits, `_` or `-`. Sending the same key
   with the same content again returns the saved result with `idempotent: true`.
   Reusing a key for different content fails with `409`.
-- Authorizing is also refused with `409` while routing is not ready, that is
-  while `unavailable_reason` is `route_unavailable`, `not_configured`,
-  `recording_enabled` or `number_unavailable`.
+- Authorizing is also refused with `409` while the number is not ready, that
+  is while `unavailable_reason` is `route_unavailable`, `not_configured` or
+  `number_unavailable`, and while backup is not enabled on the number's phone
+  connection. Revoking is always accepted.
 
-`400` means a field is invalid or unknown, `403` a missing scope or workspace
-authority, and `404` a number or project outside your workspace. A granted
+`400` means a field is invalid or unknown, or the team number cannot be used:
+it is not in E.164 format, it is a Skysay number, or it forwards calls back to
+this number. `403` means a missing scope or workspace authority, and `404` a
+number or project outside your workspace. A granted
 authorization does not promise a call will connect: the checks in
 [When backup is used](#when-backup-is-used) run again for every call.
 

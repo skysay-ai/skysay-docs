@@ -5030,7 +5030,7 @@
       },
       "NumberBackupAuthorization": {
         "additionalProperties": false,
-        "description": "Current permission for the exact saved number route and destination. Permission does not establish live availability; native qualification, caller identity, wallet and policy are checked again before each call.",
+        "description": "Current permission for the exact saved number route and team phone number. Permission does not establish live availability; the phone connection, caller identity, wallet and policy are checked again before each call. Backup calls are never recorded; the number's recording setting applies only to calls answered by the AI agent.",
         "properties": {
           "authorized": {
             "type": "boolean"
@@ -5043,6 +5043,7 @@
             ]
           },
           "destination_e164": {
+            "description": "The team phone number saved with this permission, in E.164 format, or an empty string when none is saved. Kept after a revoke or a route change so it can be authorized again.",
             "type": "string"
           },
           "generation": {
@@ -5077,7 +5078,6 @@
               "",
               "route_unavailable",
               "not_configured",
-              "recording_enabled",
               "number_unavailable",
               "needs_confirmation"
             ],
@@ -16991,7 +16991,7 @@
     },
     "/v1/numbers/{number_id}/backup-authorization": {
       "get": {
-        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. Routing must select an enabled AI agent with a separate team phone fallback and recording disabled before charges can be authorized. Changing the saved route invalidates its permission. Agent pause and policy refusals do not trigger backup.",
+        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. To authorize, send the team phone number as destination_e164 together with accept_charges true: one request saves both. The number must be answered by an active AI agent, and phone backup must be available on its phone connection. Revoking is always allowed. Changing the saved number rules invalidates the permission; authorize again to restore it. Agent pause and policy refusals do not trigger backup.",
         "operationId": "getNumberBackupAuthorization",
         "parameters": [
           {
@@ -17026,7 +17026,7 @@
             "description": "Current permission"
           },
           "400": {
-            "description": "Invalid or unknown fields"
+            "description": "Invalid or unknown fields, or a team phone number that is not supported: it must be in E.164 format, must not be a Skysay number, and must not forward back to this number"
           },
           "401": {
             "description": "Authentication required"
@@ -17038,7 +17038,7 @@
             "description": "Number or project not found in your workspace"
           },
           "409": {
-            "description": "Route, destination, terms or authorization changed; read the current state"
+            "description": "Route, destination, terms or authorization changed; read the current state. Also returned when authorizing while the number is not answered by an active AI agent, or while phone backup is not yet available on the number's phone connection"
           }
         },
         "summary": "Read phone backup permission",
@@ -17050,7 +17050,7 @@
         ]
       },
       "post": {
-        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. Routing must select an enabled AI agent with a separate team phone fallback and recording disabled before charges can be authorized. Changing the saved route invalidates its permission. Agent pause and policy refusals do not trigger backup.",
+        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. To authorize, send the team phone number as destination_e164 together with accept_charges true: one request saves both. The number must be answered by an active AI agent, and phone backup must be available on its phone connection. Revoking is always allowed. Changing the saved number rules invalidates the permission; authorize again to restore it. Agent pause and policy refusals do not trigger backup.",
         "operationId": "setNumberBackupAuthorization",
         "parameters": [
           {
@@ -17077,6 +17077,7 @@
                         "type": "boolean"
                       },
                       "destination_e164": {
+                        "description": "Authorize: the team phone number backup rings, saved by this request. Revoke: optional, and must equal the saved number when sent.",
                         "pattern": "^\\+[1-9][0-9]{6,14}$",
                         "type": "string"
                       },
@@ -17125,6 +17126,7 @@
                         "type": "boolean"
                       },
                       "destination_e164": {
+                        "description": "Authorize: the team phone number backup rings, saved by this request. Revoke: optional, and must equal the saved number when sent.",
                         "pattern": "^\\+[1-9][0-9]{6,14}$",
                         "type": "string"
                       },
@@ -17181,7 +17183,7 @@
             "description": "Current permission"
           },
           "400": {
-            "description": "Invalid or unknown fields"
+            "description": "Invalid or unknown fields, or a team phone number that is not supported: it must be in E.164 format, must not be a Skysay number, and must not forward back to this number"
           },
           "401": {
             "description": "Authentication required"
@@ -17193,7 +17195,7 @@
             "description": "Number or project not found in your workspace"
           },
           "409": {
-            "description": "Route, destination, terms or authorization changed; read the current state"
+            "description": "Route, destination, terms or authorization changed; read the current state. Also returned when authorizing while the number is not answered by an active AI agent, or while phone backup is not yet available on the number's phone connection"
           }
         },
         "summary": "Authorize or revoke paid phone backup",
