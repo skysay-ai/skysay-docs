@@ -206,10 +206,15 @@ as the caller answering.
 At most three check-ins are made on one call. After that, a silence still ends
 the call only after the same 45 seconds, just without asking first.
 
-**Agents that run a workflow** do not get the check-in. The caller's answer to
-it ("yes, I'm here") would otherwise reach the workflow's current step as the
-answer to that step's own question. For these agents, a silence of 45 seconds
-ends the call politely with `caller_unresponsive`.
+**Agents that run a workflow** do not get this check-in. The caller's answer
+to it ("yes, I'm here") would otherwise reach the workflow's current step as the
+answer to that step's own question. A workflow asks its own question again
+instead. See
+[When the caller isn't understood](/docs/agent-workflows#when-the-caller-isnt-understood).
+A workflow call can also end with `caller_unresponsive`, with `reason_detail`
+`not_understood`, when the caller was heard three times in a row after a
+question but no words were recognised. A silence after the caller has spoken
+does not end a workflow call yet; the call's maximum length still applies.
 
 ### Why 30 and 15 seconds
 
