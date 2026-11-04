@@ -2061,7 +2061,7 @@
             ]
           },
           "purpose": {
-            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
+            "description": "Optional, free-form outbound purpose, recorded with the call or message when sent; no purpose, or any token, is ever refused. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
             "type": "string"
           },
           "reason_detail": {
@@ -2159,7 +2159,7 @@
             "type": "string"
           },
           "refusal": {
-            "description": "Why the call was refused before it dialled; null on every other call. A call refused before dialling has `status` `policy_blocked` or `needs_review`. `stage` is the gate that refused it: `outbound_authorization` (the workspace capabilities: destination, channel, use-case profile, review signals, caps) or `outbound_policy` (the per-call policy: `purpose`, `user_authorization`, caller-number readiness, destination format). `message` is a sentence you can act on, e.g. naming a missing `user_authorization.reason`. POST /v1/policies/authorize-outbound asks the same two questions before you call.",
+            "description": "Why the call was refused before it dialled; null on every other call. A call refused before dialling has `status` `policy_blocked` or `needs_review`. `stage` is the gate that refused it: `outbound_authorization` (the workspace capabilities: destination, channel, use-case profile, review signals, caps) or `outbound_policy` (the per-call policy: suspensions, caller-number readiness, destination format). `message` is a sentence you can act on, e.g. that the caller number still needs its carrier registration. POST /v1/policies/authorize-outbound asks the same two questions before you call.",
             "properties": {
               "decision": {
                 "enum": [
@@ -2178,7 +2178,7 @@
                 "type": "array"
               },
               "required_actions": {
-                "description": "For `outbound_policy`: what to add, e.g. `provide_user_authorization.reason`. Empty for `outbound_authorization`.",
+                "description": "For `outbound_policy`: what to do, e.g. `complete_number_registration`. Empty for `outbound_authorization`.",
                 "items": {
                   "type": "string"
                 },
@@ -3926,7 +3926,7 @@
         "description": "The workspace's capabilities record: what it may do outbound. One per workspace, always. `active` authorizes outbound within the listed profiles, channels, destinations and limits; every other status authorizes nothing new.",
         "properties": {
           "all_countries": {
-            "description": "True: every destination except the sanctioned set is authorized and `countries` is empty. False: `countries` is the explicit allowlist. Activation through verification sets it true; a request chooses.",
+            "description": "True: every destination except the sanctioned set is authorized and `countries` is empty. False: `countries` is the explicit allowlist. A new workspace starts with it true; a request chooses.",
             "type": "boolean"
           },
           "approved_at": {
@@ -5107,10 +5107,6 @@
               "agent_id": {
                 "type": "string"
               },
-              "fallback": {
-                "description": "Stored with the rule but not yet applied to calls: a call the number cannot take is not forwarded to the fallback today.",
-                "type": "object"
-              },
               "phone_number": {
                 "description": "Forward target when forwarding to another phone number.",
                 "type": "string"
@@ -5208,7 +5204,7 @@
         "type": "object"
       },
       "OutboundCall": {
-        "description": "recipient_type is optional and recorded, never enforced. Destination country is authorized against the org's active workspace capabilities (authorize_outbound), not a fixed platform allowlist. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
+        "description": "A workspace that holds a number calls out with no approval step. recipient_type, purpose and user_authorization are optional and recorded when sent, never enforced. Destination country is authorized against the org's active workspace capabilities (authorize_outbound), not a fixed platform allowlist.",
         "properties": {
           "agent_endpoint_id": {
             "description": "Backwards-compatible alias for the selected agent endpoint; new integrations should send agent_id.",
@@ -5268,7 +5264,7 @@
             "type": "string"
           },
           "purpose": {
-            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
+            "description": "Optional, free-form outbound purpose, recorded with the call or message when sent; no purpose, or any token, is ever refused. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
             "type": "string"
           },
           "recipient_type": {
@@ -5282,6 +5278,7 @@
             "type": "string"
           },
           "user_authorization": {
+            "description": "Optional: who approved the call and why (`authorized_by`, `reason`). Recorded when sent; never required.",
             "type": "object"
           }
         },
@@ -5289,8 +5286,7 @@
           "organization_id",
           "project_id",
           "from_phone_number_id",
-          "to_phone_number",
-          "purpose"
+          "to_phone_number"
         ],
         "type": "object"
       },
@@ -5825,7 +5821,7 @@
         "type": "object"
       },
       "SmsMessage": {
-        "description": "recipient_type is optional and never enforced; there is no recipient_type column on the SMS row, so it is accepted but not persisted. Blocked categories mirror carrier acceptable-use policy; debt collection is not a blocked category -- payment_reminder (first-party or third-party) is permitted with per-call authorization, subject to per-customer onboarding approval and the acceptable-use policy.",
+        "description": "recipient_type is optional and never enforced; there is no recipient_type column on the SMS row, so it is accepted but not persisted. purpose, categories and user_authorization are optional and recorded with the message's policy decision when sent; no purpose or category is ever refused.",
         "properties": {
           "body": {
             "type": "string"
@@ -5846,7 +5842,7 @@
             "type": "string"
           },
           "purpose": {
-            "description": "Required, free-form outbound purpose declaration -- a non-empty purpose is the compliance paper trail; a novel purpose token is never refused for being novel. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
+            "description": "Optional, free-form outbound purpose, recorded with the call or message when sent; no purpose, or any token, is ever refused. Documented catalog (pick one or send your own token): appointment, booking_confirmation, callback_requested, customer_outreach, delivery_notification, ops_alert, other, payment_reminder, personal_errand, reservation, status_check, support.",
             "type": "string"
           },
           "recipient_type": {
@@ -5865,8 +5861,7 @@
           "project_id",
           "from_phone_number_id",
           "to_phone_number",
-          "body",
-          "purpose"
+          "body"
         ],
         "type": "object"
       },
@@ -6648,7 +6643,7 @@
         "type": "object"
       },
       "VoicePreviewRequest": {
-        "description": "One short synthesis of a bounded caller sentence for a selected TTS voice. Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
+        "description": "One short preview of a selected voice: a bounded caller sentence for a text-to-speech voice, or Skysay's fixed sample for a conversation-engine voice (GPT-Live-1, Gemini Live, Eleven Realtime). Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
         "properties": {
           "agent_id": {
             "description": "Optional saved hosted agent pin for a managed preview only. It must belong to the authenticated project and exactly match the requested platform-managed provider, model, voice id, and language. It permits re-testing a stored selection missing from the current provider listing; it does not authorize a new voice choice or any BYOK selection.",
@@ -6691,7 +6686,7 @@
             "type": "string"
           },
           "text": {
-            "description": "Optional sentence to speak. Omitted or blank falls back to a short product sample only when no audio_environment is supplied. With an audio_environment it is required and must be non-blank, so the requested text is never silently replaced. It is synthesized, never stored, and never echoed in the response.",
+            "description": "Optional sentence for a text-to-speech voice to speak. Omitted or blank falls back to a short product sample only when no audio_environment is supplied. With an audio_environment it is required and must be non-blank, so the requested text is never silently replaced. It is synthesized, never stored, and never echoed in the response. A conversation-engine voice (GPT-Live-1, Gemini Live, Eleven Realtime) plays Skysay's fixed sample instead: typed text is refused with voice_preview_fixed_sample, and an audio_environment needs no text.",
             "maxLength": 200,
             "type": "string"
           },
@@ -13557,7 +13552,7 @@
         ]
       },
       "post": {
-        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the plan's concurrent-call allowance, and an optional schedule. A campaign is locked at launch; duplicate it to change anything. Cold, purchased or scraped lists are not permitted.",
+        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the plan's concurrent-call allowance, and an optional schedule. A campaign is locked at launch; duplicate it to change anything. The purpose is a free-form label shown on the campaign and recorded on each of its calls; no purpose is refused.",
         "operationId": "createCampaign",
         "requestBody": {
           "content": {
@@ -13948,7 +13943,7 @@
     },
     "/v1/campaigns/{campaign_id}/launch": {
       "post": {
-        "description": "Existing-customer or consented lists on active workspace capabilities start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not active, voice not an enabled channel, a destination country outside the allowlist, or the custom implementation-services profile, whose every launch is reviewed) or blocked (sanctioned destination, blocked purpose, missing consent basis). Campaigns are open to every active workspace; there is no per-profile campaign switch. Contacts already on the do-not-call register are marked and never dialed.",
+        "description": "Existing-customer or consented lists on active workspace capabilities start immediately (or at scheduled_start_at). The response carries the authorization decision: allowed, needs_review (workspace not active, voice not an enabled channel, a destination country outside the allowlist, or the custom implementation-services profile, whose every launch is reviewed) or blocked (sanctioned destination, missing consent basis). Campaigns are open to every active workspace; there is no per-profile campaign switch. Contacts already on the do-not-call register are marked and never dialed.",
         "operationId": "launchCampaign",
         "parameters": [
           {
@@ -17311,7 +17306,7 @@
     },
     "/v1/organizations/{organization_id}/capabilities": {
       "get": {
-        "description": "Pure read. Every workspace has exactly one record from creation on: `capabilities.status` is `not_activated` until the workspace clears verification (an operator's business review, or its first registration-free number), when it becomes `active` on the default profile, the channels the workspace holds and every destination except the sanctioned set (`all_countries: true`). `pending_review` means a request is with an Skysay operator and nothing new is authorized yet; `suspended` means an operator paused outbound. When `all_countries` is false, `countries` is the explicit allowlist (ISO 3166-1 alpha-2). `calling_rules` is the application cadence contract an operator recorded on approval, or null, and `calling_rules_active` says whether it is enforced right now. Every outbound call and SMS is authorized against this record (see POST /v1/policies/authorize-outbound).",
+        "description": "Pure read. Every workspace has exactly one record, created `active` with the workspace on the default profile, the channels the workspace holds and every destination except the sanctioned set (`all_countries: true`): there is no approval step. `not_activated` appears only for a workspace whose record is missing (contact support). `pending_review` means a request is with an Skysay operator and nothing new is authorized yet; `suspended` means an operator paused outbound. When `all_countries` is false, `countries` is the explicit allowlist (ISO 3166-1 alpha-2). `calling_rules` is the application cadence contract an operator recorded on approval, or null, and `calling_rules_active` says whether it is enforced right now. Every outbound call and SMS is authorized against this record (see POST /v1/policies/authorize-outbound).",
         "operationId": "getCapabilities",
         "parameters": [
           {
@@ -17855,7 +17850,7 @@
     },
     "/v1/policies/authorize-outbound": {
       "post": {
-        "description": "Answers whether POST /v1/calls (or an SMS send) would be refused before dialling, without creating anything. For `channel` `outbound_voice` (the default) it asks both pre-dial questions a call meets, in the same order: first the workspace capabilities (destination country, channel, use-case profile, review signals, caps), then, only if those allow it, the per-call outbound policy (`purpose`, `user_authorization` with both `authorized_by` and `reason`, caller-number readiness, the destination format). `stage` says which question answered: `outbound_authorization` or `outbound_policy`. When you send `from_number_id`, the caller number's own outgoing Number rules are asked first, as the call asks them: whether the number may be used as caller ID and whether its `allowed_countries` cover the destination (`stage` `outbound_number_rules`, `reason_code` `number_rules.caller_id_disabled` or `number_rules.country_not_allowed`, with the same sentence POST /v1/calls refuses with). Its `allowed_agents` are not checked, because this request names no agent, and neither is its `max_concurrent_calls`. For any other channel (`sms`) only the capabilities question is asked. This is a preflight of those gates, not a full admission: plan and number concurrency, maintenance windows and the wallet reservation are not evaluated; spend caps are checked only against the `amount_minor` you send, calling rules only when you send `project_id`, and caller-number readiness and Number rules only when you send `from_number_id` (the call itself always needs one).",
+        "description": "Answers whether POST /v1/calls (or an SMS send) would be refused before dialling, without creating anything. For `channel` `outbound_voice` (the default) it asks both pre-dial questions a call meets, in the same order: first the workspace capabilities (destination country, channel, use-case profile, review signals, caps), then, only if those allow it, the per-call outbound policy (suspensions, caller-number readiness, the destination format). `stage` says which question answered: `outbound_authorization` or `outbound_policy`. When you send `from_number_id`, the caller number's own outgoing Number rules are asked first, as the call asks them: whether the number may be used as caller ID and whether its `allowed_countries` cover the destination (`stage` `outbound_number_rules`, `reason_code` `number_rules.caller_id_disabled` or `number_rules.country_not_allowed`, with the same sentence POST /v1/calls refuses with). Its `allowed_agents` are not checked, because this request names no agent, and neither is its `max_concurrent_calls`. For any other channel (`sms`) only the capabilities question is asked. This is a preflight of those gates, not a full admission: plan and number concurrency, maintenance windows and the wallet reservation are not evaluated; spend caps are checked only against the `amount_minor` you send, calling rules only when you send `project_id`, and caller-number readiness and Number rules only when you send `from_number_id` (the call itself always needs one).",
         "operationId": "authorizeOutbound",
         "requestBody": {
           "content": {
@@ -17916,7 +17911,7 @@
                     "type": "string"
                   },
                   "user_authorization": {
-                    "description": "Who approved the call and why. Both fields are required on every outbound call.",
+                    "description": "Optional: who approved the call and why. Recorded when sent; never required.",
                     "properties": {
                       "authorized_by": {
                         "type": "string"
@@ -17980,7 +17975,7 @@
                           "type": "array"
                         },
                         "required_actions": {
-                          "description": "What to add or do. `provide_user_authorization.authorized_by` and `provide_user_authorization.reason` name a missing user_authorization field.",
+                          "description": "What to do, e.g. `complete_number_registration` or `operator_unsuspend`.",
                           "items": {
                             "type": "string"
                           },
@@ -18515,7 +18510,7 @@
     },
     "/v1/voice-previews": {
       "post": {
-        "description": "An explicit Listen action for one selected TTS voice. It accepts a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied), keeps no audio or telemetry, and returns a short in-memory WAV only. A selected outgoing audio_environment requires explicit non-blank text and makes a deterministic, headroom-safe local audition; it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A GPT-Live-1 voice (provider openai, model gpt-live-1) previews differently: it is a short real live session on the platform credential that speaks Skysay's own sample sentence for the requested language, rendered once per voice, language and sample and then served from a tenant-agnostic cache (the response carries text_source: platform_sample and cached). Typed text is refused with error code voice_preview_fixed_sample rather than replaced, credential_id and delivery do not apply, a platform-wide concurrency cap answers 429 when every preview slot is busy, and the preview is never metered as a call.",
+        "description": "An explicit Listen action for one selected voice. A text-to-speech voice speaks a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied); every preview keeps no audio or telemetry and returns a short in-memory WAV only. A selected outgoing audio_environment makes a deterministic, headroom-safe local audition; for a text-to-speech voice it requires explicit non-blank text, and it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A conversation-engine voice previews differently: it plays Skysay's own fixed sample sentence for the requested language (the response carries text_source: platform_sample and cached). GPT-Live-1 (provider openai, model gpt-live-1) and Gemini Live (provider gemini, model gemini-3.8-live) render it once per voice, language and sample as a short real live session on the platform credential, then serve it from a tenant-agnostic cache, and a platform-wide concurrency cap answers 429 when every preview slot is busy. Eleven Realtime (provider elevenlabs, model eleven_realtime_v1_max) plays only a validated sample Skysay imported and never contacts a provider; a voice and language without one is voice_preview_unavailable. For all three, typed text is refused with error code voice_preview_fixed_sample rather than replaced, an audio_environment needs no text and is mixed over the sample for that request only (the cached sample stays dry), credential_id and delivery do not apply, and the preview is never metered as a call.",
         "operationId": "createVoicePreview",
         "requestBody": {
           "content": {
@@ -18532,7 +18527,7 @@
             "description": "Bounded base64-encoded WAV preview"
           },
           "400": {
-            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept; also typed text for a GPT-Live-1 voice (voice_preview_fixed_sample)"
+            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept; also typed text for a GPT-Live-1, Gemini Live or Eleven Realtime voice (voice_preview_fixed_sample)"
           },
           "404": {
             "description": "The selected BYOK credential does not exist in this workspace"
