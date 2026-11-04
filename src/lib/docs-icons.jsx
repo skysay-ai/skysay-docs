@@ -61,6 +61,7 @@ import {
   ClipboardCheck,
   Import,
   AntennaSignal,
+  CableTag,
   MagicWand,
   SineWave,
   SoundHigh,
@@ -164,6 +165,7 @@ const ICONS = {
   ClipboardCheck,
   Import,
   AntennaSignal,
+  CableTag,
   MagicWand,
 
   // --- Customer applications ---

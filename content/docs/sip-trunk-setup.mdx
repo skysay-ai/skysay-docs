@@ -1,0 +1,175 @@
+---
+title: Set up your own SIP trunk
+description: Connect a SIP trunk from any carrier in the Skysay workspace, add your numbers and confirm they are yours.
+icon: CableTag
+---
+
+Use your own SIP trunk when your numbers live at a carrier Skysay has no
+automatic import for. You keep your carrier account, and your carrier keeps
+billing the line and its minutes. Skysay charges platform and AI minutes only;
+there is no monthly number fee.
+
+Every carrier uses the same form. If your carrier can send calls to an address
+and accept calls with a SIP username and password, or from a fixed IP address,
+it can connect.
+
+A SIP trunk carries voice only. Numbers on it can't send or receive SMS.
+
+To do the same through the API, see
+[Bring your own SIP trunk](/docs/bring-your-own-sip-trunk).
+
+## What you need from your carrier
+
+- The carrier's SIP server (a host name or a public IPv4 address), its port,
+  and whether it uses UDP or TCP. Encrypted trunks (TLS and SRTP) aren't
+  supported yet.
+- How Skysay signs in for calls out: a SIP username and password, or an
+  allow-list of Skysay's addresses.
+- The public IPv4 addresses your carrier sends calls from. Ask your carrier
+  for them if they aren't in its portal.
+- The format your carrier uses for numbers: with `+` and the country code,
+  the country code without `+`, the national format, or `00` and the country
+  code.
+- A trunk that doesn't require registration. Carriers that only accept a
+  registered (logged-in) trunk aren't supported yet.
+
+## Set it up in the workspace
+
+Open **Numbers → Import a number** and choose **Any carrier: your own SIP
+trunk**, then **Set up your SIP trunk**.
+
+<Steps>
+
+<Step>
+
+### Connect your carrier
+
+- Give the connection a name and choose your carrier's country. The country
+  is used for numbers your carrier writes without the country code.
+- Choose what the trunk carries: calls out, incoming calls, or both.
+- For calls out, enter the carrier's SIP server, port and transport, and how
+  Skysay signs in. A password is stored encrypted and never shown again.
+- For incoming calls, enter your carrier's IP addresses, one per line: a
+  single address, or a range such as `a.b.c.d/29`. Only calls from these
+  addresses reach the connection.
+- **Number formats and audio (advanced)** sets the number format for calls
+  out, the caller ID format, the formats your carrier sends on incoming calls,
+  the audio codecs (PCMA and PCMU) and an optional channel limit. Not sure?
+  Keep the defaults, or ask your carrier which formats it uses.
+
+Select **Save and check connection**.
+
+</Step>
+
+<Step>
+
+### Check the connection
+
+Each check stands on its own; a passed check doesn't promise that a call
+works.
+
+- **Settings** shows whether Skysay saved and set up the connection.
+- **Skysay is open to your carrier** opens automatically for your carrier's
+  addresses once you add a number for incoming calls. Until one of the
+  connection's numbers is confirmed, it stays open for 24 hours after you last
+  save the connection, add a number or check again.
+- **Calls out** shows where Skysay sends your calls.
+
+</Step>
+
+<Step>
+
+### Add your numbers
+
+Add each number you hold at your carrier, choose the AI agent that answers
+its incoming calls, and choose whether it calls out.
+
+When you add a number, Skysay calls it once through the phone network to
+confirm it's yours. Nobody needs to answer: the call comes back to Skysay
+through your carrier and takes about 20 seconds. The **Ownership** column then
+shows one of:
+
+- **Confirmed:** the number can call out. Calls out always show that number
+  as caller ID.
+- **Checking…:** the check call is on its way. The page updates by itself.
+- **Not confirmed:** the check didn't succeed. The row says why; fix it at
+  your carrier, then select **Check again**.
+- **Needs support:** the number takes no incoming calls on this connection,
+  so Skysay can't call it to confirm it. Contact support to confirm it.
+
+Incoming calls work as soon as the number is added. Calls out with a number
+start once it's confirmed.
+
+</Step>
+
+<Step>
+
+### Done
+
+The summary lists each number, the AI agent that answers it and whether it
+calls out. Your numbers also appear on the **Numbers** page with a **Your SIP
+trunk** badge. To change the connection later, open the number and select
+**Manage SIP trunk**.
+
+</Step>
+
+</Steps>
+
+## At your carrier
+
+The **At your carrier** panel beside the steps shows what to set in your
+carrier's portal:
+
+1. Find the SIP trunk (or SIP forwarding) settings for your numbers.
+2. Send incoming calls to the Skysay SIP server shown in the panel, on port
+   5060, with the transport you chose.
+3. Send the called number in one of the formats you chose on the connection.
+4. Copy your SIP username and password into the form, or allow Skysay's
+   addresses shown in the panel.
+
+### Example: Netgsm
+
+Netgsm's SIP Trunk service needs no registration. Based on Netgsm's own
+guides (menu names may change):
+
+- **Incoming calls:** in the Netgsm web portal, open the voice service
+  settings and the SIP details, and turn on SIP Trunk. Enter the Skysay SIP
+  server and port 5060. Set the called-number prefix (**Aranan Prefix**) to
+  `+90`, and choose **With + and country code** under the formats your
+  carrier sends on incoming calls.
+- **Calls out:** the SIP server is `sip.netgsm.com.tr`. The SIP username is
+  your subscriber number and the password is the SIP password from the
+  Netgsm portal. Choose **Username and password** in Skysay, and enter the
+  password exactly as Netgsm shows it.
+- **IP addresses:** ask Netgsm which addresses it sends calls from, and enter
+  them under **Your carrier's IP addresses**.
+
+## When something doesn't work
+
+- **A refused IP address:** use your carrier's public IPv4 addresses. Host
+  names, ranges wider than `/16`, and private, reserved or documentation
+  addresses are refused, as are addresses Skysay's own carriers use. A range
+  starts at its first address (`a.b.c.0/24`, not `a.b.c.1/24`).
+- **Not confirmed, "Our call didn't reach this connection":** make sure your
+  carrier sends the number's incoming calls to the Skysay SIP server, from the
+  addresses on the connection, in a number format the connection lists. Then
+  select **Check again**.
+- **Not confirmed, "its code wasn't heard":** the call arrived, but the keypad
+  tones on it didn't. Ask your carrier to pass keypad tones (DTMF) on calls,
+  then check again.
+- **Too many checks:** checks are limited per number and per workspace; the
+  message says when to try again.
+- **Already connected:** a number can be on one connection in all of Skysay.
+  If it's connected somewhere you don't recognise, contact support.
+- **Changing the carrier's addresses or SIP server:** every number is checked
+  again after the change, and calls out with a number wait for its new
+  confirmation.
+
+## Paused calls
+
+If a connection's numbers receive far more calls a minute than a real phone
+line would, Skysay pauses the connection: its calls are refused and it places
+no new calls. The workspace shows the reason and when it resumes by itself:
+10 minutes after the calls stop, then 30 and 60 minutes if it happens again
+within a day. More calls while it's paused extend the pause. Contact support
+to resume it sooner.
