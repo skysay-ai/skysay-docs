@@ -166,6 +166,87 @@ because its incoming calls go elsewhere. Contact support to confirm it.
 During a check's two-minute window, a call to the number from a withheld
 caller ID or from Skysay's check number is treated as the check call.
 
+## Readiness checks
+
+Three checks help you get a connection working. Each one reports what it saw
+and is independent of the others; none of them is a guarantee that every
+call will work.
+
+### Reachability
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/checks/reachability \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+Skysay sends one SIP `OPTIONS` request to your carrier host, from the same
+address its calls come from, over the connection's transport. The request
+returns `202` and the result appears on the connection as
+`checks.reachability` within about half a minute:
+
+- `status: done` with the `sip_status_code` and `reason_phrase` your carrier
+  answered. Any answer means the host is reachable. A `401` or `407` is the
+  carrier asking for credentials, which is normal. When a `401`, `403`, `404`
+  or `407` names registration, `registration_hint` reads `likely`: your
+  carrier may expect the trunk to register, which Skysay does not do (ask
+  your carrier for IP- or digest-authenticated calls instead).
+- `status: failed` with `reason: no_response`: nothing answered within a
+  few seconds. Check the host, port and transport, and that your carrier
+  accepts traffic from Skysay.
+- `status: failed` with `reason: probe_not_run` or `probe_lost`: Skysay
+  could not run the check. Try again.
+
+A carrier that does not answer `OPTIONS` can still accept calls: use a test
+call to be sure. One check runs at a time per connection, and six an hour.
+
+### Test call
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/numbers/$NUMBER_ID/test-calls \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to": "+12025550199", "agent_id": "'$AGENT_ID'", "dial_format": "e164_plus"}'
+```
+
+A test call is an ordinary outgoing call from the number to `to`, answered by
+the Skysay-hosted agent `agent_id`. It is billed like any call and needs the
+`calls:write` scope and a confirmed number. `dial_format` is optional: it
+tries another dialled-number format for this one call without changing the
+connection. One test call runs at a time per number, and three an hour.
+
+Read it with
+`GET /v1/sip-connections/{connection_id}/numbers/{number_id}/test-calls/{call_id}`:
+`status` is `calling`, then `answered` or `failed`, with the call's
+`sip_status_code` when your carrier refused it. Once a test call in another
+format is answered, save that format for the connection:
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/numbers/$NUMBER_ID/dial-format \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"test_call_id": "'$CALL_ID'"}'
+```
+
+### Incoming test
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/numbers/$NUMBER_ID/inbound-test \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+This opens a three-minute window. Call the number from any phone: the next
+call that reaches it through this connection is noted, with only the last
+four digits of the caller's number (`caller_last4`). The call itself is
+handled exactly as it would be without the window.
+
+### Verified
+
+Each attached number shows its latest `tests.outbound` and `tests.inbound`,
+and `verified: true` once every direction it carries has passed since the
+connection's network last changed: an answered test call for outgoing
+calls, a received incoming test for incoming calls. Changing the source
+networks or carrier host clears it.
+
 ## Limits
 
 - Transports: UDP and TCP. No TLS or SRTP.
@@ -224,6 +305,22 @@ Every refusal names its reason in `error`.
   - `sip_ownership_check_in_progress` (409);
   - `sip_ownership_check_rate_limited` or `sip_ownership_check_busy` (429,
     with `retry_after_seconds`).
+- **Readiness checks:**
+  - `sip_connection_probe_in_progress` (409), `sip_connection_probe_rate_limited`
+    or `sip_connection_probe_busy` (429): the reachability check;
+  - `sip_connection_disabled`, `sip_connection_paused` or
+    `sip_connection_outbound_not_configured` (409): the connection cannot be
+    checked or tested now;
+  - `sip_connection_number_has_no_outbound` or
+    `sip_connection_number_has_no_inbound` (409): the number does not carry
+    that direction;
+  - `sip_connection_test_call_in_progress` (409) or
+    `sip_connection_test_call_rate_limited` (429): test calls;
+  - `sip_connection_test_call_not_answered` or
+    `sip_connection_test_call_stale` (409): only a test call answered on the
+    connection's current network can save its format;
+  - a test call is refused like any call, for example with
+    `sip_ownership_not_confirmed` or `sip_connection_needs_hosted_agent`.
 - **`setup.reason`, when setup could not finish:** an `sip_connection_*`
   reason, for example `sip_connection_host_not_public` when the carrier host
   stopped resolving to public addresses, or `sip_connection_setup_busy`

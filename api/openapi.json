@@ -5798,6 +5798,77 @@
               "null"
             ]
           },
+          "checks": {
+            "properties": {
+              "reachability": {
+                "description": "The latest reachability check: one SIP OPTIONS from Skysay's SIP host. Not proof that calls work.",
+                "properties": {
+                  "checked_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "elapsed_ms": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "When failed: no_response (no answer within a few seconds), probe_not_run or probe_lost (Skysay could not run it; check again).",
+                    "type": "string"
+                  },
+                  "reason_phrase": {
+                    "maxLength": 80,
+                    "type": "string"
+                  },
+                  "registration_hint": {
+                    "description": "likely: your carrier's answer asks for registration, which Skysay does not support yet.",
+                    "enum": [
+                      "likely",
+                      "none"
+                    ],
+                    "type": "string"
+                  },
+                  "sip_status_code": {
+                    "description": "The status your carrier answered. 401 or 407: it challenges for credentials, which is normal.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "queued",
+                      "running",
+                      "done",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "transport": {
+                    "enum": [
+                      "udp",
+                      "tcp"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          },
           "codecs": {
             "default": [
               "PCMA",
@@ -6058,6 +6129,43 @@
         },
         "type": "object"
       },
+      "SipConnectionInboundTest": {
+        "properties": {
+          "caller_last4": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "received_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "armed",
+              "received",
+              "expired"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "SipConnectionNumber": {
         "properties": {
           "attached_at": {
@@ -6116,6 +6224,83 @@
               }
             },
             "type": "object"
+          },
+          "tests": {
+            "properties": {
+              "inbound": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SipConnectionInboundTest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "outbound": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SipConnectionTestCall"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "type": "object"
+          },
+          "verified": {
+            "description": "Every direction the number has passed its test call since the connection's networks last changed.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "SipConnectionTestCall": {
+        "properties": {
+          "answered_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "call_id": {
+            "type": "string"
+          },
+          "call_status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "dial_format": {
+            "description": "The dialled-number format this call tried, when it was not the connection's own.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "registration_hint": {
+            "enum": [
+              "likely",
+              "none"
+            ],
+            "type": "string"
+          },
+          "sip_status_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "calling",
+              "answered",
+              "failed"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -18562,7 +18747,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -18808,7 +18993,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -18881,7 +19066,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19141,13 +19326,145 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
           }
         },
         "summary": "Update sip connection",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/checks/reachability": {
+      "post": {
+        "description": "Asks Skysay's SIP host to send one SIP OPTIONS to your carrier's server, from the address your carrier allow-lists. The answer shows on the connection under checks.reachability within about a minute. It shows whether the server answers, not that calls work: 401 or 407 means your carrier challenges for credentials, which is normal. A carrier that asks Skysay to register is flagged in registration_hint; registration is not supported yet. Rate limited per connection.",
+        "operationId": "checkSipConnectionReachability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "The latest reachability check: one SIP OPTIONS from Skysay's SIP host. Not proof that calls work.",
+                  "properties": {
+                    "checked_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "elapsed_ms": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "description": "When failed: no_response (no answer within a few seconds), probe_not_run or probe_lost (Skysay could not run it; check again).",
+                      "type": "string"
+                    },
+                    "reason_phrase": {
+                      "maxLength": 80,
+                      "type": "string"
+                    },
+                    "registration_hint": {
+                      "description": "likely: your carrier's answer asks for registration, which Skysay does not support yet.",
+                      "enum": [
+                        "likely",
+                        "none"
+                      ],
+                      "type": "string"
+                    },
+                    "sip_status_code": {
+                      "description": "The status your carrier answered. 401 or 407: it challenges for credentials, which is normal.",
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "enum": [
+                        "queued",
+                        "running",
+                        "done",
+                        "failed"
+                      ],
+                      "type": "string"
+                    },
+                    "transport": {
+                      "enum": [
+                        "udp",
+                        "tcp"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls, test calls or reachability checks rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Check sip connection reachability",
         "tags": [
           "Numbers"
         ],
@@ -19213,7 +19530,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19304,7 +19621,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19395,13 +19712,180 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
           }
         },
         "summary": "Detach sip connection number",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers/{number_id}/dial-format": {
+      "post": {
+        "description": "Saves the dialled-number format of an answered test call as the connection's format.",
+        "operationId": "saveSipConnectionDialFormat",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "test_call_id": {
+                    "description": "An answered test call of this number.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "test_call_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnection"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls, test calls or reachability checks rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Save sip connection dial format",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers/{number_id}/inbound-test": {
+      "post": {
+        "description": "Arms a three-minute window: call the number from any phone, and the call is noted on the number (the caller's last four digits only). The call itself is answered exactly as any other.",
+        "operationId": "armSipConnectionInboundTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnectionInboundTest"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls, test calls or reachability checks rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Arm sip connection inbound test",
         "tags": [
           "Numbers"
         ],
@@ -19475,7 +19959,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19555,13 +20039,196 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls rate limited"
+            "description": "Verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
           }
         },
         "summary": "Get sip connection ownership check",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers/{number_id}/test-calls": {
+      "post": {
+        "description": "Places an ordinary call from this number to a phone you own, answered by a Skysay-hosted agent: admitted and billed like any call. Optionally tries another dialled-number format for this one call; save the one that was answered with dial-format. One test call at a time, at most three an hour per number. Needs calls:write.",
+        "operationId": "startSipConnectionTestCall",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent_id": {
+                    "description": "A Skysay-hosted agent that speaks on the call.",
+                    "type": "string"
+                  },
+                  "dial_format": {
+                    "description": "Try this dialled-number format for this call only.",
+                    "enum": [
+                      "e164_plus",
+                      "e164",
+                      "national",
+                      "intl_00"
+                    ],
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "description": "A phone you own, in E.164 form.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "to",
+                  "agent_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnectionTestCall"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls, test calls or reachability checks rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Start sip connection test call",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "calls:write",
+          "numbers:read"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers/{number_id}/test-calls/{call_id}": {
+      "get": {
+        "description": "A test call's outcome: answered, or the final SIP status your carrier returned.",
+        "operationId": "getSipConnectionTestCall",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must belong to your workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnectionTestCall"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls, test calls or reachability checks rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Get sip connection test call",
         "tags": [
           "Numbers"
         ],
