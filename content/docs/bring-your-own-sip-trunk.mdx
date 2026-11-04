@@ -90,6 +90,12 @@ Skysay admits your carrier's networks automatically once a number is
 attached for incoming calls. The connection's `setup.network` reads
 `admitted` when every Skysay SIP host has applied them.
 
+Until one of the connection's numbers passes its ownership check, the
+networks stay admitted for 24 hours after you last save the connection,
+attach a number or check again. After that `setup.network` reads
+`not_admitted`; save the connection or check again to admit them for
+another 24 hours. A confirmed number keeps them admitted.
+
 ## Attach a number
 
 ```bash
@@ -133,8 +139,9 @@ If the check fails, `ownership.last_check` reads `failed` with a reason:
 - `not_received`: the check call did not reach this connection. Make sure
   your carrier sends the number's incoming calls to the Skysay SIP host from
   the networks on the connection.
-- `code_not_heard`: the call arrived but the code did not. Your carrier must
-  pass keypad tones as RFC 2833 events.
+- `code_not_heard`: the call arrived but the code did not. Make sure your
+  carrier passes keypad tones on the call, either as RFC 2833 events or as
+  audio tones.
 
 Fix the route, then check again:
 
@@ -164,6 +171,12 @@ caller ID or from Skysay's check number is treated as the check call.
   that refuses for capacity answers with busy or unavailable.
 - The connection's number of numbers is limited to 200, and a workspace can
   have 20 connections.
+
+## Paused connections
+
+A connection that sends Skysay far more calls a minute than a real phone line
+would is paused: its calls are refused, and `setup.network` reads `paused`
+with the reason `unusual_call_volume`. Contact support to resume it.
 
 ## Detach or disable
 
