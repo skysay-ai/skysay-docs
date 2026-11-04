@@ -1,0 +1,177 @@
+---
+title: Bring your own SIP trunk
+description: Connect your own carrier's SIP trunk to Skysay for incoming and outgoing calls with your own numbers.
+icon: AntennaSignal
+---
+
+Use a SIP connection when your numbers live at a carrier Skysay has no
+automatic import for. You keep your carrier account and its bill. Skysay
+uses one generic form for every carrier: you copy your carrier's SIP settings
+into it, and point your carrier at Skysay.
+
+A SIP trunk carries voice only. Numbers on a SIP connection cannot send or
+receive SMS.
+
+This guide covers the API. The workspace setup page follows in a later
+release.
+
+## What you need from your carrier
+
+- The carrier's SIP host and port, and whether it uses UDP or TCP. TLS and
+  SRTP are not supported yet.
+- How Skysay's calls authenticate: a SIP username and password (digest), or
+  an IP allow-list of Skysay's signalling addresses.
+- The public IPv4 networks your carrier sends calls from.
+- Your numbers, and the format the carrier sends and expects them in. For a
+  Turkish number `+90 XXX XXX XX XX` these are: with a plus
+  (`+90XXXXXXXXXX`), without one (`90XXXXXXXXXX`), national (`0XXXXXXXXXX`),
+  or with `00` (`0090XXXXXXXXXX`).
+- Your carrier must not require SIP registration (REGISTER). Carriers that
+  only accept registered trunks are not supported yet.
+
+## Create the connection
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My carrier",
+    "country": "US",
+    "codecs": ["PCMU", "PCMA"],
+    "outbound": {
+      "host": "sip.carrier.example",
+      "port": 5060,
+      "transport": "udp",
+      "auth": {"mode": "digest", "username": "your-sip-user", "password": "your-sip-password"},
+      "dial_format": "e164",
+      "caller_format": "e164"
+    },
+    "inbound": {
+      "source_cidrs": ["203.0.113.0/28"],
+      "number_formats": ["e164_plus", "e164"]
+    }
+  }'
+```
+
+- `outbound` is how Skysay places calls through your carrier.
+  - `dial_format` is the format of the number being called. `national`
+    applies only to numbers in the connection's `country`; a call to another
+    country is refused rather than sent in the wrong format.
+  - `caller_format` is the format of your number as caller ID.
+- `inbound` is how your carrier's calls reach Skysay.
+  - `source_cidrs` are your carrier's public IPv4 networks, at most 16, none
+    wider than `/16`. Host names, private ranges and malformed entries are
+    refused.
+  - `number_formats` lists every format your carrier may send the called
+    number in.
+  - Add `"auth": {"mode": "digest", ...}` when your carrier can send a SIP
+    username and password with its calls. Use it when your carrier's
+    networks are shared with other customers.
+- Either block can be left out for a connection that only receives or only
+  places calls.
+
+Passwords are write-only: no response contains them. To change a connection,
+send `PATCH /v1/sip-connections/{connection_id}` with the full settings and
+the `expected_revision` the last response returned. Leave a password out to
+keep the stored one; changing a username needs its password again.
+
+The response's `skysay` block lists what to configure at your carrier: the
+Skysay SIP host to send calls to, its port and transports, and the addresses
+Skysay's calls come from.
+
+## Point your carrier at Skysay
+
+In your carrier's portal, route each number's incoming calls to the Skysay
+SIP host from the `skysay` block, on port 5060. If your carrier uses an IP
+allow-list for outgoing calls, add Skysay's `signalling_addresses`.
+
+Skysay admits your carrier's networks automatically once a number is
+attached for incoming calls. The connection's `setup.network` reads
+`admitted` when every Skysay SIP host has applied them.
+
+## Attach a number
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/numbers \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"e164": "+12025550123", "agent_id": "'$AGENT_ID'"}'
+```
+
+- `agent_id` is a published agent that answers the number's incoming calls.
+- `inbound` and `outbound` default to what the connection carries.
+- A number can be attached to one connection in all of Skysay. If it is
+  already connected in another Skysay workspace, the request is refused;
+  contact support.
+- Premium-rate, shared-cost and unrecognised number types cannot be
+  attached.
+- Skysay charges no monthly fee for the number: your carrier bills it. Calls
+  are charged for Skysay's platform and AI components only; the carrier
+  component is zero.
+
+## Ownership check
+
+Before Skysay places calls with your number as caller ID, it checks that the
+number's incoming calls really reach this connection.
+
+1. When you attach the number, Skysay calls it over the public phone network
+   through its own carrier.
+2. Your carrier routes the call to Skysay, as configured above. Skysay
+   answers it by itself and listens for a one-time code it plays on the
+   call. Nobody needs to pick up, and the call lasts a few seconds.
+3. When the code is heard on this connection, the number's
+   `ownership.status` becomes `confirmed` and `outbound_allowed` becomes
+   `true`.
+
+Until then, outgoing calls with that caller ID are refused with
+`sip_ownership_not_confirmed`. Incoming calls work as soon as the number is
+attached.
+
+If the check fails, `ownership.last_check` reads `failed` with a reason:
+
+- `not_received`: the check call did not reach this connection. Make sure
+  your carrier sends the number's incoming calls to the Skysay SIP host from
+  the networks on the connection.
+- `code_not_heard`: the call arrived but the code did not. Your carrier must
+  pass keypad tones as RFC 2833 events.
+
+Fix the route, then check again:
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/numbers/$NUMBER_ID/ownership-checks \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+Checks are rate limited per number and per workspace; a refusal says when
+to try again. Changing the connection's source networks or carrier host
+means every number needs a new check.
+
+A number attached for outgoing calls only cannot be confirmed by a call,
+because its incoming calls go elsewhere. Contact support to confirm it.
+
+During a check's two-minute window, a call to the number from a withheld
+caller ID or from Skysay's check number is treated as the check call.
+
+## Limits
+
+- Transports: UDP and TCP. No TLS or SRTP.
+- Codecs: PCMA and PCMU.
+- Source networks: public IPv4 only, at most 16, none wider than `/16`.
+- Ports: 5060, or 1024–65535.
+- No custom SIP headers, no P-Asserted-Identity and no username-based From.
+- `channel_limit` is recorded and shown; your carrier enforces it. A carrier
+  that refuses for capacity answers with busy or unavailable.
+- The connection's number of numbers is limited to 200, and a workspace can
+  have 20 connections.
+
+## Detach or disable
+
+`POST /v1/sip-connections/{connection_id}/numbers/{number_id}/detach`
+disconnects one number; it stays in your workspace and can be attached
+again. `POST /v1/sip-connections/{connection_id}/disable` detaches every
+number and removes the connection's call routing. Neither changes anything
+at your carrier.
+
+The exact request and response fields are in the
+[API reference](/docs/api-reference) under **Numbers**.

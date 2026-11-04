@@ -5030,7 +5030,7 @@
       },
       "NumberBackupAuthorization": {
         "additionalProperties": false,
-        "description": "Current permission for the exact saved number route and destination. Permission does not establish live availability; native qualification, caller identity, wallet and policy are checked again before each call.",
+        "description": "Current permission for the exact saved number route and team phone number. Permission does not establish live availability; the phone connection, caller identity, wallet and policy are checked again before each call. Backup calls are never recorded; the number's recording setting applies only to calls answered by the AI agent.",
         "properties": {
           "authorized": {
             "type": "boolean"
@@ -5043,6 +5043,7 @@
             ]
           },
           "destination_e164": {
+            "description": "The team phone number saved with this permission, in E.164 format, or an empty string when none is saved. Kept after a revoke or a route change so it can be authorized again.",
             "type": "string"
           },
           "generation": {
@@ -5077,7 +5078,6 @@
               "",
               "route_unavailable",
               "not_configured",
-              "recording_enabled",
               "number_unavailable",
               "needs_confirmation"
             ],
@@ -5106,10 +5106,6 @@
               },
               "agent_id": {
                 "type": "string"
-              },
-              "fallback": {
-                "description": "Stored with the rule but not yet applied to calls: a call the number cannot take is not forwarded to the fallback today.",
-                "type": "object"
               },
               "phone_number": {
                 "description": "Forward target when forwarding to another phone number.",
@@ -5790,6 +5786,347 @@
           },
           "retry": {
             "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "SipConnection": {
+        "properties": {
+          "channel_limit": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "codecs": {
+            "default": [
+              "PCMA",
+              "PCMU"
+            ],
+            "items": {
+              "enum": [
+                "PCMA",
+                "PCMU"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "country": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "inbound": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "mode": {
+                    "type": "string"
+                  },
+                  "password_set": {
+                    "type": "boolean"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "number_formats": {
+                "default": [
+                  "e164_plus",
+                  "e164"
+                ],
+                "description": "How your carrier sends the called number.",
+                "items": {
+                  "enum": [
+                    "e164_plus",
+                    "e164",
+                    "national",
+                    "intl_00"
+                  ],
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              },
+              "source_cidrs": {
+                "items": {
+                  "description": "A public IPv4 network such as 203.0.113.0/28, no wider than /16.",
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "numbers": {
+            "properties": {
+              "has_more": {
+                "type": "boolean"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/SipConnectionNumber"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "offset": {
+                "type": "integer"
+              },
+              "returned": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "outbound": {
+            "properties": {
+              "auth": {
+                "properties": {
+                  "mode": {
+                    "type": "string"
+                  },
+                  "password_set": {
+                    "type": "boolean"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "caller_format": {
+                "default": "e164_plus",
+                "description": "How your number is sent as caller ID.",
+                "enum": [
+                  "e164_plus",
+                  "e164",
+                  "national"
+                ],
+                "type": "string"
+              },
+              "dial_format": {
+                "default": "e164_plus",
+                "description": "How the destination is sent. national applies only to destinations in the connection's country.",
+                "enum": [
+                  "e164_plus",
+                  "e164",
+                  "national",
+                  "intl_00"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "description": "Your carrier's SIP host: a DNS name or public IPv4 address. Every address it resolves to must be public.",
+                "type": "string"
+              },
+              "port": {
+                "default": 5060,
+                "description": "5060, or 1024-65535.",
+                "type": "integer"
+              },
+              "transport": {
+                "default": "udp",
+                "enum": [
+                  "udp",
+                  "tcp"
+                ],
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "setup": {
+            "properties": {
+              "network": {
+                "description": "admitted once every Skysay SIP edge host has applied this connection's source networks.",
+                "enum": [
+                  "admitted",
+                  "pending",
+                  "not_required"
+                ],
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "pending",
+                  "applied",
+                  "needs_attention",
+                  "unavailable"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "skysay": {
+            "description": "What to configure at your carrier: where to send calls, and where Skysay's calls come from.",
+            "properties": {
+              "signalling_addresses": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sip_host": {
+                "type": "string"
+              },
+              "sip_port": {
+                "type": "integer"
+              },
+              "transports": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "sms_supported": {
+            "description": "Always false: a SIP trunk carries no SMS.",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SipConnectionNumber": {
+        "properties": {
+          "attached_at": {
+            "type": "string"
+          },
+          "e164": {
+            "type": "string"
+          },
+          "inbound": {
+            "type": "boolean"
+          },
+          "number_id": {
+            "type": "string"
+          },
+          "outbound": {
+            "type": "boolean"
+          },
+          "outbound_allowed": {
+            "description": "True only once ownership is confirmed.",
+            "type": "boolean"
+          },
+          "ownership": {
+            "properties": {
+              "confirmed_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "confirmed_by": {
+                "enum": [
+                  "",
+                  "call",
+                  "support"
+                ],
+                "type": "string"
+              },
+              "last_check": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SipOwnershipCheck"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "status": {
+                "enum": [
+                  "checking",
+                  "confirmed",
+                  "not_confirmed",
+                  "needs_support"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "SipOwnershipCheck": {
+        "description": "One verification call. The code is never returned.",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hint": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "not_received, code_not_heard, call_not_placed or detached when failed.",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "calling",
+              "confirmed",
+              "failed"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -6648,7 +6985,7 @@
         "type": "object"
       },
       "VoicePreviewRequest": {
-        "description": "One short synthesis of a bounded caller sentence for a selected TTS voice. Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
+        "description": "One short preview of a selected voice: a bounded caller sentence for a text-to-speech voice, or Skysay's fixed sample for a conversation-engine voice (GPT-Live-1, Gemini Live, Eleven Realtime). Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
         "properties": {
           "agent_id": {
             "description": "Optional saved hosted agent pin for a managed preview only. It must belong to the authenticated project and exactly match the requested platform-managed provider, model, voice id, and language. It permits re-testing a stored selection missing from the current provider listing; it does not authorize a new voice choice or any BYOK selection.",
@@ -6691,7 +7028,7 @@
             "type": "string"
           },
           "text": {
-            "description": "Optional sentence to speak. Omitted or blank falls back to a short product sample only when no audio_environment is supplied. With an audio_environment it is required and must be non-blank, so the requested text is never silently replaced. It is synthesized, never stored, and never echoed in the response.",
+            "description": "Optional sentence for a text-to-speech voice to speak. Omitted or blank falls back to a short product sample only when no audio_environment is supplied. With an audio_environment it is required and must be non-blank, so the requested text is never silently replaced. It is synthesized, never stored, and never echoed in the response. A conversation-engine voice (GPT-Live-1, Gemini Live, Eleven Realtime) plays Skysay's fixed sample instead: typed text is refused with voice_preview_fixed_sample, and an audio_environment needs no text.",
             "maxLength": 200,
             "type": "string"
           },
@@ -16991,7 +17328,7 @@
     },
     "/v1/numbers/{number_id}/backup-authorization": {
       "get": {
-        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. Routing must select an enabled AI agent with a separate team phone fallback and recording disabled before charges can be authorized. Changing the saved route invalidates its permission. Agent pause and policy refusals do not trigger backup.",
+        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. To authorize, send the team phone number as destination_e164 together with accept_charges true: one request saves both. The number must be answered by an active AI agent, and phone backup must be available on its phone connection. Revoking is always allowed. Changing the saved number rules invalidates the permission; authorize again to restore it. Agent pause and policy refusals do not trigger backup.",
         "operationId": "getNumberBackupAuthorization",
         "parameters": [
           {
@@ -17026,7 +17363,7 @@
             "description": "Current permission"
           },
           "400": {
-            "description": "Invalid or unknown fields"
+            "description": "Invalid or unknown fields, or a team phone number that is not supported: it must be in E.164 format, must not be a Skysay number, and must not forward back to this number"
           },
           "401": {
             "description": "Authentication required"
@@ -17038,7 +17375,7 @@
             "description": "Number or project not found in your workspace"
           },
           "409": {
-            "description": "Route, destination, terms or authorization changed; read the current state"
+            "description": "Route, destination, terms or authorization changed; read the current state. Also returned when authorizing while the number is not answered by an active AI agent, or while phone backup is not yet available on the number's phone connection"
           }
         },
         "summary": "Read phone backup permission",
@@ -17050,7 +17387,7 @@
         ]
       },
       "post": {
-        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. Routing must select an enabled AI agent with a separate team phone fallback and recording disabled before charges can be authorized. Changing the saved route invalidates its permission. Agent pause and policy refusals do not trigger backup.",
+        "description": "Bound to the authenticated workspace and selected project. Both numbers:write and wallet:write are required for a command. No carrier call is placed or money reserved by this operation. To authorize, send the team phone number as destination_e164 together with accept_charges true: one request saves both. The number must be answered by an active AI agent, and phone backup must be available on its phone connection. Revoking is always allowed. Changing the saved number rules invalidates the permission; authorize again to restore it. Agent pause and policy refusals do not trigger backup.",
         "operationId": "setNumberBackupAuthorization",
         "parameters": [
           {
@@ -17077,6 +17414,7 @@
                         "type": "boolean"
                       },
                       "destination_e164": {
+                        "description": "Authorize: the team phone number backup rings, saved by this request. Revoke: optional, and must equal the saved number when sent.",
                         "pattern": "^\\+[1-9][0-9]{6,14}$",
                         "type": "string"
                       },
@@ -17125,6 +17463,7 @@
                         "type": "boolean"
                       },
                       "destination_e164": {
+                        "description": "Authorize: the team phone number backup rings, saved by this request. Revoke: optional, and must equal the saved number when sent.",
                         "pattern": "^\\+[1-9][0-9]{6,14}$",
                         "type": "string"
                       },
@@ -17181,7 +17520,7 @@
             "description": "Current permission"
           },
           "400": {
-            "description": "Invalid or unknown fields"
+            "description": "Invalid or unknown fields, or a team phone number that is not supported: it must be in E.164 format, must not be a Skysay number, and must not forward back to this number"
           },
           "401": {
             "description": "Authentication required"
@@ -17193,7 +17532,7 @@
             "description": "Number or project not found in your workspace"
           },
           "409": {
-            "description": "Route, destination, terms or authorization changed; read the current state"
+            "description": "Route, destination, terms or authorization changed; read the current state. Also returned when authorizing while the number is not answered by an active AI agent, or while phone backup is not yet available on the number's phone connection"
           }
         },
         "summary": "Authorize or revoke paid phone backup",
@@ -18104,6 +18443,1109 @@
         ]
       }
     },
+    "/v1/sip-connections": {
+      "get": {
+        "description": "Bound to your workspace and project.",
+        "operationId": "listSipConnections",
+        "parameters": [
+          {
+            "description": "Must belong to your workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "items": {
+                        "$ref": "#/components/schemas/SipConnection"
+                      },
+                      "maxItems": 20,
+                      "type": "array"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    },
+                    "returned": {
+                      "type": "integer"
+                    },
+                    "skysay": {
+                      "description": "What to configure at your carrier: where to send calls, and where Skysay's calls come from.",
+                      "properties": {
+                        "signalling_addresses": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "sip_host": {
+                          "type": "string"
+                        },
+                        "sip_port": {
+                          "type": "integer"
+                        },
+                        "transports": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "List sip connections",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      },
+      "post": {
+        "description": "Saves your carrier trunk with one generic form; Skysay names no carrier. Credentials are write-only and never returned. Saving admits the inbound source networks to the Skysay SIP edge automatically once a number is attached for incoming calls.",
+        "operationId": "createSipConnection",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "channel_limit": {
+                    "description": "Recorded and shown; your carrier enforces it.",
+                    "maximum": 10000,
+                    "minimum": 1,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "codecs": {
+                    "default": [
+                      "PCMA",
+                      "PCMU"
+                    ],
+                    "items": {
+                      "enum": [
+                        "PCMA",
+                        "PCMU"
+                      ],
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "country": {
+                    "description": "The carrier's country, used for national number formats.",
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string"
+                  },
+                  "inbound": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "mode": {
+                            "default": "ip",
+                            "description": "ip: calls are accepted from the source networks only. digest: they must also authenticate.",
+                            "enum": [
+                              "ip",
+                              "digest"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "maxLength": 128,
+                            "minLength": 8,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 64,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "type": "object"
+                      },
+                      "number_formats": {
+                        "default": [
+                          "e164_plus",
+                          "e164"
+                        ],
+                        "description": "How your carrier sends the called number.",
+                        "items": {
+                          "enum": [
+                            "e164_plus",
+                            "e164",
+                            "national",
+                            "intl_00"
+                          ],
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "type": "array",
+                        "uniqueItems": true
+                      },
+                      "source_cidrs": {
+                        "items": {
+                          "description": "A public IPv4 network such as 203.0.113.0/28, no wider than /16.",
+                          "type": "string"
+                        },
+                        "maxItems": 16,
+                        "minItems": 1,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "source_cidrs"
+                    ],
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "outbound": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "mode": {
+                            "description": "digest: Skysay answers your carrier's challenge. ip: your carrier admits Skysay's signalling addresses.",
+                            "enum": [
+                              "digest",
+                              "ip"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "maxLength": 128,
+                            "minLength": 8,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 64,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "type": "object"
+                      },
+                      "caller_format": {
+                        "default": "e164_plus",
+                        "description": "How your number is sent as caller ID.",
+                        "enum": [
+                          "e164_plus",
+                          "e164",
+                          "national"
+                        ],
+                        "type": "string"
+                      },
+                      "dial_format": {
+                        "default": "e164_plus",
+                        "description": "How the destination is sent. national applies only to destinations in the connection's country.",
+                        "enum": [
+                          "e164_plus",
+                          "e164",
+                          "national",
+                          "intl_00"
+                        ],
+                        "type": "string"
+                      },
+                      "host": {
+                        "description": "Your carrier's SIP host: a DNS name or public IPv4 address. Every address it resolves to must be public.",
+                        "type": "string"
+                      },
+                      "port": {
+                        "default": 5060,
+                        "description": "5060, or 1024-65535.",
+                        "type": "integer"
+                      },
+                      "transport": {
+                        "default": "udp",
+                        "enum": [
+                          "udp",
+                          "tcp"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "host",
+                      "auth"
+                    ],
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "country"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnection"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Create sip connection",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}": {
+      "get": {
+        "description": "Bound to your workspace and project.",
+        "operationId": "getSipConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must belong to your workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnection"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Get sip connection",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      },
+      "patch": {
+        "description": "Replaces the connection's settings. Send expected_revision. Omit a password to keep the stored one; changing a username needs its password again. Changing the source networks or the carrier host requires every number's ownership to be confirmed again.",
+        "operationId": "updateSipConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "channel_limit": {
+                    "description": "Recorded and shown; your carrier enforces it.",
+                    "maximum": 10000,
+                    "minimum": 1,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "codecs": {
+                    "default": [
+                      "PCMA",
+                      "PCMU"
+                    ],
+                    "items": {
+                      "enum": [
+                        "PCMA",
+                        "PCMU"
+                      ],
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "country": {
+                    "description": "The carrier's country, used for national number formats.",
+                    "pattern": "^[A-Z]{2}$",
+                    "type": "string"
+                  },
+                  "expected_revision": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "inbound": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "mode": {
+                            "default": "ip",
+                            "description": "ip: calls are accepted from the source networks only. digest: they must also authenticate.",
+                            "enum": [
+                              "ip",
+                              "digest"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "maxLength": 128,
+                            "minLength": 8,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 64,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "type": "object"
+                      },
+                      "number_formats": {
+                        "default": [
+                          "e164_plus",
+                          "e164"
+                        ],
+                        "description": "How your carrier sends the called number.",
+                        "items": {
+                          "enum": [
+                            "e164_plus",
+                            "e164",
+                            "national",
+                            "intl_00"
+                          ],
+                          "type": "string"
+                        },
+                        "minItems": 1,
+                        "type": "array",
+                        "uniqueItems": true
+                      },
+                      "source_cidrs": {
+                        "items": {
+                          "description": "A public IPv4 network such as 203.0.113.0/28, no wider than /16.",
+                          "type": "string"
+                        },
+                        "maxItems": 16,
+                        "minItems": 1,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "source_cidrs"
+                    ],
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "outbound": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "auth": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "mode": {
+                            "description": "digest: Skysay answers your carrier's challenge. ip: your carrier admits Skysay's signalling addresses.",
+                            "enum": [
+                              "digest",
+                              "ip"
+                            ],
+                            "type": "string"
+                          },
+                          "password": {
+                            "maxLength": 128,
+                            "minLength": 8,
+                            "type": "string",
+                            "writeOnly": true
+                          },
+                          "username": {
+                            "maxLength": 64,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "mode"
+                        ],
+                        "type": "object"
+                      },
+                      "caller_format": {
+                        "default": "e164_plus",
+                        "description": "How your number is sent as caller ID.",
+                        "enum": [
+                          "e164_plus",
+                          "e164",
+                          "national"
+                        ],
+                        "type": "string"
+                      },
+                      "dial_format": {
+                        "default": "e164_plus",
+                        "description": "How the destination is sent. national applies only to destinations in the connection's country.",
+                        "enum": [
+                          "e164_plus",
+                          "e164",
+                          "national",
+                          "intl_00"
+                        ],
+                        "type": "string"
+                      },
+                      "host": {
+                        "description": "Your carrier's SIP host: a DNS name or public IPv4 address. Every address it resolves to must be public.",
+                        "type": "string"
+                      },
+                      "port": {
+                        "default": 5060,
+                        "description": "5060, or 1024-65535.",
+                        "type": "integer"
+                      },
+                      "transport": {
+                        "default": "udp",
+                        "enum": [
+                          "udp",
+                          "tcp"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "host",
+                      "auth"
+                    ],
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "country",
+                  "expected_revision"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnection"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Update sip connection",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/disable": {
+      "post": {
+        "description": "Bound to your workspace and project.",
+        "operationId": "disableSipConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnection"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Disable sip connection",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers": {
+      "post": {
+        "description": "Attaches a number you hold at your carrier. Skysay then calls the number over the public phone network and plays a one-time code; when that call arrives on this connection, ownership is confirmed. Outbound calls with this number as caller ID are refused until then. A number can be attached to one connection in all of Skysay.",
+        "operationId": "attachSipConnectionNumber",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "agent_id": {
+                    "description": "A published agent that answers incoming calls.",
+                    "type": "string"
+                  },
+                  "e164": {
+                    "description": "The number in E.164 form. Premium-rate, shared-cost and unknown number types are refused.",
+                    "type": "string"
+                  },
+                  "inbound": {
+                    "description": "Defaults to whether the connection carries inbound calls.",
+                    "type": "boolean"
+                  },
+                  "outbound": {
+                    "description": "Defaults to whether the connection carries outbound calls.",
+                    "type": "boolean"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "e164"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnectionNumber"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Attach sip connection number",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers/{number_id}/detach": {
+      "post": {
+        "description": "Detaches the number. It stays in your workspace, not connected, and can be attached again.",
+        "operationId": "detachSipConnectionNumber",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "connection_id": {
+                      "type": "string"
+                    },
+                    "detached": {
+                      "type": "boolean"
+                    },
+                    "number_id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Detach sip connection number",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers/{number_id}/ownership-checks": {
+      "post": {
+        "description": "Check again: one more verification call to the number. Rate limited per number and per workspace. A number attached for outbound only cannot be confirmed by a call; contact support.",
+        "operationId": "checkSipConnectionNumberOwnership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipOwnershipCheck"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Check sip connection number ownership",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/numbers/{number_id}/ownership-checks/{check_id}": {
+      "get": {
+        "description": "Bound to your workspace and project.",
+        "operationId": "getSipConnectionOwnershipCheck",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "check_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must belong to your workspace. Defaults to its first project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipOwnershipCheck"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Verification calls rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Get sip connection ownership check",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
+        ]
+      }
+    },
     "/v1/sms-conversations/{conversation_id}/actions": {
       "post": {
         "description": "Bound to the authenticated workspace and the conversation's project. Queues the full action read-back and a confirmation question by SMS. Only a later inbound SMS reply containing the current confirmation code and an explicit unconditional yes can authorize execution. One unclear reply receives one clarification. No autonomous AI SMS conversation is started. Voice-only tools are refused.",
@@ -18513,7 +19955,7 @@
     },
     "/v1/voice-previews": {
       "post": {
-        "description": "An explicit Listen action for one selected TTS voice. It accepts a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied), keeps no audio or telemetry, and returns a short in-memory WAV only. A selected outgoing audio_environment requires explicit non-blank text and makes a deterministic, headroom-safe local audition; it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A GPT-Live-1 voice (provider openai, model gpt-live-1) previews differently: it is a short real live session on the platform credential that speaks Skysay's own sample sentence for the requested language, rendered once per voice, language and sample and then served from a tenant-agnostic cache (the response carries text_source: platform_sample and cached). Typed text is refused with error code voice_preview_fixed_sample rather than replaced, credential_id and delivery do not apply, a platform-wide concurrency cap answers 429 when every preview slot is busy, and the preview is never metered as a call.",
+        "description": "An explicit Listen action for one selected voice. A text-to-speech voice speaks a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied); every preview keeps no audio or telemetry and returns a short in-memory WAV only. A selected outgoing audio_environment makes a deterministic, headroom-safe local audition; for a text-to-speech voice it requires explicit non-blank text, and it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A conversation-engine voice previews differently: it plays Skysay's own fixed sample sentence for the requested language (the response carries text_source: platform_sample and cached). GPT-Live-1 (provider openai, model gpt-live-1) and Gemini Live (provider gemini, model gemini-3.8-live) render it once per voice, language and sample as a short real live session on the platform credential, then serve it from a tenant-agnostic cache, and a platform-wide concurrency cap answers 429 when every preview slot is busy. Eleven Realtime (provider elevenlabs, model eleven_realtime_v1_max) plays only a validated sample Skysay imported and never contacts a provider; a voice and language without one is voice_preview_unavailable. For all three, typed text is refused with error code voice_preview_fixed_sample rather than replaced, an audio_environment needs no text and is mixed over the sample for that request only (the cached sample stays dry), credential_id and delivery do not apply, and the preview is never metered as a call.",
         "operationId": "createVoicePreview",
         "requestBody": {
           "content": {
@@ -18530,7 +19972,7 @@
             "description": "Bounded base64-encoded WAV preview"
           },
           "400": {
-            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept; also typed text for a GPT-Live-1 voice (voice_preview_fixed_sample)"
+            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept; also typed text for a GPT-Live-1, Gemini Live or Eleven Realtime voice (voice_preview_fixed_sample)"
           },
           "404": {
             "description": "The selected BYOK credential does not exist in this workspace"
