@@ -247,9 +247,10 @@ if it were a reply. To a caller that sounds like a recording.
 
 Skysay checks every reply on these engines. A reply that has played **2
 seconds** of sound with no transcript of any words is stopped: its audio is
-cut and the conversation carries on. The call is not ended, and the caller can
-speak as usual. The stop is recorded in the call's evidence with the reason
-`agent_audio_without_transcript`, and Skysay support can see it by call id.
+cut and the conversation carries on. The stop never ends a call by itself, and
+the caller can speak as usual. The stop is recorded in the call's evidence with
+the reason `agent_audio_without_transcript`, and Skysay support can see it by
+call id.
 
 - **The window is 2 seconds for every agent, language and phone number.** It
   cannot be changed or switched off per agent.
@@ -261,6 +262,15 @@ speak as usual. The stop is recorded in the call's evidence with the reason
   their speech always has a transcript.
 - **Only that reply is stopped.** On GPT-Live, if sound starts again after a
   pause, it is a new reply and is checked again.
+- **Workflow agents on a voice-to-voice engine are checked too**, with the same
+  window, setting and reason. A stopped reply did not say its line, so the
+  line is handled like any line
+  [GPT-Live has not finished](/docs/agent-workflows): Skysay waits up to 3
+  seconds for the rest, and the workflow moves on once the line is said in
+  full. If it is not, a line before the end of the workflow ends the call with
+  `ended_reason` `workflow_line_undelivered`, and the closing line ends it as
+  `agent_completed`. If the caller speaks over it, the step is spoken again,
+  as for any line the caller has not heard.
 
 **Rollout: measurement mode by default.** For now Skysay only records each
 reply it would stop, and the reply still plays. It also counts every recorded
