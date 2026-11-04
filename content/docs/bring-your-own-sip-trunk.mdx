@@ -145,6 +145,9 @@ If the check fails, `ownership.last_check` reads `failed` with a reason:
 - `code_not_heard`: the call arrived but the code did not. Make sure your
   carrier passes keypad tones on the call, either as RFC 2833 events or as
   audio tones.
+- `connection_paused`: the call arrived while the connection was paused
+  for unusual call volume, so it was refused like any call. Nothing needs
+  fixing on the carrier side: check again once the connection has resumed.
 
 Fix the route, then check again:
 
@@ -184,6 +187,53 @@ line would is paused: its calls are refused, it places no new calls, and
 the calls stop, then 30 and 60 minutes if it trips again within a day. More
 calls while it is paused extend the pause. Contact support to resume it
 sooner.
+
+## Refusals
+
+Every refusal names its reason in `error`.
+
+- **Creating or changing a connection** (400):
+  - `sip_connection_source_invalid`, `sip_connection_source_too_broad`,
+    `sip_connection_source_not_public`, `sip_connection_source_is_carrier`,
+    `sip_connection_sources_required`, `sip_connection_sources_too_many`:
+    the source networks;
+  - `sip_connection_host_invalid`, `sip_connection_host_unresolved`,
+    `sip_connection_host_not_public`, `sip_connection_port_invalid`,
+    `sip_connection_transport_invalid`: the carrier host;
+  - `sip_connection_inbound_formats_invalid`, `sip_connection_dial_format_invalid`,
+    `sip_connection_caller_format_invalid`, `sip_connection_codecs_invalid`,
+    `sip_connection_country_invalid`, `sip_connection_name_invalid`,
+    `sip_connection_channel_limit_invalid`, and the `*_auth_invalid`,
+    `*_username_invalid` and `*_password_invalid` codes for each direction.
+  - A change that would leave an attached number unreachable is refused with
+    `sip_connection_number_unreachable_inbound` (400). A stale
+    `expected_revision` is refused with `sip_connection_revision_conflict`
+    (409).
+- **Attaching a number:**
+  - `sip_connection_number_invalid`, `sip_connection_number_type_unsupported`
+    or `sip_connection_number_country_unsupported` (400): the number itself;
+  - `sip_connection_number_unreachable_inbound` (400): no configured called
+    number format can reach it;
+  - `sip_connection_needs_hosted_agent` (400): connection numbers answer with
+    a Skysay-hosted agent only. A number-rules change to an external agent is
+    refused the same way;
+  - `number_already_connected` or `sip_connection_alias_conflict` (409):
+    another connection or workspace already holds the number or its digits;
+  - `sip_connection_number_limit_reached` (409).
+- **The ownership check:**
+  - `sip_ownership_check_in_progress` (409);
+  - `sip_ownership_check_rate_limited` or `sip_ownership_check_busy` (429,
+    with `retry_after_seconds`).
+- **`setup.reason`, when setup could not finish:** an `sip_connection_*`
+  reason, for example `sip_connection_host_not_public` when the carrier host
+  stopped resolving to public addresses, or `sip_connection_setup_busy`
+  while another setup holds the platform's lock (`setup.state` reads
+  `pending`; saving again or "Check again" retries).
+- **Calls:**
+  - outbound from a number that is not confirmed is refused with
+    `sip_ownership_not_confirmed`;
+  - any call while the connection is paused is refused with
+    `sip_connection_paused`.
 
 ## Detach or disable
 
