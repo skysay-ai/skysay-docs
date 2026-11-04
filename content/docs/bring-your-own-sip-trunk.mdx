@@ -61,8 +61,11 @@ curl -X POST https://api.skysay.ai/v1/sip-connections \
   - `caller_format` is the format of your number as caller ID.
 - `inbound` is how your carrier's calls reach Skysay.
   - `source_cidrs` are your carrier's public IPv4 networks, at most 16, none
-    wider than `/16`. Host names, private ranges and malformed entries are
-    refused.
+    wider than `/16`. Host names, private, documentation and other
+    special-purpose ranges (and any network containing one), networks of the
+    carriers Skysay itself uses, and malformed entries are refused. The
+    example's `203.0.113.0/28` is a documentation range: use your carrier's
+    own networks.
   - `number_formats` lists every format your carrier may send the called
     number in.
   - Add `"auth": {"mode": "digest", ...}` when your carrier can send a SIP
@@ -174,9 +177,13 @@ caller ID or from Skysay's check number is treated as the check call.
 
 ## Paused connections
 
-A connection that sends Skysay far more calls a minute than a real phone line
-would is paused: its calls are refused, and `setup.network` reads `paused`
-with the reason `unusual_call_volume`. Contact support to resume it.
+A connection whose numbers receive far more calls a minute than a real phone
+line would is paused: its calls are refused, it places no new calls, and
+`setup.network` reads `paused` with the reason `unusual_call_volume`.
+`setup.paused.paused_until` says when it resumes by itself: 10 minutes after
+the calls stop, then 30 and 60 minutes if it trips again within a day. More
+calls while it is paused extend the pause. Contact support to resume it
+sooner.
 
 ## Detach or disable
 
