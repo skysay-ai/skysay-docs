@@ -238,6 +238,58 @@ before. On an incoming call answered by a voice-to-voice engine (GPT-Live,
 Gemini Live), the engine already hears the caller and answers them directly, so
 the call continues and the silent-agent bound above applies.
 
+## When a voice-to-voice reply is sound, not speech
+
+A voice-to-voice engine (GPT-Live, Gemini Live, Eleven Realtime) produces its
+own audio and reports a transcript of the words it said. Occasionally an engine
+can play a sound that is not speech, such as a tone or a stretch of music, as
+if it were a reply. To a caller that sounds like a recording.
+
+Skysay checks every reply on these engines. A reply that has played **2
+seconds** of sound with no transcript of any words is stopped: its audio is
+cut and the conversation carries on. The stop never ends a call by itself, and
+the caller can speak as usual. The stop is recorded in the call's evidence with
+the reason `agent_audio_without_transcript`, and Skysay support can see it by
+call id.
+
+- **The window is 2 seconds for every agent, language and phone number.** It
+  cannot be changed or switched off per agent.
+- **A reply whose transcript has words is never stopped this way**, however
+  long it is, and a sound shorter than the window still plays.
+- **Ambience, acknowledgements and tool-wait sounds are not checked.** They
+  play on their own track.
+- **Cascade agents are not checked.** They speak text Skysay already holds, so
+  their speech always has a transcript.
+- **Only that reply is stopped.** On GPT-Live, if sound starts again after a
+  pause, it is a new reply and is checked again.
+- **Workflow agents on a voice-to-voice engine are checked too**, with the same
+  window, setting and reason. A stopped reply did not say its line, so the
+  line is handled like any line
+  [GPT-Live has not finished](/docs/agent-workflows): Skysay waits up to 3
+  seconds for the rest, and the workflow moves on once the line is said in
+  full. If it is not, a line before the end of the workflow ends the call with
+  `ended_reason` `workflow_line_undelivered`, and the closing line ends it as
+  `agent_completed`. If the caller speaks over it, the step is spoken again,
+  as for any line the caller has not heard.
+
+**Rollout: measurement mode by default.** For now Skysay only records each
+reply it would stop, and the reply still plays. It also counts every recorded
+reply whose transcript then turned out to have words
+(`would_cut_then_transcribed_count`), which is a stop that would have been
+wrong.
+
+Stopping is a platform setting, `SKYSAY_NONSPEECH_GUARD_MODE`, not an agent
+setting:
+
+| Value | What happens |
+| --- | --- |
+| `shadow` (default) | Measure only; every reply still plays. |
+| `enforce` | Stop the reply. |
+| `off` | No check at all. |
+
+Skysay sets it to `enforce` once that count shows no speech is affected. This
+page will say when it is on.
+
 ## What it does not do
 
 Acknowledgements reduce perceived waiting, not the reply time itself. They do
