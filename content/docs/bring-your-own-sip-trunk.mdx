@@ -258,6 +258,8 @@ networks or carrier host clears it.
   that refuses for capacity answers with busy or unavailable.
 - The connection's number of numbers is limited to 200, and a workspace can
   have 20 connections.
+- A workspace can save its connections (create or change them) 30 times an
+  hour in all.
 
 ## Paused connections
 
@@ -286,6 +288,9 @@ Every refusal names its reason in `error`.
     `sip_connection_country_invalid`, `sip_connection_name_invalid`,
     `sip_connection_channel_limit_invalid`, and the `*_auth_invalid`,
     `*_username_invalid` and `*_password_invalid` codes for each direction.
+  - More than 30 saves in an hour across the workspace's connections are
+    refused with `sip_connection_save_rate_limited` (429, with
+    `retry_after_seconds`). Wait, then save again.
   - A change that would leave an attached number unreachable is refused with
     `sip_connection_number_unreachable_inbound` (400). A stale
     `expected_revision` is refused with `sip_connection_revision_conflict`
