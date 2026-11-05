@@ -18,20 +18,31 @@ call and runs without a confirmation question.
 Transferring a call is a write that the caller's own request confirms. When the
 caller asks to speak to someone, or says yes after the agent offers to connect
 them, the agent transfers straight away: no read-back and no second question. A
-workflow's transfer **Action** still reads back its destination and waits for a
-yes; see [Transfer steps](/docs/agent-workflows#transfer-steps).
+workflow's transfer **Action** still asks first, in one short line such as
+“I'll connect you to reception. Shall I go ahead?”, and waits for a yes; see
+[Transfer steps](/docs/agent-workflows#transfer-steps).
 
 ## What the caller experiences
 
-1. The agent reads back the whole action: what will change, when, for whom, and
-   where the confirmation will go. It asks one yes-or-no question.
+1. The agent says what will happen, when, and who or where, in one short
+   sentence, and asks one yes-or-no question. The read-back takes at most about
+   eight seconds to say. It leaves out where a confirmation is sent, reasons,
+   durations and internal details, and it never reads out the caller's own
+   phone number. Any other phone number is said by its last four digits only.
 2. Only a later, explicit, unconditional yes permits that action to run.
 3. An unclear reply gets one clarification. A second unclear reply cancels it.
 4. A no, silence or hang-up never approves a write. Changed details require a
    new read-back and a new yes. “Yes, but use a different date” is a change.
 
-For example: “Book a thirty-minute appointment tomorrow at 10:00 in
-Europe/Tallinn for Mari and send the confirmation to mari@example.com?”
+For example: “I'll book you in for tomorrow at 10:00, Mari. Shall I go
+ahead?”
+
+The read-back is written in the language of the call. If the model's line is
+too long to say in about eight seconds, Skysay asks once for a shorter one. If
+that is still too long, the action is not prepared: a workflow **Action** takes
+its error route with `policy_reason` `action_readback_over_budget`, a
+free-form agent is told the action was refused, and an SMS action request is
+refused with `400`. A read-back is never cut off mid-sentence.
 
 On a free-form voice call, the caller's answer counts only once the read-back
 has finished playing:
@@ -50,7 +61,7 @@ has finished playing:
   does not undo them.
 - After a no, Skysay does not stop the agent from offering the action again.
   Whether it should is up to your agent's instructions or workflow. An action
-  offered again is a new action: it is read back in full and runs only after a
+  offered again is a new action: it is read back again and runs only after a
   new yes.
 
 The platform classifies a completed caller turn. A model-supplied
