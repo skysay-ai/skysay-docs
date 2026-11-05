@@ -13637,7 +13637,7 @@
         ]
       },
       "patch": {
-        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` or `reserved_concurrency` must fit the workspace's concurrent-call limit; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
+        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` must be at most the workspace's concurrent-call limit and a changed `reserved_concurrency` at most the limit minus one; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
         "operationId": "updateCampaign",
         "parameters": [
           {
@@ -13769,7 +13769,7 @@
     },
     "/v1/campaigns/{campaign_id}/duplicate": {
       "post": {
-        "description": "The copy is a new draft that fits the workspace's concurrent-call limit in force. If the source's `max_concurrency` or `reserved_concurrency` is above it (the limit was lowered after the source was saved), the copy takes the limit instead and the response lists those settings in `clamped`; it is empty when the copy matches the source.",
+        "description": "The copy is a new draft that fits the workspace's concurrent-call limit in force. If the source's `max_concurrency` is above the limit (it was lowered after the source was saved), the copy's `max_concurrency` is the limit. If the source's `reserved_concurrency` is above the limit minus one (never below 0), the copy's `reserved_concurrency` is the limit minus one. The response lists each setting it lowered in `clamped` (`max_concurrency`, `reserved_concurrency`); the list is empty when the copy matches the source.",
         "operationId": "duplicateCampaign",
         "parameters": [
           {
@@ -13807,7 +13807,7 @@
         },
         "responses": {
           "201": {
-            "description": "Draft campaign plus `clamped`, the concurrency settings lowered to fit the workspace's limit"
+            "description": "Draft campaign plus `clamped`, the concurrency settings lowered to fit the workspace's limit (empty when none)"
           }
         },
         "summary": "Copy a campaign's configuration into a new draft",
