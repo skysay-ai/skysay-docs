@@ -268,8 +268,22 @@ line would is paused: its calls are refused, it places no new calls, and
 `setup.network` reads `paused` with the reason `unusual_call_volume`.
 `setup.paused.paused_until` says when it resumes by itself: 10 minutes after
 the calls stop, then 30 and 60 minutes if it trips again within a day. More
-calls while it is paused extend the pause. Contact support to resume it
-sooner.
+calls while it is paused extend the pause.
+
+To resume it sooner yourself:
+
+```bash
+curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/resume \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+- A connection can be resumed this way three times in any 24 hours. More are
+  refused with `sip_connection_resume_rate_limited` (429, with
+  `retry_after_seconds`); a connection that isn't paused is refused with
+  `sip_connection_not_paused` (409).
+- Resuming keeps the connection's trip history. If it trips again within a
+  day, it pauses for the next, longer window.
+- Contact support if you need it resumed beyond that.
 
 ## Refusals
 
