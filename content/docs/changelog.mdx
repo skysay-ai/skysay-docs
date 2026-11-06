@@ -12,6 +12,28 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 6 November 2026
+
+### Shorter confirmations before an action
+
+- Before an action or a transfer, the AI agent now asks in one short sentence of about eight seconds, in the call's language, and waits for a yes.
+- A transfer asks “I'll connect you to *name*. Shall I go ahead?” and never says the destination number or the caller's own number.
+- If a read-back is still too long after one retry, the action is not prepared: a workflow **Action** takes its error route with `policy_reason` `action_readback_over_budget`.
+- [What the caller experiences](/docs/business-actions#what-the-caller-experiences) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Thinking tokens on their own line
+
+- When a language model thinks before it answers, those thinking tokens are charged on their own line in the call's cost breakdown, **llm · reasoning tokens** (`reasoning_tokens`).
+- They are charged at the model's thinking rate from the call's pricing snapshot; for every model Skysay offers today that is its output rate.
+- [The language model's thinking](/docs/billing#the-language-models-thinking)
+
+### Pay as you go: 3 simultaneous calls
+
+- A pay-as-you-go workspace holds up to **3 simultaneous live calls**, shared across projects and agents.
+- A campaign's `max_concurrency` now follows the workspace's concurrent-call limit, and `reserved_concurrency` is at most one less; the campaign wizard shows the limit that applies.
+- A campaign saved above a lowered limit keeps its values but never starts a call that would take the workspace past the limit.
+- [Pay as you go](/docs/billing#pay-as-you-go) · [Campaign concurrency](/docs/campaigns#concurrency)
+
 ## 5 November 2026
 
 ### Incoming calls run your published workflow
