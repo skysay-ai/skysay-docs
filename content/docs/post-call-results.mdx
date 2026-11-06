@@ -166,9 +166,9 @@ ten minutes, the call ends `outbound_capacity_unavailable` (stage
 
 ### When the configuration could not be run
 
-Five reasons share the stage `component_configuration`. They mean the call was
+Six reasons share the stage `component_configuration`. They mean the call was
 admitted and then refused before any audio existed, because the agent's
-resolved configuration could not build a conversation. Four of them name the
+resolved configuration could not build a conversation. Five of them name the
 missing piece:
 
 | Value | Meaning |
@@ -177,13 +177,14 @@ missing piece:
 | `tts_model_missing` | no speech model is chosen, so replies cannot become audio |
 | `llm_model_missing` | no language model is chosen, so the agent has nothing to think with |
 | `system_prompt_missing` | no instructions are written, so the agent does not know what the call is for |
+| `external_audio_stream_unreachable` | an agent hosted outside Skysay could not be reached at its [audio stream](/docs/audio-stream-protocol) |
 
-The fifth, `component_configuration_rejected`, is the general case: the
+The sixth, `component_configuration_rejected`, is the general case: the
 configuration was refused for a reason outside that list — an unavailable
 provider or model for the call's language, a voice that is not in the approved
 inventory, or a language the agent is not published to answer in.
 
-What the four name is the *field*, never its contents: `system_prompt_missing`
+What the five name is the *field*, never its contents: `system_prompt_missing`
 tells you instructions are missing and never quotes them. As with every
 pre-media refusal, Skysay hangs up the phone leg, closes the room, records one
 `call.failed` result and releases the wallet reservation, so nothing is charged.

@@ -22,9 +22,10 @@ For every call, Skysay opens one `wss://` connection to the agent's
 - **Opened before the call is answered.** Skysay connects while an incoming call
   is still ringing, and while an outgoing call rings at the other end. If your
   agent can't be reached within 5 seconds, Skysay hangs up before the call is
-  answered. The call ends as `failed` with the reason
-  `external_audio_stream_unreachable`, so nobody hears silence and nothing is
-  billed for talk time.
+  answered. The call ends `failed`, with `technical_failure.failure_reason_code`
+  `external_audio_stream_unreachable` (see
+  [Post-call results](/docs/post-call-results#when-the-configuration-could-not-be-run)),
+  so nobody hears silence and nothing is charged.
 - **Signed like a webhook.** The upgrade request carries three headers:
   `X-Skysay-Call-Id`, and `X-Agent-Telco-Timestamp` and
   `X-Agent-Telco-Signature` signing it with the agent's signing secret
