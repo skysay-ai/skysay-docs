@@ -138,17 +138,28 @@ can price. That refusal is about the selected product, not the market: it also
 fires when the product's channel count was never recorded, so it does not tell
 you to abandon the country.
 
-## Choose an exact number
+## Choose a number range or an exact number
 
-You can let Skysay pick any available number in a country and type, or choose
-the exact number yourself.
+In **Phone numbers → Get a number**, choose a country and type, then a
+**Number range**. Checkout shows that range’s setup and monthly price. You can
+narrow the choices by area code or region. Your request keeps the selected
+range through purchase; Skysay does not substitute a different prefix.
+
+Some ranges can be purchased without browsing individual phone numbers.
+Checkout then says an available number in that range will be assigned when
+purchased. This does not mean the range is out of stock. Where individual
+numbers are listed, you can choose the exact number instead.
 
 `POST /v1/available-numbers/search` (`numbers:write`) loads the numbers the
 carrier can sell right now for one `country` and `number_type`. It is a read:
 nothing is reserved, ordered or charged. `GET /v1/available-numbers`
-(`numbers:read`) lists what is loaded. Both take two optional narrowings:
+(`numbers:read`) lists what is loaded. Both can narrow by area code or region:
 
-- `area_code`: digits only, for example `212`.
+- `area_code`: search accepts national or international prefixes, for example
+  `212`, `0845`, `44845` or `+44 845` for the selected country, up to 15 digits.
+  Ambiguous matches require an explicit range choice. When listing cached
+  numbers with `GET`, use the canonical `area_code` from the search result
+  (for example `845`).
 - `region`: a state or region, by name or code: `Texas`, `TX` and `US-TX` all
   name the same one, in any case.
 
@@ -161,6 +172,7 @@ The search answers with a `refresh_status`:
 | `refresh_status` | Meaning |
 | --- | --- |
 | `succeeded` | The carrier answered. `rows` holds the numbers it offered, and is empty when nothing matched. |
+| `range_available` | A matching range has stock, but the carrier does not list individual numbers. Order within the selected range. |
 | `fresh_cache` | The same search ran moments ago and its numbers are still current, so they are returned without asking the carrier again. |
 | `cooldown` | The same search found nothing moments ago. Try again in a couple of minutes, or order without choosing a number. |
 | `failed`, `blocked` | The carrier could not be read. Order without choosing a number, or try again later. |
@@ -174,10 +186,14 @@ list. A number you already chose stays valid after that: pass its `id` as
 `provider_available_number_cache_id` on `POST /v1/number-requests`, and Skysay
 checks it with the carrier again before ordering, as described below.
 
-In the workspace, **Phone numbers → Get a number** opens a checkout dialog with
-area code and state fields. Each number shows where it is, and once the list
-is a few minutes old the dialog offers **Refresh list**; buying the number you
-picked still works.
+Each listed number shows where it is, and once the list is a few minutes old
+the dialog offers **Refresh list**; buying the number you picked still works.
+
+`POST /v1/number-requests` also accepts `provider_catalog_id` to retain a
+specific catalog range. It must identify an available range in the requested
+country and type. If you also supply an exact-number cache ID, both must
+refer to the same range. Prices are resolved on the server and checked again
+with the carrier before ordering. A changed price requires confirmation.
 
 ## Numbers Skysay cannot carry yet
 
