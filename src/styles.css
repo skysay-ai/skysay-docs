@@ -67,14 +67,12 @@
   transition: none;
 }
 
-/* Section headings. A meta.json "---[Icon]Title---" separator renders as a
-   <p> carrying its icon, and Fumadocs gives it the same muted colour, size and
-   weight as the page items beneath it, so the sidebar reads as one flat list.
-   Make the headings read as headings (foreground, semibold, a little more air
-   above) and indent the page items that follow them so each heading sits left
-   of its group's icons. The sibling combinator keeps the indent off the
-   Home/Blog/… links that precede the first heading. */
-#nd-sidebar p:has(> svg) {
+/* Section headings. Each meta.json "---[Icon]Title---" separator is a sidebar
+   folder (src/lib/docs-tree.js), so its title is a fold button above its pages.
+   Fumadocs gives that button the same muted colour, size and weight as the page
+   items beneath it; make it read as a heading (foreground, semibold, a little
+   more air above). */
+#nd-sidebar button[aria-expanded] {
   color: var(--color-fd-foreground);
   font-weight: 600;
   font-size: 0.8125rem;
@@ -82,11 +80,12 @@
   margin-bottom: 0.375rem;
 }
 
-#nd-sidebar p:has(> svg) ~ a[data-active] {
-  /* SidebarItem sets padding-inline-start inline (its folder-depth offset),
-     which outranks any stylesheet rule; the tree here is flat, so that
-     offset is always the depth-0 value and overriding it is safe. */
-  padding-inline-start: 1rem !important;
+/* No vertical lines in the sidebar: Fumadocs draws a guide line down the pages
+   of a folder (a ::before on the folder's content) and an accent bar before the
+   active page (a ::before on the link). The list reads fine without either. */
+#nd-sidebar div[data-state]::before,
+#nd-sidebar a[data-active]::before {
+  content: none;
 }
 
 @theme inline {
