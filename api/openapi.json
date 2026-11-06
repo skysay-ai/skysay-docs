@@ -10682,7 +10682,7 @@
         ]
       },
       "post": {
-        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is bound to the selected workflow instead of the agent's normal configuration. A draft pin selects the current draft when a matching call arrives, then compiles, prepares and renders that exact revision and compiled contract into the admitted run's immutable snapshot. Arming does not freeze the draft. A draft changed during preparation is not bound. A published pin uses its published snapshot. Both require normal qualification, funding and admission, including qualified listener and output sources for spoken execution. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
+        "description": "The next matching inbound call to the ONE number this pin names -- from exactly this caller number, within the TTL -- is bound to the selected workflow instead of the agent's published workflow (or its free-form configuration when none is published). A pin that does not match, or cannot be bound, leaves the call to the published workflow every other caller gets. A draft pin selects the current draft when a matching call arrives, then compiles, prepares and renders that exact revision and compiled contract into the admitted run's immutable snapshot. Arming does not freeze the draft. A draft changed during preparation is not bound. A published pin uses its published snapshot. Both require normal qualification, funding and admission, including qualified listener and output sources for spoken execution. Every other caller is unaffected, and so is every other number attached to the same agent: an agent serving both a test line and a production line never exposes an unpublished draft on the production line. from_e164 is declared by the authenticated workspace member arming it, not independently verified (this is a test aid on a phone_test_eligible number, not an access-control boundary). Arming again while a pin is still active supersedes it -- at most one active pin per agent. Fails closed if the draft workflow does not currently compile.",
         "operationId": "armAgentWorkflowPhonePin",
         "parameters": [
           {
@@ -10782,7 +10782,7 @@
     },
     "/v1/agents/{agent_id}/workflow/publish": {
       "post": {
-        "description": "Blocks with 400 if the compiled draft has validation errors, or if it has warnings the caller has not acknowledged -- warnings never block by themselves, but publishing an immutable version is where the author has to have seen them. The rejection lists the outstanding codes; send them back in acknowledged_warning_codes to proceed. An action step this AI agent cannot run is reported as `AGENT_TOOL_NOT_CONFIGURED` (see the WorkflowToolWarning schema): the step's agent tool is missing, does not change anything, is an Integration action that no longer matches its integration in this project, or is the Transfer tool with no phone number or one that cannot be dialled. It never blocks; on a call the step takes its on_error route. It is not one of the codes to acknowledge: the response's `warnings` carries it with the draft's other warnings. Version numbering is monotonic per workflow; a call always pins the exact published version it started with.",
+        "description": "Blocks with 400 if the compiled draft has validation errors, or if it has warnings the caller has not acknowledged -- warnings never block by themselves, but publishing an immutable version is where the author has to have seen them. The rejection lists the outstanding codes; send them back in acknowledged_warning_codes to proceed. An action step this AI agent cannot run is reported as `AGENT_TOOL_NOT_CONFIGURED` (see the WorkflowToolWarning schema): the step's agent tool is missing, does not change anything, is an Integration action that no longer matches its integration in this project, or is the Transfer tool with no phone number or one that cannot be dialled. It never blocks; on a call the step takes its on_error route. It is not one of the codes to acknowledge: the response's `warnings` carries it with the draft's other warnings. Version numbering is monotonic per workflow; a call always pins the exact published version it started with. The active version runs every phone call the agent places and answers: a call that cannot bind it (for example an engine that cannot run workflows, or a language the version has no spoken lines for) is refused, and a refused inbound call is recorded in the call list with the admission code `workflow_binding_failed`. A Phone test pin outranks it for the one caller and number it names.",
         "operationId": "publishAgentWorkflow",
         "parameters": [
           {
@@ -18747,7 +18747,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -18993,7 +18993,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19066,7 +19066,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19326,7 +19326,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19458,7 +19458,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19530,7 +19530,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19621,7 +19621,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19712,7 +19712,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19799,7 +19799,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19879,7 +19879,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -19959,7 +19959,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -20039,7 +20039,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -20141,7 +20141,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -20222,7 +20222,7 @@
             "description": "Stale revision, number already connected, or the connection is busy or disabled"
           },
           "429": {
-            "description": "Verification calls, test calls or reachability checks rate limited"
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
           },
           "503": {
             "description": "SIP trunk connections are not available yet"
@@ -20234,6 +20234,78 @@
         ],
         "x-required-scopes": [
           "numbers:read"
+        ]
+      }
+    },
+    "/v1/sip-connections/{connection_id}/resume": {
+      "post": {
+        "description": "Ends a pause for unusual call volume early, for a connection in your workspace. Up to three times a day per connection. The connection keeps its trip history: if it trips again within a day, it pauses for the next, longer window (10, then 30, then 60 minutes).",
+        "operationId": "resumeSipConnection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SipConnection"
+                }
+              }
+            },
+            "description": "Result"
+          },
+          "400": {
+            "description": "Invalid field, with a fixed reason code"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing workspace authority"
+          },
+          "404": {
+            "description": "Not found in your workspace/project"
+          },
+          "409": {
+            "description": "Stale revision, number already connected, or the connection is busy or disabled"
+          },
+          "429": {
+            "description": "Saves, verification calls, test calls or reachability checks rate limited"
+          },
+          "503": {
+            "description": "SIP trunk connections are not available yet"
+          }
+        },
+        "summary": "Resume sip connection",
+        "tags": [
+          "Numbers"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
         ]
       }
     },
