@@ -67,6 +67,26 @@ The gateway runs on your servers and carries the call's audio. From there:
 So a self-hosted gateway is not a data-residency boundary: it moves where the
 media is handled, not where the call's content ends up.
 
+### Where Deepgram transcribes a call
+
+Skysay Cloud sends every Deepgram transcription of a call to Deepgram's EU
+endpoint (`api.eu.deepgram.com`). That covers the agent's own transcriber, a
+workflow's listener and phone-menu detection, so the caller's audio is
+transcribed in the European Union. Deepgram can move that processing between EU
+countries.
+
+A self-hosted gateway picks its Deepgram region with one setting:
+
+| `SKYSAY_DEEPGRAM_REGION` | Endpoint |
+| --- | --- |
+| not set, or `eu` | `api.eu.deepgram.com` (EU) |
+| `us` | `api.deepgram.com` (US) |
+
+Choose the region nearest the gateway: a gateway in North America answers
+sooner on `us`. Any other value, including an empty one, stops the gateway
+from starting a Deepgram transcription; the gateway does not fall back to the
+other region. The same Deepgram API keys work in both regions.
+
 ### Keep call content on your gateway (content-local)
 
 A self-hosted deployment can keep call content on the gateway instead. Set it

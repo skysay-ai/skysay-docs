@@ -1,0 +1,256 @@
+---
+title: Phone backup
+description: Connect callers to your own team phone when the AI cannot take the call, billed as carrier minutes with no AI charge.
+icon: HeadsetHelp
+---
+
+Phone backup is an optional safety net for a Skysay number that an AI agent
+answers. When the AI cannot take a call, Skysay connects the caller to a phone
+number you chose, such as your office or an on-call mobile. No AI agent joins
+that call, so there is no recording, transcript, summary or AI charge. You pay
+the two carrier legs of the call and nothing else. Backup calls are never
+recorded; the number's recording setting keeps applying to the calls your AI
+agent answers.
+
+Backup is off until you turn it on for a number. It is offered only on a phone
+connection Skysay has enabled for it.
+
+## When backup is used
+
+Skysay offers the call to your team phone in two situations only:
+
+- **Every phone line is busy.** The call arrives while every agent line on the
+  platform's phone host is already in a call. Without backup the caller hears a
+  busy signal and the call is recorded as failed with
+  `inbound_capacity_reached`; see [Failure reasons](/docs/post-call-results#verify-every-delivery).
+- **The number's AI setup cannot run.** The agent's published configuration
+  cannot build a conversation, for example because a voice, model or
+  instruction is missing. Without backup the call is refused with one of the
+  [configuration reasons](/docs/post-call-results#when-the-configuration-could-not-be-run).
+
+Pausing the AI agent does not trigger backup, and neither does a call that a
+policy check refuses. Before every backup call Skysay checks again that your
+authorization, available funds, phone permissions and workspace limits still
+allow it. If any check fails, the call is handled exactly as it would be with
+backup off.
+
+## What a number needs
+
+Backup can be authorized when:
+
+- **An AI agent answers the number.** Its routing is set to answer with a
+  Skysay AI agent, and the number is active.
+- **Its phone connection is enabled for backup.** Skysay enables backup per
+  connection. Until then the Numbers page does not show **Phone backup** for
+  the number, and the API refuses to authorize it.
+
+You choose the team phone when you authorize. It must be a phone outside
+Skysay, in international format, and it must not forward calls back to this
+number, for example a business line that your provider already forwards to
+it. Recording does not need to change: backup calls are never recorded,
+whatever the number records for its AI calls.
+
+## Turn it on in the workspace
+
+1. Open **Numbers** and select the number.
+2. In **Phone backup**, enter your team's number, starting with `+` and the
+   country code.
+3. Select **I authorize carrier charges for calls to this backup number**, then
+   **Authorize phone backup**.
+
+One save stores the team number and the authorization together, and the badge
+changes to **Charges authorized**. To ring a different phone, enter it and
+authorize again. Select **Revoke authorization** at any time to stop backup
+for that number. Saving any change to the number's routing or call policy
+cancels the authorization: the page shows **Not authorized** with the team
+number filled in, and you authorize again to restore it. **Add funds**, next
+to the button, opens billing.
+
+## Turn it on with the API
+
+Read the current permission with `GET /v1/numbers/{number_id}/backup-authorization`
+(`numbers:read`). Authorize or revoke it with
+`POST /v1/numbers/{number_id}/backup-authorization`, which needs both
+`numbers:write` and `wallet:write`. Treat a key with `wallet:write` as able to
+spend your funds. Both operations take an optional `project_id` (a query parameter on `GET`, a
+body field on `POST`), are limited to your workspace, and place no call and
+reserve no money. The generated
+[API reference](/docs/api-reference) lists the exact fields.
+
+```bash
+curl -s "$SKYSAY_BASE_URL/v1/numbers/$NUMBER_ID/backup-authorization" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY"
+```
+
+```json
+{
+  "number_id": "num_2XbK7pQw4ZrT9mNc",
+  "route_id": "nr_8HcV3tLq1YfN6pRa",
+  "generation": 0,
+  "authorized": false,
+  "state": "not_authorized",
+  "destination_e164": "",
+  "terms_revision": "carrier-backup-1",
+  "authorized_at": null,
+  "unavailable_reason": "needs_confirmation"
+}
+```
+
+`destination_e164` is the team number saved with the authorization, or an empty
+string before one is saved. It is kept after a revoke or a routing change, so
+you can authorize the same phone again. `unavailable_reason` is empty once
+backup is authorized. Otherwise it says why authorization is not possible yet,
+or that the number is ready:
+
+| `unavailable_reason` | Meaning |
+| --- | --- |
+| `route_unavailable` | The number has no saved routing to authorize. |
+| `not_configured` | Routing is not set to answer with an AI agent. |
+| `number_unavailable` | The number is not active. |
+| `needs_confirmation` | The number is ready and backup is not authorized. |
+
+To authorize, send the team number with the values you just read. The request
+is refused unless each value you read still matches:
+
+```bash
+curl -s -X POST "$SKYSAY_BASE_URL/v1/numbers/$NUMBER_ID/backup-authorization" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "expected_generation": 0,
+    "expected_route_id": "nr_8HcV3tLq1YfN6pRa",
+    "request_key": "backup-office-line-1",
+    "accept_charges": true,
+    "destination_e164": "+15550142",
+    "terms_revision": "carrier-backup-1"
+  }'
+```
+
+- `accept_charges` is `true` to authorize carrier charges and `false` to revoke.
+  Authorizing is the consent: nothing is charged by sending it.
+- `destination_e164` is the team number to ring, in E.164 format such as
+  `+15550142`. The same request saves it and authorizes it; sending a
+  different number replaces the saved one. `terms_revision` must be the
+  current `terms_revision` the `GET` returned. Revoking needs neither; if you
+  send `destination_e164` with a revoke, it must equal the saved number.
+- `expected_generation` and `expected_route_id` name the state you reviewed.
+  Each accepted authorize or revoke adds one to `generation`. If a colleague
+  changed the routing, the terms or the authorization in the meantime, the
+  request fails with `409` and nothing changes, so read again and decide again.
+- `request_key` is 8 to 100 letters, digits, `_` or `-`. Sending the same key
+  with the same content again returns the saved result with `idempotent: true`.
+  Reusing a key for different content fails with `409`.
+- Authorizing is also refused with `409` while the number is not ready, that
+  is while `unavailable_reason` is `route_unavailable`, `not_configured` or
+  `number_unavailable`, and while backup is not enabled on the number's phone
+  connection. Revoking is always accepted.
+
+`400` means a field is invalid or unknown, or the team number cannot be used:
+it is not in E.164 format, it is a Skysay number, or it forwards calls back to
+this number. `403` means a missing scope or workspace authority, and `404` a
+number or project outside your workspace. A granted
+authorization does not promise a call will connect: the checks in
+[When backup is used](#when-backup-is-used) run again for every call.
+
+## What happens on a backup call
+
+1. The call arrives and Skysay cannot hand it to the AI.
+2. Skysay checks the number, your authorization and your funds, and holds funds
+   for the call (see [Pricing](#pricing)).
+3. Skysay dials your team number once, presenting your Skysay number as the
+   caller ID. The team phone rings for at most 30 seconds, counted from when
+   the incoming call arrived.
+4. If your team phone answers, the two are connected until either side hangs up
+   or the call reaches 30 minutes.
+
+If your team phone is busy or does not answer, the call ends. Skysay does not
+retry, try another number, play a message or take a voicemail. Backup is not a
+voicemail service.
+
+## Limits
+
+- **One backup call per number at a time.** While a backup call is active on a
+  number, another caller to that number is handled as if backup were off. A
+  call that has just ended, for example because the caller hung up while the
+  team phone rang, can keep the number's backup in use for a short while before
+  it is released.
+- **30 seconds of ringing** at the team phone, and **30 minutes** of call.
+- **One dial per call.** There is no automatic second attempt.
+- **Workspace limits still apply.** Backup is not used when your workspace's
+  concurrent-call limit is reached, and the call to the team number follows
+  your workspace's outbound calling rules, such as its allowed destination
+  countries.
+
+## Pricing
+
+A backup call has two carrier legs, each billed by the started minute:
+
+- **The incoming leg**, the caller's call into your Skysay number, at that
+  number's incoming-call price.
+- **The backup leg**, Skysay's call to your team number, at the outgoing price
+  for that destination.
+
+There is no AI, voice or recording charge. Prices differ by number and
+destination, and the call's detail shows the price of each leg.
+
+Before dialing, Skysay holds funds for both legs for the longest a backup call
+can run: 30 minutes plus ringing time and a short margin, shown on the call as
+33 minutes for each leg. A hold sets money aside; it is not a charge. After the
+call ends, Skysay settles each leg from its own record and returns the unused
+part. If your available funds cannot cover the hold, no backup call is placed.
+See [Billing](/docs/billing) for how holds and balances appear.
+
+## Limitations
+
+Read these before relying on backup for calls you cannot miss.
+
+1. **The caller is answered as soon as the backup dial starts.** Skysay answers
+   the incoming call when it begins dialing your team phone, not when the team
+   phone answers. While the team phone rings, the caller hears silence rather
+   than ringing, and Skysay plays no message. If the team phone is busy or does
+   not answer, the incoming call has still been answered, so it counts as a
+   connected incoming call and can be charged as one.
+2. **Backup trusts the connection it arrives on.** Skysay acts on the caller and
+   called numbers that an enabled carrier or phone-system connection reports,
+   and cannot verify them independently. For that reason backup is offered only
+   for onboarded, trusted connections. Anyone able to send calls over such a
+   connection can cause backup calls to your team number, within the limits
+   above, and you are charged for them.
+3. **An unanswered backup can leave part of the hold reserved.** When the team
+   phone never answers, Skysay may not know exactly when the incoming call
+   ended. The incoming leg is charged when its times are known, and the rest of
+   the hold is released by a reconciliation. Skysay does not promise when that
+   reconciliation runs. Until then the call shows as not charged yet with the
+   reserved amount held. If an ended call still shows a reserved amount, contact
+   support with the call ID.
+
+## Read the call on the Calls page
+
+A backup call appears in **Calls** like any incoming call, with no AI agent
+and no recording or summary. Its status is one of:
+
+| Status | Meaning |
+| --- | --- |
+| **Dialing** | Skysay is calling your team phone. |
+| **Completed** | The team phone answered and the call ended. |
+| **Busy** | The team phone was busy. |
+| **No answer** | The team phone rang and was not answered. |
+| **Canceled** | The caller hung up before the team phone answered. |
+| **Failed** | Skysay could not place or complete the backup call. |
+
+The cost column shows the charge once both legs are settled. Until then it
+reads **Not charged yet** with the reserved amount, which is a hold and not the
+final price. Open the call to see each carrier leg's rate, the reserved,
+charged and released amounts, and any amount due.
+
+If the caller hangs up while the team phone rings, the call can keep showing
+**Dialing** for a short while before it settles as **Canceled**.
+
+## Related
+
+- [Keep your existing number](/docs/keep-your-number) forwards calls from your
+  current provider to a Skysay number, which can use backup like any other
+  number once its connection is enabled.
+- [Receive incoming calls with your AI agent](/docs/receive-inbound-calls)
+  covers routing a number to an AI agent.
+- [Scopes](/docs/scopes) lists what each API scope allows.

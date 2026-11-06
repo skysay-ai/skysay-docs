@@ -25,13 +25,13 @@ $0.023 per minute, including silence; while the engine reconnects after a droppe
 billed.
 
 PAYG's standard workspace allowance is **10 billed phone numbers** and
-**10 simultaneous live calls**, shared across projects and agents. Number
+**3 simultaneous live calls**, shared across projects and agents. Number
 rental and setup are charged separately; this is permission to hold up to ten
 paid numbers, not ten free numbers. Carrier-billed imports and zero-rental
 numbers do not consume the billed-number allowance. Owning more numbers does
 not multiply the concurrent-call allowance.
 
-For more than 10 billed numbers or 10 simultaneous calls, **[contact us](https://skysay.ai/contact)**
+For more than 10 billed numbers or 3 simultaneous calls, **[contact us](https://skysay.ai/contact)**
 about **Scale**. An Skysay operator can set a workspace's concurrent-call
 limit below or above the plan allowance. A value of `0` resets that control to
 the plan default; it does not disable calls. Choosing or changing a use-case
@@ -213,6 +213,23 @@ components used. BYOK provider charges follow that component's billing mode;
 bringing a provider key does not make unrelated platform or carrier usage free.
 New calls use their own pricing snapshot. Existing call prices and historical
 wallet entries are not rewritten when the catalog changes.
+
+### The language model's thinking
+
+Some language models think before they answer. The provider charges for those
+thinking tokens even though the caller never hears them, so Skysay charges them
+too:
+
+- They appear on their own line in the call's cost breakdown, **llm · reasoning
+  tokens** (dimension `reasoning_tokens`), beside the model's input and output
+  tokens. Output is the reply itself.
+- They are charged at the model's thinking rate from the call's pricing
+  snapshot. For every model Skysay offers today that is its output rate, as the
+  providers charge it.
+- A model that does not think shows zero on that line.
+- When a provider reports its total tokens for a reply but not how many were
+  thinking, Skysay charges everything in the total beyond the prompt, so no
+  token the provider billed is left out.
 
 ### Speech that is interrupted or refused
 

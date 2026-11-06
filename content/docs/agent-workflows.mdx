@@ -460,7 +460,8 @@ tools, and workflow:
 - **Phone** — a controlled test call on an attached, eligible number. You arm
   a short-lived pin for one declared caller number and one attached number;
   while it is armed, calls from that caller run the pinned workflow, and every
-  other caller continues to reach the published workflow. A draft pin takes the
+  other caller continues to reach the published workflow (or the AI agent's
+  instructions, when no workflow is published). A draft pin takes the
   draft as it is when the matching call arrives, not as it was when you armed
   it; if the draft changes while that call is being prepared, the call is not
   bound to it. Pins expire on a timer and after a bounded number of matches.
@@ -730,10 +731,17 @@ can still end the call without it.
 These checks run before Skysay reserves funds for the call. An outbound call,
 campaign call or Talk test that fails one is not started, and a request that
 starts it gets `400` with the message below, or `409` with one of the codes in
-the second table. On a **Phone** test, an inbound
-call whose pinned workflow fails these checks is not refused: the pin is
-skipped and the call is answered by the AI agent's normal configuration, as if
-no pin were armed.
+the second table.
+
+An incoming call to an AI agent with a published workflow runs that workflow
+too, and passes the same checks. When the published workflow cannot run on the
+call, the call is refused: it appears in the call list as a failed incoming
+call with the admission code `workflow_binding_failed`, nothing is charged,
+and the AI agent's readiness shows the same reason before anyone calls. The
+call is never answered free-form instead. On a **Phone** test, an incoming
+call whose pinned workflow fails these checks is not refused by the pin: the
+pin is skipped and the call is answered as if no pin were armed, which means
+by the published workflow when there is one.
 
 | Message | What to change |
 | --- | --- |
@@ -960,8 +968,12 @@ recipient's handset. See [Confirming business actions](/docs/business-actions).
 ### Transfer steps
 
 Use an **Action** with the AI agent's
-[Transfer to a human](/docs/transfer-to-a-human) tool. The read-back identifies
-its configured destination and asks the caller to approve the transfer. A
+[Transfer to a human](/docs/transfer-to-a-human) tool. Its read-back is one
+short line in the call's language: “I'll connect you to *name*. Shall I go
+ahead?” The name comes from the step's own name: a step called “Transfer to
+reception” says “I'll connect you to reception”. If the step's name does not
+name a person, team or place, the agent says “someone from our team”. The
+read-back never says the destination number or the caller's own number. A
 later explicit yes permits one dial attempt; a no or changed request does not.
 The workspace's outbound policy and the tool's destination restrictions still apply.
 
@@ -1041,7 +1053,7 @@ tools for it. A step can run one of these:
 | --- | --- | --- |
 | **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and quotes the documents' own sentences that answer it. | `{{tool.knowledge_answer}}`: whole sentences of the documents, exactly as written and in the documents' language |
 | **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to three offered times with their dates, said in the call's language with the calendar's time zone |
-| **Book an appointment** | An Action books one offered time after its built-in read-back and confirmation. | Five outcome routes; the read-back includes the frozen appointment details. |
+| **Book an appointment** | An Action books one offered time after its built-in read-back and confirmation. | Five outcome routes; the read-back says what, when and for whom in about eight seconds. |
 | **Integration or webhook tool** | Read tools use **Read tool**; write tools use **Action** and require confirmation. | Reads expose the declared `{{tool.<key>}}` result values. Writes follow receipt outcome routes. |
 
 A tool runs only if the AI agent has it. Nothing is attached for you: the
@@ -1169,9 +1181,8 @@ it takes its error route. A template does not change a draft you already have.
   read-back line, the caller's explicit answer is taken as a yes, a no, a
   change or unclear (with the one clarification), and only a yes books exactly
   the details read back. The calendar's own checks are unchanged.
-- Outbound calls, an inbound call from a caller you armed a **Phone** test for,
-  and the **Talk** test run tool steps the same way, with the AI agent's real
-  tools. Talk is a browser test, so its booking writes only to a calendar
+- Outbound calls, incoming calls, and the **Talk** test run tool steps the
+  same way, with the AI agent's real tools. Talk is a browser test, so its booking writes only to a calendar
   connection set up for test bookings; see
   [Calendar booking](/docs/calendar-booking#test-without-accidental-appointments).
 - **Chat** calls no real tool. A step whose tool the AI agent has not

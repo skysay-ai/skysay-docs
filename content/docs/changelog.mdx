@@ -12,6 +12,59 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 6 November 2026
+
+### Shorter confirmations before an action
+
+- Before an action or a transfer, the AI agent now asks in one short sentence of about eight seconds, in the call's language, and waits for a yes.
+- A transfer asks “I'll connect you to *name*. Shall I go ahead?” and never says the destination number or the caller's own number.
+- If a read-back is still too long after one retry, the action is not prepared: a workflow **Action** takes its error route with `policy_reason` `action_readback_over_budget`.
+- [What the caller experiences](/docs/business-actions#what-the-caller-experiences) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Thinking tokens on their own line
+
+- When a language model thinks before it answers, those thinking tokens are charged on their own line in the call's cost breakdown, **llm · reasoning tokens** (`reasoning_tokens`).
+- They are charged at the model's thinking rate from the call's pricing snapshot; for every model Skysay offers today that is its output rate.
+- [The language model's thinking](/docs/billing#the-language-models-thinking)
+
+### Pay as you go: 3 simultaneous calls
+
+- A pay-as-you-go workspace holds up to **3 simultaneous live calls**, shared across projects and agents.
+- A campaign's `max_concurrency` now follows the workspace's concurrent-call limit, and `reserved_concurrency` is at most one less; the campaign wizard shows the limit that applies.
+- A campaign saved above a lowered limit keeps its values but never starts a call that would take the workspace past the limit.
+- [Pay as you go](/docs/billing#pay-as-you-go) · [Campaign concurrency](/docs/campaigns#concurrency)
+
+## 5 November 2026
+
+### Incoming calls run your published workflow
+
+- An incoming call to an AI agent with a published workflow now runs that workflow, the same way the calls the agent places do.
+- If the published workflow can't run on the call, the call is refused as `workflow_binding_failed`, nothing is charged, and the AI agent's readiness shows the reason.
+- A **Phone** test pin still answers its one declared caller with the pinned version; every other caller reaches the published workflow.
+- [When a spoken workflow call is refused](/docs/agent-workflows#when-a-spoken-workflow-call-is-refused) · [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls)
+
+### Calls are transcribed in the EU
+
+- Skysay Cloud sends every Deepgram transcription of a call to Deepgram's EU endpoint, `api.eu.deepgram.com`: the agent's transcriber, workflow listeners and phone-menu detection.
+- A self-hosted gateway picks its region with `SKYSAY_DEEPGRAM_REGION`: unset or `eu` for the EU, `us` for the US; any other value stops Deepgram transcription.
+- [Where Deepgram transcribes a call](/docs/deployment-modes#where-deepgram-transcribes-a-call)
+
+## 4 November 2026
+
+### Call and text out as soon as you have a number
+
+- A workspace with a bought or imported number places outbound calls and sends SMS straight away: there is no approval step and no list of blocked words.
+- `purpose`, `categories` and `user_authorization` are optional on every call and SMS; Skysay records them when you send them and never refuses a call for them.
+- A call is still refused for a suspension, a sanctioned destination, a destination outside your country list, a caller number awaiting registration, or a caller ID that isn't yours.
+- [Policy & outbound](/docs/policy-and-outbound) · [Purpose and authorization are optional](/docs/policy-and-outbound#purpose-and-authorization-are-optional) · [What is never refused](/docs/policy-and-outbound#what-is-never-refused)
+
+### Voices: a Favorites tab, one preview language and live engines with an ambience
+
+- **Favorites** is now one of four tabs beside **All voices**, **Text-to-speech voices** and **Conversation engines (Live)**, and lists every voice you saved.
+- Choose a **Preview language** once for the whole page; every voice that speaks it plays in it, and **Change** picks another language for one voice.
+- GPT-Live 1, Gemini Live and Eleven Realtime previews play Skysay's fixed sample with your selected ambience mixed over it.
+- [Save favorite voices](/docs/voice-library#save-favorite-voices) · [Preview voices in one language](/docs/voice-library#preview-voices-in-one-language) · [Audition it deliberately](/docs/audio-environments#audition-it-deliberately)
+
 ## 3 November 2026
 
 ### Keep your number and forward calls to an AI line

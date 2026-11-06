@@ -60,11 +60,22 @@ schemas are in the [generated API reference](/docs/api-reference) and the live
 ### Audition it deliberately
 
 `POST /v1/voice-previews` can include the same optional `audio_environment`
-object. When it does, `text` must be explicit and non-blank. The service keeps
-that exact text and requested language — it does not substitute a sample or
-translate it — and returns a bounded local audition. Like any voice preview,
-this action can contact the selected TTS provider and is not a read-only call.
-The audition does not prove the receiver's final mix or a live phone result.
+object. What else the request needs depends on the voice:
+
+- **Text-to-speech voices** speak your sentence, so `text` must be explicit
+  and non-blank. The service keeps that exact text and requested language — it
+  does not substitute a sample or translate it. A request without text is
+  refused with `bad_request`. Like any text-to-speech preview, this action can
+  contact the selected provider and is not a read-only call.
+- **Conversation-engine voices** (GPT-Live 1, Gemini Live and Eleven Realtime)
+  play Skysay's own fixed sample sentence, so send no `text`; typed text is
+  refused with `voice_preview_fixed_sample`. The ambience is mixed over that
+  sample for this request only, and the stored sample stays unchanged. An
+  Eleven Realtime audition plays a validated Skysay sample and never contacts
+  ElevenLabs.
+
+Either way the result is a bounded local audition. It does not prove the
+receiver's final mix or a live phone result.
 
 ## Add caller-input noise to a simulation scenario
 
