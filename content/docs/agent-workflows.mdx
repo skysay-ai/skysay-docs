@@ -968,8 +968,12 @@ recipient's handset. See [Confirming business actions](/docs/business-actions).
 ### Transfer steps
 
 Use an **Action** with the AI agent's
-[Transfer to a human](/docs/transfer-to-a-human) tool. The read-back identifies
-its configured destination and asks the caller to approve the transfer. A
+[Transfer to a human](/docs/transfer-to-a-human) tool. Its read-back is one
+short line in the call's language: “I'll connect you to *name*. Shall I go
+ahead?” The name comes from the step's own name: a step called “Transfer to
+reception” says “I'll connect you to reception”. If the step's name does not
+name a person, team or place, the agent says “someone from our team”. The
+read-back never says the destination number or the caller's own number. A
 later explicit yes permits one dial attempt; a no or changed request does not.
 The workspace's outbound policy and the tool's destination restrictions still apply.
 
@@ -1049,7 +1053,7 @@ tools for it. A step can run one of these:
 | --- | --- | --- |
 | **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and quotes the documents' own sentences that answer it. | `{{tool.knowledge_answer}}`: whole sentences of the documents, exactly as written and in the documents' language |
 | **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to three offered times with their dates, said in the call's language with the calendar's time zone |
-| **Book an appointment** | An Action books one offered time after its built-in read-back and confirmation. | Five outcome routes; the read-back includes the frozen appointment details. |
+| **Book an appointment** | An Action books one offered time after its built-in read-back and confirmation. | Five outcome routes; the read-back says what, when and for whom in about eight seconds. |
 | **Integration or webhook tool** | Read tools use **Read tool**; write tools use **Action** and require confirmation. | Reads expose the declared `{{tool.<key>}}` result values. Writes follow receipt outcome routes. |
 
 A tool runs only if the AI agent has it. Nothing is attached for you: the
