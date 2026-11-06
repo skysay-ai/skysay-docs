@@ -1,0 +1,155 @@
+---
+title: Audio stream protocol
+description: How Skysay connects a phone call's audio to an agent you host yourself, the signed handshake, the audio format and the messages either side can send.
+icon: Podcast
+---
+
+An `external_audio` agent hears and speaks the call itself. Skysay answers or
+places the phone call, then connects the call's audio to your agent's
+`audio_stream_url` over a websocket. This page is that connection's protocol,
+`skysay.audio.v1`.
+
+It covers phone calls on a Skysay number, incoming and outgoing. An agent hosted
+outside Skysay can't answer calls on your own SIP trunk yet.
+
+## The connection
+
+For every call, Skysay opens one `wss://` connection to the agent's
+`audio_stream_url`.
+
+- **Only `wss://`.** The URL must use TLS, and its host must resolve to public
+  internet addresses. Skysay doesn't follow redirects.
+- **Opened before the call is answered.** Skysay connects while an incoming call
+  is still ringing, and while an outgoing call rings at the other end. If your
+  agent can't be reached within 5 seconds, Skysay hangs up before the call is
+  answered. The call ends as `failed` with the reason
+  `external_audio_stream_unreachable`, so nobody hears silence and nothing is
+  billed for talk time.
+- **Signed like a webhook.** The upgrade request carries
+  `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature`, made with the
+  agent's signing secret (`agent_endpoint.webhook_secret`, revealed once when
+  you create the agent). They sign the first message on the connection, the
+  `start` message below.
+
+## Verify the connection
+
+When `start` arrives, check the signature over the message's exact text, the
+same way you check a [webhook delivery](/docs/post-call-results#verify-every-delivery):
+
+1. Compute HMAC-SHA256 with your signing secret over the timestamp, a `.`, and
+   the `start` message's exact bytes.
+2. Compare it with the hex digest after `sha256=` in `X-Agent-Telco-Signature`.
+3. Reject a timestamp more than 5 minutes old.
+
+Close the connection if the check fails. Don't send audio before you have
+verified `start`.
+
+## Messages from Skysay
+
+**`start`** is the first message, a JSON text message sent when the call is
+answered:
+
+```json
+{
+  "event": "start",
+  "protocol": "skysay.audio.v1",
+  "call_id": "call_123",
+  "agent_id": "agent_456",
+  "direction": "inbound",
+  "from": "+15550101",
+  "to": "+15550102",
+  "audio": {"encoding": "pcm_s16le", "sample_rate": 16000, "channels": 1}
+}
+```
+
+For an incoming call, `from` is the caller and `to` is your Skysay number. For
+an outgoing call, `from` is your Skysay number and `to` is the number dialled.
+Use `call_id` to match the call's [webhook events](/docs/webhooks) and its
+record from `GET /v1/calls/{call_id}`.
+
+**Audio** follows as binary messages: the caller's voice as 16-bit
+little-endian PCM, mono, 16 kHz, in 20 ms frames.
+
+**`stop`** is sent once, when the call ends for any reason, just before Skysay
+closes the connection:
+
+```json
+{"event": "stop", "reason": "remote_party_disconnected"}
+```
+
+`reason` is the call's ending reason, the same value as `ended_reason` in
+[Post-call results](/docs/post-call-results#why-a-call-ended).
+
+## Messages from your agent
+
+- **Audio:** binary messages in the same format, 16-bit little-endian PCM, mono,
+  16 kHz. Any message size works; Skysay plays the audio in order as it
+  arrives.
+- **`{"event": "clear"}`:** drops the audio you've sent that hasn't been
+  played yet. Send it when the caller starts talking over your agent.
+- **`{"event": "hangup"}`:** ends the call. Skysay hangs up and the call ends
+  with `ended_reason` `agent_completed`.
+
+Skysay ignores any other text message, so a newer agent never breaks an older
+call.
+
+## How the call ends
+
+| What happens | `ended_reason` |
+| --- | --- |
+| The other party hangs up | `remote_party_disconnected` |
+| Your agent sends `hangup` | `agent_completed` |
+| Your connection closes or drops without `hangup` | `model_session_lost` |
+| The call reaches its maximum length | `max_call_duration_reached` |
+| You end the call from the API or the workspace | `hangup_requested` |
+
+Skysay sends `stop` in every case where the connection is still open.
+
+## What else applies
+
+- **Recording.** Skysay records both sides of the call, as for every call, and
+  the call's webhook events fire as usual. Skysay doesn't transcribe the call:
+  your agent owns the conversation.
+- **Billing.** You pay the carrier minutes of the call: for an incoming call,
+  your number's per-minute rate for incoming calls; for an outgoing call, the
+  per-minute rate of the number dialled. See [Billing](/docs/billing). No AI
+  components are billed, because your agent runs them.
+- **Not in this version.** Tool calls, transcripts and keypad tones don't
+  travel over the connection.
+
+## A minimal echo agent
+
+This agent, using the Python `websockets` library, verifies `start`, then
+plays back whatever it hears:
+
+```python
+import asyncio, hashlib, hmac, json, os, time
+import websockets
+
+SECRET = os.environ["SKYSAY_SIGNING_SECRET"].encode()
+
+def verified(headers, text):
+    timestamp = headers.get("X-Agent-Telco-Timestamp", "")
+    given = headers.get("X-Agent-Telco-Signature", "").removeprefix("sha256=")
+    expected = hmac.new(SECRET, f"{timestamp}.{text}".encode(), hashlib.sha256).hexdigest()
+    return timestamp.isdigit() and abs(time.time() - int(timestamp)) <= 300 \
+        and hmac.compare_digest(expected, given)
+
+async def call(ws):
+    start = await ws.recv()
+    if not verified(ws.request.headers, start):
+        await ws.close()
+        return
+    async for message in ws:
+        if isinstance(message, bytes):
+            await ws.send(message)          # echo the caller's audio back
+        elif json.loads(message).get("event") == "stop":
+            break
+
+async def main():
+    # Serve this behind TLS: Skysay connects to wss:// only.
+    async with websockets.serve(call, "0.0.0.0", 8080):
+        await asyncio.Future()
+
+asyncio.run(main())
+```

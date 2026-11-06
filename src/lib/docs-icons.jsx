@@ -65,6 +65,7 @@ import {
   AntennaSignal,
   CableTag,
   MagicWand,
+  Podcast,
   SineWave,
   SoundHigh,
   Sparks,
@@ -197,6 +198,7 @@ const ICONS = {
   Language,
 
   // --- Agent surface ---
+  Podcast,
   SoundHigh,
   List,
   BookStack,
