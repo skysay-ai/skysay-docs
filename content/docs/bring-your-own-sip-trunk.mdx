@@ -108,7 +108,10 @@ curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/numbers \
   -d '{"e164": "+12025550123", "agent_id": "'$AGENT_ID'"}'
 ```
 
-- `agent_id` is a published agent that answers the number's incoming calls.
+- `agent_id` is a published Skysay-hosted agent that answers the number's
+  incoming calls. Agents hosted outside Skysay (external agents) cannot be
+  used on a SIP connection's numbers yet: they are refused with
+  `sip_connection_needs_hosted_agent`.
 - `inbound` and `outbound` default to what the connection carries.
 - A number can be attached to one connection in all of Skysay. If it is
   already connected in another Skysay workspace, the request is refused;
@@ -280,7 +283,8 @@ curl -X POST https://api.skysay.ai/v1/sip-connections/$CONNECTION_ID/resume \
 - A connection can be resumed this way three times in any 24 hours. More are
   refused with `sip_connection_resume_rate_limited` (429, with
   `retry_after_seconds`); a connection that isn't paused is refused with
-  `sip_connection_not_paused` (409).
+  `sip_connection_not_paused` (409), and a disabled one with
+  `sip_connection_disabled` (409).
 - Resuming keeps the connection's trip history. If it trips again within a
   day, it pauses for the next, longer window.
 - Contact support if you need it resumed beyond that.
@@ -349,7 +353,9 @@ Every refusal names its reason in `error`.
   - outbound from a number that is not confirmed is refused with
     `sip_ownership_not_confirmed`;
   - any call while the connection is paused is refused with
-    `sip_connection_paused`.
+    `sip_connection_paused`;
+  - any call on a connection number with an agent that isn't Skysay-hosted
+    is refused with `sip_connection_needs_hosted_agent`.
 
 ## Detach or disable
 
