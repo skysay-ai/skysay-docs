@@ -1,0 +1,145 @@
+---
+title: Give your Vercel AI SDK agent a phone number
+description: Connect Vercel AI SDK to Skysay MCP with a pinned Node.js example, verify a scoped account read, then add approved calling and SMS workflows.
+icon: Triangle
+---
+
+Use Skysay's hosted MCP server to give a Vercel AI SDK application access to
+phone numbers, calls and SMS. You do not need a Twilio account or a local MCP
+bridge. Start with the runnable connection check below, then follow the call
+or SMS guide for the action your application needs.
+
+Skysay handles the phone-number and carrier side; your application keeps its
+model and orchestration. An AI SDK text agent is not automatically the voice
+speaking on a call. Configure a Skysay voice agent or your own supported audio
+integration for that role.
+
+## Before you start
+
+- Node.js 22 or newer and npm; no Vercel deployment is required.
+- A Skysay workspace and an API key with `account:read`.
+- Supply `SKYSAY_API_KEY` through your secret manager or launching environment.
+  Do not put it in a browser bundle, a `NEXT_PUBLIC_` variable or a prompt.
+
+[Create a scoped key](/docs/quickstart#1-sign-in-and-choose-a-credential).
+The initial resource is `https://api.skysay.ai/mcp/read-only`. A connection
+check does not require a funded model account, an active number or phone usage.
+
+## Run the example
+
+[Open the public example directory](https://github.com/skysay-ai/skysay-docs/tree/main/examples/vercel-ai-sdk).
+Download `package.json`, `package-lock.json` and `verify-connection.mjs` into
+the same directory. After setting `SKYSAY_API_KEY` securely, run:
+
+```bash
+npm ci
+npm run verify
+```
+
+The sample pins `@ai-sdk/mcp` to `2.0.77` and `ai` to `7.0.142`; the lockfile
+pins their dependency tree. Expected output:
+
+```text
+Verified: Vercel AI SDK completed a scoped Skysay account read. No call or SMS sent.
+```
+
+This is an authenticated MCP tool result, not just successful configuration.
+It does not print private account details or invoke a model. The sample closes
+the client even when discovery or tool execution fails.
+
+## How the connection works
+
+The example uses AI SDK's HTTP MCP client:
+
+```javascript
+import { createMCPClient } from '@ai-sdk/mcp';
+
+const client = await createMCPClient({
+  transport: {
+    type: 'http',
+    url: 'https://api.skysay.ai/mcp/read-only',
+    headers: { Authorization: `Bearer ${process.env.SKYSAY_API_KEY}` },
+  },
+  initializationOptions: { timeout: 15000 },
+  maxRetries: 0,
+});
+```
+
+The complete downloadable program checks the key before connecting, discovers
+the tools and selects only `account_overview`. It never executes a different
+tool as a fallback. The tool selection limits client behavior; the MCP resource
+and API-key scopes enforce access on Skysay's server.
+
+In Next.js, keep this client in server-side code and keep credentials in server
+environment variables. Do not expose an arbitrary public route that runs tools
+with your workspace key; authenticate your users and enforce their permissions.
+
+## Optional: ask a model to use the tool
+
+The same example can call a model using `generateText`. Set your own
+`AI_GATEWAY_API_KEY` and `AI_SDK_MODEL` for a model available in your Vercel
+AI Gateway account, then run:
+
+```bash
+node verify-connection.mjs --ask-model
+```
+
+This optional path incurs provider usage. Only the account tool is exposed,
+one generation step is allowed, and model text alone cannot count as a
+successful connection. The program prints neither model text nor tool output.
+Do not enable traces that capture credentials or account results without
+reviewing their storage and provider data handling.
+
+The automated checks use the pinned AI SDK with a deterministic model stub;
+no paid hosted model invocation was used for acceptance.
+
+## Add the telephone workflow you need
+
+| Goal | Next guide | What success means |
+| --- | --- | --- |
+| Give the agent a number | [Number requirements](/docs/regulated-numbers) | A number activated with the capabilities you need, after required review |
+| Make an outbound call | [First outbound call](/docs/make-first-outbound-call) | An accepted call ID first; inspect connection and final results separately |
+| Answer incoming calls | [Receive inbound calls](/docs/receive-inbound-calls) | An activated number routed to the configured voice agent |
+| Send a text | [Send SMS](/docs/send-sms) | Submission first; provider delivery is a separate outcome |
+
+For managed numbers, Skysay handles carrier onboarding while you supply any
+required identity, business information and documents. **100+ countries covered**;
+number types, voice/SMS capabilities, availability and paperwork vary by market.
+See [phone numbers for AI agents](/phone-numbers-for-ai-agents) and [pricing](/pricing).
+
+Keep write tools out of automatic model execution until your application has
+an enforced approval flow for the exact recipient, content, action and cost
+basis. A prompt asking for confirmation or a tool allowlist is not that flow.
+Moving from the read-only MCP resource to the full resource requires the correct
+credential/resource and scopes. Do not just change the URL to bypass a refusal.
+See [approval boundaries](/docs/quickstart#before-any-billable-action) and
+[MCP tool contracts](/docs/tool-reference).
+
+## Troubleshooting
+
+The CLI returns one generic failure line to avoid leaking transport errors or
+account data. Inspect configuration privately rather than printing credentials.
+
+- **Missing key:** set `SKYSAY_API_KEY` in the process running Node.
+- **Authentication or scope failure:** check the active key, `account:read`,
+  workspace and read-only resource. Initializing MCP alone proves no tool access.
+- **Missing expected tool:** use the pinned packages and exact read-only URL;
+  do not silently pick another tool.
+- **Model configuration failure:** the default command needs no model key.
+  `--ask-model` needs a separate AI Gateway credential and available model ID.
+- **No call after success:** expected; the initial example only reads the account.
+- **Browser GET returns 405:** this endpoint is an MCP transport, not a web page.
+
+## Verification and sources
+
+The pinned client was exercised against the real local Skysay HTTP handler with
+an isolated workspace and disposable credentials. Valid, invalid and insufficient
+scope cases were checked. Protocol fixtures also cover missing tools and MCP
+tool errors; a deterministic model verifies the AI SDK tool-dispatch path.
+No production customer, hosted model request, call, SMS or purchase was used.
+A local pass does not prove hosted credentials or carrier readiness.
+
+Official references checked 15 October 2026:
+[AI SDK MCP](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools),
+[tool calling](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling) and
+[AI Gateway](https://vercel.com/docs/ai-gateway).
