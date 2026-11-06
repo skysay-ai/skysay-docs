@@ -25,24 +25,27 @@ For every call, Skysay opens one `wss://` connection to the agent's
   answered. The call ends as `failed` with the reason
   `external_audio_stream_unreachable`, so nobody hears silence and nothing is
   billed for talk time.
-- **Signed like a webhook.** The upgrade request carries
-  `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature`, made with the
-  agent's signing secret (`agent_endpoint.webhook_secret`, revealed once when
-  you create the agent). They sign the first message on the connection, the
-  `start` message below.
+- **Signed like a webhook.** The upgrade request carries three headers:
+  `X-Skysay-Call-Id`, and `X-Agent-Telco-Timestamp` and
+  `X-Agent-Telco-Signature` signing it with the agent's signing secret
+  (`agent_endpoint.webhook_secret`, revealed once when you create the agent).
+  You can check them before you accept the connection.
 
 ## Verify the connection
 
-When `start` arrives, check the signature over the message's exact text, the
-same way you check a [webhook delivery](/docs/post-call-results#verify-every-delivery):
+Check the upgrade request before you accept it, the same way you check a
+[webhook delivery](/docs/post-call-results#verify-every-delivery), with the
+call id in place of the body:
 
-1. Compute HMAC-SHA256 with your signing secret over the timestamp, a `.`, and
-   the `start` message's exact bytes.
+1. Compute HMAC-SHA256 with your signing secret over the value of
+   `X-Agent-Telco-Timestamp`, a `.`, and the value of `X-Skysay-Call-Id`.
 2. Compare it with the hex digest after `sha256=` in `X-Agent-Telco-Signature`.
-3. Reject a timestamp more than 5 minutes old.
+3. Reject a timestamp more than 5 minutes from your clock. That is the replay
+   window: a captured upgrade is useless after it.
+4. Accept each call id once.
 
-Close the connection if the check fails. Don't send audio before you have
-verified `start`.
+Refuse the upgrade if any check fails. When `start` arrives, check that its
+`call_id` is the one the upgrade named.
 
 ## Messages from Skysay
 
@@ -100,6 +103,7 @@ call.
 | The other party hangs up | `remote_party_disconnected` |
 | Your agent sends `hangup` | `agent_completed` |
 | Your connection closes or drops without `hangup` | `model_session_lost` |
+| Your agent sends no audio within 15 seconds of `start` | `agent_unresponsive` |
 | The call reaches its maximum length | `max_call_duration_reached` |
 | You end the call from the API or the workspace | `hangup_requested` |
 
@@ -119,8 +123,8 @@ Skysay sends `stop` in every case where the connection is still open.
 
 ## A minimal echo agent
 
-This agent, using the Python `websockets` library, verifies `start`, then
-plays back whatever it hears:
+This agent, using the Python `websockets` library, refuses an unsigned
+upgrade, then plays back whatever it hears:
 
 ```python
 import asyncio, hashlib, hmac, json, os, time
@@ -128,16 +132,21 @@ import websockets
 
 SECRET = os.environ["SKYSAY_SIGNING_SECRET"].encode()
 
-def verified(headers, text):
+def verified(headers):
+    call_id = headers.get("X-Skysay-Call-Id", "")
     timestamp = headers.get("X-Agent-Telco-Timestamp", "")
     given = headers.get("X-Agent-Telco-Signature", "").removeprefix("sha256=")
-    expected = hmac.new(SECRET, f"{timestamp}.{text}".encode(), hashlib.sha256).hexdigest()
+    expected = hmac.new(SECRET, f"{timestamp}.{call_id}".encode(), hashlib.sha256).hexdigest()
     return timestamp.isdigit() and abs(time.time() - int(timestamp)) <= 300 \
         and hmac.compare_digest(expected, given)
 
+async def refuse_unsigned(connection, request):
+    if not verified(request.headers):
+        return connection.respond(401, "bad signature\n")
+
 async def call(ws):
-    start = await ws.recv()
-    if not verified(ws.request.headers, start):
+    start = json.loads(await ws.recv())
+    if start.get("call_id") != ws.request.headers.get("X-Skysay-Call-Id"):
         await ws.close()
         return
     async for message in ws:
@@ -148,7 +157,7 @@ async def call(ws):
 
 async def main():
     # Serve this behind TLS: Skysay connects to wss:// only.
-    async with websockets.serve(call, "0.0.0.0", 8080):
+    async with websockets.serve(call, "0.0.0.0", 8080, process_request=refuse_unsigned):
         await asyncio.Future()
 
 asyncio.run(main())
