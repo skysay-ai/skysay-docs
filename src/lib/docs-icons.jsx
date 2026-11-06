@@ -62,6 +62,8 @@ import {
   ShieldCheck,
   ClipboardCheck,
   Import,
+  AntennaSignal,
+  CableTag,
   MagicWand,
   SineWave,
   SoundHigh,
@@ -166,6 +168,8 @@ const ICONS = {
   SecurityPass,
   ClipboardCheck,
   Import,
+  AntennaSignal,
+  CableTag,
   MagicWand,
 
   // --- Customer applications ---
