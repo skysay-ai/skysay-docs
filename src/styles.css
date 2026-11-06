@@ -71,10 +71,14 @@
    folder (src/lib/docs-tree.js), so its title is a fold button above its pages.
    Fumadocs gives that button the same muted colour, size and weight as the page
    items beneath it; make it read as a heading (foreground, semibold, a little
-   more air above) at the same 14px as the page items. `aria-controls` picks
-   the folder buttons only, not the section picker the sidebar keeps hidden on
-   wide screens. */
-#nd-sidebar button[aria-controls][aria-expanded] {
+   more air above) at the same 14px as the page items.
+
+   A folder button is told apart by `aria-expanded` alone: Radix drops
+   `aria-controls` while a folder is folded, so a selector that needs it stops
+   matching on fold and the title loses this margin and weight (it jumped 24px).
+   `:not([aria-haspopup])` leaves out the section picker the sidebar keeps
+   hidden on wide screens. */
+#nd-sidebar button[aria-expanded]:not([aria-haspopup]) {
   color: var(--color-fd-foreground);
   font-weight: 600;
   font-size: 0.875rem;
