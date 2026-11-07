@@ -19,6 +19,9 @@ policies, and FAQs in a [Knowledge Base](/docs/knowledge-bases) instead.
 Native [calendar booking](/docs/calendar-booking) uses provider account consent and
 confirmed booking tools, using the same caller-confirmation contract as write Actions.
 
+Native [Pipedrive calling](/docs/pipedrive) connects a CRM user to a workspace,
+starts user-confirmed outbound AI calls and saves results on the original contact.
+
 ## The three parts
 
 | Part | What it is | Who controls it |
@@ -97,9 +100,27 @@ test.
 
 ## Attach an Action to a hosted agent
 
-In the Workspace, select an active hosted agent under **Agent access**, choose
-the Action, and save. Access is explicit and can be removed without deleting the
-Integration. Disabled Integrations are removed from the active worker allowlist.
+Connect the application and define its allowed Actions in **Integrations**.
+Then open the hosted AI agent's **Tools → Connected business actions** and select
+its individual Actions. Workspace **Manage AI agent tools** links open that same
+editor; they do not immediately grant access in a separate save.
+
+Apply selections using the editor's existing save or publish action. A successful
+save can update the AI agent's live configuration. Uncheck an Action and save to
+remove its access without deleting the Integration. Assigned connection Actions
+are included in the editor's tool count. Read/write labels use the Action's
+declared operation kind, not its name or HTTP method; an undeclared kind is not
+presented as read-only.
+
+Disconnected, inactive or unlisted saved Actions stay visible for explicit
+removal. A limited list never silently erases an assignment outside its page.
+Disabled Integrations are excluded from the worker allowlist. Choosing an Action
+in the editor does not override the execution rules of a workflow or call type;
+review [What runs on calls](/docs/what-runs-on-calls) for the actual restrictions.
+
+Calendar and application connections share this per-AI-agent assignment pattern,
+while account credentials and reusable connection preferences stay in Integrations.
+No access is granted merely because two applications share a connection.
 
 With the API, update the hosted agent using `PATCH /v1/agents/{agent_id}` and
 include the selected Action in its `tools` array:
@@ -177,6 +198,20 @@ Built-in tools that need a phone caller (`send_sms`, `transfer_to_human`,
 `request_callback`, `set_call_disposition`) do not run in a homepage session.
 Nothing is sent or dialled. The agent is told that the conversation is in a
 browser, so it can explain that the action is not available there.
+
+A homepage session that ends before any conversation, because of the visitor,
+is recorded as a **canceled** call, not a failed one, and sends the
+`call.canceled` webhook. The call's `call.canceled` event in
+`GET /v1/calls/{call_id}/events` carries a `reason` that names the ending:
+
+| `reason` | When |
+| --- | --- |
+| `visitor_left_before_join` | The visitor's browser left before the AI agent joined. |
+| `no_caller_audio` | The visitor joined but their microphone did not reach the AI agent within 30 seconds, or they left first. Skysay then closes the session. |
+
+The 30-second wait applies to AI agents that use business-action
+confirmation. It cannot be changed. The AI agent's greeting starts once the
+visitor's microphone arrives.
 
 ### Verify the signature, then dispatch the Action
 

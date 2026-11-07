@@ -48,6 +48,10 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/agents/{agent_id}/knowledge-bases` | List active knowledge bases attached to one hosted agent | See the live OpenAPI operation |
 | `PATCH` | `/v1/agents/{agent_id}/knowledge-bases` | Replace the knowledge bases attached to one hosted agent | See the live OpenAPI operation |
 | `POST` | `/v1/agents/{agent_id}/messages` | Send one of an agent's published SMS templates | `sms:send`, `agents:read` |
+| `GET` | `/v1/agents/{agent_id}/pbx-keys` | List an AI agent's PBX connection keys | `agents:read` |
+| `POST` | `/v1/agents/{agent_id}/pbx-keys` | Create a named PBX connection key | `agents:write` |
+| `POST` | `/v1/agents/{agent_id}/pbx-keys/{key_id}/revoke` | Revoke a PBX connection key | `agents:write` |
+| `POST` | `/v1/agents/{agent_id}/pbx-keys/{key_id}/rotate` | Rotate a PBX connection key | `agents:write` |
 | `GET` | `/v1/agents/{agent_id}/post-call-extraction` | Read the optional advisory post-call extraction configuration | `agents:read` |
 | `PATCH` | `/v1/agents/{agent_id}/post-call-extraction` | Configure or disable bounded advisory post-call extraction | `agents:write` |
 | `GET` | `/v1/agents/{agent_id}/simulation-suite-runs/{run_id}` | Fetch one run with a bounded page of attempt results | `agents:read` |
@@ -100,6 +104,16 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `POST` | `/v1/calendars/{connection_id}/configure` | Choose calendar destination and booking policy | See the live OpenAPI operation |
 | `POST` | `/v1/calendars/{connection_id}/disable` | Disconnect a calendar and erase locally stored tokens | See the live OpenAPI operation |
 | `POST` | `/v1/calendars/{connection_id}/selections` | Fetch account calendar or event-type choices | See the live OpenAPI operation |
+| `GET` | `/v1/call-forwarding-setups` | List forwarding setups | `numbers:read` |
+| `POST` | `/v1/call-forwarding-setups` | Create forwarding setup | `numbers:write` |
+| `GET` | `/v1/call-forwarding-setups/{setup_id}` | Get forwarding setup | `numbers:read` |
+| `PATCH` | `/v1/call-forwarding-setups/{setup_id}` | Update forwarding setup | `numbers:write` |
+| `GET` | `/v1/call-forwarding-setups/{setup_id}/instructions` | Get forwarding instructions | `numbers:read`, `agents:read` |
+| `POST` | `/v1/call-forwarding-setups/{setup_id}/instructions-followed` | Record forwarding instructions | `numbers:write` |
+| `POST` | `/v1/call-forwarding-setups/{setup_id}/stop-report` | Record forwarding stop | `numbers:write` |
+| `POST` | `/v1/call-forwarding-setups/{setup_id}/test-attempts` | Start forwarding test | `numbers:write` |
+| `GET` | `/v1/call-forwarding-setups/{setup_id}/test-attempts/{attempt_id}` | Get forwarding test | `numbers:read`, `calls:read` |
+| `POST` | `/v1/call-forwarding-setups/{setup_id}/test-attempts/{attempt_id}/cancel` | Cancel forwarding test | `numbers:write` |
 | `GET` | `/v1/call-results` | Read one bounded factual post-call result group | `calls:read`, `recordings:read` |
 | `GET` | `/v1/calls` | List calls | See the live OpenAPI operation |
 | `POST` | `/v1/calls` | Place one policy-gated, idempotent outbound call | See the live OpenAPI operation |
@@ -112,7 +126,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `POST` | `/v1/calls/{call_id}/hangup` | Ask a live call to hang up | `calls:write` |
 | `GET` | `/v1/calls/{call_id}/observability` | Get one call's observability bundle | See the live OpenAPI operation |
 | `GET` | `/v1/calls/{call_id}/post-call-extraction` | Read an optional advisory extraction result for one call | `recordings:read` |
-| `DELETE` | `/v1/calls/{call_id}/recording` | Delete the active call recording metadata and audit the action | See the live OpenAPI operation |
+| `DELETE` | `/v1/calls/{call_id}/recording` | Delete the call recording's transcript, AI summary and extracted results and try to delete its stored audio; the call record stays | See the live OpenAPI operation |
 | `GET` | `/v1/calls/{call_id}/recording` | Get call recording metadata and disclosure state | `recordings:read` |
 | `GET` | `/v1/calls/{call_id}/recording/content` | Stream call recording audio | `recordings:read` |
 | `GET` | `/v1/calls/{call_id}/summary` | Read the AI summary of one call | `recordings:read` |
@@ -162,6 +176,7 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `POST` | `/v1/end-users/{end_user_profile_id}/submit-registration` | Submit the end-user registration (identity/address/proofs/verification) for review: every eligible step is queued, so resubmit once its prerequisites complete; identity is org-level and reused | See the live OpenAPI operation |
 | `GET` | `/v1/gateway-deployments` | List media gateways | See the live OpenAPI operation |
 | `POST` | `/v1/gateway-deployments` | Create a deployment | See the live OpenAPI operation |
+| `PATCH` | `/v1/gateway-deployments/{gateway_id}/content-storage` | Choose where a self-hosted deployment keeps call content | `gateways:write` |
 | `PATCH` | `/v1/gateway-deployments/{gateway_id}/outbound-execution-mode` | Choose whether this deployment dials its own outbound calls | `gateways:write` |
 | `GET` | `/v1/gateway-deployments/{gateway_id}/tokens` | List a gateway's machine tokens, masked to their prefixes | See the live OpenAPI operation |
 | `POST` | `/v1/gateway-deployments/{gateway_id}/tokens/{gateway_token_id}/revoke` | Revoke one gateway machine token immediately | See the live OpenAPI operation |
@@ -202,6 +217,8 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `GET` | `/v1/numbers` | List phone numbers | See the live OpenAPI operation |
 | `GET` | `/v1/numbers/requirements` | Resolve honest activation requirements for a country/number-type/profile-type (override > live did_groups flag > dataset prefix flag; requirement text only documents fields) | See the live OpenAPI operation |
 | `GET` | `/v1/numbers/{number_id}/activation` | Customer-facing number activation state: instant \| pending_verification \| approved \| needs_info \| rejected with blocking items | See the live OpenAPI operation |
+| `GET` | `/v1/numbers/{number_id}/backup-authorization` | Read phone backup permission | `numbers:read` |
+| `POST` | `/v1/numbers/{number_id}/backup-authorization` | Authorize or revoke paid phone backup | `numbers:write`, `wallet:write` |
 | `POST` | `/v1/numbers/{number_id}/detach-agent` | Compatibility alias for detaching a phone number from its agent | `numbers:write` |
 | `GET` | `/v1/numbers/{number_id}/number-rules` | Compatibility alias for phone-number Number rules | See the live OpenAPI operation |
 | `PATCH` | `/v1/numbers/{number_id}/number-rules` | Compatibility alias for updating phone-number Number rules | See the live OpenAPI operation |
@@ -225,6 +242,21 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 | `POST` | `/v1/pricing/estimate` | Estimate monthly platform cost on the public price book (public_launch_pricing_v1) | See the live OpenAPI operation |
 | `GET` | `/v1/regulatory-requirements` | List supported country and number-type requirements with simple onboarding terms and cache metadata | See the live OpenAPI operation |
 | `GET` | `/v1/self-hosted/install-plan` | Fetch a mode-specific self-hosted or customer-hosted gateway install plan | See the live OpenAPI operation |
+| `GET` | `/v1/sip-connections` | List sip connections | `numbers:read` |
+| `POST` | `/v1/sip-connections` | Create sip connection | `numbers:write` |
+| `GET` | `/v1/sip-connections/{connection_id}` | Get sip connection | `numbers:read` |
+| `PATCH` | `/v1/sip-connections/{connection_id}` | Update sip connection | `numbers:write` |
+| `POST` | `/v1/sip-connections/{connection_id}/checks/reachability` | Check sip connection reachability | `numbers:write` |
+| `POST` | `/v1/sip-connections/{connection_id}/disable` | Disable sip connection | `numbers:write` |
+| `POST` | `/v1/sip-connections/{connection_id}/numbers` | Attach sip connection number | `numbers:write` |
+| `POST` | `/v1/sip-connections/{connection_id}/numbers/{number_id}/detach` | Detach sip connection number | `numbers:write` |
+| `POST` | `/v1/sip-connections/{connection_id}/numbers/{number_id}/dial-format` | Save sip connection dial format | `numbers:write` |
+| `POST` | `/v1/sip-connections/{connection_id}/numbers/{number_id}/inbound-test` | Arm sip connection inbound test | `numbers:write` |
+| `POST` | `/v1/sip-connections/{connection_id}/numbers/{number_id}/ownership-checks` | Check sip connection number ownership | `numbers:write` |
+| `GET` | `/v1/sip-connections/{connection_id}/numbers/{number_id}/ownership-checks/{check_id}` | Get sip connection ownership check | `numbers:read` |
+| `POST` | `/v1/sip-connections/{connection_id}/numbers/{number_id}/test-calls` | Start sip connection test call | `calls:write`, `numbers:read` |
+| `GET` | `/v1/sip-connections/{connection_id}/numbers/{number_id}/test-calls/{call_id}` | Get sip connection test call | `numbers:read` |
+| `POST` | `/v1/sip-connections/{connection_id}/resume` | Resume sip connection | `numbers:write` |
 | `POST` | `/v1/sms-conversations/{conversation_id}/actions` | Prepare an SMS-confirmed business action | `agents:write`, `sms:read`, `sms:send` |
 | `GET` | `/v1/sms-conversations/{conversation_id}/actions/{action_id}` | Read a business action and its receipt | `sms:read`, `agents:read` |
 | `POST` | `/v1/sms-conversations/{conversation_id}/tool-reads` | Run a configured read tool in an SMS conversation | `agents:read`, `sms:read` |
@@ -246,12 +278,18 @@ Snapshot: `Skysay API` v0.1.0. This generated index includes only customer SDK o
 
 The API repository generates `/openapi.json` from its canonical schema. This docs
 repository checks in a snapshot so builds and reviews do not depend on the network.
-Refresh that snapshot from the reviewed API source, then run:
+One command, run in the API checkout of the commit this documentation describes,
+rewrites the snapshot, its coverage list and this page together:
 
 ```bash
-python3 scripts/generate_openapi_reference.py --check
-python3 -m unittest discover -s tests
+PYTHONPATH=src:packages/skysay-common:packages/skysay-gateway \
+  .venv/bin/python scripts/export_openapi.py \
+  | python3 <docs>/scripts/refresh_openapi_snapshot.py --from - \
+      --coverage docs/public-api-coverage.json
 ```
+
+CI runs `python3 scripts/generate_openapi_reference.py --check` and fails when this
+page no longer matches the snapshot.
 
 If the snapshot contains a new customer route, update the conceptual guide that
 explains its product model as well. Do not hand-copy request schemas into prose.

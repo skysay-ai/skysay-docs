@@ -209,63 +209,96 @@ Dutch, Portuguese, Russian, Swedish and Ukrainian, plus the languages below,
 added with Gemini 3.8 Flash-Lite TTS. For each of these, Gemini 3.8 Flash-Lite
 TTS is the voice.
 
+Deepgram Nova-3 and Soniox Real-time v5 are offered for every call language:
+Skysay keeps no list of the languages a transcriber hears, and the provider
+decides on each call. A language the provider refuses when the call connects
+ends that call visibly, with `ended_reason` `model_session_lost` and
+`reason_detail` `transcriber_refused_request` (see
+[How calls end](/docs/how-calls-end)). Measured on 2026-10-28, Deepgram
+Nova-3 refused Amharic (`am`), Azerbaijani (`az`), Bhojpuri (`bho`), Javanese
+(`jv`), Khmer (`km`), Lao (`lo`), Maltese (`mt`) and Odia (`or`) at
+connection, so the table leaves it out for them; choose Azure AI Speech.
+You can still choose it for them, and an agent's other languages can use
+it: such a call ends visibly if Deepgram refuses it. Most calls on Deepgram
+listen in its multi-language mode, which sends no language code, so the
+refusal is reached only where a call opens Deepgram with the language's own
+code: an agent whose listening is locked to its own language, or an outbound
+call that holds keypad values to enter. In our test a call that listened open
+was not refused; how well Deepgram transcribes these languages in that mode has
+not been measured.
+
+A new agent starts on a transcriber Skysay qualified for its languages. Each
+transcriber in `GET /v1/agent-catalog` lists, in `default_languages`, the
+languages it is picked for automatically: the languages it was qualified for
+before it was offered for every call language, less any it refused. So Basque,
+Galician, Malayalam and Uzbek start on Azure AI Speech, and Estonian plus
+Finnish on Google Chirp 2. A language set starts on a transcriber qualified
+for every language in it: one of its languages' own transcribers when one is,
+otherwise the first such transcriber offered, as Azure AI Speech is for
+Sinhala plus Tamil. Only when no transcriber is qualified for the whole set
+does it take one that hears every language, as Deepgram Nova-3 does for
+Finnish plus Belarusian. An agent whose transcriber is saved keeps it.
+
+Azure AI Speech and Google Chirp 2 need a regional tag for each language, so
+they are offered for the languages Skysay has a tag for, shown below.
+
 | Language | Code | Transcribers that hear callers |
 | --- | --- | --- |
-| Afrikaans | `af` | Azure AI Speech, Deepgram Nova-3 |
-| Amharic | `am` | Azure AI Speech |
-| Arabic | `ar` | Azure AI Speech, Deepgram Nova-3 |
-| Armenian | `hy` | Azure AI Speech, Deepgram Nova-3 |
-| Assamese | `as` | Azure AI Speech, Deepgram Nova-3 |
-| Azerbaijani | `az` | Azure AI Speech |
-| Bangla | `bn` | Azure AI Speech, Deepgram Nova-3 |
-| Basque | `eu` | Azure AI Speech |
-| Belarusian | `be` | Deepgram Nova-3 |
-| Bhojpuri | `bho` | Azure AI Speech |
-| Bosnian | `bs` | Azure AI Speech, Deepgram Nova-3 |
-| Bulgarian | `bg` | Azure AI Speech, Deepgram Nova-3 |
-| Cantonese Chinese | `yue` | Azure AI Speech, Deepgram Nova-3 |
-| Catalan | `ca` | Azure AI Speech, Deepgram Nova-3 |
-| Chinese | `zh` | Azure AI Speech, Deepgram Nova-3 |
-| Croatian | `hr` | Azure AI Speech, Deepgram Nova-3 |
-| Czech | `cs` | Azure AI Speech, Deepgram Nova-3 |
-| Danish | `da` | Azure AI Speech, Deepgram Nova-3 |
-| Dari | `prs` | Deepgram Nova-3 |
-| Egyptian Arabic | `arz` | Azure AI Speech, Deepgram Nova-3 |
-| Filipino | `fil` | Azure AI Speech, Deepgram Nova-3 |
-| Galician | `gl` | Azure AI Speech |
-| Georgian | `ka` | Azure AI Speech, Deepgram Nova-3 |
-| Greek | `el` | Azure AI Speech, Deepgram Nova-3 |
-| Gujarati | `gu` | Azure AI Speech, Deepgram Nova-3 |
-| Hebrew | `he` | Azure AI Speech, Deepgram Nova-3 |
-| Hindi | `hi` | Azure AI Speech, Deepgram Nova-3 |
-| Hungarian | `hu` | Azure AI Speech, Deepgram Nova-3 |
-| Indonesian | `id` | Azure AI Speech, Deepgram Nova-3 |
-| Japanese | `ja` | Azure AI Speech, Deepgram Nova-3 |
-| Javanese | `jv` | Azure AI Speech |
-| Kannada | `kn` | Azure AI Speech, Deepgram Nova-3 |
-| Kazakh | `kk` | Azure AI Speech, Deepgram Nova-3 |
-| Khmer | `km` | Azure AI Speech |
-| Korean | `ko` | Azure AI Speech, Deepgram Nova-3 |
-| Lao | `lo` | Azure AI Speech |
-| Latvian | `lv` | Azure AI Speech, Deepgram Nova-3 |
-| Macedonian | `mk` | Azure AI Speech, Deepgram Nova-3 |
-| Malay | `ms` | Azure AI Speech, Deepgram Nova-3 |
-| Malayalam | `ml` | Azure AI Speech |
-| Maltese | `mt` | Azure AI Speech |
-| Marathi | `mr` | Azure AI Speech, Deepgram Nova-3 |
-| Mongolian | `mn` | Azure AI Speech, Deepgram Nova-3 |
-| Nepali | `ne` | Azure AI Speech, Deepgram Nova-3 |
-| Norwegian Bokmål | `nb` | Azure AI Speech, Deepgram Nova-3 |
-| Odia | `or` | Azure AI Speech |
-| Pashto | `ps` | Azure AI Speech, Deepgram Nova-3 |
-| Persian | `fa` | Azure AI Speech, Deepgram Nova-3 |
-| Polish | `pl` | Azure AI Speech, Deepgram Nova-3 |
-| Punjabi | `pa` | Azure AI Speech, Deepgram Nova-3 |
-| Romanian | `ro` | Azure AI Speech, Deepgram Nova-3 |
-| Serbian | `sr` | Azure AI Speech, Deepgram Nova-3 |
-| Slovak | `sk` | Azure AI Speech, Deepgram Nova-3 |
-| Telugu | `te` | Azure AI Speech, Deepgram Nova-3 |
-| Uzbek | `uz` | Azure AI Speech |
+| Afrikaans | `af` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Amharic | `am` | Azure AI Speech, Soniox Real-time v5 |
+| Arabic | `ar` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Armenian | `hy` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Assamese | `as` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Azerbaijani | `az` | Azure AI Speech, Soniox Real-time v5 |
+| Bangla | `bn` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Basque | `eu` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Belarusian | `be` | Deepgram Nova-3, Soniox Real-time v5 |
+| Bhojpuri | `bho` | Azure AI Speech, Soniox Real-time v5 |
+| Bosnian | `bs` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Bulgarian | `bg` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Cantonese Chinese | `yue` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Catalan | `ca` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Chinese | `zh` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Croatian | `hr` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Czech | `cs` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Danish | `da` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Dari | `prs` | Deepgram Nova-3, Soniox Real-time v5 |
+| Egyptian Arabic | `arz` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Filipino | `fil` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Galician | `gl` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Georgian | `ka` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Greek | `el` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Gujarati | `gu` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Hebrew | `he` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Hindi | `hi` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Hungarian | `hu` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Indonesian | `id` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Japanese | `ja` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Javanese | `jv` | Azure AI Speech, Soniox Real-time v5 |
+| Kannada | `kn` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Kazakh | `kk` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Khmer | `km` | Azure AI Speech, Soniox Real-time v5 |
+| Korean | `ko` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Lao | `lo` | Azure AI Speech, Soniox Real-time v5 |
+| Latvian | `lv` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Macedonian | `mk` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Malay | `ms` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Malayalam | `ml` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Maltese | `mt` | Azure AI Speech, Soniox Real-time v5 |
+| Marathi | `mr` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Mongolian | `mn` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Nepali | `ne` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Norwegian Bokmål | `nb` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Odia | `or` | Azure AI Speech, Soniox Real-time v5 |
+| Pashto | `ps` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Persian | `fa` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Polish | `pl` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Punjabi | `pa` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Romanian | `ro` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Serbian | `sr` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Slovak | `sk` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Telugu | `te` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
+| Uzbek | `uz` | Azure AI Speech, Deepgram Nova-3, Soniox Real-time v5 |
 
 Chinese is Mandarin, whether written in simplified or traditional characters.
 Arabic is Modern Standard Arabic; Egyptian Arabic is a separate language. The
@@ -318,7 +351,7 @@ from a provider's monolingual language count.
 | Transcriber | Listening behavior | Automatic response-language switching |
 | --- | --- | --- |
 | Azure AI Speech Real-time | A selected candidate set, with a maximum of 10 simultaneously | Yes, when the adapter reports stable language evidence |
-| Deepgram Nova-3 | The model's declared multilingual set | Explicit request only with the current integration |
+| Deepgram Nova-3 | Any language the provider recognises (its multilingual mode sends no language list) | Yes, from the language Deepgram reports for each final result, within the published reply-language set |
 | Soniox Real-time v5 | Broad language identification for new Auto configurations; existing strict-hint publications retain their construction | Yes, within the published reply-language set |
 | Google Chirp 2 | Fixed-language recognition | Not available in Follow mode |
 

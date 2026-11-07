@@ -88,6 +88,29 @@ changed and asks before it writes. It is offered only while the draft differs
 from the published snapshot — when the editor says the page matches what is
 published, there is nothing to publish.
 
+## Prompt drafts and published versions
+
+In **Identity**, choose **Edit prompt** to open a bounded editor. Long prompts
+scroll inside it, keeping the controls in reach. Rename a draft, duplicate it
+for an alternative, or archive it. **Show archived** lets you restore an archived
+draft. Drafts are saved to your workspace and remain available after a reload.
+
+Editing saves automatically. **Done** waits for any pending save before closing.
+A failed save keeps your text in the editor. If another session has changed the
+same draft, save your text as a copy instead of overwriting that session.
+
+**Use this draft** copies the selected text into the AI-agent configuration
+form. It does not publish. Review the changes and use **Publish changes** to
+activate them. Editing, duplicating or archiving a prompt draft never changes
+the prompt used by calls. The most recent 20 published versions are read-only
+snapshots; duplicate one to edit it. Selecting alternatives is manual, not
+automatic A/B traffic allocation.
+
+You can import or drop a UTF-8 `.txt` or `.md` file, up to 64 KB. Preview the
+replacement and confirm it before it replaces the draft. Markdown and template
+variables remain plain prompt text. Binary or invalid UTF-8 files are rejected.
+The library holds up to 50 drafts, including archived drafts.
+
 ## Stopping and resuming an agent
 
 **Stop answering**, at the top of the agent editor, takes one AI agent off the
@@ -457,7 +480,7 @@ an in-progress call.
 | `interruption_sensitivity` | Every language. `balanced` is the default: the 500 ms threshold and the platform hold. `low` requires 750 ms of continuous speech and holds longer after it. `high` uses 150 ms for callers who need a more responsive threshold, and holds for less. The hold each preset sets depends on whether the language has the trained turn detector (table above), and it is a minimum wait, not the reply time. `min_speech_ms` and `silence_hold_ms`, when set, take precedence for their knob. |
 | `min_speech_ms` | Every language. An explicit 80–2000 ms interruption threshold, overriding any sensitivity preset. On a phone call it is honoured down to 150 ms; a value below 150 ms is raised to 150 ms. A phone call without it, and without a preset, uses the 500 ms default. Browser and web calls store it but do not apply it. |
 | `silence_hold_ms` | Every language. The shortest wait, 100–2000 ms, after the caller stops speaking before their turn can end. It overrides the platform hold and any sensitivity preset. A value below about 250 ms has no effect, because voice detection needs that much silence to report the end of speech, and the wait is longer whenever the final transcript arrives later than this value. |
-| `min_interruption_words` | 0–5. Defaults to `1` on hosted **English** calls and to `0` (off) everywhere else. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
+| `min_interruption_words` | 0–5. Defaults to `1` on hosted phone calls in every language and to `0` (off) on browser and web calls. An interruption must ALSO carry at least this many recognized words from the caller, on top of the speech-duration threshold. Set `0` explicitly to turn it off. Effective only on stacks whose transcriber reports words fast enough — see below. |
 | `barge_in_speech_rms` | **Deprecated.** Accepted, stored and returned for compatibility only; the runtime does not apply it to call behavior. Use `interruption_sensitivity`, `min_speech_ms` and `min_interruption_words` to control interruptions. |
 
 A wordless burst that clears the threshold does not end the reply. If no caller
@@ -479,20 +502,19 @@ never makes an interruption happen sooner.
 
 #### The default
 
-A hosted **English** agent that has not set `min_interruption_words` runs with
-`1`: one recognized word as well as the duration threshold. Agents in every
-other language default to `0` and run on the duration threshold alone, because
-the requirement is only enforceable where the transcriber can report a word in
-time (see below).
+A hosted agent that has not set `min_interruption_words` runs with `1`, in
+every language: one recognized word as well as the duration threshold. Where
+the transcriber cannot report a word in time (see below), the call runs on the
+duration threshold alone instead.
 
-To turn the requirement off on an English agent, set `min_interruption_words`
-to `0` explicitly. An explicit `0` is stored and returned; leaving the setting
-out is what selects the default.
+To turn the requirement off, set `min_interruption_words` to `0` explicitly.
+An explicit `0` is stored and returned; leaving the setting out is what selects
+the default.
 
 It is accepted and returned for any agent in any language, but it is
 **effective only where the transcriber emits words fast enough to land inside
-the interruption decision** — today that is the Deepgram stacks, which serve
-English and Estonian. On every other stack the setting is stored, returned
+the interruption decision** — today that is the Deepgram Nova-3 stacks, in
+every language they serve. On every other stack the setting is stored, returned
 unchanged by `get_agent_voice_stack`, and ignored at call time: those calls run
 on the duration threshold alone, exactly as they do with the setting unset. The
 distinction is the transcriber's timing, not the language: a transcriber that
@@ -502,19 +524,19 @@ worse than not having the setting.
 
 #### Sounds that do not count as words
 
-On hosted **English** calls, short listening noises from the caller do not count
-toward `min_interruption_words`. "mm-hm", "uh-huh", "yes", "yeah", "okay",
-"right", "sure", and hesitation sounds such as "uh" and "um" are what a caller
-says to show they are following, not to take the floor, so a transcript
-containing nothing but one or two of them will not interrupt the agent however
-long the caller holds it.
+Short listening noises from the caller do not count toward
+`min_interruption_words`. Each language has its own list, and today the list
+exists for **English**: "mm-hm", "uh-huh", "yes", "yeah", "okay", "right",
+"all right", "sure", "I see", and hesitation sounds such as "uh" and "um" are
+what a caller says to show they are following, not to take the floor. A
+transcript of at most two words that are all on the list, or one that is
+exactly a listed phrase such as "I see", will not interrupt the agent, however
+long the caller holds it. Longer combinations, such as "I see, okay", count as
+words.
 
-This is English-only, and deliberately so. Estonian is the other language whose
-transcriber is fast enough for `min_interruption_words` to take effect, and an
-Estonian agent that sets it runs the word requirement in full — but every word
-counts there, including "jah" and "okei", because the equivalent list has not
-been measured for that language. Applying an English list to it would refuse
-nothing while this page claimed otherwise.
+In every other language every word counts, including "jah" and "okei" in
+Estonian, until that language's list is measured. A list written for one
+language would refuse nothing in another while this page claimed otherwise.
 
 The caller is still heard. What they said is delivered to the agent when the
 reply ends, so a caller who says "okay" is answered afterwards rather than
@@ -532,7 +554,7 @@ next result, by up to about half a second. A word recognized *before* the
 threshold opens costs nothing — the interruption still happens the moment the
 caller has spoken for long enough.
 
-`1` is the English default for this reason. Values above `1` require most of a
+`1` is the default for this reason. Values above `1` require most of a
 phrase before the agent will stop, which callers experience as an agent that
 does not listen.
 
@@ -570,11 +592,12 @@ phone call, in any language:
   own language is played in its place; that substitute exists for English,
   Estonian, Sinhala and Tamil, and a call in another language, or one whose
   substitute also fails to synthesise, still opens in silence.
-  **GPT-Live 1** and **Gemini Live** agents handle barge-in on the model side:
-  the opening line is not held uninterruptible by this protection, and a
-  pickup-shaped "hello?" may still cut it. Workflow-bound calls cannot use
-  either engine, so the early-speech hold described above applies to Standard
-  agents only.
+  **GPT-Live 1** follows the same rule when the agent speaks first: the engine
+  does not hear a short "hello?" over its opening, and a caller who keeps
+  speaking for more than a second is heard, from the start of what they said,
+  and answered. On **Gemini Live**, **Eleven Realtime** and on outbound
+  GPT-Live calls where the person speaks first, barge-in is handled on the
+  model side and a pickup-shaped "hello?" may still cut the opening.
 - When an interruption does qualify, the agent plays on for a bounded moment
   instead of stopping at the exact instant it is cut, so the sound it is part way
   through finishes rather than being clipped. This is a time budget of up to
@@ -602,7 +625,7 @@ people nearby — can sound like the start of speech, so on a hosted phone call
 the agent does not wait on sound alone forever:
 
 - On hosted **English** calls transcribed by Deepgram, with
-  `min_interruption_words` at 1 or more (the English default), the agent waits
+  `min_interruption_words` at 1 or more (the default), the agent waits
   at most **1.5 seconds** when no words are recognized, then speaks. Listening
   sounds such as "mm-hm", "okay" or "uh" do not count as words. That is longer
   than it takes the transcriber to report a caller's first word. If the caller
@@ -670,6 +693,137 @@ These checks describe saved configuration. Available funds, current capacity,
 call policy and carrier reachability are still checked when a call arrives.
 Outbound support depends on the selected destination and is checked when the
 call is requested. Refresh the page after correcting a prerequisite.
+
+## Connect your PBX
+
+Open a hosted AI agent and choose **PBX**. This connects calls from your own
+PBX to that agent without ordering a Skysay phone number. The Asterisk adapter
+uses `chan_websocket`; Asterisk 22.10 is the version qualified in the local
+integration lab. FreeSWITCH and 3CX adapters are planned. For a PBX that only
+speaks SIP, connect it as a
+[SIP trunk](/docs/bring-your-own-sip-trunk) instead.
+
+1. Publish the agent's voice setup, instructions and required call variables.
+2. Under **Connection keys**, create a named key for this PBX. Copy its
+   password immediately; it is shown once.
+3. Copy the generated `websocket_client.conf` and dialplan snippets into
+   Asterisk. Replace `<CONNECTION_PASSWORD>` with the saved password and supply
+   each required variable from your own dialplan.
+4. Reload Asterisk and place a test call. **Recent connections** shows whether
+   Skysay admitted the call or refused it, with the next action when available.
+
+The generated configuration uses encrypted WebSocket transport and HTTP Basic
+authentication: the agent ID is the user name and the connection password is
+the password. Keep certificate and hostname verification enabled. Asterisk's
+WebSocket client trusts no certificate authority until you name one, so the
+generated block includes `ca_list_file=/etc/ssl/certs/ca-certificates.crt`, the
+Debian and Ubuntu CA bundle. On RHEL-based systems change it to
+`/etc/pki/tls/certs/ca-bundle.crt`. Without a valid CA list the connection
+fails certificate verification and the `Dial` returns `CHANUNAVAIL`. The `n`
+option in the generated `Dial(WebSocket/...)` line is required: Skysay checks
+the published configuration, funds, capacity and worker readiness before
+instructing Asterisk to answer. A refused attempt does not answer the call.
+Do not remove that option or add an earlier `Answer()`.
+
+The setup includes an inbound dialplan context and an outbound AMI Originate
+example. For outbound calls, Asterisk calls your destination first, then joins
+the answered channel to the AI agent. You still own the PBX dialplan, trunk,
+carrier charges, and what happens after that AI leg ends.
+
+### Call details and variables
+
+The generated dialplan carries Asterisk's original `UNIQUEID`, the remote
+party, the service line, and the agent's published string variables. Set the
+business values in your PBX; Skysay does not invent missing required values.
+If a published variable uses a type the adapter cannot send, the setup panel
+asks you to repair it instead of generating an unusable configuration.
+
+Repeated connection attempts for the same logical key and original Asterisk
+call ID refer to one Skysay call. They cannot reserve capacity or bill that
+same call twice. Give separate PBXs their own keys so their identifiers do not
+collide. Caller and service-line labels are PBX-supplied context; they do not
+verify ownership of a telephone number or authorize outbound calls or SMS.
+
+### Calls and billing
+
+On **Calls**, choose the **PBX** transport filter to find these calls. A row
+shows **PBX call · Asterisk**; call details show the original PBX call ID and
+native channel ID when available. These are live calls, separate from browser
+tests and simulations. The duration follows the native AI media leg.
+
+PBX calls consume live-call capacity and use the selected engine's AI billing
+components. They do not add a Skysay carrier leg. Billing reserves an estimate
+before admission, then settles from the engine's actual usage. **Awaiting
+usage** means that settlement is pending; a completed call is not proof that
+its final charge is already known. An admitted call that never starts releases
+its unused reservation and capacity after its startup deadline.
+
+### Transfer to a department
+
+Under **Tools**, the department preset creates an action on an existing signed
+integration. You provide an HTTPS endpoint, a signing secret, and the allowed
+department names. The AI agent selects one of those names; it does not choose
+a raw extension or an arbitrary destination.
+Save the agent settings after creating the action and publish the changes
+before testing the published setup.
+
+Your endpoint receives the confirmed action with server-owned PBX context,
+including `external_call_id`, which identifies the original Asterisk call.
+Verify the signature and deduplicate the action ID before resolving that call
+to an active PBX channel and transferring it through your own PBX controller.
+Do not use the WebSocket child channel as the original caller channel.
+
+The caller must hear the action's read-back and explicitly confirm it before
+the write is released. Skysay checks that the native call remains active
+before sending the action. Returning `{"accepted":true}` means your endpoint
+accepted the request; it does not prove that a department answered. Your PBX
+owns the subsequent connection, unavailable destination and fallback behavior.
+
+## PBX connection keys
+
+A PBX connection key belongs to one AI agent in your workspace. Give each PBX
+its own named key so you can rotate or revoke one connection independently.
+An AI agent can have up to 20 active logical keys. A key authenticates a PBX;
+creating a key does not itself start a call or configure your PBX.
+
+Use an API key with `agents:write` to create, rotate or revoke a PBX key.
+`agents:read` is enough to list the keys. These operations use your API
+credential's workspace, including when the caller is an operator.
+
+```bash
+curl -X POST "$SKYSAY_API_URL/v1/agents/$AGENT_ID/pbx-keys" \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"main-office"}'
+```
+
+The response contains `key` metadata and a one-time `password` beginning with
+`skypbx_`. Store the password securely. The PBX uses the AI agent ID as its
+HTTP Basic user name and this password as its password. It is not a workspace
+API key. Listings never return the full password or its hash.
+
+`GET /v1/agents/{agent_id}/pbx-keys?limit=20&offset=0` returns `keys`,
+`has_more`, `returned`, `limit` and `offset`. Each key has a stable `id`, its
+name and status, a redacted prefix/suffix, creation and last-use times, and
+`previous_expires_at` for the latest previous password, when one exists.
+A past expiry does not mean that password still works.
+
+Rotate a key with `POST /v1/agents/{agent_id}/pbx-keys/{key_id}/rotate` and an
+empty JSON object. The response reveals the new password once. The logical
+key ID stays unchanged, so changing a password does not create a different PBX
+call identity. By default the immediately previous password keeps working for
+24 hours. You may pass `grace_seconds` from `0` to `86400`; `0` invalidates the
+old password immediately. Repeated rotation preserves older passwords until their original deadlines; it never extends those deadlines. A shorter grace period also shortens any later existing deadline. Passing `0` invalidates every previous password immediately. For a compromised key, revoke it or rotate with zero grace.
+
+Revoke a key with `POST /v1/agents/{agent_id}/pbx-keys/{key_id}/revoke` and an
+empty JSON object. Revocation invalidates every password version of that
+logical key and is safe to repeat. Other named keys keep working. A revoked
+key cannot be rotated; create a new named key when needed.
+
+Over MCP, use `list_pbx_keys`, `create_pbx_key`, `rotate_pbx_key` and
+`revoke_pbx_key` with the same scopes. Passwords are returned only by creation
+and rotation. Copying an AI agent does not copy its PBX keys. Deleting the AI
+agent prevents those keys from authenticating.
 
 ## Bring your own agent
 

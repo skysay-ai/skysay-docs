@@ -44,6 +44,17 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | `get_agent_variables` | `agents:read` | Read an AI agent's [call variables](/docs/call-variables) config with its `revision` and `schema_hash`; the same answer as `GET /v1/agents/{agent_id}/variables`. |
 | `set_agent_variables` | `agents:write` | Replace an AI agent's whole call variables config, checked and republished at once. Send `base_revision` to be refused rather than overwrite a newer write. A refused config returns `error.body.issues`. |
 
+## PBX connection keys
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_pbx_keys` | `agents:read` | List an AI agent's named PBX keys with bounded pagination; never returns passwords. |
+| `create_pbx_key` | `agents:write` | Create a named key and reveal its password once. |
+| `rotate_pbx_key` | `agents:write` | Reveal a new password for the same logical key, with up to 24 hours of grace for the immediately previous password. |
+| `revoke_pbx_key` | `agents:write` | Revoke every password version for one key; independently named keys keep working. |
+
+See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
+
 ## Offline trial fixtures
 
 | Tool | Scope | Description |

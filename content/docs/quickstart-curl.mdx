@@ -383,7 +383,7 @@ curl -s "$SKYSAY_BASE_URL/v1/organizations/$ORG_ID/capabilities" \
   "countries": ["GB", "US"],
   "all_countries": false,
   "approved_profiles": ["customer_outreach", "business_support"],
-  "customer_visible_message": "Outbound is active within your approved envelope."
+  "customer_visible_message": "Outbound is active within your workspace capabilities."
 }
 ```
 
@@ -450,7 +450,7 @@ Read `status` before assuming a phone is ringing:
 | `status` | Meaning |
 | --- | --- |
 | `queued` | Admitted; the call is being dialled. |
-| `needs_review` | Held for review, and it will not be dialled: a `call.failed` event follows at once. Resend it with a `user_authorization`, or cancel it. |
+| `needs_review` | Held for review (for example, a destination outside your country list), and it will not be dialled: a `call.failed` event follows at once. Cancel it. |
 | `policy_blocked` | Refused by policy; nothing was dialled and nothing is charged. |
 | `live_blocked` | Accepted but live calling is switched off for the platform right now; nothing was dialled. |
 
@@ -458,8 +458,9 @@ While Skysay restarts its call servers, for example during a release, a new
 outbound call can stay `queued` for a short time before dialling instead of
 failing.
 
-`user_authorization` records who approved this call and why. Without both
-fields the call is held for review. `purpose` is free text; the documented
+`user_authorization` records who approved this call and why, and `purpose` is
+free text. Both are optional: they are recorded when you send them, and a
+call is never refused or held for leaving them out. The documented purpose
 values are listed in the [OpenAPI schema](/docs/openapi). Retrying with the
 same `Idempotency-Key` returns the original call instead of dialling twice.
 Reusing the key for a different request answers `409`. More fields

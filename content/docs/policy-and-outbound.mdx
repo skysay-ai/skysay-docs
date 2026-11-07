@@ -1,21 +1,26 @@
 ---
 title: Policy & outbound
-description: How policy-gated outbound works — evaluate first, authorize, then place. Blocked categories and the broker example.
+description: How outbound works — a workspace with a number calls out straight away; what is still checked, and how to check before you call.
 icon: ShieldCheck
 ---
 
-Live outbound calls and SMS never leave the machine unchecked. Skysay makes
-the agent **evaluate policy first**, surface the decision and cost, and only then
-authorize and place. Scopes fail closed, and the policy engine blocks whole
-categories of outbound regardless of scope.
+A workspace that holds a phone number, bought or imported, can place outbound
+calls and send SMS straight away, for any purpose. There is no approval step
+and no list of blocked words: you call your own customers.
+
+Every call is still checked before it dials. A call is refused for a
+suspension, a sanctioned destination, a destination outside your workspace's
+own country list, a caller number that still needs its carrier registration,
+or a caller ID that is not one of your workspace's numbers. Scopes fail
+closed, and an agent should still check the decision and cost before it
+places a live call.
 
 ## Your workspace capabilities
 
 Every workspace has one **capabilities** record from the moment it is created.
 It says what the workspace may do outbound: the use-case profiles, the channels
 (voice, SMS), the destinations, the caps, and — for a customer application —
-the calling rules. `authorize_outbound` checks it on every attempt, and a
-workspace whose record is not active cannot place an outbound call or SMS.
+the calling rules. `authorize_outbound` checks it on every attempt.
 
 Read and manage it on the **Capabilities** page in the workspace, or
 programmatically: `GET /v1/organizations/{organization_id}/capabilities`
@@ -23,26 +28,23 @@ programmatically: `GET /v1/organizations/{organization_id}/capabilities`
 (`onboarding:write`), or the `get_capabilities` / `request_capabilities` MCP
 tools.
 
-### Activation is automatic
+### Active from the start
 
-There are two doors, and both activate the record the same way:
-
-- an Skysay operator approves your business verification, or
-- your first phone number needs no carrier registration, so the workspace is
-  trusted for outbound as soon as it is ordered.
-
-Activation grants the default profile (business support & callbacks) with its
-catalog caps, the channels your workspace can use (voice; SMS unless every
-number you hold is voice-only), and **every destination except sanctioned
+A new workspace's record is active the moment the workspace is created. It
+starts on the default profile (business support & callbacks) with its catalog
+caps, both channels (voice and SMS), and **every destination except sanctioned
 countries**. Sanctioned destinations are blocked for every workspace in every
-state. Operators can tighten from there; you request more below.
+state. Business verification is not an outbound step: it is what a phone
+number whose country requires carrier registration needs before that number
+can call out. Operators can tighten from there; you can change your selection
+below.
 
 | Status | Meaning |
 | --- | --- |
-| Not activated | The workspace has not cleared verification yet. Outbound is refused. |
-| Pending review | A request needs an Skysay operator (a standard profile requested before verification finished, or the custom implementation-services profile). Nothing new is authorized yet; what was active stays active. |
-| Active | Outbound calls and SMS are authorized within the profiles, channels, destinations and caps on the record. |
+| Active | Outbound calls and SMS are authorized within the profiles, channels, destinations and caps on the record. Every workspace starts here. |
+| Pending review | A request needs an Skysay operator (the custom implementation-services profile). Nothing new is authorized yet; what was active stays active. |
 | Suspended | An operator paused outbound for this workspace. |
+| Not activated | The workspace's record is missing. Outbound is refused; contact support. |
 
 ### Destination controls
 
@@ -113,20 +115,50 @@ stop / wrong-party / dispute actions). `GET .../capabilities` returns them as
 `calling_rules` and whether they are enforced right now as
 `calling_rules_active`. A self-serve request cannot set or clear them.
 
+### Purpose and authorization are optional
+
+`purpose`, `categories` and `user_authorization` are optional on every call and
+SMS. When you send them, Skysay records them with the call or message; it never
+refuses a call for leaving them out, and never refuses one for what they say.
+`sales`, `telemarketing`, `lead_generation` and `mass_outreach` are ordinary
+purposes. The purpose catalog in the API reference is a list of suggestions,
+not an allowlist.
+
 ### A call held for review
 
-A single call Skysay cannot classify, one with an unknown relationship and no
-`user_authorization` naming who authorized it, is held for review: it is
-answered with `status: "needs_review"` (reason `needs_review.unknown_relationship`)
-and is never dialled. A `call.failed` event with failure stage
-`outbound_authorization` follows at once, so your integration can treat it as
-refused. The request stays with Skysay for review, but nothing will place the
-call later: resend it with a `user_authorization` (who approved it and why), or
-declare a known `relationship`. `user_requested: true` on its own does not count
-as an authorization. A held call reserves nothing from your wallet and does not
-count toward your voice spend cap. It does count toward your call-count limits,
-because it was a submitted call. To clear it, cancel it with
-`POST /v1/calls/{call_id}/cancel`.
+A call your workspace capabilities hold, for example to a destination outside
+your country list or a batch under the custom implementation-services
+profile, is answered with `status: "needs_review"` and is never dialled. A
+`call.failed` event with failure stage `outbound_authorization` follows at
+once, so your integration can treat it as refused. The request stays with
+Skysay for review, but nothing will place the call later. A held call reserves
+nothing from your wallet and does not count toward your voice spend cap. It
+does count toward your call-count limits, because it was a submitted call. To
+clear it, cancel it with `POST /v1/calls/{call_id}/cancel`.
+
+### The caller number's own limits
+
+Each number's Number rules can narrow what it may call out to, on top of your
+workspace capabilities. In the workspace they are under **Numbers →** the
+number **→ Advanced call policy**; through the API they are the `outgoing`
+object of `PATCH /v1/phone-numbers/{number_id}/number-rules`:
+
+- `can_be_used_as_caller_id`: `false` stops the number from placing calls.
+- `allowed_countries`: when not empty, the number may only call these
+  countries (ISO 3166-1 alpha-2, decided from the destination number). An
+  empty list, the default, adds no limit.
+- `allowed_agents`: when not empty, only these AI agents may call from it.
+- `max_concurrent_calls`: how many calls the number may have live at once
+  (`0` means no number limit).
+
+A call these rules refuse is answered `403` and no call is created. The
+message names the number, its list and the destination country, for example:
+
+```text
++15551230001 may only place outbound calls to EE, US, AE, PL under its Number rules, so this call to destination country IT was refused. Change Allowed countries under Numbers > Advanced call policy (outgoing.allowed_countries in PATCH /v1/phone-numbers/num_8a2fQ1xYz/number-rules), or clear the list to remove the limit.
+```
+
+The route in the message carries that number's own id, so you can copy it.
 
 ### Why a call was refused before dialling
 
@@ -134,10 +166,9 @@ A call is checked twice before it dials, in this order:
 
 1. **Workspace capabilities** (`outbound_authorization`): destination,
    channel, use-case profile, review signals and caps.
-2. **The per-call policy** (`outbound_policy`): a non-empty `purpose`,
-   a `user_authorization` with **both** `authorized_by` (who approved the call)
-   and `reason` (why it is being made), a caller number that is ready to call
-   out, and a valid destination.
+2. **The per-call policy** (`outbound_policy`): no suspension, a caller
+   number that is ready to call out (its carrier registration is complete
+   where its country needs one), and a valid destination.
 
 A call refused at either check ends with `status: "policy_blocked"` (or
 `"needs_review"`) and is never dialled. Every read of it (the response to
@@ -148,9 +179,9 @@ tools) carries a `refusal` object saying why:
 "refusal": {
   "stage": "outbound_policy",
   "decision": "blocked",
-  "reason_codes": ["authorization.required"],
-  "required_actions": ["provide_user_authorization.reason"],
-  "message": "user_authorization.reason is missing. Every outbound call needs user_authorization with authorized_by (who approved the call) and reason (why it is being made)."
+  "reason_codes": ["number.registration_not_ready"],
+  "required_actions": ["complete_number_registration"],
+  "message": "The caller number is not ready to call out yet: finish its carrier registration first."
 }
 ```
 
@@ -165,38 +196,41 @@ retried for you.
 anything. For a voice call it answers with the first check that refuses,
 naming it in `stage`. When both checks pass, it answers `allowed` with
 `stage: "outbound_authorization"` and the policy evaluation in `policy`.
-It is a preflight of those two checks, not a full admission: number rules,
-concurrency, maintenance windows and the wallet reservation are not checked.
-Spend caps are checked only against the `amount_minor` you send. Caller-number
-readiness is checked only when you send `from_number_id`; the call itself
-always needs one.
 
-### Authorized application batches
+When you send `from_number_id`, it first asks that number's own limits, as
+the call does: whether the number may be used as caller ID and whether its
+`allowed_countries` cover the destination. A refusal there answers `blocked`
+with `stage: "outbound_number_rules"`, `reason_code`
+`number_rules.caller_id_disabled` or `number_rules.country_not_allowed`, and
+the same sentence `POST /v1/calls` would refuse with in `customer_reason`.
+The number's `allowed_agents` are not checked, because the preflight does not
+name an AI agent.
+
+It is a preflight, not a full admission: concurrency (the plan's and the
+number's `max_concurrent_calls`), maintenance windows and the wallet
+reservation are not checked. Spend caps are checked only against the
+`amount_minor` you send. Caller-number readiness and the number's limits are
+checked only when you send `from_number_id`; the call itself always needs one.
+
+### Your own batches [#authorized-application-batches]
 
 Any active workspace may run its own batches through the single-call API;
-there is no per-profile campaign switch. Send each call with `bulk: true`,
-your own batch label as `campaign_id`, and a `user_authorization` naming who
-approved the batch. With a known relationship (the `user_authorization`
-itself counts as user-requested; or declare `relationship` as
-`existing_customer`, `known_business`, `user_personal_contact`, `internal` or
-`consented_contact`) the call is an ordinary authorized call. A batch without
-a non-empty `user_authorization.authorized_by`, or one that declares an
-unknown relationship (`user_requested: false` and no `relationship`), is held
-for review (`needs_review.campaign`); the custom implementation-services
-profile holds every batch (`needs_review.custom_always_review`). Every other
-gate still applies: blocked categories, sanctioned destinations, your
-destination allowlist, caps and calling rules.
+there is no per-profile campaign switch. Send each call with `bulk: true` and
+your own batch label as `campaign_id`; it is an ordinary call. A
+`user_authorization` or a `relationship` is recorded when you send one and is
+never required. The custom implementation-services profile holds every batch
+for review (`needs_review.custom_always_review`). Every other check still
+applies: sanctioned destinations, your country list, caps and calling rules.
 
 ### Campaigns
 
 Campaigns are part of what every active workspace may do. A launch is checked
 against your capabilities record and the outbound policy, in this order: a
 sanctioned destination in the list blocks it (`blocked_country`); a suspended
-workspace blocks it (`workspace_suspended`); a workspace that is not active
-holds it (`workspace_not_approved`); voice missing from your channels holds it
+workspace blocks it (`workspace_suspended`); a workspace whose record is
+missing holds it (`workspace_not_approved`); voice missing from your channels holds it
 (`channel_not_enabled`); a destination outside your allowlist holds it for the
-usual first-use review (`new_country_requires_review`); a blocked purpose
-blocks it (`blocked_category.<token>`); a missing consent basis blocks it
+usual first-use review (`new_country_requires_review`); a missing consent basis blocks it
 (`consent_basis_required`); and on the custom implementation-services profile
 every launch is reviewed (`needs_review.custom_always_review`). The
 `campaigns_not_in_profile` reason code no longer exists. Your caps are
@@ -256,17 +290,10 @@ authorization, and the call is recorded as `policy_blocked` exactly as it would
 be for a remote request. See [Deployment modes](/docs/deployment-modes) for how
 a deployment chooses its originator.
 
-## Blocked categories
+## What is never refused
 
-The policy engine blocks outbound in these categories regardless of scope:
-healthcare, political, emergency, robocalling, mass outreach, telemarketing,
-lead generation, scraped / listed-contact broker campaigns, spoofing, and cold
-sales. Debt collection is not category-blocked — it is permitted subject to
-per-customer onboarding approval and the acceptable-use policy.
-
-<Callout type="warn" title="Broker example">
-  A Czech contact-broker campaign that dials a purchased list is a
-  scraped/listed-contact broker category — `evaluate_outbound_policy` returns a
-  blocked decision, and `create_outbound_call` fails closed. The agent should
-  report the block and stop, not retry.
-</Callout>
+There is no blocked-category list. Skysay does not refuse a call or SMS for its
+purpose, its categories, or for leaving out `user_authorization`: a workspace
+calls its own customers, for sales, telemarketing, lead generation, debt
+collection or anything else. Your workspace and your numbers stay bound by the
+acceptable-use policy, and an operator can suspend a workspace that abuses it.

@@ -22,12 +22,11 @@ Campaigns are self-serve for two consent bases, declared per campaign:
 | `existing_customer` | People with an active relationship with your business |
 | `explicit_consent` | People who agreed in writing to be called by you |
 
-Cold sales, telemarketing, lead generation and purchased, scraped or listed
-contacts stay blocked platform-wide; a campaign with such a purpose is refused
-when it is created and again at launch. Campaigns are open to every active
+A campaign's purpose is a free-form label, shown on the campaign and recorded
+on every call it places; no purpose is refused. Campaigns are open to every
 workspace -- there is no per-profile campaign switch -- and launch runs one
 authorization against your workspace capabilities: a sanctioned destination
-blocks it, a suspended or not-yet-active workspace or a record without voice
+blocks it, a suspended workspace blocks it, a record without voice
 holds it, a destination outside your allowlist holds it for the usual
 new-country review, a missing consent basis blocks it, and on the custom
 implementation-services profile every launch goes to an operator
@@ -263,8 +262,19 @@ requested time.
 ### Concurrency
 
 `max_concurrency` caps the campaign's simultaneous calls and never exceeds your
-plan's concurrent-call allowance; `reserved_concurrency` keeps lines free for
-inbound and other calls.
+workspace's concurrent-call limit: your plan's allowance, or the limit Skysay
+has set for your workspace when that differs. `reserved_concurrency` keeps lines
+free for inbound and other calls and is at most one less than that limit. The
+campaign wizard shows the limit that applies.
+
+If the limit is lowered below a campaign's saved `max_concurrency` or
+`reserved_concurrency`, the campaign keeps them. Editing its other settings
+still works, and a value you change must fit the new limit. The campaign never
+starts a call that would take the workspace past the limit. A duplicate fits
+the limit in force: the copy's `max_concurrency` is at most the limit and its
+`reserved_concurrency` at most one less. Any setting lowered to fit is listed in
+the response's `clamped` (empty when the copy matches the original), and the
+dashboard says so too.
 
 ## Dispositions
 

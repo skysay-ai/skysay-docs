@@ -12,6 +12,169 @@ verified production deployments, not pull-request merge dates. For features
 released across several services, an entry uses the date by which the required
 services were confirmed deployed.
 
+## 6 November 2026
+
+### Bring your own SIP trunk
+
+- Connect a SIP trunk from any carrier in **Numbers → Import a number → Any carrier: your own SIP trunk**, add its numbers and confirm they are yours.
+- Your carrier keeps billing the line and its minutes; Skysay charges platform and AI minutes only, with no monthly number fee.
+- A trunk carries voice only, signs in with a SIP username and password or from fixed IP addresses, and can carry calls out, incoming calls or both.
+- A paused connection can be resumed from its banner with **Resume now**, up to three times in any 24 hours, or through the API.
+- [Set up your own SIP trunk](/docs/sip-trunk-setup) · [Bring your own SIP trunk (API)](/docs/bring-your-own-sip-trunk) · [Paused calls](/docs/sip-trunk-setup#paused-calls)
+
+### Choose a number range
+
+- In **Phone numbers → Get a number**, choose a **Number range** and checkout shows that range's setup and monthly price.
+- Your request keeps the selected range through purchase; Skysay does not substitute a different prefix.
+- Search accepts national or international prefixes, such as `0845`, `44845` or `+44 845`, and regions by name or code.
+- [Choose a number range or an exact number](/docs/regulated-numbers#choose-a-number-range-or-an-exact-number)
+
+### A transfer that rings out reports no_answer
+
+- When the person's phone rings for the whole ring time and Skysay stops the ringing, the transfer now reports `no_answer`, not `failed`.
+- In a workflow, that call takes the no-answer error route, `transfer:no_answer`.
+- A network timeout, or a cancellation at any other moment, is still reported as `failed`.
+- [What the tool reports back](/docs/transfer-to-a-human#what-the-tool-reports-back) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Shorter confirmations before an action
+
+- Before an action or a transfer, the AI agent now asks in one short sentence of about eight seconds, in the call's language, and waits for a yes.
+- A transfer asks “I'll connect you to *name*. Shall I go ahead?” and never says the destination number or the caller's own number.
+- If a read-back is still too long after one retry, the action is not prepared: a workflow **Action** takes its error route with `policy_reason` `action_readback_over_budget`.
+- [What the caller experiences](/docs/business-actions#what-the-caller-experiences) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Thinking tokens on their own line
+
+- When a language model thinks before it answers, those thinking tokens are charged on their own line in the call's cost breakdown, **llm · reasoning tokens** (`reasoning_tokens`).
+- They are charged at the model's thinking rate from the call's pricing snapshot; for every model Skysay offers today that is its output rate.
+- [The language model's thinking](/docs/billing#the-language-models-thinking)
+
+### Pay as you go: 3 simultaneous calls
+
+- A pay-as-you-go workspace holds up to **3 simultaneous live calls**, shared across projects and agents.
+- A campaign's `max_concurrency` now follows the workspace's concurrent-call limit, and `reserved_concurrency` is at most one less; the campaign wizard shows the limit that applies.
+- A campaign saved above a lowered limit keeps its values but never starts a call that would take the workspace past the limit.
+- [Pay as you go](/docs/billing#pay-as-you-go) · [Campaign concurrency](/docs/campaigns#concurrency)
+
+## 5 November 2026
+
+### Incoming calls run your published workflow
+
+- An incoming call to an AI agent with a published workflow now runs that workflow, the same way the calls the agent places do.
+- If the published workflow can't run on the call, the call is refused as `workflow_binding_failed`, nothing is charged, and the AI agent's readiness shows the reason.
+- A **Phone** test pin still answers its one declared caller with the pinned version; every other caller reaches the published workflow.
+- [When a spoken workflow call is refused](/docs/agent-workflows#when-a-spoken-workflow-call-is-refused) · [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls)
+
+### Calls are transcribed in the EU
+
+- Skysay Cloud sends every Deepgram transcription of a call to Deepgram's EU endpoint, `api.eu.deepgram.com`: the agent's transcriber, workflow listeners and phone-menu detection.
+- A self-hosted gateway picks its region with `SKYSAY_DEEPGRAM_REGION`: unset or `eu` for the EU, `us` for the US; any other value stops Deepgram transcription.
+- [Where Deepgram transcribes a call](/docs/deployment-modes#where-deepgram-transcribes-a-call)
+
+## 4 November 2026
+
+### Call and text out as soon as you have a number
+
+- A workspace with a bought or imported number places outbound calls and sends SMS straight away: there is no approval step and no list of blocked words.
+- `purpose`, `categories` and `user_authorization` are optional on every call and SMS; Skysay records them when you send them and never refuses a call for them.
+- A call is still refused for a suspension, a sanctioned destination, a destination outside your country list, a caller number awaiting registration, or a caller ID that isn't yours.
+- [Policy & outbound](/docs/policy-and-outbound) · [Purpose and authorization are optional](/docs/policy-and-outbound#purpose-and-authorization-are-optional) · [What is never refused](/docs/policy-and-outbound#what-is-never-refused)
+
+### Voices: a Favorites tab, one preview language and live engines with an ambience
+
+- **Favorites** is now one of four tabs beside **All voices**, **Text-to-speech voices** and **Conversation engines (Live)**, and lists every voice you saved.
+- Choose a **Preview language** once for the whole page; every voice that speaks it plays in it, and **Change** picks another language for one voice.
+- GPT-Live 1, Gemini Live and Eleven Realtime previews play Skysay's fixed sample with your selected ambience mixed over it.
+- [Save favorite voices](/docs/voice-library#save-favorite-voices) · [Preview voices in one language](/docs/voice-library#preview-voices-in-one-language) · [Audition it deliberately](/docs/audio-environments#audition-it-deliberately)
+
+## 3 November 2026
+
+### Keep your number and forward calls to an AI line
+
+- Open **Numbers → Keep your number** to forward busy, unanswered, unreachable or all calls from your current provider to a dedicated Skysay line routed to your AI agent.
+- Your number stays with its provider: nothing is ported or imported, SMS is not forwarded, and saving a setup never buys or reroutes a number.
+- Forwarded calls keep the configured business number in their Calls detail, and workspace owners can opt in to an email when a setup needs attention.
+- [Keep your existing number](/docs/keep-your-number) · [Call history and optional alerts](/docs/keep-your-number#call-history-and-optional-alerts)
+
+### Prompt drafts beside the published prompt
+
+- **Identity → Edit prompt** opens an editor whose drafts save automatically to your workspace; rename, duplicate, archive or restore up to 50 of them.
+- **Use this draft** copies a draft into the AI agent's form without publishing it, and the 20 most recent published versions stay as read-only snapshots.
+- [Prompt drafts and published versions](/docs/wire-an-agent#prompt-drafts-and-published-versions)
+
+### Favorite voices and a grouped provider picker
+
+- Star a voice to save it, then turn on **Favorites** to browse only your saved voices with the same filters and previews.
+- The Provider picker groups each provider's models under its name, so you can select a whole provider or individual models.
+- [Save favorite voices](/docs/voice-library#save-favorite-voices) · [Choose providers and models](/docs/voice-library#choose-providers-and-models)
+
+### Workflows recover from unheard answers and say goodbye when a run fails
+
+- When the listener recognises no words in an answer, the agent apologises and asks the same question again, at most twice in a row.
+- When a workflow run fails, the agent says the workflow's goodbye line once, in the call's language, before it ends the call.
+- Publishing warns with `AGENT_TOOL_NOT_CONFIGURED` when an **Action** step needs a tool the AI agent cannot use.
+- [When the caller isn't understood](/docs/agent-workflows#when-the-caller-isnt-understood) · [When a workflow run fails](/docs/agent-workflows#when-a-workflow-run-fails) · [A step this AI agent can't run](/docs/agent-workflows#a-step-this-ai-agent-cant-run)
+
+### Outbound checks name the caller number's own limits
+
+- A call refused by a number's own Number rules now names the number, its list and the destination country, with the setting to change.
+- `POST /v1/policies/authorize-outbound` asks the same number limits when you send `from_number_id`, answering `stage: "outbound_number_rules"`.
+- [The caller number's own limits](/docs/policy-and-outbound#the-caller-numbers-own-limits) · [Check before you call](/docs/policy-and-outbound#check-before-you-call)
+
+## 1 November 2026
+
+### Connect your own PBX to an AI agent
+
+- Choose **PBX** on a hosted AI agent to connect calls from your own Asterisk PBX without ordering a Skysay phone number.
+- Create a named connection key, copy its password once, and paste the generated `websocket_client.conf` and dialplan snippets into Asterisk.
+- [Connect your PBX](/docs/wire-an-agent#connect-your-pbx) · [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys)
+
+## 31 October 2026
+
+### Deepgram agents follow the caller's language on their own
+
+- AI agents on Deepgram that follow the caller now switch to another published language when the caller is heard speaking it, from their next call, with no republish needed.
+- Follow the caller is on by default for an agent with two or more languages unless you turned it off; an agent published earlier takes the default at its next publish.
+- [Optional: follow the caller](/docs/multilingual-outbound#optional-follow-the-caller) · [Automatic switching availability by language](/docs/language-qualification#automatic-switching-availability-by-language)
+
+### Browser tests count down and end at 3 minutes
+
+- A browser test from an AI agent's test panel lasts at most 3 minutes of conversation, and the panel counts down its last 30 seconds.
+- It then ends with `ended_reason` `max_call_duration_reached`; earlier browser tests that reached this limit were reported as `media_session_lost`.
+- [A browser test reached its limit](/docs/post-call-results#when-a-call-ends-automatically) · [Why a call ended](/docs/post-call-results#why-a-call-ended)
+
+### Voice simulations run as live calls
+
+- An **AI caller · voice** test is now a live call in a test room: a synthetic caller talks to your real AI agent on its own engine, with no phone number.
+- Voice tests keep your configured business tools and use your scenario's mock responses for the final effect; every test first checks that the call ended normally.
+- Voice tests reserve funds from your workspace wallet and charge measured usage up to the maximum shown before you start; scripted tests stay free.
+- [Live-call voice tests](/docs/simulations-lab#live-call-voice-tests) · [Business tools with scenario mocks](/docs/simulations-lab#business-tools-with-scenario-mocks)
+
+### Calls listen in any language
+
+- A call now listens for the other party in any language its transcriber can hear, with no fixed list of listening languages; what the agent says does not change.
+- To keep an AI agent's calls listening only in its own language, choose **Listening → The AI agent's language only** or send `"listening": {"mode": "agent_language"}`.
+- [Hearing the other party in any language](/docs/multilingual-outbound#hearing-the-other-party-in-any-language) · [Locking listening to the agent's language](/docs/multilingual-outbound#locking-listening-to-the-agents-language)
+
+### Voicemail Hang up acts on proof of a mailbox
+
+- An agent set to **Hang up** now ends the call without a message when a record beep after a greeting proves a mailbox and the line then stays quiet, about 6.5 seconds later.
+- The call ends with `ended_reason` `no_human_after_answer` and `reason_detail` `recorded_message_only`; **Leave a message** still only watches.
+- A beep after a greeting is the only proof of a mailbox, in every language, and a mailbox phrase on its own is only suspicion.
+- [Voicemail detection](/docs/voicemail-detection) · [What happens on a call today](/docs/voicemail-detection#what-happens-on-a-call-today)
+
+### Interruptions count one word in every language
+
+- On a hosted phone call, `min_interruption_words` now defaults to 1 in every language, so an interruption needs one recognized word as well as the speech duration.
+- It takes effect where the transcriber reports words in time, today Deepgram Nova-3; listening sounds such as "mm-hm" and "okay" are not counted in English.
+- [Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in) · [Sounds that do not count as words](/docs/wire-an-agent#sounds-that-do-not-count-as-words)
+
+### Calendar booking is availability-only until you allow booking
+
+- Selecting a calendar on an AI agent now defaults to **Check availability only**; choose **Check availability and book** to let it create appointments.
+- Browser voice tests also default to availability only; real test bookings need saved booking permission, a dedicated test connection and **Allow real test bookings**.
+- [Give an AI agent permission](/docs/calendar-booking#give-an-ai-agent-permission) · [Test without accidental appointments](/docs/calendar-booking#test-without-accidental-appointments)
+
 ## 27 October 2026
 
 ### AI agents can check phone-number coverage
@@ -317,6 +480,28 @@ services were confirmed deployed.
 - **Tools → What runs on calls** shows which tools, knowledge base search, calendar tools and phone menu navigation an AI agent gets on each engine and kind of call.
 - When something does not run, its row says why, and a tool an engine cannot run is left out of that call instead of stopping it.
 - [What runs on calls](/docs/what-runs-on-calls)
+
+### The homepage demo is a real, recorded call
+
+- A conversation with the AI agent in the live demo on the skysay.ai homepage is now a real call, recorded and transcribed like a phone call and never billed.
+- The demo AI agent uses its own tools and knowledge bases, on the standard pipeline and on Gemini Live, exactly as it does on its phone calls.
+- Each session appears in the demo workspace's **Calls** as **Homepage demo**, with its recording and transcript.
+- A demo session runs at most 10 tool calls or knowledge searches, and one visitor at most 30 a day (UTC); tools that act on a phone caller are refused.
+- [Homepage demo calls](/docs/read-call-evidence#homepage-demo-calls) · [Try the homepage demo](/docs/trial-calls#try-the-homepage-demo)
+
+### Gemini Live transcripts keep the caller's lines in the order they were spoken
+
+- On Gemini Live calls, **Calls** no longer shows a caller's line after the agent's reply to it, or the caller's goodbye after the agent's.
+- Each caller line is now placed where the caller started speaking, and the corrected order is stored with the call, on phone calls and browser tests alike.
+- Calls recorded before this release keep their stored order; GPT-Live and standard-pipeline calls are unchanged.
+- [Tool calls and language switches in the transcript](/docs/read-call-evidence#tool-calls-and-language-switches-in-the-transcript)
+
+### Request SMS activation from the SMS page
+
+- On the **SMS** page, hover over or focus **SMS out** beside the number filter to see whether sending is available and how the selected number is connected.
+- Choose **Request SMS activation** to contact support with the selected number and its country; it sends no message and submits no carrier application.
+- Support confirms the carrier registration your use case and destination countries need, such as US 10DLC or Toll-Free verification, and any fees before enabling sending.
+- [Check SMS sending setup](/docs/send-sms#check-sms-sending-setup) · [When a number can't send](/docs/send-sms#when-a-number-cant-send)
 
 ### Connect and fund a workspace through MCP
 

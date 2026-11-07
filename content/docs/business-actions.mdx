@@ -1,7 +1,7 @@
 ---
 title: Confirming business actions
 description: How callers approve bookings, messages and other changes, and how to handle an uncertain result.
-icon: ShieldCheck
+icon: ClipboardCheck
 ---
 
 An AI agent can read information or make a change. A **read** tool, such as a
@@ -18,20 +18,32 @@ call and runs without a confirmation question.
 Transferring a call is a write that the caller's own request confirms. When the
 caller asks to speak to someone, or says yes after the agent offers to connect
 them, the agent transfers straight away: no read-back and no second question. A
-workflow's transfer **Action** still reads back its destination and waits for a
-yes; see [Transfer steps](/docs/agent-workflows#transfer-steps).
+workflow's transfer **Action** still asks first, in one short line such as
+“I'll connect you to reception. Shall I go ahead?”, and waits for a yes; see
+[Transfer steps](/docs/agent-workflows#transfer-steps).
 
 ## What the caller experiences
 
-1. The agent reads back the whole action: what will change, when, for whom, and
-   where the confirmation will go. It asks one yes-or-no question.
+1. The agent says what will happen, when, and who or where, in one short
+   sentence, and asks one yes-or-no question. The read-back takes at most about
+   eight seconds to say. It leaves out where a confirmation is sent, reasons,
+   durations and internal details, and it never reads out the caller's own
+   phone number, which Skysay removes before the line is written. The agent is
+   asked to say any other phone number by its last four digits only.
 2. Only a later, explicit, unconditional yes permits that action to run.
 3. An unclear reply gets one clarification. A second unclear reply cancels it.
 4. A no, silence or hang-up never approves a write. Changed details require a
    new read-back and a new yes. “Yes, but use a different date” is a change.
 
-For example: “Book a thirty-minute appointment tomorrow at 10:00 in
-Europe/Tallinn for Mari and send the confirmation to mari@example.com?”
+For example: “I'll book you in for tomorrow at 10:00, Mari. Shall I go
+ahead?”
+
+The read-back is written in the language of the call. If the model's line is
+too long to say in about eight seconds, Skysay asks once for a shorter one. If
+that is still too long, the action is not prepared: a workflow **Action** takes
+its error route with `policy_reason` `action_readback_over_budget`, a
+free-form agent is told the action was refused, and an SMS action request is
+refused with `400`. A read-back is never cut off mid-sentence.
 
 On a free-form voice call, the caller's answer counts only once the read-back
 has finished playing:
@@ -50,7 +62,7 @@ has finished playing:
   does not undo them.
 - After a no, Skysay does not stop the agent from offering the action again.
   Whether it should is up to your agent's instructions or workflow. An action
-  offered again is a new action: it is read back in full and runs only after a
+  offered again is a new action: it is read back again and runs only after a
   new yes.
 
 The platform classifies a completed caller turn. A model-supplied
@@ -63,8 +75,12 @@ verify the read-back word for word.
 ## Voice setup
 
 Every free-form voice agent with write tools needs a supported confirmation
-listener covering its configured call languages. Select it in **Voice →
-Transcriber**; native voice engines show a separate confirmation listener there.
+listener covering its configured call languages. For native voice engines, **Voice → Booking confirmation** shows the managed
+selection and its additional per-unit usage price. Explicitly enabling writes
+selects the exact qualified managed default only when no selection was saved
+and it covers every call language. **Custom confirmation setup** keeps manual
+model and BYOK controls; existing selections are never replaced. Cascade voice
+setup keeps its existing transcriber selection.
 **Tuning → Turn-taking** controls its silence and interruption settings.
 
 This finite listener runs alongside the free-form engine, including a cascade
@@ -126,6 +142,10 @@ uncertain and use their provider-specific reconciliation process.
 
 Read an action through `GET /v1/calls/{call_id}/actions/{action_id}` or
 `GET /v1/sms-conversations/{conversation_id}/actions/{action_id}`. These reads do
-not execute, repair or retry anything. The confirmation ledger retains input
+not execute, repair or retry anything. Native calendar booking actions include
+an optional `calendar_outcome` field with the platform's current result. Pending
+confirmation, an unknown result and a refused request do not prove a booking;
+a confirmed result requires the successful canonical booking receipt. Other
+business actions omit this calendar-specific metadata. The confirmation ledger retains input
 ordering and hashes, not a second raw transcript; business receipts remain
 separate from recording and transcript retention.
