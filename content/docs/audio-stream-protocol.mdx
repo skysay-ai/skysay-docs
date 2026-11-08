@@ -75,7 +75,8 @@ Use `call_id` to match the call's [webhook events](/docs/webhooks) and its
 record from `GET /v1/calls/{call_id}`.
 
 **Audio** follows as binary messages: the caller's voice as 16-bit
-little-endian PCM, mono, 16 kHz, in 20 ms frames.
+little-endian PCM, mono, 16 kHz. Each message is a short slice of audio; don't
+rely on a fixed message size.
 
 **`stop`** is sent once, when the call ends for any reason, just before Skysay
 closes the connection:
@@ -85,17 +86,21 @@ closes the connection:
 ```
 
 `reason` is the call's ending reason, the same value as `ended_reason` in
-[Post-call results](/docs/post-call-results#why-a-call-ended).
+[Post-call results](/docs/post-call-results#why-a-call-ended). It is empty when
+the call failed without one.
 
 ## Messages from your agent
 
 - **Audio:** binary messages in the same format, 16-bit little-endian PCM, mono,
-  16 kHz. Any message size works; Skysay plays the audio in order as it
-  arrives.
+  16 kHz. A message can carry any length of audio up to one second
+  (32,000 bytes); a larger message closes the connection. Skysay plays the
+  audio in order as it arrives and holds at most 10 seconds that hasn't been
+  played yet: past that, the oldest audio is dropped.
 - **`{"event": "clear"}`:** drops the audio you've sent that hasn't been
   played yet. Send it when the caller starts talking over your agent.
-- **`{"event": "hangup"}`:** ends the call. Skysay hangs up and the call ends
-  with `ended_reason` `agent_completed`.
+- **`{"event": "hangup"}`:** ends the call. Sent after `start`, Skysay hangs
+  up and the call ends with `ended_reason` `agent_completed`. Audio and `clear`
+  sent before `start` are ignored.
 
 Skysay ignores any other text message, so a newer agent never breaks an older
 call.
@@ -105,7 +110,7 @@ call.
 | What happens | `ended_reason` |
 | --- | --- |
 | The other party hangs up | `remote_party_disconnected` |
-| Your agent sends `hangup` | `agent_completed` |
+| Your agent sends `hangup` after `start` | `agent_completed` |
 | Your connection closes or drops without `hangup` | `model_session_lost` |
 | Your agent sends no audio within 15 seconds of `start` | `agent_unresponsive` |
 | The call reaches its maximum length | `max_call_duration_reached` |
@@ -119,9 +124,10 @@ Skysay sends `stop` in every case where the connection is still open.
   the call's webhook events fire as usual. Skysay doesn't transcribe the call:
   your agent owns the conversation.
 - **Billing.** You pay the carrier minutes of the call: for an incoming call,
-  your number's per-minute rate for incoming calls; for an outgoing call, the
-  per-minute rate of the number dialled. See [Billing](/docs/billing). No AI
-  components are billed, because your agent runs them.
+  your number's per-minute rate for incoming calls; for an outgoing call,
+  Skysay's per-minute calling rate for the destination you dial. See
+  [Billing](/docs/billing). No AI components are billed, because your agent
+  runs them.
 - **Not in this version.** Tool calls, transcripts and keypad tones don't
   travel over the connection.
 

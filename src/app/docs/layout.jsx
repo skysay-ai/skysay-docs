@@ -2,8 +2,13 @@ import { DocsLayout } from "fumadocs-ui/layouts/notebook";
 import { RootProvider } from "fumadocs-ui/provider/next";
 
 import { baseLinks, baseNavOptions } from "@/lib/docs-layout.config";
+import { groupSeparatorsIntoSections } from "@/lib/docs-tree.js";
 import { docsSectionTabs } from "@/lib/docs-tabs.jsx";
 import { source } from "@/lib/source";
+
+// The sidebar's sections as collapsible folders, open by default, without the
+// separators' icons. See src/lib/docs-tree.js.
+const docsTree = groupSeparatorsIntoSections(source.pageTree);
 
 // Nested layout under the root src/app/layout.jsx (which owns
 // <html className="dark">). Fumadocs owns only the /docs subtree here.
@@ -36,7 +41,7 @@ export default function DocsRootLayout({ children }) {
   return (
     <RootProvider theme={{ enabled: false }}>
       <DocsLayout
-        tree={source.pageTree}
+        tree={docsTree}
         nav={{ ...baseNavOptions, mode: "top" }}
         links={baseLinks}
         tabMode="navbar"
