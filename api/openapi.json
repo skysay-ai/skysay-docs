@@ -6567,7 +6567,8 @@
               "voice_id_missing",
               "tts_model_missing",
               "llm_model_missing",
-              "system_prompt_missing"
+              "system_prompt_missing",
+              "external_audio_stream_unreachable"
             ],
             "type": "string"
           },
@@ -15999,6 +16000,204 @@
         ]
       }
     },
+    "/v1/highlevel/calls/outcome": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "get_highlevel_call_outcome",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Get highlevel call outcome",
+        "tags": [
+          "HighLevel"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/highlevel/calls/start": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "start_highlevel_call",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Start highlevel call",
+        "tags": [
+          "HighLevel"
+        ],
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
     "/v1/hosted-ai-credentials": {
       "get": {
         "description": "Returns credential metadata only. Plaintext, ciphertext, nonce, encryption-key identifiers, and secret fingerprints are never returned.",
@@ -20061,7 +20260,7 @@
     },
     "/v1/sip-connections/{connection_id}/numbers/{number_id}/test-calls": {
       "post": {
-        "description": "Places an ordinary call from this number to a phone you own, answered by a Skysay-hosted agent: admitted and billed like any call. Optionally tries another dialled-number format for this one call; save the one that was answered with dial-format. One test call at a time, at most three an hour per number. Needs calls:write.",
+        "description": "Places an ordinary call from this number to a phone you own, answered by a Skysay-hosted or outside audio agent: admitted and billed like any call. Optionally tries another dialled-number format for this one call; save the one that was answered with dial-format. One test call at a time, at most three an hour per number. Needs calls:write.",
         "operationId": "startSipConnectionTestCall",
         "parameters": [
           {
@@ -20088,7 +20287,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "agent_id": {
-                    "description": "A Skysay-hosted agent that speaks on the call.",
+                    "description": "A Skysay-hosted or outside audio agent that speaks on the call.",
                     "type": "string"
                   },
                   "dial_format": {
