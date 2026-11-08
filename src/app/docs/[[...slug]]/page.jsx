@@ -14,7 +14,10 @@ export default async function DocsPageRoute(props) {
   const MDXContent = page.data.body;
 
   return (
-    <DocsPage role="main" toc={page.data.toc} full={page.data.full}>
+    // The breadcrumb is off: sidebar sections are folders now (see
+    // src/lib/docs-tree.js), and fumadocs would otherwise print the section
+    // name above every page title, which these pages never showed.
+    <DocsPage role="main" toc={page.data.toc} full={page.data.full} breadcrumb={{ enabled: false }}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
