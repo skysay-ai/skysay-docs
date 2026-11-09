@@ -209,7 +209,7 @@ const sipTrunk = {
       label: "Numbers",
       title: "Add your numbers",
       intro:
-        "When you add a number, Skysay calls it once through the phone network to confirm it's yours. Nobody needs to answer: the call comes back to Skysay through your carrier and takes about 20 seconds. Calls out always show that number as caller ID.",
+        "When you add a number, Skysay calls it once through the phone network to confirm it's yours. Nobody needs to answer: the call comes back to Skysay through your carrier, and the check usually takes under a minute. Calls out always show that number as caller ID.",
       main: [
         {
           type: "rows",
