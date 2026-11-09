@@ -92,9 +92,6 @@ hold, is listed with its reason; see [Why calls fail](/docs/why-calls-fail).
   workspace's concurrent-call limit, and the call to your phone follows your
   workspace's outbound calling rules, such as its allowed destination
   countries.
-- **Not on your own SIP connection yet.** A number that reaches Skysay over
-  your own SIP trunk cannot forward calls; its calls are refused while the
-  rule is set.
 
 ## Pricing
 
@@ -108,7 +105,9 @@ A forwarded call has two carrier legs, each billed by the started minute:
 The incoming leg is billed from when Skysay starts ringing your phone, because
 the caller's call is connected at that moment. A call your phone does not
 answer is therefore billed one started minute of the incoming leg and nothing
-for the forwarded leg. There is no AI, voice or recording charge. Prices differ
+for the forwarded leg. The caller's own carrier also treats their call as
+answered from that moment, so it may bill the caller for the call even when
+your phone does not answer. There is no AI, voice or recording charge. Prices differ
 by number and destination, and the call's detail shows the price of each leg.
 
 Before dialing, Skysay holds funds for both legs for the longest a forwarded
@@ -117,3 +116,20 @@ call as 33 minutes for each leg. A hold sets money aside; it is not a charge.
 After the call ends, Skysay settles each leg from its own record and returns
 the unused part. If your available funds cannot cover the hold, the call is
 not forwarded.
+
+### On your own SIP trunk
+
+A number that reaches Skysay over [your own SIP trunk](/docs/bring-your-own-sip-trunk)
+forwards through that trunk: the call to your phone leaves through your
+connection, presenting your number, and your carrier bills both legs. Skysay's
+carrier charge is zero, and the call costs the flat own-trunk fee of
+**$0.05 per minute** instead, in full minutes, counted from when the caller's
+call is connected. The fee is its own line on the call's charges. Before
+dialing, Skysay holds the fee for 33 minutes, the longest the call can run,
+and returns the unused part when the call ends. A forwarded call that never
+connects costs nothing.
+
+The connection must be able to place outgoing calls: the number's ownership
+check must be confirmed and the connection must have its outgoing settings.
+Until then, saving the forwarding rule is refused with `400` and the
+connection's reason.
