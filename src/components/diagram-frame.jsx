@@ -68,7 +68,11 @@ export function DiagramFrame({ children }) {
             }
           }}
           onClick={(event) => {
-            if (event.target === event.currentTarget || event.target.classList.contains("diagram-dialog-body")) close();
+            // Beside the picture: the dialog, its padding, or the empty bands
+            // the fitted SVG leaves around its card (they hit the <svg> itself).
+            const target = event.target;
+            const body = target.closest(".diagram-dialog-body");
+            if (target === event.currentTarget || target === body || target === body?.firstElementChild) close();
           }}
         >
           <button ref={closeRef} type="button" className="diagram-close" onClick={close} aria-label="Close enlarged diagram">
