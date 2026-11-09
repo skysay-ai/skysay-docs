@@ -24,6 +24,8 @@ languages), [Call variables](/docs/call-variables) (numbers the agent may type)
 and [Post-call results](/docs/post-call-results#why-a-call-ended) (the ending
 values). Campaign retries are described in [Campaigns](/docs/campaigns).
 
+<Diagram name="phone-menu-navigation.svg" alt="On an outbound call, your agent answers the phone menu, waits quietly in the hold queue, confirms a person is there, then starts the conversation. A menu with no matching option and the menu time limit (3 minutes by default) end the call for good, with no redial; the hold limit (10 minutes by default) ends it too, and a campaign retries that one. The whole call ends at 29 minutes." />
+
 ## Greetings and background music
 
 A short greeting or an unclear spoken menu fragment does not immediately take
@@ -40,7 +42,7 @@ can request listening but cannot count the same announcement again. Delayed
 captions, source outages, and a short menu that finishes before listening starts
 can delay or prevent detection.
 
-On a Cascade AI agent that runs a conversation workflow, each thing the other
+On a Standard AI agent that runs a conversation workflow, each thing the other
 side says is first labelled (a person, a menu, a queue) before the workflow
 answers it. That check stays on until a person has answered something the agent
 said; from then on, while every reply keeps sounding like a person, the
@@ -59,7 +61,7 @@ is separate from this hint budget.
 
 If an attempted greeting produces no audible speech, the agent can retry it
 once while the person's greeting is still recent. An unanswered, silent
-attempt is not evidence that nobody is there. For AI agents on Cascade or
+attempt is not evidence that nobody is there. For AI agents on Standard or
 Gemini Live that do not run a conversation workflow, an unheard first reply
 after pickup can also be retried once after the person speaks again, provided
 no other reply is still playing or has been heard. AI agents that run a
@@ -85,9 +87,9 @@ the limits configured below.
 
 ## Which agents can use it
 
-Phone menu navigation works for AI agents on the **Cascade** engine, including
+Phone menu navigation works for AI agents on the **Standard** engine, including
 AI agents that run a conversation workflow, and for AI agents on **Gemini Live**.
-AI agents on **GPT-Live** do not navigate yet.
+AI agents on **GPT-Live** or **Eleven Realtime** do not navigate yet.
 
 Nothing is refused because an AI agent cannot navigate yet. A GPT-Live AI agent
 keeps its navigation setting, saves and publishes as usual, and its calls run
@@ -226,11 +228,11 @@ For a GPT-Live AI agent that never chose:
 | --- | --- | --- |
 | `turned_off` | `enabled` is `false`. | Send `true` or `null`, or tick the box. |
 | `not_released` | Navigation is switched off platform-wide. | Nothing on your side. |
-| `engine_not_supported` | The AI agent's conversation engine, GPT-Live today, does not navigate yet. | It starts by itself when the engine is supported, or switch to Cascade or Gemini Live. |
+| `engine_not_supported` | The AI agent's conversation engine, GPT-Live or Eleven Realtime today, does not navigate yet. | It starts by itself when the engine is supported, or switch to Standard or Gemini Live. |
 | `languages_uncovered` | No transcriber Skysay can use for phone menus listens in one of the AI agent's languages. | Remove that language. |
 | `too_many_sockets` | Listening in all of the AI agent's languages would need more than two transcriber connections. | Remove a language. |
 | `no_language` | The AI agent has no language selected. | Select a language. |
-| `transcriber_unverified` | The AI agent's live engine reads the line through captions Skysay has no phone-menu record for. A transcriber measured to mishear menus in a language is not a reason (see below). | Switch to an engine whose captions are recorded, or to Cascade. |
+| `transcriber_unverified` | The AI agent's live engine reads the line through captions Skysay has no phone-menu record for. A transcriber measured to mishear menus in a language is not a reason (see below). | Switch to an engine whose captions are recorded, or to Standard. |
 | `listener_uncovered` | The published workflow's listener does not listen in one of the AI agent's or the workflow's languages. | Add that language to the listener, or remove it from the AI agent. |
 | `controller_lines_missing` | A workflow AI agent answers menus with prepared lines, and one of its languages has none yet. | Its calls run without navigation until the lines exist. |
 | `tool_name_conflict` | One of the AI agent's own tools is named `press_digits`, `wait_on_hold` or `abandon_navigation`. | Rename that tool. |
@@ -332,7 +334,7 @@ Dutch, Portuguese and Russian (see [Languages](#languages)). Some menus accept a
 agent's own voice, without the model.
 
 - **Spoken values** (a stored value said aloud to a prompt that asks for it to be
-  spoken) are supported on Cascade agents only, workflow agents included, and
+  spoken) are supported on Standard agents only, workflow agents included, and
   only with these voices: Azure AI Speech in English, German, French, Spanish,
   Italian, Dutch, Portuguese and Russian; Gemini TTS in English, German, French,
   Spanish, Dutch and Russian; ElevenLabs Flash v2.5 in English. A workflow

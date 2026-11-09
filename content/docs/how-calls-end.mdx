@@ -14,6 +14,8 @@ This page covers the second, and the one safety rule that watches for a
 conversation that has gone quiet. The complete set of reasons a call can end
 with is in [Post-call results](/docs/post-call-results#why-a-call-ended).
 
+<Diagram name="end-call.svg" alt="The agent calls end_call when the caller is done and its goodbye plays (Skysay speaks it on Standard, the model's own on live engines). If the caller does not speak again, the call ends with agent_completed, and after about 15 seconds it ends anyway; if the caller speaks, the hang-up is cancelled and a later ending needs a new end_call." />
+
 One ending comes from a provider rather than a person or a rule: when the
 call's transcriber refuses the request it is opened with (most often because it
 does not take the call's language), Skysay ends the call with `ended_reason`
@@ -170,7 +172,8 @@ GPT-Live 1 it also reaches the backend model that decides when to call tools.
 Sometimes the agent speaks, and then nothing more comes from either side. The
 caller may have put the phone down, walked away, or lost the connection in a
 way the network never reported. Without this rule, such a line stayed open
-until the call reached its maximum length.
+until the call reached its maximum length. Where recovery is active (see the
+note above), it works like this:
 
 - **After 30 seconds of mutual silence, the agent checks in once.** It asks one
   short question, in the language of the conversation, whether the caller is
@@ -238,8 +241,9 @@ These values are the same for every agent and cannot be changed per agent.
 - in the terminal `call.completed` webhook;
 - in the campaign contact export, as the call's ending.
 
-The workspace Calls page does not show a call's ending reason yet, for any
-reason. Until it does, read it from the API or the webhook.
+In the workspace, the call's transcript in **Calls** ends with a **Call ended**
+row, and its **Closing details** name this reason as **Caller stopped
+responding**.
 
 A campaign contact whose call ended this way is treated like any other
 completed call. It is not retried automatically.

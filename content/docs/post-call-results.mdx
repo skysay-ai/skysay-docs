@@ -9,6 +9,8 @@ evidence endpoints when you need the recording, transcript, or artifact itself.
 An optional post-call extraction is a convenience summary derived after a call;
 it is never the authoritative billing, policy, or customer-system record.
 
+<Diagram name="after-the-call.svg" alt="When a call ends Skysay records its platform facts (status, ending reason, duration), then stores the recording and transcript; a failed call stops at its facts. From the transcript it writes a free AI summary, which has no webhook, and your result fields if you set them. Your webhook endpoint gets the events you subscribe to (call.completed, call.failed, call.recording.ready, call.transcript.ready, call.extraction.ready), signed, at least once and in any order." />
+
 ## Configure an event endpoint
 
 In the Workspace, configure the agent/webhook endpoint and use **Send test
@@ -145,7 +147,7 @@ your workspace's settings; see
 [Maintenance windows](/docs/errors#maintenance-windows).
 
 `inbound_capacity_reached` (stage `inbound_admission`) means an incoming call
-arrived while every agent line on the platform's phone host was already in a
+arrived while every Skysay phone line for AI calls was already in a
 call. Skysay does not answer that call: the caller hears a busy signal straight
 away, instead of ringing with nobody to pick up, and the call is recorded
 failed, once, with nothing charged. `sip_status_code` is null on this reason.

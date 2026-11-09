@@ -13,6 +13,8 @@ It covers phone calls on a Skysay number and on
 [your own SIP trunk](/docs/bring-your-own-sip-trunk), incoming and outgoing. On
 your own trunk the call costs a flat $0.05 per minute instead of carrier minutes.
 
+<Diagram name="audio-stream-connection.svg" alt="On an incoming call the phone rings while Skysay opens a wss:// connection to your audio_stream_url with signed headers (call id, timestamp, signature); your agent checks the signature and accepts, and if it can't be reached within 5 seconds Skysay hangs up: the call fails and nothing is charged. Skysay then answers, sends start (call_id, direction, from, to, audio format), streams 16 kHz 16-bit mono PCM audio both ways, takes clear or hangup from your agent, and sends stop with a reason when the call ends. On a call you place, Skysay connects to your agent before dialling." />
+
 ## The connection
 
 For every call, Skysay opens one `wss://` connection to the agent's
@@ -20,15 +22,15 @@ For every call, Skysay opens one `wss://` connection to the agent's
 
 - **Only `wss://`.** The URL must use TLS, and its host must resolve to public
   internet addresses. Skysay doesn't follow redirects.
-- **Opened while the phone rings.** Skysay connects while an incoming call is
-  still ringing, and while an outgoing call rings at the other end. If your
-  agent can't be reached within 5 seconds, Skysay hangs up. The call ends
-  `failed`, with `technical_failure.failure_reason_code`
-  `external_audio_stream_unreachable` (see
+- **Opened before anyone answers.** Skysay connects while an incoming call is
+  still ringing, and before it dials an outgoing call: it places the outgoing
+  call only once your agent has accepted the connection. If your agent can't
+  be reached within 5 seconds, the call ends `failed`, with
+  `technical_failure.failure_reason_code` `external_audio_stream_unreachable`
+  (see
   [Post-call results](/docs/post-call-results#when-the-configuration-could-not-be-run)),
-  and nothing is charged. On an outgoing call the person may already have
-  picked up while Skysay was still connecting; they then hear up to 5 seconds
-  of silence before the call ends, still without charge.
+  and nothing is charged. An incoming call is hung up while it rings; an
+  outgoing call is never dialled, so nobody's phone rings.
 - **Signed like a webhook.** The upgrade request carries three headers:
   `X-Skysay-Call-Id`, and `X-Agent-Telco-Timestamp` and
   `X-Agent-Telco-Signature` signing it with the agent's signing secret

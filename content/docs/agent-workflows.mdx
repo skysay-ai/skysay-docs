@@ -10,7 +10,7 @@ turn. You build the graph visually — or describe it in plain language and let
 AI draft it — while Skysay continuously compiles it into a versioned,
 server-validated runtime contract. The model decides nothing on its own
 authority: it chooses between the routes you declared, and the server applies
-the transition. On the Cascade engine every line is spoken exactly as you
+the transition. On the Standard engine every line is spoken exactly as you
 wrote it; on GPT-Live 1 the model says each line in its own words (see
 [Spoken workflow calls](#spoken-workflow-calls)).
 
@@ -23,7 +23,7 @@ clearing a value restores the preset.
 
 For an agent with a workflow, **Voice** also shows the published ordinary-call
 input per language. Calls without a bound workflow keep that published input;
-a workflow-only listener is never presented as the ordinary cascade input.
+a workflow-only listener is never presented as the ordinary Standard input.
 **Save settings** stages the workflow input, then workflow **Publish** applies it.
 
 These are the agent's shared editable settings. A workflow's **Publish** view
@@ -48,7 +48,7 @@ languages** picker offers those languages. See
 | OpenAI GPT-Live Transcribe | Every call language | English | Skysay only |
 
 GPT-Live Transcribe is a finite **workflow listener**. It is not offered as a
-transcriber for an ordinary cascade conversation. It uses OpenAI's transcription
+transcriber for an ordinary Standard conversation. It uses OpenAI's transcription
 connection directly, and bills provider-reported audio seconds, including the
 provider's rounding. It does not provide detected-language evidence for
 **Follow the caller**. It accepts every call language, Skysay has tested
@@ -58,13 +58,13 @@ For ordinary GPT-Live or Gemini Live conversations, the live engine handles
 listening and turn-taking. A GPT-Live spoken workflow instead uses the listener
 under **Voice → Transcriber** to hear the caller and the live session to speak.
 GPT-Live's workflow output is accepted in every language, with English marked
-**Tested by Skysay**; the model speaks in its own wording. Cascade workflow
+**Tested by Skysay**; the model speaks in its own wording. Standard workflow
 outputs use the agent's selected voice. See
 [conversation engines](/docs/conversation-engines).
 
 Workflow presets use voice activity detection, rather than a semantic turn
 model. Silence holds accept 300–3000 ms and minimum interruption speech accepts
-0–1000 ms. Ordinary cascade overrides retain their existing 100–2000 ms and
+0–1000 ms. Ordinary Standard overrides retain their existing 100–2000 ms and
 80–2000 ms bounds. The settings express the same intent across modes; their
 underlying turn detectors differ.
 
@@ -76,7 +76,7 @@ caller's turn ahead of time, and uses that decision only if the words the turn
 ends with are exactly the same. If the caller keeps talking and the words
 grow, it decides ahead again on the longer words, up to three times in one
 turn. If the turn ends with words none of these decisions saw, it decides again
-from the final words. On a Cascade workflow, it may also decide ahead on the
+from the final words. On a Standard workflow, it may also decide ahead on the
 listener's words that are not yet final, once they have stayed the same for a
 quarter of a second, up to two more times in one turn; those decisions follow the
 same rule and are used only if the turn's final words are exactly the same. This
@@ -215,7 +215,7 @@ on the route, or set `"while_speaking": true` on it through the API. Words over 
 the marked routes, as one choice with the dispute, hardship, callback and
 human-request interrupts. A marked route is taken only when the caller's words
 themselves state what its label says. A bare "yes", a plan to pay or "let me
-check" takes none, and the line goes on (Cascade) or is spoken again
+check" takes none, and the line goes on (Standard) or is spoken again
 (GPT-Live 1), as for any words over a line (see
 [How the lines are spoken](#how-the-lines-are-spoken)).
 
@@ -443,6 +443,18 @@ steps that can't run, until the tool is back. Calls take each step's error
 route meanwhile. You don't need to publish again: restoring the tool is enough,
 because a call looks up the agent's tools when it reaches the step.
 
+**Knowledge search after unlinking its sources.** Unlinking an AI agent’s
+knowledge sources does not remove steps from its workflow. If the workflow's
+validation reports `AGENT_TOOL_NEEDS_SOURCE` for `search_knowledge_base`,
+open that step. To keep knowledge search, choose the AI agent’s knowledge-search
+tool: its declaration uses `source: "agent"` and an empty `projection`, and its
+fixed result is `knowledge_answer`.
+
+If you do not want knowledge search, remove its step and unused tool declaration,
+reconnect the surrounding routes and remove references to its answer. Check
+validation again before testing. Repairing a tool declaration makes it valid;
+it does not remove the tool or change the workflow’s starting step.
+
 Four test modes run against the exact draft — its voice stack, knowledge,
 tools, and workflow:
 
@@ -507,7 +519,7 @@ its own to edit, and nothing on the canvas or in the graph sets one.
 | **Caller languages** | **Voice → Transcriber** | Every language the workflow speaks, and every language the agent is set up to speak, must be in this list, and the model must accept each of them. The list offers every language Skysay lists for the model; the ones Skysay has tested with that model carry a **Tested by Skysay** badge. |
 | **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
 | **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
-| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off. On the Cascade engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
+| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off. On the Standard engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
 
 A published workflow keeps hearing callers through that setup. Publishing
 freezes a copy of the saved listener and timing into the version, so each
@@ -566,15 +578,15 @@ Test your own languages before you launch.
 | Listener | Azure AI Speech real-time transcription | Every call language Skysay has an Azure regional tag for | English, Sinhala |
 | Listener | Soniox Real-time v5 (`stt-rt-v5`) | Every call language | English |
 | Listener | OpenAI GPT-Live Transcribe (`gpt-live-transcribe`) | Every call language | English |
-| Voice (Cascade) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English | English |
-| Voice (Cascade) | Azure AI Speech neural voices | All the languages it lists | Sinhala, English |
-| Voice (Cascade) | Fish Audio S2 Pro (`s2-pro`) | English, Tamil | Tamil |
-| Voice (Cascade) | Soniox (`tts-rt-v2`) | All the languages it lists | English |
+| Voice (Standard) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English | English |
+| Voice (Standard) | Azure AI Speech neural voices | All the languages it lists | Sinhala, English |
+| Voice (Standard) | Fish Audio S2 Pro (`s2-pro`) | English, Tamil | Tamil |
+| Voice (Standard) | Soniox (`tts-rt-v2`) | All the languages it lists | English |
 | Engine | GPT-Live 1, any of its voices | Every language | English |
 
 So one listener can cover a workflow in several languages: Azure real-time
 transcription accepts English, Sinhala and Tamil, so an English, Sinhala and
-Tamil payment reminder can use it alone, spoken by an Azure voice on Cascade or
+Tamil payment reminder can use it alone, spoken by an Azure voice on Standard or
 by GPT-Live 1. A Tamil workflow can use Deepgram Nova-3 with Fish Audio, and a
 GPT-Live workflow in any language can use a listener that accepts that
 language.
@@ -604,14 +616,14 @@ Which languages count:
 
 ### How the lines are spoken
 
-- **Cascade** speaks each line exactly as you wrote it, in the agent's voice.
+- **Standard** speaks each line exactly as you wrote it, in the agent's voice.
   A line is split only at spaces, into at most 128 pieces of up to 160 bytes
   of UTF-8 text each. A single word, or a run of text with no spaces, longer
   than that is refused rather than cut short; this matters for languages
   written without spaces.
 - **GPT-Live 1** speaks each line through the call's live session, in GPT's
   own voice and its own wording. The meaning follows your line, but the words
-  are not guaranteed to match it. Use Cascade when a line must be said word for
+  are not guaranteed to match it. Use Standard when a line must be said word for
   word, such as a legal disclosure.
   A line counts as spoken only once GPT-Live has played it to the caller in
   full, its ending included. If the model pauses partway through a line,
@@ -636,7 +648,7 @@ changes which step comes next.
 On both engines, words the caller says before a step's line has been heard in
 full are never an answer to it.
 
-On **Cascade**, a line pauses as soon as the caller makes a sound over it. A
+On **Standard**, a line pauses as soon as the caller makes a sound over it. A
 cough or line noise lets it go on. When the caller's words take one of the
 workflow's global interrupts, a language switch or a route you marked for
 statements over a line (see
@@ -649,7 +661,7 @@ are not a turn, and they do not count toward the repeat limit below. If
 Skysay cannot tell within 3 seconds, or the caller speaks again meanwhile, the
 line stops as described next.
 
-On **GPT-Live 1**, and on Cascade whenever the words stop the line without
+On **GPT-Live 1**, and on Standard whenever the words stop the line without
 taking an interrupt or a marked route, the step is spoken again. It is spoken again at
 most twice after the caller's words: if the caller speaks over it a third time,
 the call ends with `ended_reason` `workflow_line_undelivered` (see
@@ -662,7 +674,7 @@ repeat the caller could hear start counts toward the three. A step in a
 not spoken again at all: the workflow goes to the group's `on_exhausted` step
 instead of ending the call this way.
 
-On the Cascade engine, a sound with no words in it does not cut a line. The
+On the Standard engine, a sound with no words in it does not cut a line. The
 line pauses while the caller's sound is recognized and then continues from
 where it paused, so it is heard in full once and is not spoken again. The
 caller can answer as soon as it ends. Recognized words still cut the line off,
@@ -748,7 +760,7 @@ by the published workflow when there is one.
 | Select a listener for this workflow and publish a new version. | The published version has no listener. Choose a transcriber under **Voice**, save, and publish the workflow again. |
 | The selected workflow sources are not qualified for spoken calls. | The listener or the voice is not in the table above, or does not accept one of the call's languages. |
 | This voice engine has no qualified workflow source adapter. | The AI agent's engine cannot speak workflow lines. |
-| Gemini Live is unavailable for workflow-bound calls | Gemini Live cannot run workflow calls. Switch the AI agent to Cascade or GPT-Live 1. |
+| Gemini Live is unavailable for workflow-bound calls | Gemini Live cannot run workflow calls. Switch the AI agent to Standard or GPT-Live 1. |
 | The workflow listener configuration changed. Publish a new version. | The listener frozen into the published version is no longer valid. Check the transcriber under **Voice**, save, and publish again. |
 | This workflow has no spoken lines for *language*. Publish it again before calling. | The call's language has no rendered lines. |
 | The workflow voice configuration is invalid. | The AI agent's engine and voice settings disagree. Check them and publish the AI agent again. |
@@ -857,7 +869,7 @@ tool. The workflow is checked when you publish it: a line or SMS the caller
 could reach before being confirmed that names a protected variable is refused
 as `PROTECTED_BEFORE_CONFIRMATION`, naming the step, whichever way the call
 reaches it — from the entry step, an interrupt or the fallback step. This holds
-on GPT-Live as on Cascade: the GPT-Live session that speaks the workflow is
+on GPT-Live as on Standard: the GPT-Live session that speaks the workflow is
 given each line only as the workflow releases it, so it is given no protected
 value before the confirming step either.
 
@@ -959,6 +971,8 @@ Use an **Action** with the AI agent's `send_sms` tool. Set its arguments to
 Authored arguments can use call-variable templates; protected values require
 their identity gate first. Connect all five Action routes.
 
+<Diagram name="workflow-action-step.svg" alt="An Action step prepares one write (an SMS, a transfer or a booking), reads it back, and waits for the caller's answer. A yes does it and follows next, on_error or on_unknown from its result, except that an answered transfer ends the workflow as transferred; a no takes on_declined and nothing is done; a change takes on_change for a new read-back; an unclear answer is asked once more. Nothing is written before an explicit yes, so connect all five routes." />
+
 The caller hears the proposed message and recipient before being asked to
 confirm. Only a later explicit yes queues the send, after that turn commits.
 The call waits for its receipt. A provider timeout takes `on_unknown` and is
@@ -989,7 +1003,7 @@ Say** step before it ("One moment, I'll put you through.") if the caller should
 hear one after the yes. While the person's phone rings the caller hears
 silence. A call with a person on it dials from your number the caller reached
 (inbound) or the number the call was placed from (outbound). Transfer Actions
-run on Cascade and GPT-Live workflows alike.
+run on Standard and GPT-Live workflows alike.
 
 The run's trace records how the step went: `tool_status` `success` when the
 person answered, otherwise `error` with a `policy_reason` such as
@@ -1172,7 +1186,7 @@ it takes its error route. A template does not change a draft you already have.
 
 ### Engines and tests
 
-- **Cascade** says each line with its results exactly as written. **GPT-Live
+- **Standard** says each line with its results exactly as written. **GPT-Live
   1** is given each line, results filled in, to read exactly, and says it in
   its own voice; its words are not guaranteed to match. Gemini Live cannot run
   workflow calls.

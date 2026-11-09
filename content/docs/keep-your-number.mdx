@@ -9,31 +9,62 @@ phone-system administrator forwards the calls you choose to a separate Skysay
 number. This does not port your number, import it as a Skysay-owned number, or
 forward its SMS.
 
+<Diagram name="keep-your-number-forwarding.svg" alt="Your business number stays with your provider, which forwards the calls you choose (busy, unanswered, unreachable, or always) to a separate Skysay AI line where your AI agent answers; calls you don't forward ring your phones. If the AI line can't take a forwarded call, it is refused as usual, or rings your team phone when phone backup is on. Text messages are not forwarded." />
+
 ## Set up forwarding
 
 Open **Numbers → Keep your number**. The four steps save a draft in your
 workspace, so you can leave to prepare an agent, add funds or complete a number
 request and return later.
 
-1. Enter your business number with its country code. Choose busy, unanswered,
-   unreachable, or always forwarding. Always cannot be combined with the other
-   conditions. Select the AI agent that should answer.
+1. Choose your business number's country and enter the number. Say what kind
+   of line it is: mobile, business or office, or not sure. Tick when the AI
+   should answer: when the line is busy, when nobody answers, when the phone
+   cannot be reached, or for every call. **For every call** cannot be combined
+   with the others: ticking it clears them, and ticking another clears it.
+   Select the AI agent that should answer.
 2. Choose a dedicated Skysay line already routed to that agent. Its activation,
    agent configuration, route and available paid funds must pass the normal
    incoming-call checks. If you need another line, use the existing number
    request flow and accept its price and requirements there. Saving this setup
    never buys or reroutes a number.
-3. Ask your current provider or administrator to enable the selected conditions
-   and give you instructions for turning them off. Confirm destination
-   compatibility and charges before renting a new destination. A provider help
-   article alone is not a qualified dial-code recipe; unqualified providers get
-   an administrator request rather than guessed star codes. Selecting **I've
+3. Turn on forwarding with your current provider. The step shows a request you
+   can send your provider or administrator to enable the selected conditions
+   and tell you how to turn them off, and the common mobile-network codes for
+   those conditions with your Skysay line filled in (see
+   [Example forwarding codes](#example-forwarding-codes)). For a mobile line
+   the codes come first; for a line you are not sure about they follow the
+   request; for a business or office line they stay collapsed under **If it's
+   a mobile line…**, because those lines usually need the provider's portal or
+   support. Confirm destination
+   compatibility and charges before renting a new destination. Selecting **I've
    followed the instructions** records your report; it does not change carrier
    settings.
 4. Start a test watch, then call your original business number from another
    phone. Follow the instructions for that particular condition. Enter the
    displayed six-digit test code once the AI answers. A watch lasts three
    minutes and does not place a call for you.
+
+## Example forwarding codes
+
+Common codes on most mobile networks. Dial them from the phone whose calls you
+want to forward. Your telco may use different codes, and business or landline
+numbers usually need the telco's portal or support.
+
+The codes below use `+12025550123` as the Skysay line. The setup fills in your
+own line in international format.
+
+| Condition | Turn on | Turn off |
+| --- | --- | --- |
+| When the line is busy | `**67*+12025550123#` | `##67#` |
+| When nobody answers | `**61*+12025550123#` | `##61#` |
+| When the phone cannot be reached | `**62*+12025550123#` | `##62#` |
+| For every call | `**21*+12025550123#` | `##21#` |
+
+`##002#` turns off all forwarding on the phone. These are examples, not a
+tested recipe for your provider: Skysay has not qualified any provider's exact
+codes, so your provider or administrator remains the authority. The step shows
+only the codes for the conditions you selected, once your AI line is ready.
 
 Your original provider may charge for the forwarded leg. Skysay usage and any
 AI-line rental are billed separately. Test calls use the normal admission and
@@ -51,8 +82,8 @@ billing paths.
   evidence prove the original-number path and that condition for this setup.
   Test busy and unanswered separately; one result does not verify the other.
 
-Carrier headers are not automatically trusted. In particular, relayed
-`Diversion` headers from DIDWW are unqualified until their exact provenance and
+Carrier headers are not automatically trusted. In particular, forwarding
+headers a carrier relays are unqualified until their exact provenance and
 meaning have been demonstrated. Ordinary manual tests on an unqualified
 provider therefore remain unconfirmed, even when you heard the AI answer.
 A controlled lab test can instead retain its original-number dial record,
@@ -70,10 +101,14 @@ observation, not proof of ownership of a phone number.
 
 ## Stop forwarding
 
-Use **Show how to stop forwarding**, then turn it off with your original
-provider. Recording that you have done so is a user report, not a carrier
-confirmation. Keep the destination line active while calls may still be
-forwarded to it. This action never releases its rental automatically.
+After the four steps, the setup's page shows **Turn off forwarding**: the
+cancel code for each of its conditions (for example `##67#` for busy) and
+`##002#`, which turns off all forwarding on most mobile networks. For a
+business or office line these codes are collapsed, as in step 3. The same
+codes appear under **Show how to stop forwarding**, where you record that you
+have turned forwarding off with your original provider. Recording it is a user
+report, not a carrier confirmation. Keep the destination line active while
+calls may still be forwarded to it. This action never releases its rental automatically.
 
 Before changing the business number or its AI destination, follow the stop
 instructions and report that you have stopped forwarding. This keeps the
@@ -94,7 +129,10 @@ Use the same workspace-owned resources as the UI:
 - `POST /v1/call-forwarding-setups` creates an idempotent draft.
 - `GET /v1/call-forwarding-setups` returns a bounded, paginated list.
 - `GET` and `PATCH /v1/call-forwarding-setups/{id}` read or revise a setup.
-- `GET .../{id}/instructions` reads readiness and provider guidance.
+- `GET .../{id}/instructions` reads readiness and provider guidance,
+  including `example_codes` (each with `condition`, `code` and `stop_code`)
+  and `example_stop_all_code`. They are empty and `null` until the setup has
+  an AI line; `codes` stays empty because no provider is qualified.
 - `POST .../{id}/instructions-followed` records your confirmation.
 - `POST .../{id}/test-attempts` arms a test; `GET` its returned attempt ID to
   poll the result, or `POST .../{id}/test-attempts/{attempt_id}/cancel` to stop

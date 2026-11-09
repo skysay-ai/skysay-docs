@@ -1,16 +1,25 @@
 ---
 title: Release log
 description: Major Skysay releases, with links to the features and guides you can use today.
-icon: ClockRotateRight
+icon: Journal
 ---
 
-Major product updates, newest first. Follow the links in each entry to configure
-or use the feature.
+## 9 November 2026
 
-The initial roundup covers 18–31 August 2026. Dates are in UTC and follow
-verified production deployments, not pull-request merge dates. For features
-released across several services, an entry uses the date by which the required
-services were confirmed deployed.
+### Outside audio agents connect before an outgoing call is dialled
+
+- On an outgoing call with an outside audio agent (`external_audio`), Skysay now opens and confirms its `wss://` audio stream before dialling, so nobody answers into silence.
+- If the agent doesn't accept the connection within 5 seconds, nobody is dialled: the call ends `failed` with `external_audio_stream_unreachable`, and nothing is charged.
+- The number rule action **Send live audio to my app** (`send_live_audio_to_my_app`) is removed: attach the agent with `answer_with_skysay_agent`, which rules saved with the old action now use.
+- [Audio stream protocol](/docs/audio-stream-protocol#the-connection) · [Wire an agent to a number](/docs/wire-an-agent)
+
+### Corrections to billing, SMS and test calls
+
+- A per-minute call on your own SIP trunk that ran past its hold when the wallet couldn't pay the rest now shows **Payment due** with the outstanding amount, not paid in full.
+- `POST /v1/messages` without a sending number or recipient now answers `400` naming `from_phone_number_id` or `to_phone_number`, and an unknown sending number `404`, instead of a server error.
+- **Run browser call** on **Calls** and in setup is now **Open test panel**: it opens the test panel to talk to your AI agent instead of creating a simulated call.
+- A tool call the server refused, such as a callback request it couldn't save, now shows as failed in the call's timeline and in the test panel.
+- [Call amounts on Overview](/docs/billing#call-amounts-on-overview) · [Send SMS](/docs/send-sms) · [Test an agent](/docs/trial-calls)
 
 ## 8 November 2026
 
@@ -586,7 +595,7 @@ services were confirmed deployed.
 - `POST /v1/available-numbers/search` and `GET /v1/available-numbers` take optional `area_code` and `region` filters, and each row says where the number is.
 - In **Phone numbers → Get a number**, the checkout dialog has area code and state fields and offers **Refresh list** once the list is a few minutes old.
 - A number you picked can still be bought after its list snapshot expires; Skysay checks it with the carrier again before ordering.
-- [Choose an exact number](/docs/regulated-numbers#choose-an-exact-number)
+- [Choose an exact number](/docs/regulated-numbers#choose-a-number-range-or-an-exact-number)
 
 ### Carrier requirements are validated before you pay for a regulated number
 

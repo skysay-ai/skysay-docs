@@ -72,7 +72,7 @@ the [generated API reference](/docs/api-reference). The editor reads and
 writes this same section, so a setting made through the API shows up in the
 editor and a save from the editor never drops a field the API stored.
 
-## How the worker uses it
+## How Skysay uses it [#how-the-worker-uses-it]
 
 - **Language follows the call.** Phrases you supply are spoken as written.
   Without your own phrases, the reviewed list for the call's language applies;
@@ -83,7 +83,7 @@ editor and a save from the editor never drops a field the API stored.
   selected voice and model and billed to that call like any other synthesis.
   Clips are prepared in the background after the greeting, so enabling the
   feature never delays the first words of a call.
-- **At most once per turn, never over anyone.** The worker starts waiting when
+- **At most once per turn, never over anyone.** Skysay starts waiting when
   the reply is being prepared and speaks only if the reply has not started
   after `delay_ms`. If the caller starts talking, or the reply begins, the
   acknowledgement is cancelled or cut immediately. A cooldown keeps
@@ -122,7 +122,7 @@ dropped call. `voice_polish.tool_wait` chooses what the caller hears instead:
 | `delay_ms` | Optional, 600 to 3000, default 1000. How long a tool may run before feedback starts. Most tools finish inside this and the caller hears nothing. |
 | `phrases` | Optional, `acknowledge` only. Up to 6 short neutral phrases under the same rule as acknowledgements (at most 40 characters, no digits, currency marks or claim words). Without phrases the reviewed list for the call's language is used; a language without one stays silent rather than acknowledging in English. Rejected with `mode: "sound"`. |
 
-How the worker behaves:
+How Skysay behaves:
 
 - **Never over anyone.** Feedback waits until both the caller and the agent
   are silent. If the agent says "let me look that up" before calling the tool,
@@ -258,7 +258,7 @@ call id.
   long it is, and a sound shorter than the window still plays.
 - **Ambience, acknowledgements and tool-wait sounds are not checked.** They
   play on their own track.
-- **Cascade agents are not checked.** They speak text Skysay already holds, so
+- **Standard agents are not checked.** They speak text Skysay already holds, so
   their speech always has a transcript.
 - **Only that reply is stopped.** On GPT-Live, if sound starts again after a
   pause, it is a new reply and is checked again.
@@ -278,16 +278,15 @@ reply whose transcript then turned out to have words
 (`would_cut_then_transcribed_count`), which is a stop that would have been
 wrong.
 
-Stopping is a platform setting, `SKYSAY_NONSPEECH_GUARD_MODE`, not an agent
-setting:
+Stopping is a platform setting Skysay controls, not an agent setting:
 
-| Value | What happens |
+| Setting | What happens |
 | --- | --- |
-| `shadow` (default) | Measure only; every reply still plays. |
-| `enforce` | Stop the reply. |
-| `off` | No check at all. |
+| Measure (default) | Measure only; every reply still plays. |
+| Stop | Stop the reply. |
+| Off | No check at all. |
 
-Skysay sets it to `enforce` once that count shows no speech is affected. This
+Skysay switches it to stopping once that count shows no speech is affected. This
 page will say when it is on.
 
 ## What it does not do

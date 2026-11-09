@@ -9,8 +9,10 @@ The default is **Standard**: speech-to-text, a model, then text-to-speech. You
 can instead choose an available live engine, which listens and speaks within
 one session. The catalog states which engines can currently be selected.
 
-Telephony still uses Skysay numbers and LiveKit. GPT-Live 1 does not send
-the call to OpenAI SIP.
+Every engine uses the same Skysay numbers and call handling. GPT-Live 1 does
+not send the call to OpenAI SIP.
+
+<Diagram name="conversation-engines.svg" alt="Standard passes the caller's speech through three parts you choose: speech-to-text, a model that writes the reply, and text-to-speech, so interruptions, acknowledgements and tool-wait speech stay under your control. A live engine (GPT-Live 1, Gemini Live, or Eleven Realtime when enabled) hears and speaks in one session, so the live model handles barge-in and turn-taking itself; GPT-Live 1 also uses a backend model for tools." />
 
 ## Choose the engine
 
@@ -23,6 +25,9 @@ wizard's voice step.
 - **GPT-Live 1** replaces those three rows with a GPT-Live voice and a backend
   model for tools. The live model owns barge-in, backchannels, and waiting
   speech, so acknowledgements and turn-taking stay off for that engine.
+- **Gemini Live**, when enabled, is a Google Gemini Live session that listens
+  and speaks at once. It navigates phone menus, but it cannot run workflow
+  calls yet.
 - **Eleven Realtime**, when enabled, uses a native ElevenLabs session
   for speech, reasoning and tool requests. It requires a written greeting and
   an agent-first opening. See [Eleven Realtime](#eleven-realtime).
@@ -84,8 +89,8 @@ session length and daily limits apply exactly as they do to a Standard agent.
 ## API and MCP
 
 The discriminator is `voice_frontend`: use an engine identifier from the
-catalog, such as `cascade`, `gpt_live`, `gemini_live` or `eleven_realtime`.
-Omit it and the agent stays Standard. An unavailable engine cannot be selected.
+catalog, such as `cascade` (Standard), `gpt_live`, `gemini_live` or
+`eleven_realtime`. Omit it and the agent stays Standard. An unavailable engine cannot be selected.
 
 An engine whose catalog row says `has_language_axis: false` refuses
 `languages`, `language_profiles` and `follow_caller`. Both writers refuse them

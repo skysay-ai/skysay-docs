@@ -40,6 +40,7 @@ import {
   Headset,
   HeadsetHelp,
   HelpCircle,
+  Journal,
   Key,
   Language,
   LightBulb,
@@ -115,6 +116,7 @@ const ICONS = {
 
   // --- section separators (content/docs/meta.json) ---
   Rocket,
+  ClockRotateRight,
   GraduationCap,
   Compass,
   AppWindow,
@@ -134,7 +136,9 @@ const ICONS = {
   Sparks,
   Key,
   CreditCard,
-  ClockRotateRight,
+
+  // --- Release log ---
+  Journal,
 
   // --- Tutorials ---
   PlaySolid,
