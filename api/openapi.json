@@ -2731,6 +2731,101 @@
         },
         "type": "object"
       },
+      "CallForwardingInstructions": {
+        "description": "Provider guidance for the saved setup. No product is qualified, so codes stays empty and method is ask_provider. example_codes lists the common mobile-network (GSM) codes for the selected conditions and the destination line; they are examples, not a tested recipe for your provider.",
+        "properties": {
+          "carrier_settings_changed": {
+            "type": "boolean"
+          },
+          "charges_confirmed": {
+            "type": "boolean"
+          },
+          "codes": {
+            "description": "A qualified provider recipe; empty until a product is qualified.",
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "conditions": {
+            "description": "always is exclusive with conditional forwarding.",
+            "items": {
+              "enum": [
+                "busy",
+                "unanswered",
+                "unreachable",
+                "always"
+              ],
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "destination": {
+            "type": "string"
+          },
+          "example_codes": {
+            "description": "One entry per selected condition, empty when the setup has no destination line. Dial the code from the phone whose calls should be forwarded.",
+            "items": {
+              "properties": {
+                "code": {
+                  "description": "Turns this condition on, for example **67*+12025550123#.",
+                  "type": "string"
+                },
+                "condition": {
+                  "enum": [
+                    "busy",
+                    "unanswered",
+                    "unreachable",
+                    "always"
+                  ],
+                  "type": "string"
+                },
+                "stop_code": {
+                  "description": "Turns this condition off, for example ##67#.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "condition",
+                "code",
+                "stop_code"
+              ],
+              "type": "object"
+            },
+            "maxItems": 4,
+            "type": "array"
+          },
+          "example_stop_all_code": {
+            "description": "Turns every forwarding off (##002#); null when there are no example codes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "method": {
+            "enum": [
+              "ask_provider"
+            ],
+            "type": "string"
+          },
+          "provider_key": {
+            "type": "string"
+          },
+          "qualified": {
+            "type": "boolean"
+          },
+          "source_number": {
+            "type": "string"
+          },
+          "stop_requires_provider": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "CallForwardingSetup": {
         "description": "A durable draft. UI revision protects autosaves; configuration_revision changes only when call-affecting setup fields change. A carrier stop or instructions report is user-reported and never verified forwarding.",
         "properties": {
@@ -12378,7 +12473,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "description": "Canonical readiness and qualified instructions, or null instructions while the line needs attention. Unknown products receive provider/admin guidance and no dial codes.",
+                  "description": "Canonical readiness and provider instructions, or null instructions while the line needs attention.",
+                  "properties": {
+                    "instructions": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/CallForwardingInstructions"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "readiness": {
+                      "type": "object"
+                    }
+                  },
                   "type": "object"
                 }
               }
