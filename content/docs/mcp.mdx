@@ -137,6 +137,11 @@ press **Allow access** is exactly what the app gets:
   `create_wallet_topup`; it approves no payment. Each purchase needs separate
   owner approval of the exact amount, currency and purpose. It is unavailable
   on the OpenAI and read-only connectors; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
+- **Change AI agents** (`agents:write`) is offered unticked on the full and
+  OpenAI connections when neither requested nor already allowed. It enables
+  `create_agent`, `update_agent`, `delete_agent` and the other AI agent write
+  tools. A connection approved before this permission was offered does not
+  have it: reconnect the app and tick **Change AI agents**.
 - **Transcripts** (`recordings:read`) is offered unticked on a full connection
   when neither requested nor already allowed. This is the existing combined
   permission for call and simulation transcripts, recording details and
@@ -158,6 +163,10 @@ names it in `WWW-Authenticate` and in the body:
   "missing_scopes": ["calls:write"]
 }
 ```
+
+Some clients show only `Forbidden` and drop this body. If a write tool such as
+`create_agent` fails with a bare `Forbidden` while reads work on the same
+connection, the connection is missing that tool's permission.
 
 Reconnect and tick the named permission. If a transcript request repeatedly
 asks you to reconnect, check that the consent screen shows the intended
