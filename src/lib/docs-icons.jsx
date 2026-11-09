@@ -45,6 +45,7 @@ import {
   Language,
   LightBulb,
   Link,
+  ShareAndroid,
   List,
   Lock,
   Megaphone,
@@ -145,6 +146,7 @@ const ICONS = {
 
   // --- Guides ---
   Link,
+  ShareAndroid,
   PhoneOutcome,
   Dialpad,
   Timer,
