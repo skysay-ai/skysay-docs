@@ -1,0 +1,119 @@
+---
+title: Forward calls to a phone
+description: Ring your own phone on every call to a Skysay number, with no AI agent, billed as two carrier legs.
+icon: RedoCircle
+---
+
+A Skysay number can forward its calls to a phone you choose, such as an office
+line or a mobile, instead of answering with an AI agent. Every call to the
+number rings that phone. No AI agent joins the call, so there is no recording,
+transcript, summary or AI charge. You pay the two carrier legs of the call and
+nothing else.
+
+To send calls to your phone only when the AI agent cannot take them, use
+[Phone backup](/docs/phone-backup) instead. To bring calls from a number you
+already have to a Skysay AI line, see [Keep your number](/docs/keep-your-number).
+
+## Set it up in the workspace
+
+1. Open **Numbers** and select the number.
+2. Under incoming call routing, choose **Forward to a phone number**.
+3. Enter the phone that should ring, starting with `+` and the country code,
+   then save the routing.
+
+The phone must be:
+
+- **In international format**, such as `+15550142`.
+- **Outside Skysay.** A number on Skysay, in any workspace, cannot be a
+  forwarding destination, and a number cannot forward to itself. To have
+  another of your Skysay numbers' AI agents answer, route this number to that
+  agent directly.
+- **Not forwarding back to this number.** For example, a business line that
+  your provider already forwards to this Skysay number is refused, because the
+  call would go round in a loop.
+
+A destination that breaks one of these rules is refused when you save, with
+`400`, and nothing changes.
+
+## Set it up with the API
+
+Use `update_number_rules` or `PATCH /v1/phone-numbers/{number_id}/number-rules`
+(`numbers:write`) with:
+
+```json
+{
+  "incoming": {
+    "when_called": "forward_to_phone_number",
+    "phone_number": "+15550142"
+  }
+}
+```
+
+Read the saved rule back with `get_number_rules` (`numbers:read`). The
+generated [API reference](/docs/api-reference) lists the exact fields. Saving
+the rule places no call and reserves no money.
+
+## What happens on a forwarded call
+
+1. Someone calls your Skysay number.
+2. Skysay checks the number's rule, your funds and your workspace's calling
+   rules, and holds funds for the call (see [Pricing](#pricing)).
+3. Skysay dials your phone once. Your phone shows **your Skysay number** as the
+   caller, not the original caller's number. From this moment the caller's call
+   is connected to Skysay, and the caller hears silence until you answer.
+4. If you answer, the two of you are connected until either side hangs up or
+   the call reaches 30 minutes.
+
+Your phone rings for at most about 30 seconds, counted from when the call
+arrived. If it is busy or nobody answers, the call ends: Skysay does not retry,
+try another number, play a message or take a voicemail.
+
+## In Calls
+
+A forwarded call appears in **Calls** like any other incoming call, with no
+agent, recording or transcript. Its status says how it went:
+
+| Status | Meaning |
+| --- | --- |
+| Completed | Your phone answered and the call was connected. |
+| No answer | Your phone rang until the ringing time ran out. |
+| Busy | Your phone line was busy. |
+| Canceled | The caller hung up while your phone was ringing. |
+| Failed | The call could not be connected, or a check before dialing refused it. |
+
+A refused call, for example because your available funds cannot cover the
+hold, is listed with its reason; see [Why calls fail](/docs/why-calls-fail).
+
+## Limits
+
+- **30 seconds of ringing** at your phone, and **30 minutes** of call.
+- **One dial per call.** There is no automatic second attempt.
+- **Workspace limits still apply.** A forwarded call counts toward your
+  workspace's concurrent-call limit, and the call to your phone follows your
+  workspace's outbound calling rules, such as its allowed destination
+  countries.
+- **Not on your own SIP connection yet.** A number that reaches Skysay over
+  your own SIP trunk cannot forward calls; its calls are refused while the
+  rule is set.
+
+## Pricing
+
+A forwarded call has two carrier legs, each billed by the started minute:
+
+- **The incoming leg**, the caller's call into your Skysay number, at that
+  number's incoming-call price.
+- **The forwarded leg**, Skysay's call to your phone, at the outgoing price
+  for that destination.
+
+The incoming leg is billed from when Skysay starts ringing your phone, because
+the caller's call is connected at that moment. A call your phone does not
+answer is therefore billed one started minute of the incoming leg and nothing
+for the forwarded leg. There is no AI, voice or recording charge. Prices differ
+by number and destination, and the call's detail shows the price of each leg.
+
+Before dialing, Skysay holds funds for both legs for the longest a forwarded
+call can run: 30 minutes plus ringing time and a short margin, shown on the
+call as 33 minutes for each leg. A hold sets money aside; it is not a charge.
+After the call ends, Skysay settles each leg from its own record and returns
+the unused part. If your available funds cannot cover the hold, the call is
+not forwarded.
