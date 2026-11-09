@@ -5121,7 +5121,6 @@
               "when_called": {
                 "enum": [
                   "answer_with_skysay_agent",
-                  "send_live_audio_to_my_app",
                   "send_to_my_phone_server",
                   "forward_to_phone_number",
                   "disabled"
@@ -15997,6 +15996,204 @@
         "summary": "Read shallow public API liveness",
         "tags": [
           "Account"
+        ]
+      }
+    },
+    "/v1/highlevel/calls/outcome": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "getHighLevelCallOutcome",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Get highlevel call outcome",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/highlevel/calls/start": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "startHighLevelCall",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Start highlevel call",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "calls:write"
         ]
       }
     },

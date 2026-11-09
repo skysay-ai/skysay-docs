@@ -1,0 +1,110 @@
+---
+title: HighLevel
+description: Connect one HighLevel business, approve an individual AI call, and read its original result in the contact workflow.
+icon: Building
+---
+
+The HighLevel connector binds one HighLevel sub-account to one Skysay project,
+AI agent and caller number. An administrator approves one exact contact and
+phone number in Skysay. A HighLevel workflow can then request that call and
+read its status without creating a second call on retry.
+
+<Callout title="Private integration qualification">
+  This connector is being qualified with a private HighLevel app. It is not a
+  publicly listed or approved Marketplace integration. Installation, workflow
+  execution and live-call qualification are separate checks. Contact support
+  for test access; do not assume a Marketplace search result is available.
+</Callout>
+
+## Connect your business
+
+1. In Skysay, open **Integrations** as a workspace owner or administrator.
+2. In **HighLevel**, enter the HighLevel sub-account ID from that business's
+   settings. Choose an active Skysay AI agent and caller number in this project.
+3. Choose **Connect HighLevel**, sign in to HighLevel, and authorize that same
+   business. Skysay refuses an authorization for another sub-account.
+4. Return to Integrations and check the connection status.
+
+Start authorization from Skysay, not by visiting the callback URL directly.
+The callback is short-lived, tied to the original website session and usable
+once. If you cancel, switch workspace/session or wait too long, start again.
+
+HighLevel grants `contacts.readonly` for authoritative contact phone and
+opt-out checks and `workflows.readonly` for the app's workflow actions.
+Skysay stores access and refresh tokens encrypted and bound to the selected
+workspace, project and immutable installation. It does not request CRM write
+access for this slice.
+
+When HighLevel asks for a Skysay key, use a dedicated workspace API key with
+`calls:read` and `calls:write`. Store it only in the app's protected external
+authentication form. Do not paste it into workflow fields, code, custom
+values, screenshots or chat. Skysay's MCP OAuth token is not a REST API key.
+
+## Approve one contact call
+
+In Skysay's HighLevel section, enter the contact's HighLevel ID and its exact
+international phone number, including `+` and country code. Read the
+authorization text, then choose **Approve one call**.
+
+Approval does not place a call. Skysay fetches the contact through the
+installed business's OAuth grant and requires its location, phone, global
+Do Not Disturb and Calls-channel state to match. Unknown or malformed call
+permissions, opt-outs and a changed phone number refuse the request.
+
+The approval reference expires after 24 hours if unused. It is bound to this
+installation's AI agent and caller number; changing these requires
+disconnecting and reconnecting, and old approvals do not move to the new
+installation. Approval records retain the exact phone and approving actor.
+
+## Configure the HighLevel workflow
+
+Use the Skysay app's approved-call action on the **original contact**:
+
+- Set operation to `start` and enter the approval reference from Skysay.
+- The runtime supplies the location and contact IDs. Do not supply a phone,
+  AI agent, caller number or an editable `approved=true` field as authority.
+- A `pending` response means the call has not reached a terminal outcome.
+  After a bounded wait, use operation `outcome` with the same approval.
+- Map `callId`, `state` and `status` into dedicated fields on that original
+  contact with HighLevel's native **Update Contact** step. Do not append a new
+  note on every retry. Stop polling at your workflow's chosen limit; an unknown
+  result is not permission to make a replacement call.
+
+Every new call rechecks the authoritative contact and normal Skysay admission,
+number rules, country permissions and calling credit. A retry keeps the
+original call ID. Failed, busy, unanswered and canceled calls do not become
+completed calls. An unfamiliar status is `unknown`.
+
+The app's workflow action must be available to your installed HighLevel
+sub-account before these steps can run. Configuring a draft is not an executed
+workflow or a successful telephone call.
+
+## REST and MCP
+
+The corresponding workspace-bound operations are:
+
+- `POST /v1/highlevel/calls/start` — `calls:write`; MCP `start_highlevel_call`.
+- `POST /v1/highlevel/calls/outcome` — `calls:read`; MCP `get_highlevel_call_outcome`.
+
+Both take only `approval_id`, `location_id` and `contact_id`. They derive the
+Skysay workspace from the credential and return only `callId`, `state` and
+`status`. They do not return the CRM contact, phone, tokens, transcript or
+recording. See the [API reference](/docs/api-reference) for the machine contract.
+
+## Disconnect and charges
+
+Starting a workflow call requires sufficient purchased Skysay balance. This
+connector refuses a shortfall without charging a saved card inline. Fund the
+wallet separately, then retry the same still-valid approval; do not create a
+replacement approval merely to retry.
+
+Choose **Disconnect** in Skysay to erase the stored HighLevel credentials and
+disable this installation's approvals. This does not cancel an already
+placed call. Remove the app in HighLevel as well to remove its provider grant;
+a verified uninstall notification disables the Skysay connection. Replayed
+old uninstall events cannot disable a newer installation.
+
+Calling uses normal Skysay credit and number pricing. HighLevel's subscription
+and premium workflow-action charges are separate. This first slice does not
+replace its native dialer, send SMS, enroll a contact campaign or install a
+Voice AI template.
