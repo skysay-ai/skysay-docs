@@ -14,14 +14,14 @@ Every answered call therefore carries two separate facts:
 - its **status**, which says the transport answered, and
 - its **`answer_classification`**, which says what was heard afterwards.
 
-<Diagram name="answer-detection.svg" alt="When a call is answered, Skysay listens to the far end's audio and classifies it as human (a person spoke, then paused), silent, unknown, or non_human_audio (unbroken music or tones). What the agent does with non_human_audio is its Answer detection setting: shadow, the default, records the verdict and changes nothing; end_call makes the agent go quiet and ends the call, never in its first 45 seconds and never while the agent is navigating a phone menu or hold queue; off collects nothing." />
+<Diagram name="answer-detection.svg" alt="When a call is answered, Skysay listens to the far end's audio and classifies it as human (a person spoke, then paused), silent, unknown, or non_human_audio (unbroken music or tones, or a recording repeating itself). What the agent does with non_human_audio is its Answer detection setting: shadow, the default, records the verdict and changes nothing; end_call makes the agent go quiet and ends the call, never in its first 45 seconds and never while the agent is navigating a phone menu or hold queue; off collects nothing." />
 
 ## What the classification says
 
 | Value | Meaning |
 | --- | --- |
 | `human` | a person was heard |
-| `non_human_audio` | continuous music or tones held the line and nothing a person did was ever heard |
+| `non_human_audio` | continuous music or tones held the line, or a recording repeated the same words over and over, and nothing a person did was ever heard |
 | `silent` | the line answered and nothing at all was heard |
 | `unknown` | detection ran and reached no conclusion within its window |
 | `""` | no verdict was reported at all |
@@ -31,12 +31,13 @@ The last two are not the same thing, and the difference is worth keeping.
 was reported: the call was placed before this field existed, the agent has
 collection switched off, or the call never carried media.
 
-`reason_detail` qualifies the classification and nothing else:
+With a classification, `reason_detail` takes one of these values:
 
 | Value | Appears with |
 | --- | --- |
 | `caller_tune` | `non_human_audio` |
 | `hold_music` | `non_human_audio` |
+| `looping_recording` | `non_human_audio` |
 | `no_audio` | `silent` |
 | `""` | every other classification |
 
