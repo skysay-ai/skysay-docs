@@ -105,7 +105,9 @@ function blocks(list) {
   const out = [];
   for (const b of list ?? []) {
     const lines = block(b);
-    const bullets = lines.every((line) => /^\s*(- |\d+\. |\| )/.test(line) || line.trim() === "");
+    // Tables never join a list: a table line directly under a list item would
+    // be read as part of that item.
+    const bullets = lines.every((line) => /^\s*(- |\d+\. )/.test(line) || line.trim() === "");
     if (out.length && bullets && out.at(-1).bullets) {
       out.at(-1).lines.push(...lines);
     } else {
@@ -128,7 +130,8 @@ export function walkthroughMarkdown(w) {
       // print each one the first time only, so the text doesn't repeat itself.
       const printed = new Set();
       const name = flow.label ? `${tab.label}, with ${flow.label}` : tab.label;
-      out.push(`**${name}.**${tab.lede ? ` ${tab.lede}` : ""}`);
+      const heading = tab.title && tab.title !== w.title ? `${name}: ${tab.title}` : name;
+      out.push(`**${heading}.**${tab.lede ? ` ${tab.lede}` : ""}`);
       flow.steps.forEach((step, i) => {
         const head = `**Step ${i + 1} of ${flow.steps.length}, ${step.label}: ${step.title}.**`;
         out.push(step.intro ? `${head} ${step.intro}` : head);

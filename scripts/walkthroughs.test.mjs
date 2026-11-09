@@ -111,6 +111,17 @@ test("Skysay's SIP address always comes with the note that the workspace's own a
   assert.ok(md.includes("168.144.8.195") && md.includes(note), "the text export shows the address and the note");
 });
 
+test("a table in the export never runs straight on from a list item", () => {
+  for (const w of Object.values(walkthroughs)) {
+    const lines = exportedMarkdown([literal("id", w.id)]).split("\n");
+    lines.forEach((line, i) => {
+      if (line.startsWith("|") && i > 0) {
+        assert.ok(!/^\s*(- |\d+\. )/.test(lines[i - 1]), `${w.id}: table glued to list item "${lines[i - 1]}"`);
+      }
+    });
+  }
+});
+
 test("a walkthrough id given as an expression fails instead of exporting nothing", () => {
   assert.throws(
     () => exportedMarkdown([{ type: "mdxJsxAttribute", name: "id", value: { type: "mdxJsxAttributeValueExpression", value: "x" } }]),

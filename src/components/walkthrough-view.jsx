@@ -479,7 +479,14 @@ export function WalkthroughView({ data }) {
                     />
                   ))}
                   <div className="wt-nav">
-                    <button type="button" className="wt-btn" disabled={current === 0} onClick={() => setStep(current - 1)}>
+                    {/* aria-disabled, not disabled: disabling the button that has
+                        focus (Next onto the last step) would drop keyboard focus. */}
+                    <button
+                      type="button"
+                      className="wt-btn"
+                      aria-disabled={current === 0}
+                      onClick={() => current > 0 && setStep(current - 1)}
+                    >
                       Back
                     </button>
                     <span className="wt-count">
@@ -488,8 +495,8 @@ export function WalkthroughView({ data }) {
                     <button
                       type="button"
                       className="wt-btn wt-btn-primary"
-                      disabled={current === count - 1}
-                      onClick={() => setStep(current + 1)}
+                      aria-disabled={current === count - 1}
+                      onClick={() => current < count - 1 && setStep(current + 1)}
                     >
                       {current < count - 1 ? `Next: ${flow.steps[current + 1].label}` : "Next"}
                     </button>

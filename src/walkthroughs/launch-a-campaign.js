@@ -439,7 +439,7 @@ const api = {
     {
       label: "Create the campaign",
       title: "Create the campaign",
-      intro: "The same settings as the wizard's Agent, Schedule and Retries steps.",
+      intro: "The wizard's Agent, Schedule and Retries settings, as API fields. This example uses its own values.",
       main: [
         {
           type: "code",

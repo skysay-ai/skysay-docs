@@ -376,7 +376,7 @@ const walkthrough = {
         {
           label: "Read the result",
           title: "Test in progress",
-          intro: "3 of 6 attempts have a result. This page updates automatically.",
+          intro: "4 of 6 attempts have a result. This page updates automatically.",
           main: [
             {
               type: "fields",
