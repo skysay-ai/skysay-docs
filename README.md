@@ -65,7 +65,9 @@ use `icon`; they additionally support `date`, `author`, and `tag`.
 The components available in MDX are the stock
 [Fumadocs](https://fumadocs.dev) set — `Steps` / `Step`, `Tabs` / `Tab`,
 `Callout`, `Card` / `Cards` — and they are registered globally, so a page never
-imports anything. Add a new page by dropping a `.mdx` file into
+imports anything. `Callout` is our wrapper around the Fumadocs one: callouts
+have no coloured side bar, so use the registered component and never import
+Fumadocs' callout directly. Add a new page by dropping a `.mdx` file into
 `content/docs/` and listing its slug in `content/docs/meta.json`; blog posts are
 picked up automatically and sorted by `date`.
 
