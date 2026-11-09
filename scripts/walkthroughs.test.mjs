@@ -99,6 +99,18 @@ for (const w of Object.values(walkthroughs)) {
   });
 }
 
+test("Skysay's SIP address always comes with the note that the workspace's own address wins", () => {
+  const w = getWalkthrough("import-a-number");
+  const md = exportedMarkdown([literal("id", w.id)]);
+  const note = "Your workspace shows the address for your connection when you create it; use that one if it differs.";
+  for (const tab of w.tabs) {
+    const blocks = tab.steps[0].side.blocks;
+    const shows = JSON.stringify(blocks).includes("168.144.8.195");
+    if (shows) assert.ok(blocks.some((b) => b.type === "hint" && b.text === note), `${tab.id} shows the address without the note`);
+  }
+  assert.ok(md.includes("168.144.8.195") && md.includes(note), "the text export shows the address and the note");
+});
+
 test("a walkthrough id given as an expression fails instead of exporting nothing", () => {
   assert.throws(
     () => exportedMarkdown([{ type: "mdxJsxAttribute", name: "id", value: { type: "mdxJsxAttributeValueExpression", value: "x" } }]),

@@ -1,7 +1,7 @@
 // Numbers → Import a number: DIDWW, DIDLogic, or your own SIP trunk.
 // Labels, hints and buttons are the workspace's own wording. Skysay's SIP
 // address is the `skysay` block every workspace gets from
-// GET /v1/sip-connections.
+// GET /v1/sip-connections (a reserved IP; there is no host name for it).
 
 const SIP_HOST = "168.144.8.195";
 const SIP_PORT = "5060";
@@ -10,6 +10,8 @@ const NUM2 = "+44 161 XXX XXXX";
 const NUM3 = "+44 121 XXX XXXX";
 
 const NOW = "Now, at your carrier";
+const ADDRESS_NOTE =
+  "Your workspace shows the address for your connection when you create it; use that one if it differs.";
 
 const sipSide = (tip) => ({
   label: "At your carrier",
@@ -17,8 +19,9 @@ const sipSide = (tip) => ({
   tip: { title: NOW, text: tip },
   blocks: [
     { type: "copy", label: "Send incoming calls to", value: `${SIP_HOST}:${SIP_PORT}` },
-    { type: "value", label: "Transport", value: "UDP or TCP, the one you chose" , mono: false },
+    { type: "value", label: "Transport", value: "UDP or TCP, the one you chose", mono: false },
     { type: "copy", label: "Skysay's calls come from", value: SIP_HOST },
+    { type: "hint", text: ADDRESS_NOTE },
     {
       type: "hint",
       text: "Skysay signs in with your SIP username and password. If you chose **By IP address (no password)**, or your carrier also checks addresses, allow this address.",
@@ -523,6 +526,7 @@ const didlogicSide = (tip) => ({
         `The number's only active destination points at Skysay's SIP server, \`${SIP_HOST}\`.`,
       ],
     },
+    { type: "hint", text: ADDRESS_NOTE },
     { type: "note", text: "DIDLogic keeps billing the rental and carrier traffic. DIDLogic imports are voice-only." },
   ],
 });

@@ -140,15 +140,18 @@ button:not(:disabled) {
 }
 
 /* Walkthrough (src/components/walkthrough-view.jsx): tabs, a pill step bar, a
-   mock of the screen and a side panel. Built on the fd-* tokens so it follows
-   the site theme; the green accent matches the docs diagrams. */
+   mock of the screen and a side panel. It uses the workspace's dark look: the
+   fd-* tokens (which equal the workspace's .dark tokens), primary for the
+   active step, and the workspace's wash, success and destructive colours. */
 .wt {
-  --wt-accent: #3f7a5e;
-  --wt-accent-text: #2f6b4f;
-  --wt-accent-soft: rgba(63, 122, 94, 0.12);
-  --wt-warn-text: #b4410c;
-  --wt-warn-soft: rgba(194, 65, 12, 0.1);
-  --wt-line: var(--color-fd-border);
+  --wt-accent: var(--color-fd-primary);
+  --wt-on-accent: var(--color-fd-primary-foreground);
+  --wt-accent-soft: #14262b;
+  --wt-ok-text: #5ad6a0;
+  --wt-ok-soft: #12302a;
+  --wt-warn-text: #ff6b6b;
+  --wt-warn-soft: #2a1618;
+  --wt-line: #243049;
   --wt-input-line: color-mix(in srgb, var(--color-fd-foreground) 22%, transparent);
   margin: 1.75rem 0;
   padding: 1.25rem;
@@ -161,12 +164,6 @@ button:not(:disabled) {
   color: var(--color-fd-foreground);
   font-size: 0.875rem;
   line-height: 1.5;
-}
-.dark .wt {
-  --wt-accent-text: #8fd3b0;
-  --wt-accent-soft: rgba(63, 122, 94, 0.28);
-  --wt-warn-text: #f4a37f;
-  --wt-warn-soft: rgba(194, 65, 12, 0.22);
 }
 .wt p {
   margin: 0;
@@ -268,11 +265,11 @@ button:not(:disabled) {
 .wt-steps button[aria-current="step"] {
   border-color: var(--wt-accent);
   background: var(--wt-accent);
-  color: #fff;
+  color: var(--wt-on-accent);
   font-weight: 600;
 }
 .wt-steps button[aria-current="step"] .wt-n {
-  background: #fff;
+  background: var(--wt-on-accent);
   color: var(--wt-accent);
 }
 .wt-grid {
@@ -312,7 +309,7 @@ button:not(:disabled) {
   font-size: 0.6875rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--wt-accent-text);
+  color: var(--wt-accent);
 }
 .wt-muted,
 .wt-crumb {
@@ -358,7 +355,7 @@ button:not(:disabled) {
   overflow-wrap: anywhere;
 }
 .wt-link {
-  color: var(--wt-accent-text);
+  color: var(--wt-accent);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -416,7 +413,7 @@ button:not(:disabled) {
 .wt-opt-on {
   border-color: var(--wt-accent);
   background: var(--wt-accent-soft);
-  color: var(--wt-accent-text);
+  color: var(--wt-accent);
   font-weight: 600;
 }
 .wt-checks {
@@ -488,9 +485,9 @@ button:not(:disabled) {
   white-space: nowrap;
 }
 .wt-badge-ok {
-  border-color: var(--wt-accent);
-  background: var(--wt-accent-soft);
-  color: var(--wt-accent-text);
+  border-color: color-mix(in srgb, var(--wt-ok-text) 45%, transparent);
+  background: var(--wt-ok-soft);
+  color: var(--wt-ok-text);
 }
 .wt-badge-warn {
   border-color: var(--wt-warn-text);
@@ -506,13 +503,16 @@ button:not(:disabled) {
   border-radius: 10px;
   background: var(--color-fd-muted);
 }
-.wt-status-ok,
 .wt-tip {
-  border: 1px solid color-mix(in srgb, var(--wt-accent) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--wt-accent) 45%, transparent);
   background: var(--wt-accent-soft);
 }
+.wt-status-ok {
+  border: 1px solid color-mix(in srgb, var(--wt-ok-text) 45%, transparent);
+  background: var(--wt-ok-soft);
+}
 .wt-status-warn {
-  border: 1px solid color-mix(in srgb, var(--wt-warn-text) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--wt-warn-text) 45%, transparent);
   background: var(--wt-warn-soft);
 }
 .wt-status-title,
@@ -521,7 +521,7 @@ button:not(:disabled) {
 }
 .wt-tip-title {
   font-size: 0.75rem;
-  color: var(--wt-accent-text);
+  color: var(--wt-accent);
 }
 .wt-btn {
   display: inline-flex;
@@ -538,7 +538,7 @@ button:not(:disabled) {
 .wt-btn-primary {
   border-color: var(--wt-accent);
   background: var(--wt-accent);
-  color: #fff;
+  color: var(--wt-on-accent);
   font-weight: 600;
 }
 .wt-btn:disabled {
@@ -571,7 +571,7 @@ button:not(:disabled) {
   padding: 0.25rem 0.375rem;
   border-radius: 6px;
   background: transparent;
-  color: var(--wt-accent-text);
+  color: var(--wt-accent);
   font: inherit;
   font-size: 0.75rem;
   font-weight: 600;
