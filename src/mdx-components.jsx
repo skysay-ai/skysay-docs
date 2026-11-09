@@ -4,6 +4,7 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { Callout as FumadocsCallout, CalloutContainer as FumadocsCalloutContainer } from "fumadocs-ui/components/callout";
 import { Card, Cards } from "fumadocs-ui/components/card";
 
+import { Walkthrough } from "@/components/walkthrough.jsx";
 import { Diagram } from "@/lib/diagram";
 
 // Callouts carry no coloured side bar (founder, 2026-11-09). Every callout
@@ -33,6 +34,7 @@ export function getMDXComponents(components) {
     Card,
     Cards,
     Diagram,
+    Walkthrough,
     ...components,
   };
 }
