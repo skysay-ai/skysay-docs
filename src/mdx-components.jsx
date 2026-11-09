@@ -4,6 +4,8 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { Callout } from "fumadocs-ui/components/callout";
 import { Card, Cards } from "fumadocs-ui/components/card";
 
+import { Diagram } from "@/lib/diagram";
+
 // Single component map shared by docs AND blog so a launch post and a
 // quickstart render identically. Theming is driven entirely by the fd-* tokens
 // in src/styles.css — no per-component overrides needed here.
@@ -17,6 +19,7 @@ export function getMDXComponents(components) {
     Callout,
     Card,
     Cards,
+    Diagram,
     ...components,
   };
 }
