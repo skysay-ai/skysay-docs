@@ -162,7 +162,12 @@ The route in the message carries that number's own id, so you can copy it.
 
 ### Why a call was refused before dialling
 
-A call is checked twice before it dials, in this order:
+Some checks refuse the request before a call exists: the caller number's own
+[Number rules](#the-caller-numbers-own-limits), a suspension, your workspace's
+do-not-call list and the simultaneous-call limit. These answer with an error
+(`423` for a suspension, `403` for the others), and no call is created.
+
+A call that passes them is checked twice more before it dials, in this order:
 
 1. **Workspace capabilities** (`outbound_authorization`): destination,
    channel, use-case profile, review signals and caps.
@@ -259,10 +264,11 @@ machine. This is a read — it changes nothing.
 
 <Step>
 
-### Get explicit human approval
+### Confirm with a person (your application's check)
 
-Show the decision and cost to a human and wait for a clear yes. Never place a
-live call or send a live SMS on an implied approval.
+Skysay has no approval step. When an AI client places calls for someone, it
+should still show that person the decision and cost and wait for a clear yes.
+Never let it place a live call or send a live SMS on an implied yes.
 
 </Step>
 

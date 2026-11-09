@@ -443,6 +443,18 @@ steps that can't run, until the tool is back. Calls take each step's error
 route meanwhile. You don't need to publish again: restoring the tool is enough,
 because a call looks up the agent's tools when it reaches the step.
 
+**Knowledge search after unlinking its sources.** Unlinking an AI agent’s
+knowledge sources does not remove steps from its workflow. If the workflow's
+validation reports `AGENT_TOOL_NEEDS_SOURCE` for `search_knowledge_base`,
+open that step. To keep knowledge search, choose the AI agent’s knowledge-search
+tool: its declaration uses `source: "agent"` and an empty `projection`, and its
+fixed result is `knowledge_answer`.
+
+If you do not want knowledge search, remove its step and unused tool declaration,
+reconnect the surrounding routes and remove references to its answer. Check
+validation again before testing. Repairing a tool declaration makes it valid;
+it does not remove the tool or change the workflow’s starting step.
+
 Four test modes run against the exact draft — its voice stack, knowledge,
 tools, and workflow:
 
