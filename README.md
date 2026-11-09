@@ -64,10 +64,18 @@ use `icon`; they additionally support `date`, `author`, and `tag`.
 
 The components available in MDX are the stock
 [Fumadocs](https://fumadocs.dev) set — `Steps` / `Step`, `Tabs` / `Tab`,
-`Callout`, `Card` / `Cards` — and they are registered globally, so a page never
-imports anything. `Callout` is our wrapper around the Fumadocs one: callouts
-have no coloured side bar, so use the registered component and never import
-Fumadocs' callout directly. Add a new page by dropping a `.mdx` file into
+`Callout`, `Card` / `Cards` — plus `Walkthrough`, and they are registered
+globally, so a page never imports anything. `Callout` is our wrapper around the
+Fumadocs one: callouts have no coloured side bar, so use the registered
+component and never import Fumadocs' callout directly.
+
+`<Walkthrough id="import-a-number" />` embeds a click-through setup guide (tabs,
+steps, a mock of the screen and a side panel). Its content is plain data in
+`src/walkthroughs/<id>.js`, listed in `src/walkthroughs/index.js`; the same data
+becomes the page's text in its `.md` URL and `/llms-full.txt`. An unknown id
+fails the build. Run `npm run walkthroughs:test` after changing one.
+
+Add a new page by dropping a `.mdx` file into
 `content/docs/` and listing its slug in `content/docs/meta.json`; blog posts are
 picked up automatically and sorted by `date`.
 
