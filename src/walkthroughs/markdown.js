@@ -130,7 +130,7 @@ export function walkthroughMarkdown(w) {
       // print each one the first time only, so the text doesn't repeat itself.
       const printed = new Set();
       const name = flow.label ? `${tab.label}, with ${flow.label}` : tab.label;
-      const heading = tab.title && tab.title !== w.title ? `${name}: ${tab.title}` : name;
+      const heading = tab.title && tab.title !== w.title && tab.title !== tab.label ? `${name}: ${tab.title}` : name;
       out.push(`**${heading}.**${tab.lede ? ` ${tab.lede}` : ""}`);
       flow.steps.forEach((step, i) => {
         const head = `**Step ${i + 1} of ${flow.steps.length}, ${step.label}: ${step.title}.**`;
