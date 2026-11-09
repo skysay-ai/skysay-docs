@@ -71,14 +71,28 @@ export function DiagramFrame({ children }) {
     const root = document.documentElement;
     root.classList.add("diagram-zoom-open");
     if (!dialog.open) dialog.showModal();
-    const body = bodyRef.current;
-    const overflows = body && (body.scrollWidth > body.clientWidth + 1 || body.scrollHeight > body.clientHeight + 1);
-    setScrolls(Boolean(overflows));
-    if (overflows && !hintAlreadyShown()) {
-      rememberHintShown();
-      setHint(true);
+    // Measured on open and again on every resize, so turning a phone while
+    // the dialog is open switches the pane, the Tab stop and the hint too.
+    function measure() {
+      const body = bodyRef.current;
+      if (!body) return;
+      const overflows = body.scrollWidth > body.clientWidth + 1 || body.scrollHeight > body.clientHeight + 1;
+      setScrolls(overflows);
+      if (!overflows) {
+        setHint(false);
+        if (document.activeElement === body) closeRef.current?.focus();
+      }
+      if (overflows && !hintAlreadyShown()) {
+        rememberHintShown();
+        setHint(true);
+      }
     }
-    return () => root.classList.remove("diagram-zoom-open");
+    measure();
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      root.classList.remove("diagram-zoom-open");
+    };
   }, [copy]);
 
   return (
