@@ -385,16 +385,17 @@ shutdown time limit.
 This safeguard is automatic; there is no new agent-editor switch or API field.
 It detects speech activity rather than meaning: noise can keep a call open,
 and speech the detector misses cannot stop closure. It does not establish
-identity, confirm a promise, count clarification questions, undo a goodbye
-already heard, or end a call when the model forgets to invoke `end_call`.
-Balance limits and other platform-enforced endings still close the call.
+identity, confirm a promise, count clarification questions or undo a goodbye
+already heard. Balance limits and other platform-enforced endings still close
+the call.
 
-On phone and workspace browser-test calls, the existing farewell fallback can
-also request closure after it recognizes the caller's closing words. If the
-caller takes the floor again, that pending request is withdrawn; a later
-goodbye can request a fresh close. A fallback close does not mean the model
-invoked `end_call`. Model tool use and actual call disconnection are separate
-evidence.
+On phone and workspace browser-test calls, Skysay also ends the call when the
+agent has said its goodbye and the model did not invoke `end_call`: see
+[the spoken goodbye ends the call](/docs/how-calls-end#on-gpt-live-1-and-gemini-live-the-spoken-goodbye-ends-the-call).
+The close waits for about 2 seconds of quiet from both sides, and the agent
+answering the caller withdraws it; a later goodbye can request a fresh one. A call closed this way
+does not mean the model invoked `end_call`. Model tool use and actual call
+disconnection are separate evidence.
 
 ## Workflow listening
 
