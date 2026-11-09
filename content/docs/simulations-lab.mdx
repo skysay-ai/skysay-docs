@@ -15,7 +15,8 @@ simulation-only tool mocks. Voice attempts make a real call in a test room,
 using your AI agent's saved engine. Business writes such as sending an SMS,
 transferring a customer or changing an integration are blocked. Voice tests
 retain conversation controls such as ending the call and switching language.
-Voice tests use your workspace wallet for measured usage. Scripted tests are free;
+Voice tests use your workspace wallet for measured usage. Scripted tests make no
+model call of their own, but their judge questions are metered like any other;
 adaptive chat costs remain tracked against the suite budget.
 
 ## The shape of a suite
@@ -141,8 +142,8 @@ telling you something it does not know.
 
 After **Start run**, the results page shows **Waiting to start**, then
 **Test in progress**. While the tab is visible, it checks for new results every
-five seconds. You can expand an attempt to inspect its transcript and checks
-while the rest of the run continues. A critical failure remains visible as soon
+five seconds. You can expand an attempt to inspect its checks, and for a voice
+attempt its transcript, while the rest of the run continues. A critical failure remains visible as soon
 as it is recorded. The final verdict appears when execution finishes; queued or
 running work is never presented as a completed pass.
 
@@ -153,7 +154,8 @@ tests started by a person and linked to an attempt.
 
 ## What a run may spend
 
-Deterministic attempts make no model call and genuinely cost nothing. Adaptive
+Deterministic attempts make no conversation model call; only their judge
+questions, if the scenario has any, are metered. Adaptive
 chat attempts are metered, and a run pins its whole spending envelope before the
 first attempt starts: an upper-bound cost estimate and a ceiling on model calls.
 
@@ -175,9 +177,10 @@ queued.
 
 ## Grouping failures and comparing runs
 
-A run's results group failing attempts by **cause**. Attempts that failed the
+Skysay groups a run's failing attempts by **cause**. Attempts that failed the
 same critical rule are one cluster even if what happened afterwards differed, so
-forty failures usually resolve to two or three real problems.
+forty failures usually resolve to two or three real problems. The workspace
+results page does not show these groups yet.
 
 You can designate any finished run of a suite as its **baseline** by sending
 `baseline_run_id` on the suite `PATCH`. Later runs then report deltas against
@@ -185,7 +188,8 @@ it: pass rate, critical failures, duration, and which failure clusters are new
 since. A baseline must belong to the same suite, must have finished, and must
 have recorded attempts — each of the three is refused because it would make the
 comparison meaningless rather than merely imprecise. Send an empty string to
-clear it.
+clear it. The results page shows the baseline run's passed count; it does not
+show the deltas yet.
 
 Where a delta cannot be computed it is reported as null rather than zero, and a
 comparison drawn over the most common causes says so rather than implying it saw
@@ -201,7 +205,8 @@ budget** and **Run history**.
 **Scenarios.** Add or edit a scenario of any type your workspace can run. The
 **AI caller · voice** type is available when Simulations Lab is enabled. Each
 scenario takes a name, how many attempts it makes per run (1 to 25), whether it is
-critical (a failed critical scenario fails the run), and a language. A scripted
+critical (a critical scenario whose attempt fails a critical rule fails the run
+critically; failing only a business rule fails that attempt), and a language. A scripted
 scenario takes the caller's lines in order; an AI caller takes a goal, first words,
 who the caller is, how they behave, when they cut in and when they change direction.
 A voice scenario also sets the background noise at the caller's microphone. Every
