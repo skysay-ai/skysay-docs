@@ -10,6 +10,8 @@ the case and recipient, calls the API, answers approved live-data requests
 through [Integrations](/docs/integrations), and reconciles signed results.
 Skysay owns the governed call execution.
 
+<Diagram name="start-a-call.svg" alt="Your application picks the case and recipient and sends POST /v1/calls. Skysay checks policy, wallet and workspace controls before anything is spent (a 400 when the agent can't run, a 429 with a retry delay when the queue is full), then your hosted agent makes the call. Signed events about how it ended, the recording and the transcript come back, and your own case record decides the next business step." />
+
 ## Ownership boundary
 
 | Your application owns | Skysay owns |
@@ -22,8 +24,6 @@ The hosted agent is managed in Skysay. Its AI model can be Gemini or another
 supported model. The model decides whether to use an allowed read Action; it
 does not receive your application's credentials or authority to choose arbitrary
 URLs.
-
-<Diagram name="start-a-call.svg" alt="Your application picks the case and recipient and sends POST /v1/calls. Skysay checks policy, wallet and workspace controls before anything is spent (a 400 when the agent can't run, a 429 with a retry delay when the queue is full), then your hosted agent makes the call. Signed events about how it ended, the recording and the transcript come back, and your own case record decides the next business step." />
 
 <Diagram name="live-fact.svg" alt="During a call your hosted agent uses an attached read Action. Skysay sends your adapter a signed JSON request with the call, agent and case references; the adapter verifies the signature, checks its own rules, reads the current fact from your CRM or billing system, and returns a small answer matching the Action's output schema. Skysay checks the answer's shape and size (64 KiB at most) before the agent sees it; a timeout, error or wrong shape is a failed result, never a blank or zero answer." />
 
@@ -125,8 +125,8 @@ the call completed.
 
 Attach only the read Actions that this agent needs. At call time the model can
 supply only that Action's declared business arguments. Skysay injects the
-canonical organization, project, call, agent, external references, and call
-context; it signs the request to your adapter. Your adapter verifies the
+canonical organization, project, call, agent, external references, and the
+call's variables; it signs the request to your adapter. Your adapter verifies the
 signature, checks its own business authorization, dispatches `tool.name`, and
 returns a bounded response matching the Action's output schema.
 

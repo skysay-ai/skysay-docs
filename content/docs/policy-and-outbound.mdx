@@ -15,6 +15,8 @@ or a caller ID that is not one of your workspace's numbers. Scopes fail
 closed, and an agent should still check the decision and cost before it
 places a live call.
 
+<Diagram name="outbound-checks.svg" alt="An outbound call request passes, in order, Number rules (caller ID, countries, agents), workspace capabilities (country list, channels, caps), the per-call policy (suspension, number registration) and a funds hold before it dials. A Number rules refusal is a 403 with no call record; a capabilities refusal is needs_review or policy_blocked; a per-call policy refusal is policy_blocked. The simultaneous-call limit and do-not-call list are also checked, and a refused call is never dialled or retried for you." />
+
 ## Your workspace capabilities
 
 Every workspace has one **capabilities** record from the moment it is created.
@@ -162,15 +164,20 @@ The route in the message carries that number's own id, so you can copy it.
 
 ### Why a call was refused before dialling
 
-A call is checked twice before it dials, in this order:
+Some checks refuse the request before a call exists: the caller number's own
+[Number rules](#the-caller-numbers-own-limits), a suspension, your workspace's
+do-not-call list and the simultaneous-call limit. These answer with an error
+(`423` for a suspension, `403` for the others), and no call is created. A
+wallet that cannot cover the call's hold answers `402` and creates no call
+either; see [Errors](/docs/errors#what-each-status-means).
+
+A call that passes them is checked twice more before it dials, in this order:
 
 1. **Workspace capabilities** (`outbound_authorization`): destination,
    channel, use-case profile, review signals and caps.
 2. **The per-call policy** (`outbound_policy`): no suspension, a caller
    number that is ready to call out (its carrier registration is complete
    where its country needs one), and a valid destination.
-
-<Diagram name="outbound-checks.svg" alt="An outbound call request passes, in order, Number rules (caller ID, countries, agents), workspace capabilities (country list, channels, caps), the per-call policy (suspension, number registration) and a funds hold before it dials. A Number rules refusal is a 403 with no call record; a capabilities refusal is needs_review or policy_blocked; a per-call policy refusal is policy_blocked. The simultaneous-call limit and do-not-call list are also checked, and a refused call is never dialled or retried for you." />
 
 A call refused at either check ends with `status: "policy_blocked"` (or
 `"needs_review"`) and is never dialled. Every read of it (the response to
@@ -259,10 +266,11 @@ machine. This is a read — it changes nothing.
 
 <Step>
 
-### Get explicit human approval
+### Confirm with a person (your application's check)
 
-Show the decision and cost to a human and wait for a clear yes. Never place a
-live call or send a live SMS on an implied approval.
+Skysay has no approval step. When an AI client places calls for someone, it
+should still show that person the decision and cost and wait for a clear yes.
+Never let it place a live call or send a live SMS on an implied yes.
 
 </Step>
 

@@ -17,6 +17,8 @@ by your workspace and project. The caller cannot change its destination,
 credentials or booking rules. Existing [webhook Integrations](/docs/integrations)
 continue to work independently.
 
+<Diagram name="calendar-booking.svg" alt="Six steps: the agent checks times (up to five offers, each held for three minutes), the caller picks one, the agent reads it back with nothing booked yet, the caller says a later, explicit yes, Skysay checks the offer is still valid and records the booking intent, and the calendar answers. It is reported booked only when the calendar confirms it; a no or silence never books, an expired or taken time is unavailable, and an uncertain result is unconfirmed and never re-sent." />
+
 ## Connect and select a destination
 
 Open **Integrations â†’ Calendar booking** and choose the provider. A signed-in
@@ -147,7 +149,7 @@ language. An existing custom listener or BYOK selection is preserved. **Voice â†
 Booking confirmation** shows the selected model, language coverage and additional
 usage price; **Custom confirmation setup** exposes manual controls. Unsupported
 language/source selections need correction before write-enabled calls start.
-Cascade and workflow speech setup keeps its existing ownership. Read-only
+Standard and workflow speech setup keeps its existing ownership. Read-only
 calendar access alone needs no confirmation listener; other write tools still do.
 
 Native tools are available only on workers that support them. Workflow calendar
@@ -159,8 +161,6 @@ external MCP client is not required. Their definitions are part of the
 [generated API reference](/docs/api-reference).
 
 ## During a conversation
-
-<Diagram name="calendar-booking.svg" alt="Six steps: the agent checks times (up to five offers, each held for three minutes), the caller picks one, the agent reads it back with nothing booked yet, the caller says a later, explicit yes, Skysay checks the offer is still valid and records the booking intent, and the calendar answers. It is reported booked only when the calendar confirms it; a no or silence never books, an expired or taken time is unavailable, and an uncertain result is unconfirmed and never re-sent." />
 
 1. The AI agent checks local civil dates in an IANA timezone against your
    calendar and rules. It receives up to five offers with local time, timezone,
@@ -274,6 +274,8 @@ the workflow's own steps: a **Read tool** step that checks availability and
 one that books, as in the **Appointment booking** starter template. They use
 the calendar the AI agent has, so select **Check availability and book** first;
 nothing is attached for you. Without it, those steps take their error routes.
+The availability step offers the caller at most three times: the first three
+the calendar returns.
 How to build them is in
 [Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call).
 

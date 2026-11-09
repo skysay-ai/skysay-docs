@@ -14,6 +14,8 @@ It runs around the AI agent, not through it: detection is not part of the
 agent's prompt or its workflow, and the agent never decides on its own that it
 reached a voicemail box.
 
+<Diagram name="voicemail-detection.svg" alt="Skysay listens to the first seconds of an answered call. Only a spoken greeting (three or more words, or one the language model reads as a voicemail greeting) followed by one clean record beep and quiet proves a mailbox; then an agent set to Hang up ends the call about 6.5 seconds after the beep, and Watch only (the default) keeps talking and records the verdict. Without proof the call is treated as a person; suspicion alone never acts." />
+
 ## Unsure means a person
 
 A wrong "voicemail" verdict is worse than a missed one. Hanging up on a person
@@ -24,8 +26,6 @@ lopsided on purpose:
 - everything else only raises suspicion, and suspicion never acts alone;
 - any sign of a person wins, and a call Skysay is not sure about is treated as
   a person.
-
-<Diagram name="voicemail-detection.svg" alt="Skysay listens to the first seconds of an answered call. Only a spoken greeting (three or more words, or one the language model reads as a voicemail greeting) followed by one clean record beep and quiet proves a mailbox; then an agent set to Hang up ends the call about 6.5 seconds after the beep, and Watch only (the default) keeps talking and records the verdict. Without proof the call is treated as a person; suspicion alone never acts." />
 
 ## How a mailbox is recognised
 
@@ -186,7 +186,7 @@ With `hang_up`, on proof of a mailbox:
   the start of the agent's opening before the call ends;
 - a beep heard while the agent is speaking is never taken as proof, so a
   `hang_up` agent does not act when its opening covers the beep. Today the
-  opening starts once the person or mailbox pauses for about half a second,
+  opening starts once the person or mailbox pauses for about 0.6 to 0.8 seconds,
   which on a mailbox whose greeting pauses, or beeps right after it ends, is
   often while the beep sounds; those calls continue as with `shadow`. Holding
   the opening until a suspected mailbox has beeped is planned;
