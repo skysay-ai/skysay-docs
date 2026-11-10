@@ -72,20 +72,29 @@ billing paths.
 
 ## Understand the result
 
-- **No test call received:** no matching test marker reached the selected AI
-  line within the watch. Check your provider settings and try again.
-- **Received; forwarding unconfirmed:** the AI line received the test marker,
-  but there is insufficient trusted evidence of the original number or the
-  particular forwarding condition. A direct call to the AI line does not prove
-  forwarding.
-- **Condition verified:** both the same-call marker and qualified independent
-  evidence prove the original-number path and that condition for this setup.
-  Test busy and unanswered separately; one result does not verify the other.
+- **No test call received:** no call with the test code reached the selected
+  AI line within the watch. Check your provider settings and try again. Key
+  presses count whether they arrive as signalling or as tones in the call's
+  audio; spoken digits do not. A tone drowned out by speech or noise on the
+  calling phone is not counted, so key the code without talking over it.
+- **Test call received:** the setup shows "Your test call reached your AI agent
+  and the code matched." A call reached the AI line you selected, your AI agent
+  answered it, and the caller keyed in this test's code. If you called your
+  business number, as the step asks, your provider forwarded that call. The
+  test itself cannot show which number the caller dialed or which forwarding
+  condition sent the call, and a direct call to the AI line gives the same
+  result. The condition is therefore not marked as verified. In the API this
+  is the test status `received_unconfirmed`.
+- **Condition verified:** both the same-call test code and qualified
+  independent evidence prove the original-number path and that condition for
+  this setup. Test busy and unanswered separately; one result does not verify
+  the other.
 
 Carrier headers are not automatically trusted. In particular, forwarding
 headers a carrier relays are unqualified until their exact provenance and
-meaning have been demonstrated. Ordinary manual tests on an unqualified
-provider therefore remain unconfirmed, even when you heard the AI answer.
+meaning have been demonstrated. No provider is qualified yet, so an ordinary
+manual test ends as **Test call received**, not **Condition verified**, even
+when forwarding works and you heard the AI answer.
 A controlled lab test can instead retain its original-number dial record,
 business-line branch trace and receiving-call evidence. It is restricted to
 the isolated test workspace and configured test numbers.
