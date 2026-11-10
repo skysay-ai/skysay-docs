@@ -31,6 +31,16 @@ before Skysay reports an answered call and starts the conversation model.
 
 ## The agent ends the call with `end_call`
 
+**New agents have `end_call`.** A hosted AI agent you create with
+**New AI Agent** in **Agents**, or through `POST /v1/agents` without a `tools`
+field, gets the built-in `end_call` tool, so it can hang up when the
+conversation is over. A `tools` list you send is taken as written: to create
+an agent that never ends a call itself, send a list without `end_call` (an
+empty list is allowed). On an existing agent, switch **End call** on or off
+under **Tools** in the agent editor. Without the tool an agent can say goodbye,
+but the line stays open until the other side hangs up or a safety rule ends
+the call.
+
 When the conversation is over, the agent calls the built-in `end_call` tool.
 Skysay then plays its goodbye and hangs up if the caller does not resume
 speaking before the close is committed. When that agent-requested ending
