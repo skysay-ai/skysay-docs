@@ -61,6 +61,38 @@ Where the goodbye comes from depends on the conversation engine:
 Either way, the wait for the goodbye is bounded. If it does not finish within
 about 15 seconds, the call is ended anyway.
 
+### On live engines, the spoken goodbye ends the call
+
+A live voice model (GPT-Live 1, Gemini Live, or Eleven Realtime when enabled)
+says its goodbye in its own voice and does not always follow it with
+`end_call`. So on these engines Skysay does not wait for the tool: when an agent that has `end_call` enabled says its goodbye, Skysay hangs
+up for it.
+
+- **After a goodbye, Skysay waits until the line has been quiet for about
+  2 seconds**, then ends the call with `ended_reason` `agent_completed`. A
+  "bye" said back only restarts that wait. If the other side says something
+  that needs an answer, the agent answers and the call stays open.
+- **If the agent says goodbye again after the other side has spoken, the call
+  ends then**, whatever the other side is playing. This is what stops an agent
+  repeating "goodbye" to a voicemail box or a recording that never pauses.
+- Any other line from the agent starts the count again.
+
+Skysay judges what the line does, not particular words, so this works in any
+language, and a word that can greet or take leave, such as "ciao", is judged
+by its place in the call: a greeting at the start is not a goodbye. It applies to incoming, outgoing and
+browser test calls. It is paused while the agent is working through a phone
+menu or waiting on hold, and it is off for an agent without `end_call`.
+
+You do not need to instruct the agent to call `end_call` after its goodbye on
+these engines, and instructions that forbid speaking, or repeat "call
+end_call", do not make the ending more reliable. Tell the agent *when* the
+conversation is over; the goodbye does the rest.
+
+This is a judgement about one spoken line, so it can be wrong. An agent that
+says goodbye while it still expects an answer is disconnected if the other
+side takes more than about 2 seconds to start replying, so do not have an
+agent end a line with a goodbye unless the conversation is over.
+
 ### Speaking again during a goodbye
 
 An agent's pending hang-up can be canceled when Skysay detects the caller
