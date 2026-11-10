@@ -56,7 +56,9 @@ Where the goodbye comes from depends on the conversation engine:
   is no separate voice for Skysay to speak a text line with. The agent says its
   own short goodbye and then calls `end_call` in the same turn. Skysay lets that
   goodbye finish playing, then hangs up. The tool's `message` is not spoken on
-  these engines, and it is not recorded as something the caller heard.
+  these engines, and it is not recorded as something the caller heard. On these
+  engines `end_call` only ends the call after the agent's goodbye; see
+  [On live engines, `end_call` needs the agent's goodbye](#on-live-engines-end_call-needs-the-agents-goodbye).
 
 Either way, the wait for the goodbye is bounded. If it does not finish within
 about 15 seconds, the call is ended anyway.
@@ -92,6 +94,62 @@ This is a judgement about one spoken line, so it can be wrong. An agent that
 says goodbye while it still expects an answer is disconnected if the other
 side takes more than about 2 seconds to start replying, so do not have an
 agent end a line with a goodbye unless the conversation is over.
+
+### On live engines, `end_call` needs the agent's goodbye
+
+A live voice model decides for itself when to call `end_call`, and it can call
+it at the wrong moment: in testing, a Gemini Live agent answered a caller's
+first sentence with "How can I help you today?" and called `end_call` in the
+same breath. So on GPT-Live 1, Gemini Live and Eleven Realtime, Skysay checks
+the call before it hangs up.
+
+<Diagram name="end-call-goodbye-check.svg" alt="On live engines, when the agent calls end_call Skysay lets the line it is speaking finish and judges whether the agent's latest line was its goodbye. Yes: the hang-up goes ahead and the call ends with agent_completed unless the caller speaks first. No: the call stays open and the agent is told it has not ended. Could not be judged: the hang-up goes ahead as before." />
+
+- **The agent's latest line was its goodbye:** the hang-up goes ahead as
+  described above. A goodbye said one turn earlier counts too, so an agent
+  that says "goodbye", hears "bye" and then calls `end_call` without another
+  word still ends the call.
+- **It was anything else, or the agent has not spoken yet:** the call stays
+  open. The agent is told the call has not ended and carries on. It does not
+  say anything about this to the caller.
+- **The caller had just spoken and the agent answered with `end_call` and no
+  words:** the call stays open, and the agent is asked to say one short goodbye
+  if the caller is finished, or to answer them if they are not. That goodbye
+  then ends the call, as in the section above. This happens once for each
+  thing the caller says.
+- **Skysay could not judge the line** (the judgement was unavailable or took
+  longer than 2.5 seconds, the caller cut the line off, or the agent's speech
+  produced no transcript): the hang-up goes ahead, as it did before this check
+  existed.
+
+What this means for you:
+
+- **An agent on a live engine cannot end a call without saying goodbye.** If
+  your prompt tells the agent to end a call silently (for example on reaching a
+  voicemail box), have it say a short goodbye first. A refused `end_call` does
+  not end the call later on its own.
+- **A hang-up comes about a second later than before.** Skysay waits for the
+  line the agent is speaking to finish, then for the judgement, which usually
+  takes under a second.
+- **An apology for a wrong number counts as a goodbye.** When an agent that
+  placed the call apologises for having reached the wrong person or the wrong
+  number, Skysay treats that line as its goodbye, so the agent can end the
+  call with it. If the agent says only that apology and both sides then stay
+  quiet for about 2 seconds, the call ends, as after any goodbye. An agent that
+  tells a caller that *they* have dialled the wrong number is not ending its
+  call, and that line is not treated as a goodbye.
+- **After a refused `end_call`, the silence recovery described under
+  [Speaking again during a goodbye](#speaking-again-during-a-goodbye) applies:**
+  if nobody speaks, the agent checks in and the call then ends in the usual way.
+
+Like the spoken-goodbye rule, this is a judgement about one spoken line, in any
+language, and it can be wrong in both directions: a goodbye judged as something
+else keeps the call open until the agent says goodbye again, and a line that
+only sounds like a goodbye lets the hang-up through. It applies to incoming,
+outgoing and browser test calls. Standard agents are not affected: there the
+goodbye is the tool's `message`, which Skysay speaks itself. Eleven Realtime
+follows the same rule, but it has not been measured on live Eleven Realtime
+calls.
 
 ### Speaking again during a goodbye
 
@@ -189,7 +247,9 @@ So the agent is instructed to end a call only when one of these happens:
 It is also instructed, when it cannot help with a request, to say so and stay
 on the line. This is an instruction to the model, not a guarantee: the model
 decides when to invoke `end_call`, and it can still request an ending earlier
-than these rules allow. Speech detection protects a pending close, but does
+than these rules allow. On live engines such a request is carried out only
+after the agent's goodbye (see
+[above](#on-live-engines-end_call-needs-the-agents-goodbye)). Speech detection protects a pending close, but does
 not prove the caller intended to finish. Whatever the
 agent does, the call also ends when the caller hangs up or when it reaches its
 maximum length.
