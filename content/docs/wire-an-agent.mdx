@@ -878,15 +878,15 @@ it.
   `POST /v1/agents` with `"mode": "external_audio"`. `connect_external_agent`
   is the shortcut for the same pair.
 
-`POST /v1/agents` answers with the agent's signing secret in
+`POST /v1/agents` answers with the agent's signing key in
 `agent_endpoint.webhook_secret`, once. Save it immediately: every later read
 returns `[REDACTED]`. It signs each event and tool call Skysay sends to your
 webhook; verify `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature` as
-described in [Post-call results](/docs/post-call-results).
+described in [Signing key](#signing-key).
 When you create the agent with the workspace form, its page shows the same
-secret once, straight after creation. Copy it before you leave or refresh the
-page. If you lose it, or never saw it, create a new one: see
-[Signing secret](#signing-secret).
+key once, straight after creation. Copy it before you leave or refresh the
+page. If you lose it, or never saw it, get a new one: see
+[Signing key](#signing-key).
 
 Webhook signature verification, idempotency and backpressure handling stay in
 your app. `GET /v1/agents/{agent_id}/handoff` returns the generated setup
@@ -899,12 +899,12 @@ To send a phone number's calls to a realtime audio agent, open
 agent. Over the API that is `answer_with_skysay_agent` with the agent's
 `agent_id`, as for any agent: the agent's mode decides who answers.
 
-## Signing secret
+## Signing key
 
-Every AI agent has a signing secret. Skysay signs each request it sends for
-the agent with it: the webhook tools of a hosted agent, and the events, tool
-calls and audio stream of an outside agent. Your service uses it to check that
-a request came from Skysay.
+Every AI agent has a signing key. Skysay signs each request it sends for the
+agent with it: the webhook tools of a hosted agent, and the events, tool calls
+and audio stream of an outside agent. Your server uses it to check that a
+request came from Skysay. The API calls it `webhook_secret`.
 
 ### Verify a request
 
@@ -912,7 +912,7 @@ Each request carries two headers:
 
 - `X-Agent-Telco-Timestamp`: when Skysay signed it, in Unix seconds.
 - `X-Agent-Telco-Signature`: `sha256=` followed by the hex HMAC-SHA256 of
-  the timestamp, a dot and the exact raw body, keyed with the signing secret.
+  the timestamp, a dot and the exact raw body, keyed with the signing key.
 
 Compute the same HMAC over the body as it arrived, before you parse it, and
 compare it with a constant-time check. Reject a request whose signature does
@@ -921,35 +921,35 @@ not match, or whose timestamp is more than five minutes from your clock.
 ```python
 import hashlib, hmac, time
 
-def verify(secret: str, raw_body: bytes, timestamp: str, signature: str) -> bool:
+def verify(key: str, raw_body: bytes, timestamp: str, signature: str) -> bool:
     if abs(time.time() - int(timestamp)) > 300:
         return False
     signed = timestamp.encode() + b"." + raw_body
-    expected = hmac.new(secret.encode(), signed, hashlib.sha256).hexdigest()
+    expected = hmac.new(key.encode(), signed, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature.removeprefix("sha256="))
 ```
 
-### Get the secret
+### Get the key
 
-We show a signing secret only once. After that, every read returns
-`[REDACTED]`, and the only way to get a secret you can see is to create a new
-one.
+We show a signing key only once. After that, every read returns `[REDACTED]`,
+and the only way to get a key you can see is to get a new one.
 
 - **When you create the agent.** `POST /v1/agents` returns it in
   `agent_endpoint.webhook_secret`. In the workspace, an outside agent's page
-  shows it once, straight after creation. A hosted agent's page does not: after
-  you add webhook tools, create a new secret as below.
-- **At any time, in the workspace.** Open the agent. On a hosted agent, go to
-  **Tools**; on an outside agent, stay on its page. Under **Signing secret**,
-  choose **Create a new signing secret** and confirm. The page shows the new
-  secret once. Copy it before you leave or refresh the page.
+  shows it once, straight after creation. A hosted agent's page does not:
+  after you add webhook tools, get a new key as below.
+- **At any time, in the workspace.** Open the agent. On an outside agent, look
+  under its connection. On a hosted agent, open **Tools**: the control sits
+  right under its webhook tools, and only appears once the agent has one.
+  Under **Check that requests come from Skysay**, choose
+  **Get a new signing key** and confirm. The page shows the new key once.
+  Copy it before you leave or refresh the page.
 - **At any time, over the API.** `POST /v1/agents/{agent_id}/webhook-secret/rotate`
   with an `agents:write` key returns `{"agent_id", "webhook_secret",
-  "rotated_at"}`. It is not available as an MCP tool, so the secret never
-  enters a model's context.
+  "rotated_at"}`. It is not available as an MCP tool, so the key never enters
+  a model's context.
 
-The old secret stops working at once. Put the new one in your service straight
-away: until you do, your service rejects Skysay's requests. A request that was
-already on its way when you made the new secret still carries the old
-signature. Keep the secret out of logs and source code.
-
+The old key stops working at once. Put the new one in your server straight
+away: until you do, your server rejects Skysay's requests. A request that was
+already on its way when you got the new key still carries the old signature.
+Keep the key out of logs and source code.
