@@ -7,6 +7,7 @@ import {
   PhonePlus,
   Phone,
   PhoneIncome,
+  RedoCircle,
   Codepen,
   MultiBubble,
   BadgeCheck,
@@ -101,6 +102,7 @@ const ICONS = {
   PhonePlus,
   Phone,
   PhoneIncome,
+  RedoCircle,
   Codepen,
   MultiBubble,
   // fumadocs-core's loader builds an invisible top-level "folder" node
