@@ -15,8 +15,11 @@ simulation-only tool mocks. Voice attempts make a real call in a test room,
 using your AI agent's saved engine. Business writes such as sending an SMS,
 transferring a customer or changing an integration are blocked. Voice tests
 retain conversation controls such as ending the call and switching language.
-Voice tests use your workspace wallet for measured usage. Scripted tests are free;
+Voice tests use your workspace wallet for measured usage. Scripted tests make no
+model call of their own, but their judge questions are metered like any other;
 adaptive chat costs remain tracked against the suite budget.
+
+<Diagram name="simulation-run.svg" alt="A suite's scenarios run when you start a run, which freezes the revision, agent setup, workflow and spend ceiling. Each attempt plays with its runner (scripted, AI caller in chat, or AI caller by voice) and is checked against the rules in order: ended normally (voice only), critical, business, quality. Each attempt ends pass, fail or error, and an error never counts for or against you." />
 
 ## The shape of a suite
 
@@ -39,11 +42,11 @@ when Simulations Lab is enabled:
 
 | Runner | Workspace name | What it tests |
 | --- | --- | --- |
-| **Deterministic** | Scripted | Exact workflow routes, mocked tools and terminal outcomes, without model calls. |
+| **Deterministic** | Scripted | Exact workflow routes, mocked tools and terminal outcomes, without conversation model calls (judge questions are still metered). |
 | **Adaptive chat** | AI caller · chat | An AI caller conversing with the workflow in text. |
 | **Adaptive voice** | AI caller · voice | A synthetic caller speaking to the real AI agent in a live test room. |
 
-Voice tests support cascade, GPT-Live, Gemini Live and Eleven Realtime agents.
+Voice tests support Standard, GPT-Live, Gemini Live and Eleven Realtime agents.
 They use the agent's own configuration. They do not substitute a different
 transcriber or voice engine to make a test run. The caller has its own voice
 and listener, selected for the scenario language.
@@ -139,8 +142,8 @@ telling you something it does not know.
 
 After **Start run**, the results page shows **Waiting to start**, then
 **Test in progress**. While the tab is visible, it checks for new results every
-five seconds. You can expand an attempt to inspect its transcript and checks
-while the rest of the run continues. A critical failure remains visible as soon
+five seconds. You can expand an attempt to inspect its checks, and for a voice
+attempt its transcript, while the rest of the run continues. A critical failure remains visible as soon
 as it is recorded. The final verdict appears when execution finishes; queued or
 running work is never presented as a completed pass.
 
@@ -151,7 +154,8 @@ tests started by a person and linked to an attempt.
 
 ## What a run may spend
 
-Deterministic attempts make no model call and genuinely cost nothing. Adaptive
+Deterministic attempts make no conversation model call; only their judge
+questions, if the scenario has any, are metered. Adaptive
 chat attempts are metered, and a run pins its whole spending envelope before the
 first attempt starts: an upper-bound cost estimate and a ceiling on model calls.
 
@@ -173,9 +177,10 @@ queued.
 
 ## Grouping failures and comparing runs
 
-A run's results group failing attempts by **cause**. Attempts that failed the
+Skysay groups a run's failing attempts by **cause**. Attempts that failed the
 same critical rule are one cluster even if what happened afterwards differed, so
-forty failures usually resolve to two or three real problems.
+forty failures usually resolve to two or three real problems. The workspace
+results page does not show these groups yet.
 
 You can designate any finished run of a suite as its **baseline** by sending
 `baseline_run_id` on the suite `PATCH`. Later runs then report deltas against
@@ -183,7 +188,8 @@ it: pass rate, critical failures, duration, and which failure clusters are new
 since. A baseline must belong to the same suite, must have finished, and must
 have recorded attempts — each of the three is refused because it would make the
 comparison meaningless rather than merely imprecise. Send an empty string to
-clear it.
+clear it. The results page shows the baseline run's passed and total attempts; it
+does not show the deltas yet.
 
 Where a delta cannot be computed it is reported as null rather than zero, and a
 comparison drawn over the most common causes says so rather than implying it saw
@@ -194,10 +200,13 @@ every one.
 A suite's page in **Simulations Lab** has three tabs: **Scenarios**, **Pass rules &
 budget** and **Run history**.
 
+<Walkthrough id="simulations-lab" />
+
 **Scenarios.** Add or edit a scenario of any type your workspace can run. The
 **AI caller · voice** type is available when Simulations Lab is enabled. Each
 scenario takes a name, how many attempts it makes per run (1 to 25), whether it is
-critical (a failed critical scenario fails the run), and a language. A scripted
+critical (a critical scenario whose attempt fails a critical rule fails the run
+critically; failing only a business rule fails that attempt), and a language. A scripted
 scenario takes the caller's lines in order; an AI caller takes a goal, first words,
 who the caller is, how they behave, when they cut in and when they change direction.
 A voice scenario also sets the background noise at the caller's microphone. Every
@@ -330,7 +339,9 @@ Verdicts come in two levels, and the order matters:
 
 - **Critical** assertions are the safety envelope: the terminal state, required
   and forbidden routes, tools and steps, disclosure ordering, and duration
-  policy. These must hold on every attempt.
+  policy. These must hold on every attempt. On a voice attempt, **Must use
+  tools** is graded as a business assertion instead; a forbidden tool stays
+  critical.
 - **Business** assertions are what the conversation was supposed to achieve:
   the expected outcome, turn limits, and expected mocks.
 
@@ -382,7 +393,8 @@ synthetic more important, not less.
 
 Voice-test charges appear in your normal workspace wallet. Keeping test calls out
 of production analytics does not make their provider usage free. Scripted attempts
-cost nothing; adaptive chat costs remain tracked against the suite budget.
+make no conversation model call, but their judge questions are metered;
+adaptive chat costs remain tracked against the suite budget.
 
 ### Finding a lab call in Calls
 
@@ -408,9 +420,11 @@ returns only calls a customer or a caller actually made, exactly as before.
 ## Live-call voice tests
 
 An **AI caller · voice** test is a live call: a synthetic caller talks to your
-real AI agent out loud, on the AI agent's own engine (cascade, GPT-Live, Gemini
+real AI agent out loud, on the AI agent's own engine (Standard, GPT-Live, Gemini
 Live or Eleven Realtime), in a test room. No phone number and no phone network
 are involved.
+
+<Diagram name="simulation-voice-test.svg" alt="A voice test runs in a test room with no phone number and no phone network: Skysay's AI caller, with your scenario's persona, voice and noise, talks out loud with your AI agent on its own saved engine, for at most 150 seconds or 20 caller turns by default. Your scenario's mocks answer SMS, booking, transfer, webhook and integration tools, so nothing real is sent; knowledge search and ending the call still run for real. The result shows the verdict, every rule with its evidence, timings, a recording and the final charge." />
 
 ### Workflow call or prompt call
 
@@ -778,16 +792,3 @@ that can be linked are listed) with an optional note.
 Simulation suites roll out per workspace. While the capability is not enabled for
 yours, every route above answers `404`. If you expect access and see `404`,
 contact support rather than retrying.
-
-## Knowledge-search validation
-
-Unlinking an AI agent’s knowledge sources does not remove steps from its
-workflow. If Flow reports `AGENT_TOOL_NEEDS_SOURCE` for `search_knowledge_base`,
-open that step. To keep knowledge search, choose the AI agent’s knowledge-search
-tool: its declaration uses `source: "agent"` and an empty `projection`, and its
-fixed result is `knowledge_answer`.
-
-If you do not want knowledge search, remove its step and unused tool declaration,
-reconnect the surrounding routes and remove references to its answer. Check
-validation again before testing. Repairing a tool declaration makes it valid;
-it does not remove the tool or change the workflow’s starting step.

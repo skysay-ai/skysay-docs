@@ -9,6 +9,8 @@ at the hosted endpoint, connects with OAuth or a scoped API key, and the Skysay 
 `tools/list` — ready to call. The [client setup recipes](/docs/install-connector) configure this endpoint;
 the [REST API](/docs/rest-endpoints) exposes the same capabilities.
 
+<Diagram name="mcp-profiles.svg" alt="Three nested MCP addresses: Full (https://api.skysay.ai/mcp) has every tool, including wallet top-ups with wallet:write; the OpenAI connector (/mcp/openai) has calling and the other tools without wallet top-ups; Read-only (/mcp/read-only) has five workspace reads and no calls, writes or transcripts. Each address is its own OAuth resource, and each tool still needs its own scope." />
+
 ## The endpoint
 
 ```http
@@ -67,8 +69,8 @@ The single $5 welcome credit has no expiry and applies only to authenticated
 metered browser testing in Skysay. Number setup/rental, PSTN and SMS require
 purchased funds and ordinary readiness and metering. Optional approved funding
 is available on the full `/mcp` resource without a phone identity through `create_wallet_topup` with
-explicit `wallet:write` consent. The permission is offered unticked and approves
-no purchase. Each payment still needs approval of the exact amount, wallet
+explicit `wallet:write` consent. The permission is offered ticked on the consent
+screen, can be unticked, and approves no purchase. Each payment still needs approval of the exact amount, wallet
 currency and purpose. The tool returns a direct Stripe hosted-checkout URL, or
 accepts an owner-approved shared payment token from a compatible host/wallet.
 It uses the same billing service as the retained payment API; the historical
@@ -122,24 +124,46 @@ The resource discovery document lists **every** scope an OAuth client can be
 granted in `scopes_supported`, including `calls:write` (place calls). A client
 may ask for any of them; if it asks for nothing, it gets the read set.
 
-The consent screen shows each permission as a checkbox. What is ticked when you
-press **Allow access** is exactly what the app gets:
+The consent screen shows each permission as a checkbox, with its name and what
+it allows. What is ticked when you press **Allow access** is exactly what the
+app gets:
 
 - what the app asked for starts ticked;
 - what you already allowed it starts ticked, under **Already allowed**;
-- **Place calls** is offered unticked under **You can also allow** when the app
-  did not ask for it, so an assistant that never completes a scope step-up can
-  still be allowed to place calls.
-- **Add purchased funds** (`wallet:write`) is also offered unticked on a full
-  connection when neither requested nor already allowed. It enables
-  `create_wallet_topup`; it approves no payment. Each purchase needs separate
-  owner approval of the exact amount, currency and purpose. It is unavailable
-  on the OpenAI and read-only connectors; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
-- **Transcripts** (`recordings:read`) is offered unticked on a full connection
-  when neither requested nor already allowed. This is the existing combined
-  permission for call and simulation transcripts, recording details and
-  evidence that quotes conversation content—not a separate transcript scope.
-  Leaving it unticked does not grant content access.
+- every other permission one of the connection's tools needs is listed under
+  **You can also allow**, and starts ticked too, so a new connection can use
+  every tool it lists. Untick anything you don't want the app to do. This
+  also covers assistants that never complete a scope step-up. Changing an AI
+  agent's webhook address also needs **SMS messages** and **Transcripts**,
+  because the webhook then receives that content.
+
+On a full connection (`/mcp`) that list is:
+
+| Permission | Scope | What it allows |
+| --- | --- | --- |
+| **Transcripts** | `recordings:read` | Read call and simulation transcripts and recording details, and the simulation facts, grading notes and test evidence that quote them |
+| **SMS messages** | `sms:read` | Read SMS conversations and message text |
+| **Place calls** | `calls:write` | Place and end calls, manage contact lists and campaigns, add numbers to the do-not-call list |
+| **Send SMS** | `sms:send` | Send SMS messages from your numbers |
+| **Translate conversations** | `translations:write` | Request paid translation jobs for eligible conversations, charged to your Skysay balance |
+| **Change AI agents** | `agents:write` | Create and change AI agents (`create_agent`, `update_agent`, `delete_agent` and the other AI agent write tools), preview voices, create simulation suites, start and cancel paid simulation runs |
+| **Buy and configure numbers** | `numbers:write` | Request phone numbers, change routing, create and test phone servers |
+| **Request capabilities** | `onboarding:write` | Change voice and SMS capabilities, including which countries you can reach, and accept the outbound policy |
+| **Create trial fixtures** | `trial_calls:write` | Create offline synthetic trial calls without dialing |
+| **Simulation verdicts** | `simulation_suites:read` | Read simulation pass/fail results, without conversation content |
+| **Add purchased funds** | `wallet:write` | Request purchased Skysay calling credit with `create_wallet_topup` |
+
+**Add purchased funds** approves no payment. Each purchase still needs separate
+owner approval of the exact amount, currency and purpose. It is not offered on
+the OpenAI connector; see [funding paths and limits](/docs/billing#adding-funds-through-mcp).
+The OpenAI connector (`/mcp/openai`) offers the rest of the list. The read-only
+connector offers nothing beyond its read permissions.
+
+**Connections made before 10 November 2026 were upgraded.** Skysay gave every
+active full and OpenAI connection the same permissions a new connection from
+that client gets, so no reconnect is needed. The read-only connector was not changed. To give up
+a permission, reconnect and untick it, or disconnect the app under
+**Connected apps**.
 
 Connecting the same app again never takes a permission away on its own: approval
 keeps everything already allowed and adds what was asked for, so tokens issued
@@ -157,11 +181,16 @@ names it in `WWW-Authenticate` and in the body:
 }
 ```
 
-Reconnect and tick the named permission. If a transcript request repeatedly
+Some clients show only `Forbidden` and drop this body. If a write tool such as
+`create_agent` fails with a bare `Forbidden` while reads work on the same
+connection, the connection is missing that tool's permission.
+
+Reconnect and leave the named permission ticked. If a transcript request repeatedly
 asks you to reconnect, check that the consent screen shows the intended
 workspace and **Transcripts** is selected before approving. Some clients
 repeat their initial permission request instead of requesting the missing
-scope; the optional checkbox lets you approve it on the full connector.
+scope; its checkbox under **You can also allow** lets you approve it on the
+full and OpenAI connectors.
 Already-approved access is retained only for the same user, workspace, OAuth
 client and resource. A newly authorized connection can use its approved
 scopes; an older, narrower token does not gain permissions merely because

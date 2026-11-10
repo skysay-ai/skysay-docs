@@ -14,12 +14,14 @@ Every answered call therefore carries two separate facts:
 - its **status**, which says the transport answered, and
 - its **`answer_classification`**, which says what was heard afterwards.
 
+<Diagram name="answer-detection.svg" alt="When a call is answered, Skysay listens to the far end's audio and classifies it as human (a person spoke, then paused), silent, unknown, or non_human_audio (unbroken music or tones, or a recording repeating itself). What the agent does with non_human_audio is its Answer detection setting: shadow, the default, records the verdict and changes nothing; end_call makes the agent go quiet and ends the call, never while the agent is navigating a phone menu or hold queue; off collects nothing." />
+
 ## What the classification says
 
 | Value | Meaning |
 | --- | --- |
 | `human` | a person was heard |
-| `non_human_audio` | continuous music or tones held the line and nothing a person did was ever heard |
+| `non_human_audio` | continuous music or tones held the line, or a recording repeated the same cycle of things over and over, and nothing a person did was ever heard |
 | `silent` | the line answered and nothing at all was heard |
 | `unknown` | detection ran and reached no conclusion within its window |
 | `""` | no verdict was reported at all |
@@ -29,17 +31,19 @@ The last two are not the same thing, and the difference is worth keeping.
 was reported: the call was placed before this field existed, the agent has
 collection switched off, or the call never carried media.
 
-`reason_detail` qualifies the classification and nothing else:
+`reason_detail` names the kind for these classifications:
 
 | Value | Appears with |
 | --- | --- |
 | `caller_tune` | `non_human_audio` |
 | `hold_music` | `non_human_audio` |
+| `looping_recording` | `non_human_audio`: a recording on repeat |
 | `no_audio` | `silent` |
-| `""` | every other classification |
 
-It is not `ended_reason`. That field says why the call ended; this pair says
-what was heard when it started. A call can carry both.
+The same field also qualifies some `ended_reason` values; the full list is in
+[Post-call results](/docs/post-call-results#why-a-call-ended). `ended_reason`
+says why the call ended; the classification says what was heard after the call
+was answered. A call can carry both.
 
 ## Where the fields appear
 
@@ -73,19 +77,25 @@ non-human when it runs continuously for several seconds with no pause in it, its
 shape lacks the rhythm of speech, and no word is recognised in that window.
 Anything short of all three is `unknown`.
 
+One verdict is read from words instead of sound: a recording on repeat. When
+the far end says the same cycle of two to four things three times over, the
+call is `non_human_audio` with `looping_recording`, even though the recording
+has the pauses and words of speech.
+
 That narrowness is on purpose, and it has a stated cost in both directions:
 
 - **A recorded announcement is treated as a person.** Announcements and menu
   prompts have pauses in them, so they read as `human` or `unknown` and are left
-  alone. Recognising a voicemail box is a separate detector with its own
+  alone, unless they repeat themselves as above. Recognising a voicemail box is a separate detector with its own
   setting: see [Voicemail detection](/docs/voicemail-detection).
 - **Somebody talking over music that never stops is missed.** Their words never
   land in a pause, so they are not counted, and the call is classified on the
   audio's shape alone.
 
-Detection runs on the audio itself, in every language. It does not depend on a
-transcript being available, and it never stores audio: only the verdict, its
-score and the timings are recorded.
+The sound-based verdicts run on the audio itself, in every language, and do
+not depend on a transcript. The looped-recording verdict is the exception: it
+needs the far end's words to be recognised. Detection never stores audio: only
+the verdict, its score and the timings are recorded.
 
 ## The ending it is paired with
 
@@ -95,7 +105,8 @@ that way carries `answer_classification` `non_human_audio` and the detail naming
 which kind, so the reason says that nobody was there and the classification says
 what was heard instead.
 
-An agent set to `end_call` ends a call this way in two situations and no others.
+An agent set to `end_call` ends a call this way in three situations and no
+others.
 An agent left on `shadow`, which is every agent that has not been changed, still
 ends nothing.
 
@@ -118,9 +129,13 @@ else does within a second or two. The pause is the release, so nothing has to
 recognise them first and the call simply carries on. They are not greeted again
 and the call is not restarted; the agent picks up from where it is.
 
-Neither rule ends a call in its first forty-five seconds. Both silence the
-agent the moment they stand, and a pause before that point releases the rule
-and the silence together.
+**A recording on repeat.** The far end has said the same cycle of things three
+times over: the `looping_recording` verdict described above. The call ends once
+that verdict stands.
+
+Neither of the first two rules ends a call in its first forty-five seconds. Both
+silence the agent the moment they stand, and a pause before that point releases
+the rule and the silence together.
 
 On the four caller tunes measured below, that grace period never came into it.
 A song stops between phrases and between tracks, so the far end keeps yielding
@@ -129,7 +144,7 @@ and thirty-three separate runs of audio. The first unbroken twenty seconds
 does not complete until between fifty-one and seventy-five seconds in, long
 after the forty-five is up, so each call goes quiet and ends on the same tick.
 
-While either rule is standing, the agent stops speaking from its next turn
+While either of the first two rules is standing, the agent stops speaking from its next turn
 onward. The sentence already playing is not cut off. If the far end turns out to
 be a person, the agent's voice comes back on the same pause that keeps the call
 alive.

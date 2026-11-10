@@ -16,6 +16,8 @@ supplies its own values.
   `{{balance}}` reads as `balance`, and the values reach the model as data, in
   one block the model is told never to follow as instructions.
 
+<Diagram name="call-variables-flow.svg" alt="You declare an agent's variables once and write them into its greeting, workflow lines, instructions and SMS as {{name}}; each call brings its own values from the API, a campaign's contact list, a test or caller lookup. Before the call starts its spoken lines are filled in and every value checked: a missing required value or an invalid value refuses the call, naming the variable but never its value. Greetings, workflow lines and SMS are said or sent with the values filled in, while instructions only name a variable and the values reach the model as data." />
+
 ## Declare the variables
 
 An agent's variables, SMS templates and caller lookup live in one config, read
@@ -173,7 +175,7 @@ check that releases them:
   `date:YYYY-MM-DD`, `date:DD/MM/YYYY` or `date:MM/DD/YYYY`; `identifier` for an
   account or reference number).
 
-Protected variables need a [workflow](/docs/agent-workflows) agent on Cascade
+Protected variables need a [workflow](/docs/agent-workflows) agent on Standard
 or GPT-Live: the workflow decides when each line may be said, and a line before
 the confirming step that names a protected value is refused when the workflow
 is published.
@@ -182,7 +184,7 @@ On a GPT-Live workflow the live session is only the workflow's voice. It hears
 no one (the workflow's listener hears the caller), it is given each line as the
 workflow releases it, and before the confirming step no line it is given names a
 protected value. So a protected value reaches the model, and the caller, only
-after the caller is confirmed, exactly as on Cascade.
+after the caller is confirmed, exactly as on Standard.
 
 <Callout type="warn" title="A free-form live agent does not protect values">
   A GPT-Live or Gemini Live agent without a workflow cannot hold protected
@@ -215,7 +217,7 @@ What a keypad variable is not:
 - **Never text.** It is not in the agent's prompt, the `<call_variables>` block,
   a tool request or a webhook's `context.variables`, and the model never sees or
   says it. When a menu asks for it, the platform enters it on the agent's behalf:
-  on the keypad, or, for an agent on the Cascade engine and a prompt that accepts
+  on the keypad, or, for an agent on the Standard engine and a prompt that accepts
   speech only, spoken by the platform's own controller voice while the model is
   muted. Either way the transcript records only `Entered {field}`.
   A greeting, instruction, workflow line or SMS template that names it

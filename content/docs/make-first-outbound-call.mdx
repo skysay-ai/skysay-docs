@@ -1,10 +1,10 @@
 ---
 title: Make your first outbound call with an AI agent
-description: Check your number, permissions and approval, place one idempotent call, then inspect the actual result.
+description: Check your number and permissions, place one idempotent call, then inspect the actual result.
 icon: PhonePlus
 ---
 
-Make one approved telephone call through Skysay's REST API. Your application
+Make one telephone call through Skysay's REST API. Your application
 or MCP client initiates the action; the selected hosted voice AI agent, or
 your own realtime audio agent over the
 [audio stream](/docs/audio-stream-protocol), carries the conversation.
@@ -12,6 +12,8 @@ your own realtime audio agent over the
 This guide starts with an **existing, configured AI agent and active number**.
 For an empty workspace, follow the [full REST quickstart](/docs/quickstart-curl)
 first. A successful browser demo does not prove your number can call out.
+
+<Diagram name="first-outbound-call-path.svg" alt="Five steps: check readiness (an active number that can call out, purchased funds and a published AI agent), read your own workspace, prepare one call recording who agreed and why, place it once with one request ID and reuse that ID and body for any retry, then read the result. Neither a policy_blocked nor a live_blocked call was dialled: policy_blocked is a refusal that must never be redialled automatically, live_blocked means live calling is switched off, needs_review is a hold, and a returned ID is a call record, not proof that somebody answered." />
 
 ## Check readiness before calling
 
@@ -27,8 +29,9 @@ transcripts. Start from [authentication](/docs/authentication) and
 [workspace capabilities](/docs/policy-and-outbound#your-workspace-capabilities).
 A read-only MCP-resource credential cannot perform the write.
 
-Before executing, show the caller number, destination, purpose, proposed task
-and price basis to the approving person. Record **who approved it and why**.
+Skysay has no approval step. If someone else or an AI assistant places the
+call for you, show the caller number, destination, purpose, proposed task and
+price basis to the person responsible first, and record **who agreed and why**.
 The optional `user_authorization` fields record that decision; filling them
 with a placeholder is not obtaining consent. Identify an AI caller and handle recording
 notices according to your actual use case and applicable requirements.
