@@ -10471,6 +10471,82 @@
         ]
       }
     },
+    "/v1/agents/{agent_id}/webhook-secret/rotate": {
+      "post": {
+        "description": "Makes a new signing secret for the agent's requests (webhook tools, actions, event deliveries and the audio stream) and returns it once. The old secret stops working at once; there is no grace period. A request already on its way keeps the old signature. Another agent sharing the same connection gets the new secret too. Bound to the authenticated workspace. Available over REST only. Keep the secret out of logs.",
+        "operationId": "rotateAgentWebhookSecret",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agent_id": {
+                      "type": "string"
+                    },
+                    "rotated_at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "webhook_secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "agent_id",
+                    "webhook_secret",
+                    "rotated_at"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The new secret, shown only in this response."
+          },
+          "400": {
+            "description": "A request body with fields"
+          },
+          "403": {
+            "description": "Insufficient scope"
+          },
+          "404": {
+            "description": "Absent, deleted or foreign AI agent"
+          },
+          "409": {
+            "description": "The agent has no signing secret to replace"
+          }
+        },
+        "summary": "Replace an AI agent's signing secret",
+        "tags": [
+          "Agents"
+        ],
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
     "/v1/agents/{agent_id}/workflow": {
       "get": {
         "description": "The target agent authorizes the tenant boundary. This is a pure reconciliation read for PATCH/publish clients: it returns the current editable draft and revision, in-memory validation (its warnings include AGENT_TOOL_NOT_CONFIGURED for every action step this AI agent cannot run, see WorkflowToolWarning), a safe canvas-only layout, current published-version metadata, and a stable newest-first bounded version page. No provider or AI call, compilation write, repair, lazy creation, audit event, or other mutation occurs. An existing agent without a workflow draft returns 200 with workflow_state=not_created, workflow=null, published=null, and an empty versions page; only a missing or inaccessible target agent is a 404, and an agent in another workspace answers exactly as one that never existed.",
@@ -16106,6 +16182,204 @@
         "summary": "Read shallow public API liveness",
         "tags": [
           "Account"
+        ]
+      }
+    },
+    "/v1/highlevel/calls/outcome": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "getHighLevelCallOutcome",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Get highlevel call outcome",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/highlevel/calls/start": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "startHighLevelCall",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Start highlevel call",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "calls:write"
         ]
       }
     },

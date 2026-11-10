@@ -885,9 +885,8 @@ webhook; verify `X-Agent-Telco-Timestamp` and `X-Agent-Telco-Signature` as
 described in [Post-call results](/docs/post-call-results).
 When you create the agent with the workspace form, its page shows the same
 secret once, straight after creation. Copy it before you leave or refresh the
-page. If you lose it, duplicate the agent: the copy gets a new secret.
-Agents created before 24 September 2026 cannot retrieve their signing secret;
-recreate the agent or contact support.
+page. If you lose it, or never saw it, create a new one: see
+[Signing secret](#signing-secret).
 
 Webhook signature verification, idempotency and backpressure handling stay in
 your app. `GET /v1/agents/{agent_id}/handoff` returns the generated setup
@@ -899,3 +898,58 @@ To send a phone number's calls to a realtime audio agent, open
 **Answer with an Skysay agent** under "When someone calls", and choose the
 agent. Over the API that is `answer_with_skysay_agent` with the agent's
 `agent_id`, as for any agent: the agent's mode decides who answers.
+
+## Signing secret
+
+Every AI agent has a signing secret. Skysay signs each request it sends for
+the agent with it: the webhook tools of a hosted agent, and the events, tool
+calls and audio stream of an outside agent. Your service uses it to check that
+a request came from Skysay.
+
+### Verify a request
+
+Each request carries two headers:
+
+- `X-Agent-Telco-Timestamp`: when Skysay signed it, in Unix seconds.
+- `X-Agent-Telco-Signature`: `sha256=` followed by the hex HMAC-SHA256 of
+  the timestamp, a dot and the exact raw body, keyed with the signing secret.
+
+Compute the same HMAC over the body as it arrived, before you parse it, and
+compare it with a constant-time check. Reject a request whose signature does
+not match, or whose timestamp is more than five minutes from your clock.
+
+```python
+import hashlib, hmac, time
+
+def verify(secret: str, raw_body: bytes, timestamp: str, signature: str) -> bool:
+    if abs(time.time() - int(timestamp)) > 300:
+        return False
+    signed = timestamp.encode() + b"." + raw_body
+    expected = hmac.new(secret.encode(), signed, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature.removeprefix("sha256="))
+```
+
+### Get the secret
+
+We show a signing secret only once. After that, every read returns
+`[REDACTED]`, and the only way to get a secret you can see is to create a new
+one.
+
+- **When you create the agent.** `POST /v1/agents` returns it in
+  `agent_endpoint.webhook_secret`. In the workspace, the new agent's page
+  shows it once for an outside agent, and for a hosted agent that already has
+  a webhook tool.
+- **At any time, in the workspace.** Open the agent. On a hosted agent, go to
+  **Tools**; on an outside agent, stay on its page. Under **Signing secret**,
+  choose **Create a new signing secret** and confirm. The page shows the new
+  secret once. Copy it before you leave or refresh the page.
+- **At any time, over the API.** `POST /v1/agents/{agent_id}/webhook-secret/rotate`
+  with an `agents:write` key returns `{"agent_id", "webhook_secret",
+  "rotated_at"}`. It is not available as an MCP tool, so the secret never
+  enters a model's context.
+
+The old secret stops working at once. Put the new one in your service straight
+away: until you do, your service rejects Skysay's requests. A request that was
+already on its way when you made the new secret still carries the old
+signature. Keep the secret out of logs and source code.
+
