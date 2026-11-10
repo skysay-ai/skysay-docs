@@ -109,18 +109,18 @@ the call before it hangs up.
   described above. A goodbye said one turn earlier counts too, so an agent
   that says "goodbye", hears "bye" and then calls `end_call` without another
   word still ends the call.
-- **It was anything else, or the agent has not spoken yet:** the call stays
-  open. The agent is told the call has not ended and carries on. It does not
-  say anything about this to the caller.
+- **It was anything else, or the agent has not finished its first line yet:**
+  the call stays open. The agent is told the call has not ended and carries
+  on. It does not say anything about this to the caller.
 - **The caller had just spoken and the agent answered with `end_call` and no
   words:** the call stays open, and the agent is asked to say one short goodbye
   if the caller is finished, or to answer them if they are not. That goodbye
   then ends the call, as in the section above. This happens once for each
   thing the caller says.
 - **Skysay could not judge the line** (the judgement was unavailable or took
-  longer than 2.5 seconds, the caller cut the line off, or the agent's speech
-  produced no transcript): the hang-up goes ahead, as it did before this check
-  existed.
+  longer than 2.5 seconds, the caller cut the line off, or a later stretch of
+  the agent's speech produced no transcript): the hang-up goes ahead, as it did
+  before this check existed.
 
 What this means for you:
 
@@ -131,13 +131,11 @@ What this means for you:
 - **A hang-up comes about a second later than before.** Skysay waits for the
   line the agent is speaking to finish, then for the judgement, which usually
   takes under a second.
-- **An apology for a wrong number counts as a goodbye.** When an agent that
-  placed the call apologises for having reached the wrong person or the wrong
-  number, Skysay treats that line as its goodbye, so the agent can end the
-  call with it. If the agent says only that apology and both sides then stay
-  quiet for about 2 seconds, the call ends, as after any goodbye. An agent that
-  tells a caller that *they* have dialled the wrong number is not ending its
-  call, and that line is not treated as a goodbye.
+- **An apology is not a goodbye.** "I apologise for the interruption." does
+  not end a call; "I apologise for the interruption. Goodbye." does. The
+  [standing instruction](#the-standing-call-ending-instruction) therefore
+  tells an agent that reached the wrong person to apologise, give its short
+  goodbye and then end the call.
 - **After a refused `end_call`, the silence recovery described under
   [Speaking again during a goodbye](#speaking-again-during-a-goodbye) applies:**
   if nobody speaks, the agent checks in and the call then ends in the usual way.
@@ -217,7 +215,8 @@ Skysay, added after your own prompt on every call:
 > one completed hang-up, not one attempt; they never prohibit retrying a canceled
 > request. Do not repeat goodbyes while the caller is still telling you something.
 > If you are calling a specific person and whoever answers says they are not
-> that person, apologise once, share nothing about the matter, and invoke end_call.
+> that person, apologise once, share nothing about the matter, then give your one
+> short goodbye and invoke end_call.
 > Apart from the wrong person answering, invoke end_call only when the caller
 > has said goodbye or has confirmed they need nothing else; never end it because
 > you cannot help with their request, and never while they are still telling
