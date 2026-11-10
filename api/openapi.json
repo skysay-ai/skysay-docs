@@ -74,6 +74,7 @@
             "type": "string"
           },
           "tools": {
+            "description": "The agent's tools. A hosted agent created without this field gets the built-in end_call, so it can end its own calls. A list you send is taken as written: send an empty list to create a hosted agent that cannot end a call, or include end_call beside your other tools.",
             "items": {
               "$ref": "#/components/schemas/AgentTool"
             },
@@ -8397,7 +8398,7 @@
             "description": "Agent. agent_endpoint.webhook_secret carries the plaintext secret that signs every event and tool call sent to this agent's webhook (X-Agent-Telco-Signature), revealed once in this response only; every later read returns [REDACTED]. Save it immediately."
           },
           "400": {
-            "description": "organization_id or project_id is missing or blank; an unrecognized mode; a tools value that is neither empty nor a list; a metadata value that is neither empty nor an object; an external_audio or external_text agent missing its webhook_url/audio_stream_url; or a project_id this organization does not own. On create (unlike PATCH) a falsy tools or metadata -- null, false, 0, \"\" -- is read as an empty selection rather than refused"
+            "description": "organization_id or project_id is missing or blank; an unrecognized mode; a tools value that is neither empty nor a list; a metadata value that is neither empty nor an object; an external_audio or external_text agent missing its webhook_url/audio_stream_url; or a project_id this organization does not own. On create (unlike PATCH) a falsy tools or metadata -- null, false, 0, \"\" -- is read as no selection rather than refused: empty metadata, and for a hosted agent the default tools (end_call)"
           }
         },
         "summary": "Create an external or hosted agent",
@@ -10463,6 +10464,82 @@
           }
         },
         "summary": "Validate and update a hosted agent's STT, model, and TTS selections",
+        "tags": [
+          "Agents"
+        ],
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/webhook-secret/rotate": {
+      "post": {
+        "description": "Makes a new signing secret for the agent's requests (webhook tools, actions, event deliveries and the audio stream) and returns it once. The old secret stops working at once; there is no grace period. A request already on its way keeps the old signature. Another agent sharing the same connection gets the new secret too. Bound to the authenticated workspace. Available over REST only. Keep the secret out of logs.",
+        "operationId": "rotateAgentWebhookSecret",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "agent_id": {
+                      "type": "string"
+                    },
+                    "rotated_at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "webhook_secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "agent_id",
+                    "webhook_secret",
+                    "rotated_at"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The new secret, shown only in this response."
+          },
+          "400": {
+            "description": "A request body with fields"
+          },
+          "403": {
+            "description": "Insufficient scope"
+          },
+          "404": {
+            "description": "Absent, deleted or foreign AI agent"
+          },
+          "409": {
+            "description": "The agent has no signing secret to replace"
+          }
+        },
+        "summary": "Replace an AI agent's signing secret",
         "tags": [
           "Agents"
         ],
