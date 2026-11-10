@@ -679,8 +679,7 @@ button:not(:disabled) {
 /* Diagram click to enlarge (src/components/diagram-frame.jsx). The button
    sits under the picture's right corner, so it never covers a label at phone
    width. The picture opens in a full-screen modal <dialog> over the docs
-   overlay token; the copy fits the viewport, edge to edge on phones, and
-   pinch-zooms. */
+   overlay token; on a wide screen the copy fits the viewport. */
 .diagram {
   display: flex;
   flex-direction: column;
@@ -780,8 +779,39 @@ html.diagram-zoom-open {
   width: 100%;
   height: 100% !important;
 }
+/* Narrow screens: fitting a 960-wide picture to a phone shrinks its 14px
+   labels to about 6px, so the copy keeps its native width in a pane that
+   scrolls both ways (and pinch-zooms). Start-aligned with auto margins, so a
+   picture that overflows can be scrolled to from its left edge and one that
+   fits stays centred. */
 @media (max-width: 640px) {
   .diagram-dialog-body {
     padding: 64px 0 16px;
+    align-items: flex-start;
+    justify-content: flex-start;
   }
+  .diagram-dialog-body svg {
+    flex: none;
+    width: var(--diagram-native-width, 960px);
+    height: auto !important;
+    margin: auto;
+  }
+}
+.diagram-dialog-body:focus-visible {
+  outline: 2px solid var(--color-fd-ring);
+  outline-offset: -2px;
+}
+.diagram-scroll-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-fd-primary);
+  color: var(--color-fd-primary-foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
