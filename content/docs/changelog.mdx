@@ -6,6 +6,55 @@ icon: Journal
 
 ## 10 November 2026
 
+### Share an AI agent with a public link
+
+- Turn on **Public link** under **Share** to give a hosted AI agent an address such as `skysay.ai/talk/your-address` that anyone can open to talk to it in the browser.
+- Visitors need no account; each conversation lasts up to 5 minutes, uses the agent's published setup and real tools, and cannot use phone-only tools such as SMS or transfer.
+- Every conversation is a recorded call in **Calls** with the type **Public link**, billed to your balance at browser-call rates; welcome browser credit does not pay for it.
+- A link runs up to 3 conversations at once, and a visitor up to 2 at once and 10 a day.
+- [Share an AI agent with a public link](/docs/public-link) · [Calls and billing](/docs/public-link#calls-and-billing)
+
+### Live agents hang up after their spoken goodbye
+
+- On GPT-Live 1, Gemini Live and Eleven Realtime, an agent with `end_call` ends the call after its goodbye and about 2 seconds of quiet, even if it never calls the tool.
+- A goodbye said again after the other side spoke ends the call at once, so the agent stops repeating "goodbye" to a voicemail box; the call reports `agent_completed`.
+- It works in any language, pauses during phone menus and hold, and leaves agents without `end_call` as they were.
+- A new hosted agent made with **New AI Agent** in **Agents** or `POST /v1/agents` without a `tools` field now gets `end_call`; send your own `tools` list to leave it out.
+- [The spoken goodbye ends the call](/docs/how-calls-end#on-live-engines-the-spoken-goodbye-ends-the-call) · [The agent ends the call with end_call](/docs/how-calls-end#the-agent-ends-the-call-with-end_call)
+
+### Forwarded and backup calls ring for the caller
+
+- While Skysay rings your phone on a forwarded call or a phone backup call, the caller now hears a ring every 5 seconds instead of silence.
+- The first ring comes about 5 seconds after the caller is connected, so a phone answered sooner is reached with no ring.
+- The ring stops when your phone answers or the call ends as no answer or busy; charges, statuses and the 30-second ring limit are unchanged.
+- [Forward calls to a phone](/docs/forward-to-a-phone) · [Phone backup limitations](/docs/phone-backup#limitations)
+
+### Keep your number hears keypad tones sent as audio
+
+- The **Keep your number** forwarding test now counts the code whether your phone sends key presses as signalling or as audio tones; spoken digits do not count.
+- A tone drowned out by speech or noise is not counted, so key the code without talking over it.
+- A received test now reads "Your test call reached your AI agent and the code matched.", with what the test cannot prove beside it; the condition still shows as not verified.
+- [Understand the result](/docs/keep-your-number#understand-the-result)
+
+### Replace an AI agent's signing key
+
+- An outside agent, or a hosted agent with a webhook tool, shows **Check that requests come from Skysay** on its page; **Get a new signing key** shows a new key once.
+- The old key stops working at once, so put the new one in your server straight away.
+- `POST /v1/agents/{agent_id}/webhook-secret/rotate` does the same with an `agents:write` key; it is not an MCP tool, so the key never enters a model's context.
+- [Signing key](/docs/wire-an-agent#signing-key)
+
+### Clearer refusals for number rules and outgoing calls
+
+- A number rule now keeps only the fields its action uses, so switching a number back to forwarding without a `phone_number` answers `400` instead of reusing an old number.
+- Sending a number to a phone server without `phone_server_id` answers `400` instead of a server error.
+- `POST /v1/calls` with an unknown sending number, or another workspace's, now answers `404`, and your own number from another project `400`, instead of a server error.
+- [Forward calls to a phone](/docs/forward-to-a-phone) · [What each status means](/docs/errors#what-each-status-means)
+
+### Skysay in Arabic
+
+- The Skysay website and workspace are now available in Arabic, laid out right to left; this documentation stays in English.
+- [Skysay in Arabic](/ar)
+
 ### Forward to a phone now connects calls to the number you set
 
 - A number set to **Forward to a phone number** now rings the phone you saved on every call, showing your Skysay number, with no AI agent, recording or transcript.
