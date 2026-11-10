@@ -53,6 +53,14 @@ Use `update_number_rules` or `PATCH /v1/phone-numbers/{number_id}/number-rules`
 }
 ```
 
+Send `phone_number` every time you switch a number to forwarding. A rule
+keeps only the fields its current `when_called` action uses, so a number that
+forwarded before and has answered with an AI agent since has no saved phone
+to go back to: switching it to `forward_to_phone_number` without a
+`phone_number` is refused with `400`, and nothing changes. While the rule is
+already forwarding, a request that leaves `phone_number` out keeps the saved
+one.
+
 Read the saved rule back with `get_number_rules` (`numbers:read`). The
 generated [API reference](/docs/api-reference) lists the exact fields. Saving
 the rule places no call and reserves no money.
