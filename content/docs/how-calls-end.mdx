@@ -51,11 +51,11 @@ Where the goodbye comes from depends on the conversation engine:
 Either way, the wait for the goodbye is bounded. If it does not finish within
 about 15 seconds, the call is ended anyway.
 
-### On GPT-Live 1 and Gemini Live, the spoken goodbye ends the call
+### On live engines, the spoken goodbye ends the call
 
-A live voice model says its goodbye in its own voice and does not always
-follow it with `end_call`. So on these engines Skysay does not wait for the
-tool: when an agent that has `end_call` enabled says its goodbye, Skysay hangs
+A live voice model (GPT-Live 1, Gemini Live, or Eleven Realtime when enabled)
+says its goodbye in its own voice and does not always follow it with
+`end_call`. So on these engines Skysay does not wait for the tool: when an agent that has `end_call` enabled says its goodbye, Skysay hangs
 up for it.
 
 - **After a goodbye, Skysay waits until the line has been quiet for about
@@ -67,9 +67,9 @@ up for it.
   repeating "goodbye" to a voicemail box or a recording that never pauses.
 - Any other line from the agent starts the count again.
 
-Skysay reads what the line does, not particular words, so this works in any
-language, and a word that is both a greeting and a goodbye is not treated as
-a goodbye at the start of a call. It applies to incoming, outgoing and
+Skysay judges what the line does, not particular words, so this works in any
+language, and a word that can greet or take leave, such as "ciao", is judged
+by its place in the call: a greeting at the start is not a goodbye. It applies to incoming, outgoing and
 browser test calls. It is paused while the agent is working through a phone
 menu or waiting on hold, and it is off for an agent without `end_call`.
 
