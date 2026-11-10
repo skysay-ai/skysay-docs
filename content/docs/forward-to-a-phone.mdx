@@ -1,25 +1,28 @@
 ---
 title: Forward calls to a phone
-description: Ring your own phone on every call to a Skysay number, with no AI agent, billed as two carrier legs.
+description: Ring your own phone on every call to a Skysay number, with no AI agent and no AI charge.
 icon: RedoCircle
 ---
 
 A Skysay number can forward its calls to a phone you choose, such as an office
 line or a mobile, instead of answering with an AI agent. Every call to the
 number rings that phone. No AI agent joins the call, so there is no recording,
-transcript, summary or AI charge. You pay the two carrier legs of the call and
-nothing else.
+transcript, summary or AI charge. Skysay charges the two carrier legs of the
+call and nothing else; on [your own SIP trunk](#on-your-own-sip-trunk) it
+charges a flat per-minute fee instead.
 
 To send calls to your phone only when the AI agent cannot take them, use
 [Phone backup](/docs/phone-backup) instead. To bring calls from a number you
 already have to a Skysay AI line, see [Keep your number](/docs/keep-your-number).
 
+<Diagram name="forward-to-a-phone.svg" alt="A call to your Skysay number passes Skysay's checks, then Skysay dials your phone once: it rings for up to 30 seconds, shows your Skysay number, and the caller hears silence. Answered, the call connects for up to 30 minutes; busy, unanswered, hung up or refused, it ends with no retry or voicemail, and no AI joins it." />
+
 ## Set it up in the workspace
 
 1. Open **Numbers** and select the number.
-2. Under incoming call routing, choose **Forward to a phone number**.
+2. Under **When someone calls this number**, choose **Forward to a phone number**.
 3. Enter the phone that should ring, starting with `+` and the country code,
-   then save the routing.
+   then select **Save routing**.
 
 The phone must be:
 
@@ -32,8 +35,9 @@ The phone must be:
   your provider already forwards to this Skysay number is refused, because the
   call would go round in a loop.
 
-A destination that breaks one of these rules is refused when you save, with
-`400`, and nothing changes.
+A destination that breaks one of these rules is refused when you save, and
+nothing changes: a number that is not in international format or is on Skysay
+with `400`, a destination that would loop back with `409`.
 
 ## Set it up with the API
 
