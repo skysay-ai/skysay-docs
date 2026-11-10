@@ -675,3 +675,143 @@ button:not(:disabled) {
   outline: 2px solid var(--color-fd-ring);
   outline-offset: 2px;
 }
+
+/* Diagram click to enlarge (src/components/diagram-frame.jsx). The button
+   sits under the picture's right corner, so it never covers a label at phone
+   width. The picture opens in a full-screen modal <dialog> over the docs
+   overlay token; on a wide screen the copy fits the viewport. */
+.diagram {
+  display: flex;
+  flex-direction: column;
+}
+.diagram-picture {
+  cursor: zoom-in;
+}
+.diagram-enlarge {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-fd-muted-foreground);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.diagram-enlarge-tap {
+  display: none;
+}
+@media (hover: none) {
+  .diagram-enlarge-click {
+    display: none;
+  }
+  .diagram-enlarge-tap {
+    display: inline;
+  }
+}
+.diagram-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #243049;
+  border-radius: 8px;
+  background: var(--color-fd-card);
+  cursor: pointer;
+}
+.diagram-enlarge:hover {
+  color: var(--color-fd-primary);
+}
+.diagram-close:hover {
+  color: var(--color-fd-primary);
+  border-color: var(--color-fd-primary);
+}
+.diagram-enlarge:focus-visible,
+.diagram-close:focus-visible {
+  outline: 2px solid var(--color-fd-ring);
+  outline-offset: 2px;
+}
+html.diagram-zoom-open {
+  overflow: hidden;
+}
+.diagram-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--color-fd-overlay);
+  backdrop-filter: blur(6px);
+  color: var(--color-fd-foreground);
+  overscroll-behavior: contain;
+}
+.diagram-dialog::backdrop {
+  background: transparent;
+}
+.diagram-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  color: var(--color-fd-foreground);
+}
+.diagram-dialog-body {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 64px 32px 32px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.diagram-dialog-body svg {
+  width: 100%;
+  height: 100% !important;
+}
+/* Narrow screens: fitting a 960-wide picture to a phone shrinks its 14px
+   labels to about 6px, so the copy keeps its native width in a pane that
+   scrolls both ways (and pinch-zooms). Start-aligned with auto margins, so a
+   picture that overflows can be scrolled to from its left edge and one that
+   fits stays centred. */
+@media (max-width: 640px) {
+  .diagram-dialog-body {
+    padding: 64px 0 16px;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  .diagram-dialog-body svg {
+    flex: none;
+    width: var(--diagram-native-width, 960px);
+    height: auto !important;
+    margin: auto;
+  }
+}
+.diagram-dialog-body:focus-visible {
+  outline: 2px solid var(--color-fd-ring);
+  outline-offset: -2px;
+}
+.diagram-scroll-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-fd-primary);
+  color: var(--color-fd-primary-foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}

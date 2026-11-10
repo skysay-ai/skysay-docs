@@ -6,14 +6,38 @@ icon: Journal
 
 ## 10 November 2026
 
-### GPT-Live 1 and Gemini Live agents hang up after their goodbye
+### Forward to a phone now connects calls to the number you set
 
-- On GPT-Live 1 and Gemini Live, an agent with `end_call` now ends the call once it has said its goodbye and the line has been quiet for about 2 seconds, even when the model never invokes `end_call`.
-- An agent that says goodbye again after the other side has spoken ends the call at once, so it no longer repeats "goodbye" to a voicemail box or a recording.
-- It works in any language, reports `ended_reason` `agent_completed`, and is paused during phone menus and hold; an agent without `end_call` is unchanged.
-- [How calls end](/docs/how-calls-end#on-gpt-live-1-and-gemini-live-the-spoken-goodbye-ends-the-call) · [Conversation engines](/docs/conversation-engines#when-a-live-agent-proposes-to-end-a-call)
+- A number set to **Forward to a phone number** now rings the phone you saved on every call, showing your Skysay number, with no AI agent, recording or transcript.
+- Both carrier legs are billed at normal rates by the started minute, the incoming one from when your phone starts ringing; own-SIP-trunk numbers pay only the flat $0.05-per-minute fee.
+- Your phone rings for up to 30 seconds while the caller hears silence, and a call lasts up to 30 minutes; Skysay dials once and never forwards to a Skysay number or into a loop.
+- **Calls** lists each forwarded call as Completed, No answer, Busy, Canceled or Failed.
+- [Forward calls to a phone](/docs/forward-to-a-phone) · [Pricing of a forwarded call](/docs/forward-to-a-phone#pricing)
 
 ## 9 November 2026
+
+### Keep your number shows mobile forwarding codes
+
+- In **Keep your number**, the forwarding step now lists common mobile codes for the conditions you chose, filled in with your Skysay line, such as `**67*+12025550123#` when busy.
+- Each condition shows its turn-off code, such as `##67#`, and `##002#` turns off all forwarding on the phone.
+- These are examples, not a tested recipe: your telco may use other codes, and business or landline numbers usually need its portal or support.
+- The forwarding instructions in the API and MCP carry the same codes in `example_codes` and `example_stop_all_code`.
+- [Example forwarding codes](/docs/keep-your-number#example-forwarding-codes)
+
+### MCP consent offers every tool permission, ticked
+
+- When you connect an assistant over MCP, the consent screen now lists every permission its tools need under **You can also allow**, already ticked.
+- That is 11 permissions on `/mcp` and 10 on `/mcp/openai`, which never offers **Add purchased funds**; untick anything you don't want the app to do.
+- Connections made before 10 November 2026 were upgraded to the same permissions a new connection from that client gets, so no reconnect is needed.
+- **Add purchased funds** (`wallet:write`) still approves no payment: each top-up needs the owner's approval of the exact amount, currency and purpose.
+- [Permissions, consent and reconnecting](/docs/mcp#permissions-consent-and-reconnecting) · [Adding funds through MCP](/docs/billing#adding-funds-through-mcp)
+
+### The workspace shows an outside agent's signing secret
+
+- After you create a webhook or realtime audio agent with the workspace form, its page shows the agent's signing secret once.
+- Copy it before you leave or refresh the page; if you lose it, duplicate the agent, and the copy gets a new secret.
+- Your service uses the secret to verify `X-Agent-Telco-Signature` on every request Skysay sends to it.
+- [Bring your own agent](/docs/wire-an-agent#bring-your-own-agent) · [Post-call results](/docs/post-call-results)
 
 ### Outside audio agents connect before an outgoing call is dialled
 
