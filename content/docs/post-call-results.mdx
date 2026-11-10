@@ -305,7 +305,7 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
 | `agent_completed` | the agent finished the conversation and ended the call |
 | `media_session_lost` | the media session went away while the call was still live |
-| `no_human_after_answer` | the call was answered but only music or tones were ever heard |
+| `no_human_after_answer` | the call was answered but no person was there: only music or tones, a recording repeating the same cycle, or (with `reason_detail` `recorded_message_only`) a recording and nothing else |
 | `model_session_lost` | the conversation engine behind the call failed and could not be recovered; with `reason_detail` `transcriber_refused_request`, the call's transcriber refused the request it was opened with — see [When the transcriber refuses the request](#when-the-transcriber-refuses-the-request) |
 | `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) — or, with an empty `reason_detail`, the agent's opening could not be produced and never reached the caller ([details](/docs/voice-behavior#when-the-opening-never-reaches-the-caller)) |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
@@ -340,11 +340,12 @@ and it qualifies one of the two, which you can tell from its value:
 | `not_understood` | `ended_reason` `caller_unresponsive` | on a workflow call, the caller was heard after a question three times in a row but no words were recognised. See [When the caller isn't understood](/docs/agent-workflows#when-the-caller-isnt-understood) |
 | `silent` | `ended_reason` `caller_unresponsive` | on a workflow call, nothing was heard after a question three times in a row. This is rolling out and does not yet appear |
 
-It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` is the
-ending that goes with the `non_human_audio` classification, and only an agent set to `end_call`
-ends a call that way. See [Answer detection](/docs/answer-detection) for the whole set, for the
-three situations that end a call (one is a recording that repeats the same cycle), and for the
-per-agent setting.
+It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` goes
+with the `non_human_audio` classification on a call an agent set to `end_call` ended; a voicemail
+hang-up (`recorded_message_only`) is a separate path to the same reason. See
+[Answer detection](/docs/answer-detection) for the whole set, for the three situations in which
+`end_call` ends a call (one is a recording that repeats the same cycle), and for the per-agent
+setting.
 
 ### A wait that ran out after a conversation
 
