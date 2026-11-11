@@ -57,7 +57,8 @@ Where the goodbye comes from depends on the conversation engine:
   own short goodbye and then calls `end_call` in the same turn. Skysay lets that
   goodbye finish playing, then hangs up. The tool's `message` is not spoken on
   these engines, and it is not recorded as something the caller heard. On these
-  engines `end_call` only ends the call after the agent's goodbye; see
+  engines `end_call` only ends the call after the agent's goodbye, and the
+  instruction the agent receives says so; see
   [On live engines, `end_call` needs the agent's goodbye](#on-live-engines-end_call-needs-the-agents-goodbye).
 
 Either way, the wait for the goodbye is bounded. If it does not finish within
@@ -132,10 +133,11 @@ What this means for you:
   line the agent is speaking to finish, then for the judgement, which usually
   takes under a second.
 - **An apology is not a goodbye.** "I apologise for the interruption." does
-  not end a call; "I apologise for the interruption. Goodbye." does. The
-  [standing instruction](#the-standing-call-ending-instruction) therefore
-  tells an agent that reached the wrong person to apologise, give its short
-  goodbye and then end the call.
+  not end a call; "I apologise for the interruption. Goodbye." does. On these
+  engines the [standing instruction](#the-standing-call-ending-instruction)
+  therefore tells the agent that `end_call` only ends the call after its
+  goodbye, also when the wrong person answers. Standard agents are not
+  affected: their goodbye travels with the tool.
 - **After a refused `end_call`, the silence recovery described under
   [Speaking again during a goodbye](#speaking-again-during-a-goodbye) applies:**
   if nobody speaks, the agent checks in and the call then ends in the usual way.
@@ -215,8 +217,7 @@ Skysay, added after your own prompt on every call:
 > one completed hang-up, not one attempt; they never prohibit retrying a canceled
 > request. Do not repeat goodbyes while the caller is still telling you something.
 > If you are calling a specific person and whoever answers says they are not
-> that person, apologise once, share nothing about the matter, then give your one
-> short goodbye and invoke end_call.
+> that person, apologise once, share nothing about the matter, and invoke end_call.
 > Apart from the wrong person answering, invoke end_call only when the caller
 > has said goodbye or has confirmed they need nothing else; never end it because
 > you cannot help with their request, and never while they are still telling
