@@ -259,9 +259,33 @@ Presets: `sales` (no answer ×4 over three days, busy ×3, voicemail ×2),
 `collections` (more persistent on no answer), `single_attempt`. A completed
 conversation, a wrong party, a refusal, an invalid number or a do-not-call
 request is never redialed by any policy; a requested callback dials at the
-requested time.
+requested time, up to the campaign's [call-back limit](#call-backs).
 
 <Diagram name="campaign-contact-journey.svg" alt="Each contact waits for its calling hours, is called, and the call ends with one outcome. Your retry policy decides whether it is called again after the policy's gap (possible for no answer, busy, voicemail, technical failure or carrier rejected); otherwise it ends completed or failed. Waiting while paused, outside hours or for a free line uses no attempt, and a contact on your do-not-call register or in a language the agent can't use is never dialled." />
+
+### Call-backs
+
+A person who asks to be called back is called at the time they named, whatever
+the retry policy says. `max_callbacks` sets how many call-backs one contact may
+be granted in a campaign: 0 to 10, default 2. In the workspace it is
+**Call-back requests per contact** on the schedule step.
+
+- Only call-backs the campaign actually scheduled count. A retry after a busy
+  line or no answer is not a call-back, and asking twice on one call is one
+  request.
+- One request more than the limit ends that person's calls in the campaign:
+  the contact finishes as `completed` with disposition
+  `connected_callback_requested` and `skip_reason` `callback_limit_reached`
+  (**No call-backs left** on the campaign page). With `max_callbacks` 0, the
+  first request does this.
+- The AI agent is told in the same turn. On a campaign call the result of
+  `set_call_disposition` for `connected_callback_requested` carries
+  `callback_scheduled`. When it is `false`, no call-back will be placed and
+  `callback_at` is empty, so the agent does not promise one. The field is
+  absent on calls outside a campaign.
+- You can change `max_callbacks` on a draft and on a scheduled or paused
+  campaign. The value in force when a call settles is the one that applies.
+  Campaigns created before this setting existed have the default.
 
 ### Concurrency
 
@@ -290,7 +314,8 @@ structured termination cause and the agent's own signal:
 `carrier_rejected`, `do_not_call`, `cancelled`, `failed_technical`.
 
 A hosted agent declares the connected outcomes with the `set_call_disposition`
-builtin tool (a callback requires `callback_at`). Telephony outcomes come from
+builtin tool (a callback requires `callback_at`, and on a campaign call the
+result says whether the [call-back was scheduled](#call-backs)). Telephony outcomes come from
 the SIP result and are never model-supplied.
 
 A [conversation workflow](/docs/agent-workflows) also decides a disposition,
@@ -371,8 +396,8 @@ audience). While a campaign is `scheduled` or `paused` you can still change:
 - `calling_windows`, `time_zone_mode` and `time_zone`. Contacts that were
   waiting for the old window are re-evaluated on the next dispatcher tick;
   retries waiting on a backoff keep their time;
-- `retry_policy` or `retry_policy_preset`, `max_concurrency` and
-  `reserved_concurrency`;
+- `retry_policy` or `retry_policy_preset`, `max_concurrency`,
+  `reserved_concurrency` and `max_callbacks`;
 - `ends_at`, and `scheduled_start_at` while the run has not started.
 
 A draft may also receive a new audience in the same request: send `contacts`
