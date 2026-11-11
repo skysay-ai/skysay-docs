@@ -109,8 +109,8 @@ the call before it hangs up.
   described above. A goodbye said one turn earlier counts too, so an agent
   that says "goodbye", hears "bye" and then calls `end_call` without another
   word still ends the call.
-- **It was anything else, or the agent has not finished its first line yet:**
-  the call stays open. The agent is told the call has not ended and carries
+- **It was anything else, or the agent has not said anything yet:** the call
+  stays open. (A first line still being spoken is waited for and judged.) The agent is told the call has not ended and carries
   on. It does not say anything about this to the caller.
 - **The caller had just spoken and the agent answered with `end_call` and no
   words:** the call stays open, and the agent is asked to say one short goodbye
@@ -128,9 +128,9 @@ What this means for you:
   your prompt tells the agent to end a call silently (for example on reaching a
   voicemail box), have it say a short goodbye first. A refused `end_call` does
   not end the call later on its own.
-- **A hang-up comes about a second later than before.** Skysay waits for the
+- **A hang-up can come a moment later than before.** Skysay waits for the
   line the agent is speaking to finish, then for the judgement, which usually
-  takes under a second.
+  takes under a second and is never waited for longer than 2.5 seconds.
 - **An apology is not a goodbye.** "I apologise for the interruption." does
   not end a call; "I apologise for the interruption. Goodbye." does. On these
   engines the [standing instruction](#the-standing-call-ending-instruction)
@@ -146,9 +146,7 @@ language, and it can be wrong in both directions: a goodbye judged as something
 else keeps the call open until the agent says goodbye again, and a line that
 only sounds like a goodbye lets the hang-up through. It applies to incoming,
 outgoing and browser test calls. Standard agents are not affected: there the
-goodbye is the tool's `message`, which Skysay speaks itself. Eleven Realtime
-follows the same rule, but it has not been measured on live Eleven Realtime
-calls.
+goodbye is the tool's `message`, which Skysay speaks itself.
 
 ### Speaking again during a goodbye
 
