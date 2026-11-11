@@ -690,6 +690,85 @@
         },
         "type": "object"
       },
+      "AgentPublicLink": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "check": {
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "available",
+                  "yours",
+                  "taken",
+                  "invalid",
+                  "reserved"
+                ]
+              }
+            },
+            "required": [
+              "slug",
+              "state"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "hosted": {
+            "type": "boolean"
+          },
+          "link": {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "path": {
+                "example": "/talk/front-desk",
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "enabled",
+              "path"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "max_session_seconds": {
+            "example": 300,
+            "type": "integer"
+          },
+          "suggested_slug": {
+            "description": "A suggestion for a new link, when available from the name.",
+            "type": "string"
+          },
+          "version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "agent_id",
+          "link",
+          "suggested_slug",
+          "hosted",
+          "max_session_seconds",
+          "check"
+        ],
+        "type": "object"
+      },
       "AgentSharedTurnTaking": {
         "additionalProperties": false,
         "description": "Explicit values override the preset. Workflow bounds: 300\u20133000 ms silence, 0\u20131000 ms interruption. Cascade bounds: 100\u20132000 and 80\u20132000 respectively.",
@@ -9435,6 +9514,141 @@
         ]
       }
     },
+    "/v1/agents/{agent_id}/public-link": {
+      "get": {
+        "description": "Requires agents:read. A link may be unset, private, or public.",
+        "operationId": "getAgentPublicLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "When supplied, the AI agent must be in this project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "check",
+            "schema": {
+              "description": "An optional address to check for availability.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPublicLink"
+                }
+              }
+            },
+            "description": "Public link settings for this AI agent"
+          },
+          "401": {
+            "description": "Missing or invalid credential"
+          },
+          "403": {
+            "description": "Missing permission or workspace binding"
+          },
+          "404": {
+            "description": "No such AI agent in the authenticated workspace and requested project"
+          }
+        },
+        "summary": "Get an AI agent's public link",
+        "tags": [
+          "Agents"
+        ]
+      },
+      "patch": {
+        "description": "Requires agents:write. Send slug, enabled, or both. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
+        "operationId": "updateAgentPublicLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "When supplied, the AI agent must be in this project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "enabled": {
+                    "description": "True makes a hosted AI agent publicly callable. False keeps the URL reserved and turns off public access.",
+                    "type": "boolean"
+                  },
+                  "slug": {
+                    "description": "The last segment of the URL. After trimming and lowercasing it must have 3 to 40 characters and contain letters a-z, digits, and single hyphens between words. Reserved addresses are refused.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPublicLink"
+                }
+              }
+            },
+            "description": "Public link settings for this AI agent"
+          },
+          "400": {
+            "description": "Invalid settings or an AI agent that Skysay does not host"
+          },
+          "401": {
+            "description": "Missing or invalid credential"
+          },
+          "403": {
+            "description": "Missing permission or workspace binding"
+          },
+          "404": {
+            "description": "No such AI agent in the authenticated workspace and requested project"
+          },
+          "409": {
+            "description": "The requested address is already taken"
+          },
+          "423": {
+            "description": "Workspace risk controls block this configuration change"
+          }
+        },
+        "summary": "Change an AI agent's public link",
+        "tags": [
+          "Agents"
+        ]
+      }
+    },
     "/v1/agents/{agent_id}/simulation-suite-runs/{run_id}": {
       "get": {
         "description": "Attempts page in a stable order with an explicit has_more; the query count stays constant as attempts grow. Without recordings:read, attempt transcript, recording_ref and facts are omitted, assertion actual values and rubric rationale are omitted, and linked evidence omits notes. Status, verdicts and pagination remain available at the base scope, identically for API keys and OAuth MCP callers. A live-call voice attempt (a voice attempt of a run admitted as a live call) also carries live_call: its verdict and marks, the built-in check ended_normally (also its first assertion row; its code in reason), how the call ended, the stop record, the caller's measured timings, the recording state, charge not_charged, and agent_recorded, the AI agent's own transcript of the call (at most 200 lines, with agent_recorded_page.has_more). Its facts is empty and its rubric rows carry only id, result, score, threshold, reason and rationale; without recordings:read agent_recorded is omitted too. A live-call run also carries run.live_call: its call mode, whether the engine refuses workflow calls, the call ceiling and the workflow steps it stops at.",
@@ -16196,204 +16410,6 @@
         "summary": "Read shallow public API liveness",
         "tags": [
           "Account"
-        ]
-      }
-    },
-    "/v1/highlevel/calls/outcome": {
-      "post": {
-        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
-        "operationId": "getHighLevelCallOutcome",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "approval_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "contact_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "location_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "approval_id",
-                  "location_id",
-                  "contact_id"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "callId": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "enum": [
-                        "finished",
-                        "pending",
-                        "not_dialed",
-                        "unknown"
-                      ],
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "callId",
-                    "state",
-                    "status"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Original approved call result"
-          },
-          "400": {
-            "description": "Invalid or unverified contact"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Missing scope or expired approval"
-          },
-          "404": {
-            "description": "Bound approval or call not found"
-          },
-          "409": {
-            "description": "Installation changed or refresh in progress"
-          }
-        },
-        "summary": "Get highlevel call outcome",
-        "tags": [
-          "Integrations"
-        ],
-        "x-required-scopes": [
-          "calls:read"
-        ]
-      }
-    },
-    "/v1/highlevel/calls/start": {
-      "post": {
-        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
-        "operationId": "startHighLevelCall",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "approval_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "contact_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "location_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "approval_id",
-                  "location_id",
-                  "contact_id"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "callId": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "enum": [
-                        "finished",
-                        "pending",
-                        "not_dialed",
-                        "unknown"
-                      ],
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "callId",
-                    "state",
-                    "status"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Original approved call result"
-          },
-          "400": {
-            "description": "Invalid or unverified contact"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Missing scope or expired approval"
-          },
-          "404": {
-            "description": "Bound approval or call not found"
-          },
-          "409": {
-            "description": "Installation changed or refresh in progress"
-          }
-        },
-        "summary": "Start highlevel call",
-        "tags": [
-          "Integrations"
-        ],
-        "x-required-scopes": [
-          "calls:write"
         ]
       }
     },
