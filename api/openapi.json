@@ -14751,6 +14751,65 @@
         "x-required-scopes": [
           "calls:read"
         ]
+      },
+      "post": {
+        "description": "Adds contacts to a scheduled, running or paused campaign: the rows join the campaign's own contact list (the same validation and per-row report as POST /v1/contact-lists/{contact_list_id}/contacts, at most 10,000 rows per request and 50,000 contacts per list) and its run's queue in one transaction, so they are called inside their calling hours like the contacts the campaign launched with. A number on the do-not-call register is enrolled marked `do_not_call` and never dialed. Idempotent: a contact already in the queue is not added again (`already_enrolled`); a number already in the list but not in the queue is enrolled. The audience with the new contacts is authorized as at launch; if it would need review (for example a new destination country) the request is refused with 409 and nothing is added. A campaign that is a draft, completed or cancelled answers 409.",
+        "operationId": "enrollCampaignContacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "contacts": {
+                    "items": {
+                      "type": "object"
+                    },
+                    "maxItems": 10000,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "contacts"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The import report (accepted, rejected, skipped_duplicates, rejections, row_count) with campaign_id, run_id, enrolled, already_enrolled and do_not_call"
+          },
+          "400": {
+            "description": "No contacts, too many rows, or the list would exceed its size limit"
+          },
+          "404": {
+            "description": "The campaign is not in the authenticated workspace"
+          },
+          "409": {
+            "description": "The campaign is not scheduled, running or paused, or the audience with these contacts would need review"
+          }
+        },
+        "summary": "Enroll contacts into a launched campaign",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-required-scopes": [
+          "calls:write"
+        ]
       }
     },
     "/v1/campaigns/{campaign_id}/duplicate": {

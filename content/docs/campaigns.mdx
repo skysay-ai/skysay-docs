@@ -354,6 +354,37 @@ the limit in force: the copy's `max_concurrency` is at most the limit and its
 the response's `clamped` (empty when the copy matches the original), and the
 dashboard says so too.
 
+### Add contacts to a running campaign
+
+A campaign's audience is copied from its contact list when you launch it. To
+add people afterwards, enroll them:
+`POST /v1/campaigns/{campaign_id}/contacts` (MCP: `enroll_campaign_contacts`),
+with the same rows as a contact-list import, at most 10,000 a request.
+
+```json
+{ "contacts": [{ "phone_e164": "+14155550123", "name": "Dana Reyes" }] }
+```
+
+- The rows join the campaign's own contact list and its queue in one step.
+  They are called inside their calling hours, like the contacts the campaign
+  launched with.
+- The campaign must be scheduled, running or paused. A draft takes its
+  contacts from its list at launch; a completed or cancelled campaign answers
+  `409`, so duplicate it to call more people.
+- Enrolling is safe to repeat. A contact already in the campaign is not added
+  twice, and the response says so in `already_enrolled`. A number already in
+  the list but not yet in the campaign is enrolled.
+- A number on your do-not-call register is enrolled marked `do_not_call` and
+  is never dialled.
+- The campaign is checked as at launch with the new contacts in it. If they
+  would need a review, for example a destination country your workspace has
+  not called before, the request answers `409` and nothing is added.
+- A campaign does not finish while an enrolled contact is still to be called.
+
+The response is the list import's report (`accepted`, `rejected`,
+`skipped_duplicates`, `rejections`) plus `campaign_id`, `run_id`, `enrolled`,
+`already_enrolled` and `do_not_call`.
+
 ## Dispositions
 
 Every attempt ends in exactly one disposition, derived from the call's
