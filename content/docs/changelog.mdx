@@ -59,6 +59,24 @@ icon: Journal
 - The voice-stack answers (`GET` and `PATCH /v1/agents/{agent_id}/voice-stack`, MCP `get_agent_voice_stack` and `set_agent_voice_stack`) no longer warn about prompt languages on GPT-Live 1, Gemini Live or Eleven Realtime, which have no language setting.
 - [What each status means](/docs/errors#what-each-status-means) · [Engines and the language axis](/docs/conversation-engines#engines-and-the-language-axis)
 
+### Agents no longer report a booking as failed while the caller says yes
+
+- When a free-form voice AI agent checks a booking again while the caller's "yes" is still being processed, or after the booking succeeded, it now gets the booking's real status instead of an error.
+- So the agent no longer tells the caller that a successful booking failed.
+- [Receipts and uncertain outcomes](/docs/business-actions#receipts-and-uncertain-outcomes)
+
+### Incoming calls stay with one AI agent
+
+- When an incoming call reached a second voice worker while the first was already serving it, the second could join the call or drop it.
+- The second worker now stands aside, so the caller keeps one AI agent and the call carries on.
+- [Why calls fail](/docs/why-calls-fail)
+
+### Existing AI agents can end their calls
+
+- Every existing free-form hosted AI agent that did not have `end_call` now has it, so it can end a call after its goodbye; scripted workflow agents are unchanged.
+- It applies from each agent's next call, with nothing to republish; to keep an agent from ending calls itself, remove `end_call` from its tools.
+- [The agent ends the call with end_call](/docs/how-calls-end#the-agent-ends-the-call-with-end_call)
+
 ## 10 November 2026
 
 ### Share an AI agent with a public link
