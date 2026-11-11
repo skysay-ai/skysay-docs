@@ -724,6 +724,19 @@
           },
           "link": {
             "properties": {
+              "concurrent_conversations": {
+                "description": "How many conversations may run on this link at the same time: 3 until changed, 1 to max_concurrent_conversations. One visitor holds at most 2 at once whatever this is.",
+                "example": 3,
+                "type": "integer"
+              },
+              "daily_conversations_per_visitor": {
+                "description": "How many conversations one visitor may start on this link in a UTC day: 10 until changed, 1 to 1000, or null for no limit. Every conversation is billed to the workspace.",
+                "example": 10,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "enabled": {
                 "type": "boolean"
               },
@@ -738,12 +751,19 @@
             "required": [
               "slug",
               "enabled",
-              "path"
+              "path",
+              "daily_conversations_per_visitor",
+              "concurrent_conversations"
             ],
             "type": [
               "object",
               "null"
             ]
+          },
+          "max_concurrent_conversations": {
+            "description": "The highest concurrent_conversations this link may be given.",
+            "example": 5,
+            "type": "integer"
           },
           "max_session_seconds": {
             "example": 300,
@@ -765,6 +785,7 @@
           "suggested_slug",
           "hosted",
           "max_session_seconds",
+          "max_concurrent_conversations",
           "check"
         ],
         "type": "object"
@@ -9571,7 +9592,7 @@
         ]
       },
       "patch": {
-        "description": "Requires agents:write. Send slug, enabled, or both. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
+        "description": "Requires agents:write. Send any of slug, enabled, daily_conversations_per_visitor and concurrent_conversations. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
         "operationId": "updateAgentPublicLink",
         "parameters": [
           {
@@ -9598,6 +9619,21 @@
                 "additionalProperties": false,
                 "minProperties": 1,
                 "properties": {
+                  "concurrent_conversations": {
+                    "description": "How many conversations may run on this link at the same time: 3 until changed, 1 to max_concurrent_conversations. One visitor holds at most 2 at once whatever this is.",
+                    "maximum": 5,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "daily_conversations_per_visitor": {
+                    "description": "How many conversations one visitor may start on this link in a UTC day: 10 until changed, 1 to 1000, or null for no limit. Every conversation is billed to the workspace.",
+                    "maximum": 1000,
+                    "minimum": 1,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
                   "enabled": {
                     "description": "True makes a hosted AI agent publicly callable. False keeps the URL reserved and turns off public access.",
                     "type": "boolean"
