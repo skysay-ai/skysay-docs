@@ -3911,15 +3911,6 @@
             "format": "date-time",
             "type": "string"
           },
-          "followup_context": {
-            "default": "none",
-            "description": "What a follow-up call (a retry or a call-back) is told about the previous conversation with the contact. summary: its summary reaches the call as the built-in variables campaign.previous_summary and campaign.previous_follow_up; campaign.previous_summary_status says whether there is one. Every campaign call carries campaign.call_kind (first_contact, retry, callback or reopened).",
-            "enum": [
-              "none",
-              "summary"
-            ],
-            "type": "string"
-          },
           "from_number_ids": {
             "items": {
               "type": "string"
@@ -4052,14 +4043,6 @@
           },
           "ends_at": {
             "format": "date-time",
-            "type": "string"
-          },
-          "followup_context": {
-            "description": "What a follow-up call (a retry or a call-back) is told about the previous conversation with the contact. summary: its summary reaches the call as the built-in variables campaign.previous_summary and campaign.previous_follow_up; campaign.previous_summary_status says whether there is one. Every campaign call carries campaign.call_kind (first_contact, retry, callback or reopened).",
-            "enum": [
-              "none",
-              "summary"
-            ],
             "type": "string"
           },
           "from_number_ids": {
@@ -14538,7 +14521,7 @@
         ]
       },
       "post": {
-        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the workspace's concurrent-call limit (the plan's allowance unless Skysay set a different limit for the workspace; `reserved_concurrency` at most one less), a call-back budget (`max_callbacks`, 0 to 10, default 2: how many call-backs one contact may be granted; a request beyond it finishes the contact with `skip_reason` `callback_limit_reached`), follow-up context (`followup_context`, `none` or `summary`, default `none`: whether a retry or call-back is given the summary of the previous conversation with the contact), and an optional schedule. A campaign is locked at launch; duplicate it to change anything. The purpose is a free-form label shown on the campaign and recorded on each of its calls; no purpose is refused.",
+        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the workspace's concurrent-call limit (the plan's allowance unless Skysay set a different limit for the workspace; `reserved_concurrency` at most one less), a call-back budget (`max_callbacks`, 0 to 10, default 2: how many call-backs one contact may be granted; a request beyond it finishes the contact with `skip_reason` `callback_limit_reached`), and an optional schedule. A campaign is locked at launch; duplicate it to change anything. The purpose is a free-form label shown on the campaign and recorded on each of its calls; no purpose is refused.",
         "operationId": "createCampaign",
         "requestBody": {
           "content": {
@@ -14623,7 +14606,7 @@
         ]
       },
       "patch": {
-        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, max_callbacks, followup_context, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` must be at most the workspace's concurrent-call limit and a changed `reserved_concurrency` at most the limit minus one; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
+        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, max_callbacks, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` must be at most the workspace's concurrent-call limit and a changed `reserved_concurrency` at most the limit minus one; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
         "operationId": "updateCampaign",
         "parameters": [
           {
@@ -14745,6 +14728,64 @@
           }
         },
         "summary": "List the latest run's contacts with status, disposition, attempts and next attempt (bounded page)",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts": {
+      "get": {
+        "description": "Attempts oldest first. Each has `attempt_no`, `kind` (`first_contact`, `retry`, `callback` or `reopened`: why the contact was called), `channel`, `destination`, `started_at`, `settled_at` (null while the attempt is in flight), `disposition`, `termination_cause`, `call_id`, `decision` (`retry`, `callback`, `deferred` or `finished`: what the campaign did next), `next_at` (when the next attempt was scheduled for) and `finished_reason` (on the attempt that finished the contact, when the campaign named a reason, such as `callback_limit_reached`). A value the campaign did not record is null: attempts from before this history existed have no `kind` and no `decision`. `contact_id` is the `id` of a row of `GET /v1/campaigns/{campaign_id}/contacts`.",
+        "operationId": "listCampaignContactAttempts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The contact, its attempts and pagination"
+          },
+          "404": {
+            "description": "No such campaign or contact in this workspace"
+          }
+        },
+        "summary": "One contact's timeline in a campaign: every attempt in order, its result and what was decided next (bounded page)",
         "tags": [
           "Campaigns"
         ],
