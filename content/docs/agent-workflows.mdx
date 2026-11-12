@@ -625,15 +625,16 @@ Which languages count:
 
 ### How the lines are spoken
 
-- **Standard** speaks each line exactly as you wrote it, in the agent's voice.
+- **Standard** sends your authored line to the selected text-to-speech voice.
+  Test the spoken audio in your language; exact spoken wording is not guaranteed.
   A line is split only at spaces, into at most 128 pieces of up to 160 bytes
   of UTF-8 text each. A single word, or a run of text with no spaces, longer
   than that is refused rather than cut short; this matters for languages
   written without spaces.
 - **GPT-Live 1** speaks each line through the call's live session, in GPT's
   own voice and its own wording. The meaning follows your line, but the words
-  are not guaranteed to match it. Use Standard when a line must be said word for
-  word, such as a legal disclosure.
+  are not guaranteed to match it. Standard gives the voice your authored wording,
+  but you must verify the audio before relying on a required spoken disclosure.
   A line counts as spoken only once GPT-Live has played it to the caller in
   full, its ending included. If the model pauses partway through a line,
   Skysay waits up to 3 seconds for the rest and plays it. The call's
@@ -787,7 +788,8 @@ error `message`. They also run before any funds are reserved:
 
 When a spoken workflow call starts, Skysay places a hold that prices each
 source in its provider's own unit: the listener in audio seconds (Soniox in
-tokens), the voice in characters (Fish Audio in UTF-8 bytes, Soniox in tokens),
+tokens), the voice in characters (Fish Audio in UTF-8 bytes, Gemini 3.1 Flash
+TTS and Soniox in tokens),
 and on GPT-Live the session in seconds, with no backend model line and no
 text-to-speech line (see [Billing](/docs/conversation-engines#billing)). When
 the call ends, it settles to the usage of each source, and any difference from
@@ -1197,7 +1199,8 @@ it takes its error route. A template does not change a draft you already have.
 
 ### Engines and tests
 
-- **Standard** says each line with its results exactly as written. **GPT-Live
+- **Standard** sends each line, with its results filled in, to the selected
+  text-to-speech voice; verify its spoken output. **GPT-Live
   1** is given each line, results filled in, to read exactly, and says it in
   its own voice; its words are not guaranteed to match. Gemini Live cannot run
   workflow calls.
