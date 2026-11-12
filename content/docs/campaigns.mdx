@@ -287,6 +287,56 @@ be granted in a campaign: 0 to 10, default 2. In the workspace it is
   campaign. The value in force when a call settles is the one that applies.
   Campaigns created before this setting existed have the default.
 
+### Follow-up calls
+
+A retry or a call-back does not have to start from nothing. Every campaign
+call carries the built-in call variable `campaign.call_kind`, which says why
+the contact is being called now:
+
+| `campaign.call_kind` | The call is |
+| --- | --- |
+| `first_contact` | the first call to this contact in the campaign |
+| `retry` | another try after a call that did not reach the person |
+| `callback` | the call-back the person asked for |
+| `reopened` | a call to a contact you put back in the queue from the review inbox |
+
+Set `followup_context` to `summary` and a follow-up call is also told what was
+said the last time the campaign reached this person. In the workspace it is
+**Tell follow-up calls what was said last time** on the **Schedule & retries** step. The
+default is `none`.
+
+| Built-in | Value |
+| --- | --- |
+| `campaign.previous_summary_status` | whether there is a summary; see below |
+| `campaign.previous_summary` | the [call summary](/docs/call-summaries) of that conversation |
+| `campaign.previous_follow_up` | the follow-up that summary named, if it named one |
+
+- "Last time" is the last call that reached the person, not the last dial. A
+  busy line or an unanswered call after a real conversation does not erase it.
+- The call is never held back or refused for a summary.
+  `campaign.previous_summary_status` says what the call was given:
+
+  | Status | Meaning |
+  | --- | --- |
+  | `available` | the summary is in `campaign.previous_summary` |
+  | `no_previous_conversation` | the campaign has not reached this person before |
+  | `pending` | the summary of the last conversation is still being written |
+  | `unavailable` | that conversation has no summary: call summaries are off for the AI agent, the summary failed, or the call left no transcript |
+  | `withheld` | this AI agent keeps some values back until it has confirmed the person, or enters a value on a phone keypad, so it is not given what was said last time |
+  | `omitted_too_large` | the contact's own values already fill the call's data |
+
+- Each text is at most 512 characters; a longer one is cut at a word and ends
+  with an ellipsis. The transcript is not passed on.
+- Your AI agent reads these like any other call variable. To open differently
+  on a follow-up call, write both openings into the first message:
+
+  ```text
+  {{#campaign.previous_summary}}Hi again, this is Acme calling you back as agreed.{{/campaign.previous_summary}}{{^campaign.previous_summary}}Hi, this is Acme calling about your delivery.{{/campaign.previous_summary}}
+  ```
+
+- You can change `followup_context` on a draft and on a scheduled or paused
+  campaign. Campaigns created before this setting existed have `none`.
+
 ### Concurrency
 
 `max_concurrency` caps the campaign's simultaneous calls and never exceeds your
