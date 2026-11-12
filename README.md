@@ -228,17 +228,6 @@ step 3). Every entry uses the same shape, decided by the founder on
 - No prose paragraphs, tables, nested bullets, or bold at the start of every
   bullet. One blank line between the heading and the list and one after it.
 
-CI checks the line shape of the whole file, so that its date check sees every
-release section; `tests/test_release_state.py` is the exact rule (it does not
-count bullets or words). The front matter is single-line `key: value` lines
-between two lines that are exactly `---`. After it every line is blank,
-`## <day> <Month> <year>`, `### <title>` or `- <bullet>`. A title starts with a
-letter or a digit; a bullet starts with a letter, a digit that is not a list
-number, a backtick, `[` or `**`. `<`, `>`, `{` and `}` appear only inside code
-spans, which use single backticks in pairs, never escaped. The file has no
-control characters, and no release date is after the checkpoint in
-`release-state.json`.
-
 A feature pull request does not edit `content/docs/changelog.mdx`. It puts its
 proposed entry in the pull request description under the heading
 `Release log entry`, in the same `###` heading and bullet format, without the
