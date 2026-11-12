@@ -266,7 +266,25 @@ requested time, up to the campaign's [call-back limit](#call-backs).
 ### Call-backs
 
 A person who asks to be called back is called at the time they named, whatever
-the retry policy says. `max_callbacks` sets how many call-backs one contact may
+the retry policy says. The agent records the request with
+`set_call_disposition` (`connected_callback_requested` with `callback_at`) as
+soon as the person asks, with no read-back: like a request to speak to someone,
+the person's own request is the confirmation. A workflow's Action step that
+sets it still confirms it.
+
+- A `callback_at` without a UTC offset is read in the call's local time zone,
+  the one the agent's `call.local_time` is given in (the contact's time zone,
+  else the campaign's, else the one for the person's number, else UTC). When
+  the call's zone is not known, such a time is refused (`callback_at_offset_required`) and the agent is asked
+  to send it with its offset.
+- A time more than a minute in the past, or more than 30 days ahead, is
+  refused (`callback_at_in_past`, `callback_at_too_far_ahead`) and nothing is
+  recorded. The agent is told the current local time so it can ask again.
+- A time at or after the campaign's `ends_at` is recorded, but the campaign
+  ends first, so it is not placed: the result carries `callback_scheduled`
+  `false`, as below.
+
+`max_callbacks` sets how many call-backs one contact may
 be granted in a campaign: 0 to 10, default 2. In the workspace it is
 **Call-back requests per contact** on the **Schedule & retries** step.
 
