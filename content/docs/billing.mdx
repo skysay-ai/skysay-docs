@@ -314,12 +314,6 @@ after that charge or hold; no call waits for the card payment. Each top-up
 adds your configured amount, and a short pause follows every attempt,
 whatever its outcome, before the next one can start.
 
-If an incoming phone call finds your balance already too low to hold it, the
-call is refused and a top-up is started at the same time, so the next call
-can use the topped-up balance. The refused call is not retried. If your
-threshold is lower than one call's hold, you can see one refused incoming
-call for each top-up; a threshold above your usual call hold avoids this.
-
 ## Incoming calls blocked by insufficient funds
 
 If an incoming phone call is refused because there are not enough available
@@ -338,11 +332,10 @@ the number needs to be activated again.
 Skysay sends at most one of these emails per workspace in any 24 hours;
 further refused calls in that window do not send another. Before sending,
 Skysay checks funding again and does not send the alert if the original
-reserve can now be covered. While an automatic top-up is waiting to run or
-is still being confirmed, the alert waits, for up to 24 hours: it is sent only
-if the top-up does not cover the call. Alerts that are more than a day old are
-not sent late. Email delivery is asynchronous and is not guaranteed to arrive
-before another call.
+reserve can now be covered. While an automatic top-up is still being
+confirmed, the alert waits: it is sent only if the top-up does not cover the
+call. Alerts that are more than a day old are not sent late. Email delivery is
+asynchronous and is not guaranteed to arrive before another call.
 
 The refused attempt remains in **Calls**. No call audio starts and no Skysay
 call-usage charge is posted for that rejected attempt. Number rental and
@@ -353,9 +346,10 @@ number or its agent assignment is still activating.
 
 Skysay answers an incoming phone call only if it can set the call up within a
 few seconds. If setting it up takes longer, for example while the platform is
-under heavy load, Skysay does not start the call late: the caller hears a busy
-signal, nothing is reserved or charged, and no call is created. The caller can
-call again.
+under heavy load or while an automatic top-up from your card is slow to
+confirm, Skysay does not start the call late: the caller hears a busy signal,
+nothing is reserved or charged for the call, and no call is created. A top-up
+that went through is still added to your balance. The caller can call again.
 
 ## A call has ended but funds are still reserved
 
