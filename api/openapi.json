@@ -8758,6 +8758,7 @@
     },
     "/v1/agents/{agent_id}/browser-sessions/{session_id}/settle": {
       "post": {
+        "description": "Ends the reservation. Repeating it is safe. In the response, busy is true when the voice service was full and turned the session away before an AI agent joined; that session's call is canceled and not charged.",
         "operationId": "settleAgentBrowserSession",
         "parameters": [
           {
@@ -8779,6 +8780,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "busy": {
+                      "description": "True when the voice service was full and turned this session away before an AI agent joined.",
+                      "type": "boolean"
+                    },
+                    "call_id": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "settled",
+                        "expired"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Settled session"
           }
         },
@@ -16580,204 +16610,6 @@
         "summary": "Read shallow public API liveness",
         "tags": [
           "Account"
-        ]
-      }
-    },
-    "/v1/highlevel/calls/outcome": {
-      "post": {
-        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
-        "operationId": "getHighLevelCallOutcome",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "approval_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "contact_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "location_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "approval_id",
-                  "location_id",
-                  "contact_id"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "callId": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "enum": [
-                        "finished",
-                        "pending",
-                        "not_dialed",
-                        "unknown"
-                      ],
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "callId",
-                    "state",
-                    "status"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Original approved call result"
-          },
-          "400": {
-            "description": "Invalid or unverified contact"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Missing scope or expired approval"
-          },
-          "404": {
-            "description": "Bound approval or call not found"
-          },
-          "409": {
-            "description": "Installation changed or refresh in progress"
-          }
-        },
-        "summary": "Get highlevel call outcome",
-        "tags": [
-          "Integrations"
-        ],
-        "x-required-scopes": [
-          "calls:read"
-        ]
-      }
-    },
-    "/v1/highlevel/calls/start": {
-      "post": {
-        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
-        "operationId": "startHighLevelCall",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "approval_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "contact_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "location_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "approval_id",
-                  "location_id",
-                  "contact_id"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "callId": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "enum": [
-                        "finished",
-                        "pending",
-                        "not_dialed",
-                        "unknown"
-                      ],
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "callId",
-                    "state",
-                    "status"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Original approved call result"
-          },
-          "400": {
-            "description": "Invalid or unverified contact"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Missing scope or expired approval"
-          },
-          "404": {
-            "description": "Bound approval or call not found"
-          },
-          "409": {
-            "description": "Installation changed or refresh in progress"
-          }
-        },
-        "summary": "Start highlevel call",
-        "tags": [
-          "Integrations"
-        ],
-        "x-required-scopes": [
-          "calls:write"
         ]
       }
     },
