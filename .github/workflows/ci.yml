@@ -33,7 +33,11 @@ jobs:
     name: Generated API reference
     runs-on: ubuntu-latest
     steps:
+      # On a pull request this is the merge commit; depth 2 keeps its base
+      # parent, so tests/test_release_log_scope.py can read the change set.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"

@@ -380,7 +380,10 @@ speech detection says the caller is already speaking, the model's `end_call`
 request is refused. If the caller starts speaking while that close is pending,
 Skysay withdraws the close and leaves the conversation open. After the goodbye,
 there is up to 750 ms for the caller to take the floor, within the existing
-shutdown time limit.
+shutdown time limit. The model's `end_call` ends a call only when the agent's
+latest line was its goodbye; otherwise the call stays open and the model is
+told so (see
+[`end_call` needs the agent's goodbye](/docs/how-calls-end#on-live-engines-end_call-needs-the-agents-goodbye)).
 
 This safeguard is automatic; there is no new agent-editor switch or API field.
 It detects speech activity rather than meaning: noise can keep a call open,

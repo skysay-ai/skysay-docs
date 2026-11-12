@@ -4,6 +4,174 @@ description: Major Skysay releases, with links to the features and guides you ca
 icon: Journal
 ---
 
+## 12 November 2026
+
+### Follow-up campaign calls know what was said last time
+
+- Every campaign call carries a new built-in call variable, `campaign.call_kind`: `first_contact`, `retry`, `callback` or `reopened`.
+- A campaign has a new setting, **Tell follow-up calls what was said last time** (`followup_context` `summary` in the API and MCP); it is off for existing campaigns.
+- A follow-up call then carries the summary of the last conversation with that person in `campaign.previous_summary`.
+- A call is never held back for a summary; `campaign.previous_summary_status` says whether there is one.
+- [Follow-up calls in campaigns](/docs/campaigns#follow-up-calls) · [Built-in call variables](/docs/call-variables)
+
+### Follow-up summaries keep what a call protects
+
+- On a workflow that protects a value, the summary is protected too: the workflow says it only after its confirming step, at the strongest check any of its protected values needs.
+- AI agents that enter a value on a phone keypad are not given the summary.
+- A follow-up call is not given the summary of an earlier call that kept a value back until it had confirmed the person, or entered one on a keypad, unless its own AI agent protects the summary; `campaign.previous_summary_status` then reads `withheld`.
+- [Follow-up calls in campaigns](/docs/campaigns#follow-up-calls)
+
+### See what happened to each campaign contact, call by call
+
+- On the campaign page, click the number in a contact's **Attempts** column to open its history: every attempt in order, whether it was a first call, a retry or a call-back, how it ended and what the campaign decided next.
+- The same history is in the API (`GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts`) and MCP (`list_campaign_contact_attempts`).
+- Attempts made before 11 November show their result; their kind and next step read as not recorded.
+- [Contact history](/docs/campaigns#contact-history)
+
+### Go from a campaign contact to the person on Contacts, and back
+
+- In a campaign contact's history, **Open this person in Contacts** shows that number's lists and its most recent calls and SMS conversations.
+- On **Contacts**, a call a campaign placed names the campaign; click it to open that campaign with the person's history open, even when the contact is not on the first page of the table.
+- [Contact history](/docs/campaigns#contact-history) · [Contacts](/docs/contacts)
+
+### Add contacts to a campaign that is already running
+
+- `POST /v1/campaigns/{campaign_id}/contacts` (MCP: `enroll_campaign_contacts`) adds up to 10,000 contacts to a scheduled, running or paused campaign; they are called inside their calling hours.
+- Repeating a request is safe: a contact already in the campaign is not added twice.
+- A campaign no longer completes for running out of contacts while one you enrolled is still to be called; it still ends at its end date.
+- [Add contacts to a running campaign](/docs/campaigns#add-contacts-to-a-running-campaign)
+
+### Campaign call-back requests are recorded on the call
+
+- When a person on a campaign call asks to be called back, the AI agent records it at once with `set_call_disposition`, with no read-back, and the campaign calls back at that time; before, most campaign agents could not record it.
+- On the Standard engine this includes a request made in the person's first words on picking up, in the languages listed under **Who speaks first**.
+- A call-back time without a UTC offset is read in the call's local time zone; one in the past or more than 30 days ahead is refused and the agent asks again.
+- A call-back at or after the campaign's end date is recorded but not placed, and the AI agent is told so.
+- [Call-backs in campaigns](/docs/campaigns#call-backs) · [Who speaks first](/docs/who-speaks-first#what-the-agent-says-first)
+
+### Public link owners set the conversation limits
+
+- Each public link now has two limits you set under **Share**: conversations per visitor per day (10 until changed, up to 1000, or no limit) and conversations at the same time (3 until changed, up to 4).
+- In the API and MCP they are `daily_conversations_per_visitor` and `concurrent_conversations`; the read also returns `max_concurrent_conversations`.
+- The daily limit now counts each link separately, so a visitor's conversations on one link no longer use up another link's allowance; existing links keep 10 and 3.
+- [Public link limits](/docs/public-link#limits)
+
+### Busy instead of silence when every voice line is in use
+
+- A public link visitor or a browser test that arrives while every voice line is in use now sees the busy message within a few seconds, instead of a silent room.
+- The turned-away conversation is listed in **Calls** as canceled and is not charged; on a public link it does not count toward the visitor's daily limit.
+- [Public links](/docs/public-link) · [Browser tests](/docs/trial-calls)
+
+### Transfers ring for the caller
+
+- While an AI transfer rings the person's phone, the caller now hears ringing (a ring every five seconds after about five seconds of silence) instead of silence, for agent transfers and workflow transfer steps.
+- Call recordings now keep what the agent says while a transfer rings; before, those words were missing from the recording.
+- [Transfer to a human](/docs/transfer-to-a-human#what-the-caller-hears-while-it-rings) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Agents are told which tools they have on each call
+
+- Every free-form AI agent is now told, on voice calls and in the builder's **Chat** test, which tools it can use, that they are its only actions, and to say an action was done only when a tool's result says so.
+- When a caller asks for something no tool can do, the agent is told to say plainly what it can do instead, rather than promise to check or arrange it.
+- A line your prompt scripts, such as "your details have been saved", can still be said when no tool backs it, so change such lines.
+- [The tool honesty instruction](/docs/how-calls-end#the-tool-honesty-instruction)
+
+### Eleven Realtime takes tools with free-name objects
+
+- On Eleven Realtime, a tool parameter that is an object of names you do not list in advance, such as calendar booking answers, now works; before, the call dropped at the start.
+- A tool whose parameters the engine cannot express is left out of the call, and the call starts with the AI agent's other tools.
+- [Eleven Realtime](/docs/conversation-engines#eleven-realtime)
+
+### A request the caller spoke over runs nothing and is asked again
+
+- If the caller speaks while a free-form voice agent's request for a business action is still on its way, nothing is prepared or run, and the agent is told so instead of being told the tool failed.
+- The agent takes in what the caller said before asking again; a calendar booking refused this way shows **Calendar request refused** in the timeline.
+- [Business actions](/docs/business-actions#what-the-caller-experiences) · [Calendar booking](/docs/calendar-booking)
+
+### Workflow values go only to the call's own provider
+
+- On a workflow call, the line the caller just heard goes with its values to the model judging the reply only when that model's provider is the one the call started on.
+- Changing the AI agent's model during a call does not change this; the values are left out when a **Follow the caller** language uses another provider or the call's model runs on your own key.
+- [Agent workflows](/docs/agent-workflows#payment-reminder-identity-clarification)
+
+### The AI caller says goodbye and hangs up
+
+- In Simulations Lab voice and chat tests, the AI caller can now end the conversation with its own last line and hang up, instead of saying goodbye and carrying on.
+- That closing line is the caller's last turn in the transcript; in voice tests, how fast your AI agent would have answered it is not counted against timing rules.
+- [The adaptive caller](/docs/simulations-lab#the-adaptive-caller)
+
+## 11 November 2026
+
+### Live agents end a call only after their goodbye
+
+- On GPT-Live 1, Gemini Live and Eleven Realtime, an agent's `end_call` now ends the call only when the agent's latest line was its goodbye; otherwise the call stays open and the agent is told so.
+- If the caller has just spoken and the agent answers with `end_call` alone, the agent gets one turn to say its goodbye, and that goodbye ends the call.
+- If Skysay cannot judge the line within 2.5 seconds, the hang-up goes ahead as before; Standard agents are not affected.
+- On these engines the standing instruction now tells an agent that reached the wrong person to apologise and say a short goodbye before it ends the call.
+- [On live engines, end_call needs the agent's goodbye](/docs/how-calls-end#on-live-engines-end_call-needs-the-agents-goodbye) · [The standing call-ending instruction](/docs/how-calls-end#the-standing-call-ending-instruction)
+
+### Unanswered campaign calls are called again
+
+- A campaign call that rang out or reached a busy line is now recorded as `no_answer` or `busy` and follows your retry policy; before, it was recorded as a completed conversation and not called again.
+- A call the person answered still counts as a conversation and is never redialled.
+- [Retries](/docs/campaigns#retries)
+
+### Campaigns limit call-backs per contact
+
+- A campaign has a new setting, **Call-back requests per contact** (`max_callbacks` in the API and MCP): how many times one person can ask to be called back, 0 to 10, default 2.
+- One request more ends that person's calls in the campaign; the contact shows **No call-backs left** (`skip_reason` `callback_limit_reached`).
+- The AI agent is told on the call when no call-back will be placed, so it does not promise one.
+- Existing campaigns, running ones included, have the default of 2.
+- [Call-backs in campaigns](/docs/campaigns#call-backs)
+
+### Phone numbers read in full on ElevenLabs voices
+
+- On Standard agents with an ElevenLabs voice, a written number such as `415-555-0182` is now spoken with every digit; before, some digits could be skipped.
+- Voice previews in the workspace are read the same way, so a preview sounds like the call.
+- [Voice library](/docs/voice-library)
+
+### Manage a public link with the API or MCP
+
+- `GET` and `PATCH /v1/agents/{agent_id}/public-link`, and the MCP tools `get_agent_public_link` and `set_agent_public_link`, read, check, publish, turn off and rename an AI agent's public link.
+- Reading needs `agents:read` and changing needs `agents:write`; while the link is on, anyone can start a browser conversation billed to your balance.
+- [Manage the link with REST or MCP](/docs/public-link#manage-the-link-with-rest-or-mcp) · [MCP tool reference](/docs/tool-reference)
+
+### Integrations grouped by what your AI agents can do
+
+- **Integrations** now groups what you can connect by what your AI agents can do, such as **CRM** and **Calendars & scheduling**, with **Connect** or **Manage** beside each provider.
+- Your own API is under **Developer tools → Custom API**, and the same catalog is shown before and after you connect anything.
+- [Integrations](/docs/integrations) · [Calendar booking](/docs/calendar-booking)
+
+### Simulations Lab ends an attempt whose test caller cannot listen
+
+- When our test caller cannot start its speech recognition, the attempt now ends at once as an error, **Our test caller failed.** (`caller_listener_unavailable`), instead of running for minutes without hearing your AI agent.
+- An error never counts for or against your AI agent.
+- [What an attempt shows](/docs/simulations-lab#what-an-attempt-shows)
+
+### Clearer refusals for number requests and calls
+
+- `POST /v1/number-requests` (MCP `request_number`) with a missing, unknown or another workspace's `project_id` now answers `400`.
+- `POST /v1/trial-calls` and `POST /v1/calls` (MCP `create_trial_call`, `create_outbound_call`) with no agent, or an unknown or another workspace's `agent_id` or `agent_endpoint_id`, now answer `400` naming the field instead of a server error.
+- The voice-stack answers (`GET` and `PATCH /v1/agents/{agent_id}/voice-stack`, MCP `get_agent_voice_stack` and `set_agent_voice_stack`) no longer warn about prompt languages on GPT-Live 1, Gemini Live or Eleven Realtime, which have no language setting.
+- [What each status means](/docs/errors#what-each-status-means) · [Engines and the language axis](/docs/conversation-engines#engines-and-the-language-axis)
+
+### Agents no longer report a booking as failed while the caller says yes
+
+- When a free-form voice AI agent checks a booking again while the caller's "yes" is still being processed, or after the booking succeeded, it now gets the booking's real status instead of an error.
+- So the agent no longer tells the caller that a successful booking failed.
+- [Receipts and uncertain outcomes](/docs/business-actions#receipts-and-uncertain-outcomes)
+
+### Incoming calls stay with one AI agent
+
+- When an incoming call reached a second voice worker while the first was already serving it, the second could join the call or drop it.
+- The second worker now stands aside, so the caller keeps one AI agent and the call carries on.
+- [Why calls fail](/docs/why-calls-fail)
+
+### Existing AI agents can end their calls
+
+- Every existing free-form hosted AI agent that did not have `end_call` now has it, so it can end a call after its goodbye; scripted workflow agents are unchanged.
+- It applies from each agent's next call, with nothing to republish; to keep an agent from ending calls itself, remove `end_call` from its tools.
+- [The agent ends the call with end_call](/docs/how-calls-end#the-agent-ends-the-call-with-end_call)
+
 ## 10 November 2026
 
 ### Share an AI agent with a public link
