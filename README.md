@@ -230,8 +230,9 @@ step 3). Every entry uses the same shape, decided by the founder on
 
 CI (`tests/test_release_state.py`) holds every line after the front matter to
 this shape: a blank line, `## <day> <Month> <year>`, `### <title>` or
-`- <bullet>`, with raw HTML or JSX only inside code spans, and no release date
-after the checkpoint in `release-state.json`.
+`- <bullet>`, with raw HTML or JSX only inside single-backtick code spans, no
+control characters, and no release date after the checkpoint in
+`release-state.json`.
 
 A feature pull request does not edit `content/docs/changelog.mdx`. It puts its
 proposed entry in the pull request description under the heading

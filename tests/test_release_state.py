@@ -25,6 +25,9 @@ ENTRY_LINE = re.compile(
     re.ASCII,
 )
 CODE_SPAN = re.compile(r"`[^`]*`")
+# Characters Python splits lines on (or Markdown treats as whitespace) beyond
+# the newline: with none of them in the log, both read the same lines.
+CONTROL = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f  ]")
 
 
 def changelog_body_lines(changelog: str) -> list[str]:
@@ -40,10 +43,16 @@ def release_log_format_error(line: str) -> str | None:
         return None
     if not ENTRY_LINE.fullmatch(line):
         return "is not a blank line, `## <day> <Month> <year>`, `### <title>` or `- <bullet>`"
-    # Raw HTML, JSX and MDX expressions only inside code spans; an escaped
-    # backtick would make the span boundaries ambiguous, so it is refused.
+    # Raw HTML, JSX and MDX expressions only inside code spans. Code spans are
+    # single backticks, paired in order: a backslash before a backtick, a run of
+    # two or more backticks or an unpaired backtick would let Markdown pair the
+    # spans differently from CODE_SPAN, so each is refused.
     if "\\`" in line:
         return "has an escaped backtick"
+    if "``" in line:
+        return "has a run of two or more backticks"
+    if line.count("`") % 2:
+        return "has an unpaired backtick"
     if re.search(r"[<>{}]", CODE_SPAN.sub("", line)):
         return "has `<`, `>`, `{` or `}` outside a code span"
     return None
@@ -53,6 +62,11 @@ class ReleaseStateTests(unittest.TestCase):
     def assert_log_not_ahead_of_checkpoint(self, updated: datetime, changelog: str) -> None:
         # Checkpoints account for every verified release; editorial entries cover
         # only major changes. A state-only release need not add a dated entry.
+        control = CONTROL.search(changelog)
+        self.assertIsNone(
+            control,
+            f"release log has the control or line-separator character {control and control.group()!r}",
+        )
         headings = []
         for number, line in enumerate(changelog_body_lines(changelog), start=1):
             error = release_log_format_error(line)
@@ -117,6 +131,12 @@ class ReleaseStateTests(unittest.TestCase):
             "- 12 November 2026\n  ---",
             "- A bullet <h2>12 November 2026</h2>",
             "- A bullet \\`<h2>12 November 2026</h2>\\`",
+            "- ``a`b``<h2>12 November 2026</h2>`",
+            "- `a`` <h2>12 November 2026</h2>",
+            "- `a` `<h2>12 November 2026</h2>",
+            "- A bullet.\x0c## 12 November 2026",
+            "## 11 November 2026 ## 12 November 2026",
+            "- A bullet.\x85x",
             "### Entry\n12 November 2026\n---",
         ):
             with self.subTest(heading=heading):
