@@ -233,7 +233,9 @@ proposed entry in the pull request description under the heading
 `Release log entry`, in the same `###` heading and bullet format, without the
 date heading; the release agent copies it into the release-log pull request at
 release. CI (`tests/test_release_log_scope.py`) refuses a pull request that
-changes the release log without also changing `release-state.json`.
+changes the release log together with any file other than `release-state.json`
+and the generated API reference (`api/openapi.json`,
+`api/customer-api-coverage.json`, `content/docs/api-reference.mdx`).
 
 Example:
 
