@@ -273,7 +273,10 @@ the person's own request is the confirmation.
 
 - A `callback_at` without a UTC offset is read in the call's local time zone,
   the one the agent's `call.local_time` is given in (the contact's time zone,
-  else the campaign's, else the one for the person's number).
+  else the campaign's, else the one for the person's number). When that zone
+  is not kept for the call (the contact's time zone is a protected value),
+  such a time is refused (`callback_at_offset_required`) and the agent is asked
+  to send it with its offset.
 - A time more than a minute in the past, or more than 30 days ahead, is
   refused (`callback_at_in_past`, `callback_at_too_far_ahead`) and nothing is
   recorded. The agent is told the current local time so it can ask again.
