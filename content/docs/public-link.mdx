@@ -52,7 +52,7 @@ a realtime audio agent cannot.
 | Action | REST | MCP | Scope |
 | --- | --- | --- | --- |
 | Read the current link or check a proposed address | `GET /v1/agents/{agent_id}/public-link` | `get_agent_public_link` | `agents:read` |
-| Publish, turn off, or rename the link | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write` |
+| Publish, turn off, or rename the link, or change its limits | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write` |
 
 Use a credential for the AI agent's workspace. MCP takes `agent_id` in
 the tool arguments. To check an address, pass `check` as a query parameter
@@ -66,6 +66,12 @@ Use the same fields in the PATCH body or MCP write arguments:
 - To rename, send `{"slug":"new-address"}`. The link stays public or private
   as it was, and another workspace can claim the previous address.
 - To publish again at a saved address, send `{"enabled":true}`.
+- To change the [limits](#limits), send `daily_conversations_per_visitor`
+  (1 to 1000, or `null` for no limit) and `concurrent_conversations`
+  (1 to `max_concurrent_conversations`, which the read returns), together or
+  on their own: `{"daily_conversations_per_visitor":null,"concurrent_conversations":4}`.
+  A value outside its range is refused with `400` and changes nothing. A link
+  needs an address before its limits can be set.
 
 A successful change returns the saved settings. `link.path` is relative to
 `https://skysay.ai`, and `link` is null until an address is saved. An enabled
@@ -114,16 +120,40 @@ cover it, for example because automatic recharge is off or the payment did
 not go through, the visitor is told the AI agent is not available right now,
 and no call is created.
 
-Skysay limits public link conversations so one busy link cannot take all of
-your capacity:
+## Limits
 
-- 2 at the same time per visitor, and 10 per visitor per day (UTC);
-- 3 at the same time per link.
+Each link has two limits you can change, and Skysay keeps one more:
+
+- **Conversations per visitor, per day:** 10 until you change it. Raise it up
+  to 1000, or choose **No limit**. The daily limit counts each link
+  separately: the conversations one visitor starts on this link in a day
+  (UTC), whatever they do on other links.
+- **Conversations at the same time:** 3 until you change it, up to 4. Every
+  conversation runs on the same voice capacity as phone calls, which is why
+  Skysay keeps a ceiling.
+- **2 at the same time per visitor**, across all your public links together.
+  This one is not a setting.
+
+To change them, open **Share**. Once the link has an address, a line there
+states the current limits; choose **Change**, set the two numbers (or tick
+**No limit**), and choose **Save**.
+Turning the link off and on again, or changing its address, keeps them.
+
+Every conversation is billed to your balance, so a higher limit can cost
+more. With **No limit**, nothing but your balance stops one visitor starting
+conversation after conversation; each one still ends after 5 minutes.
 
 Skysay tells visitors apart by their network address, so people behind one
 office connection count as one visitor. A visitor over a limit sees "This AI
-agent is busy right now. Try again in a few minutes." The daily limit resets
-at midnight UTC.
+agent is busy right now. Try again in a few minutes." and never learns which
+limit it was. The daily count resets at midnight UTC.
+
+Public link conversations share Skysay's voice lines with phone calls and
+browser tests. When every line is in use, a new conversation does not start:
+within a few seconds the visitor sees the same busy message. That
+conversation is listed in **Calls** as canceled and is not charged. It does
+not count toward the visitor's daily limit, and it frees its place on the
+link at once.
 
 The page says the AI agent is not available right now when the agent is
 stopped or suspended, your workspace is suspended, Skysay has paused your
