@@ -396,6 +396,9 @@ only from your own workspace.
   opens the ordinary [call evidence](/docs/read-call-evidence);
   `GET /v1/campaigns/{campaign_id}/results` adds each contact's last-call
   [business outcome](#business-outcomes).
+- `GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts` returns one
+  contact's [history](#contact-history): every attempt in order, its result
+  and what the campaign decided next.
 - Webhooks: `campaign.launched`, `campaign.contact.completed`,
   `campaign.completed`. Per-call events are unchanged and carry
   `external_reference` (the contact's reference) and
@@ -433,6 +436,40 @@ Click a call outcome or a result answer to show only the contacts with it;
 click it again, or the chip above the table, to clear it. Filters combine
 with the tab. **Export CSV** then downloads exactly the rows the table shows,
 in the same order, and its label gives the count.
+
+### Contact history
+
+Every contact has a history: each attempt the campaign made, in order, with
+its result and what the campaign decided next. On the campaign page, click the
+number in a contact's **Attempts** column to open it under the row.
+
+| Column | Value |
+| --- | --- |
+| Kind | why the contact was called: **First call**, **Retry**, **Call-back**, or **Called again after review** |
+| Result | the attempt's [disposition](#dispositions), or a dash when there is none: the call is in progress, or the attempt was postponed |
+| Next step | **Retry scheduled for** a time, **Call-back scheduled for** a time, **Postponed to** a time (the attempt was not made, for example because no line was free), or **No further calls**, with the reason when the campaign named one |
+| Open | the call's [evidence](/docs/read-call-evidence) |
+
+The API and MCP return the same history:
+`GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts` and the MCP
+tool `list_campaign_contact_attempts`. `contact_id` is the `id` of a row of
+`GET /v1/campaigns/{campaign_id}/contacts`.
+
+| Field | Value |
+| --- | --- |
+| `attempt_no` | 1 for the first attempt |
+| `kind` | `first_contact`, `retry`, `callback` or `reopened` |
+| `started_at`, `settled_at` | when the attempt was made and when its result was recorded; `settled_at` is `null` while the call is in progress |
+| `disposition`, `termination_cause` | how the attempt ended |
+| `call_id` | the call, when one was placed |
+| `decision` | `retry`, `callback`, `deferred` or `finished` |
+| `next_at` | when the next attempt was scheduled for |
+| `finished_reason` | on the attempt that finished the contact, the reason when the campaign named one, for example `callback_limit_reached` |
+
+Attempts are returned oldest first, 50 a page (`limit` up to 200, `offset`,
+`has_more`). A value the campaign did not record is `null`: attempts made
+before contact history existed have no `kind` and no `decision`, and the
+campaign page shows them as not recorded.
 
 ## Edit a campaign
 
