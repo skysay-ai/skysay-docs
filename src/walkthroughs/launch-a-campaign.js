@@ -43,7 +43,7 @@ const workspace = {
         },
         {
           type: "hint",
-          text: "Every other column is available to the agent as `{{column}}`. Turn on **Several rows per phone number** when the sheet has one row per loan: rows sharing a number become one contact.",
+          text: "Every other column is available to the AI agent as `{{column}}`. Turn on **Several rows per phone number** when the sheet has one row per loan: rows sharing a number become one contact.",
         },
         {
           type: "table",
@@ -94,15 +94,15 @@ const workspace = {
       },
     },
     {
-      label: "Agent & numbers",
-      title: "Agent and caller ID",
-      intro: "The hosted agent makes every call; the caller ID rotates across the numbers you pick.",
+      label: "AI agent & numbers",
+      title: "AI agent and caller ID",
+      intro: "The hosted AI agent makes every call; the caller ID rotates across the numbers you pick.",
       main: [
         {
           type: "fields",
           fields: [
             { label: "Campaign name", value: "September renewal offer" },
-            { label: "Agent", value: "Renewals agent", hint: "Only published hosted agents can run campaigns." },
+            { label: "AI agent", value: "Renewals agent", hint: "Only published hosted AI agents can run campaigns." },
           ],
         },
         {
@@ -272,7 +272,7 @@ const workspace = {
           type: "table",
           rows: [
             ["Contacts", "3"],
-            ["Agent", "Renewals agent"],
+            ["AI agent", "Renewals agent"],
             ["Caller ID numbers", "2"],
             ["Consent basis", "Existing customers"],
             ["Calling hours", "6 days per week · Each contact's local time"],
@@ -377,7 +377,7 @@ const workspace = {
             items: [
               "**Pause** keeps the remaining contacts. **Cancel** ends the run and skips them.",
               "While paused you can change calling hours, caller IDs, retries, concurrency and the end date.",
-              "The list, agent, purpose and consent are locked after launch. Duplicate the campaign to change them.",
+              "The list, AI agent, purpose and consent are locked after launch. Duplicate the campaign to change them.",
               "**Export CSV** downloads exactly the rows the table shows.",
               "The **Calls** page filters by campaign.",
             ],
@@ -582,7 +582,7 @@ const walkthrough = {
   id: "launch-a-campaign",
   title: "Launch a campaign",
   crumb: "Campaigns / New campaign",
-  lede: "Upload your customers, pick the agent and caller ID, set calling hours and retries, then launch.",
+  lede: "Upload your customers, pick the AI agent and caller ID, set calling hours and retries, then launch.",
   note: "Example values only. The real wizard shows your own rates and workspace limits.",
   tabs: [workspace, api],
 };
