@@ -361,7 +361,166 @@ Reconnecting rotates authorization on the integration’s verified resources.
 
 ## DIDLogic
 
-Choose **DIDLogic**, enter its API token, select an owned number and confirm
-its type. Skysay checks the existing SIP setup before activation. The carrier
-continues billing its rental and carrier traffic directly. DIDLogic imports
-remain voice-only; carrier and platform usage controls still apply.
+<Walkthrough id="import-a-number" tab="didlogic" />
+
+Connect an active number you already own at DIDLogic. Skysay uses your
+carrier API token to list your numbers and check their existing SIP setup.
+DIDLogic continues billing the number and carrier traffic; Skysay charges
+its applicable platform and AI usage.
+
+Arrange the SIP setup with [Skysay support](mailto:support@skysay.ai) before
+importing. Have your DIDLogic API token ready and keep enough credit in both
+your carrier account and your Skysay workspace. The screenshots below use
+a fictional example number and a masked example key.
+
+<Steps>
+
+<Step>
+
+### Prepare the number at DIDLogic
+
+Confirm that the number is purchased, active and approved for the calls you
+want to make. In DIDLogic, configure:
+
+- A dedicated SIP account with this number as its caller ID.
+- The number's sole active incoming destination, pointing to the Skysay SIP
+  address confirmed for your connection.
+- The number's concurrent channel allowance and any required calling permissions.
+
+DIDLogic's [SIP-account guide](https://docs.didlogic.com/docs/guides/getting-started/sip-credentials/)
+explains its SIP account and caller-ID settings. Skysay support confirms the
+destination and connection setup for your account. Updating this destination
+changes where calls arrive, so review the routing change before applying it.
+
+The import checks this existing setup. It does not create a DIDLogic SIP
+account, replace the carrier destination or ask you for a SIP password in
+this dialog.
+
+</Step>
+
+<Step>
+
+### Choose DIDLogic and enter your API token
+
+Sign in to your [DIDLogic account](https://app.didlogic.com/) and obtain its
+API token. If API access is not enabled, ask DIDLogic support to enable it.
+Use the token for the account that owns the number.
+
+In Skysay, open **Numbers → Import a number**, choose **DIDLogic**, paste the
+token into **DIDLogic API key** and select **List my numbers**. Listing reads
+your carrier inventory; it does not purchase a number or change its route.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/didlogic-api-key.webp"
+  alt="The shared Import from your carrier dialog with DIDLogic selected, a masked example API token, and List my numbers ready"
+  width="1152"
+  height="876"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+</Step>
+
+<Step>
+
+### Choose the number and confirm its type
+
+Find your number in the returned list and select its **Number type**:
+**Local**, **Mobile**, **National** or **Toll-free**. Choose the type assigned
+by DIDLogic, then select **Import**. **Inactive at carrier** numbers cannot
+be imported until DIDLogic activates them.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/didlogic-choose-number.webp"
+  alt="An owned example DIDLogic number marked Billed by your carrier, with the Number type selector set to Local and an Import button"
+  width="1152"
+  height="804"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+If a number is missing, check that the token belongs to the correct account
+and that the number is active there. Contact Skysay support if your account
+has more numbers than this list shows.
+
+</Step>
+
+<Step>
+
+### Check whether setup is complete
+
+**Number saved · setup pending** means Skysay verified ownership and saved
+the number, but the existing setup did not pass every activation check. The
+number is not ready to use in Skysay yet.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/didlogic-pending.webp"
+  alt="The DIDLogic import result showing Number saved · setup pending, with the carrier-specific configuration and billing reminder"
+  width="1152"
+  height="508"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+Ask Skysay support to check the SIP account, caller ID, incoming destination
+and channel allowance with you. An invalid token or an unverified owner
+produces an error instead; it does not reserve the number in your workspace.
+
+</Step>
+
+<Step>
+
+### Recheck after correcting the setup
+
+Once the carrier setup has been corrected, close the dialog and open
+**Numbers → Import a number** again. Enter the same carrier account's token
+and choose **List my numbers**. Select **Recheck** next to your pending
+number. Skysay checks it again and updates that saved number.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/didlogic-recheck.webp"
+  alt="The saved example DIDLogic number marked Already imported, with a Recheck button for retrying its pending setup"
+  width="1152"
+  height="804"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+</Step>
+
+<Step>
+
+### Connect your AI agent and test calls
+
+**Number connected** means the required configuration checks passed at that
+moment. It does not prove that a phone call has connected.
+
+<img
+  src="/docs-assets/images/docs/import-a-number/didlogic-result.webp"
+  alt="The completed DIDLogic import showing Number connected and confirming that calls use DIDLogic permissions and balance plus Skysay usage controls"
+  width="1152"
+  height="508"
+  style={{ display: 'block', width: '100%', maxWidth: '576px', height: 'auto' }}
+/>
+
+Follow [Wire an agent to a number](/docs/wire-an-agent) to configure the
+AI agent that handles calls. Place an incoming and an outgoing test call for
+the directions your connection supports, and check that audio works both
+ways. The carrier's balance, restrictions and permissions still apply.
+
+</Step>
+
+</Steps>
+
+### DIDLogic billing, keys and supported services
+
+DIDLogic bills its number rental and carrier minutes directly. Skysay bills
+AI and platform usage from your workspace balance; it does not add managed
+number rental for this imported number. Check **Billing** for your workspace
+rates and usage.
+
+The API token is used during setup and cleared when you finish or close the
+dialog. Enter it again for a fresh listing or recheck. Keep carrier tokens
+private; the documentation's example token is not a working credential.
+
+This import connects **voice only**. SMS remains unavailable through this
+connection even if your DIDLogic number supports SMS at the carrier. A saved
+or connected number does not gain calling permissions that DIDLogic has not
+approved. Contact support before changing or removing the carrier SIP setup
+used by an existing connection.
