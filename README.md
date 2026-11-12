@@ -228,6 +228,13 @@ step 3). Every entry uses the same shape, decided by the founder on
 - No prose paragraphs, tables, nested bullets, or bold at the start of every
   bullet. One blank line between the heading and the list and one after it.
 
+A feature pull request does not edit `content/docs/changelog.mdx`. It puts its
+proposed entry in the pull request description under the heading
+`Release log entry`, in the same `###` heading and bullet format, without the
+date heading; the release agent copies it into the release-log pull request at
+release. CI (`tests/test_release_log_scope.py`) refuses a pull request that
+changes the release log without also changing `release-state.json`.
+
 Example:
 
 ```mdx
