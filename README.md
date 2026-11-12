@@ -228,6 +228,11 @@ step 3). Every entry uses the same shape, decided by the founder on
 - No prose paragraphs, tables, nested bullets, or bold at the start of every
   bullet. One blank line between the heading and the list and one after it.
 
+CI (`tests/test_release_state.py`) holds every line after the front matter to
+this shape: a blank line, `## <day> <Month> <year>`, `### <title>` or
+`- <bullet>`, with raw HTML or JSX only inside code spans, and no release date
+after the checkpoint in `release-state.json`.
+
 A feature pull request does not edit `content/docs/changelog.mdx`. It puts its
 proposed entry in the pull request description under the heading
 `Release log entry`, in the same `###` heading and bullet format, without the
