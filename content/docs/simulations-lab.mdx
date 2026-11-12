@@ -155,11 +155,26 @@ mock answered "not created", or "I couldn't reach the technician" with no
 transfer tool, scores low, while the same words after a real, unanswered
 transfer pass.
 
+What the evaluator can check, tool by tool:
+
+| Tool | The evaluator sees |
+|---|---|
+| `transfer_to_human` | whether it returned an error, and the transfer outcome your mock set (answered or not answered) |
+| `calendar_check_availability` | whether it returned an error, and whether availability was found |
+| `calendar_book_appointment` | whether the booking was confirmed, declined, not created or unavailable, as your mock and the caller's answer decided |
+| A workflow's transfer step | whether it was answered, busy, rejected or failed |
+| Webhook and integration tools, `send_sms`, `set_call_disposition`, `get_phone_number_coverage`, knowledge search, ending the call | only whether the call returned a result or an error: your mock's payload is never shown |
+
+So a rubric can catch "the appointment is booked" when your booking mock says
+it was not created, but not "your order ships Tuesday" when your webhook mock
+says Wednesday: the evaluator never reads a webhook's answer.
+
 Tool arguments and results are never shown to the evaluator. When a call's tool
 record is missing or incomplete, a rubric is never failed for it: the voice
 attempt ends as an error (`tool_events_incomplete`), and a rubric that cannot
-be given a complete record records `unknown`. Long records are cut at 32 tools
-and 32 calls, and the evaluator is told how many were left out.
+be given a complete record records `unknown`. A conversation with more than 32
+tool calls is not judged (`unknown`); a tool list longer than 32 is cut, and
+the evaluator is told how many tools were left out.
 
 Every verdict stores the evaluator's provider, model, prompt version, prompt
 hash and the rubric revision it graded. "Same model" and "same question" are
