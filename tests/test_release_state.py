@@ -12,11 +12,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 DATE_HEADING = re.compile(r"## ([0-9]{1,2} [A-Za-z]+ [0-9]{4})", re.ASCII)
-# Any line Markdown may render as a level-1 or level-2 heading: an ATX heading
-# (up to three spaces of indent, one or two #, then a space, a tab or the end),
-# a setext underline, or an HTML h1/h2. Every such line must be exactly a
-# DATE_HEADING, so no spelling of a release section escapes the date check.
-TOP_HEADING = re.compile(r"^ {0,3}#{1,2}(?:[ \t]|$)|^ {0,3}(?:=+|-+)[ \t]*$|<h[12][\s>]", re.I)
+# The release log's whole body follows the README's "Release log entry format":
+# blank lines, `## <day> <Month> <year>` release sections, `### <title>` entries
+# and `- <bullet>` lines, nothing else. Holding every line to that grammar is
+# what lets the date check see every release section: no other spelling of a
+# heading (indent, tab, trailing spaces, closing hashes, setext underline,
+# HTML or JSX, a heading or list nested in a bullet, a continuation line) can
+# get into the log at all.
+ENTRY_LINE = re.compile(
+    r"### [A-Za-z0-9].*"
+    r"|- (?:[A-Za-z`\[]|\*\*[^\s*]|[0-9](?![0-9]*[.)](?:\s|$))).*",
+    re.ASCII,
+)
+CODE_SPAN = re.compile(r"`[^`]*`")
 
 
 def changelog_body_lines(changelog: str) -> list[str]:
@@ -27,21 +35,35 @@ def changelog_body_lines(changelog: str) -> list[str]:
     return lines
 
 
+def release_log_format_error(line: str) -> str | None:
+    if line == "" or DATE_HEADING.fullmatch(line):
+        return None
+    if not ENTRY_LINE.fullmatch(line):
+        return "is not a blank line, `## <day> <Month> <year>`, `### <title>` or `- <bullet>`"
+    # Raw HTML, JSX and MDX expressions only inside code spans; an escaped
+    # backtick would make the span boundaries ambiguous, so it is refused.
+    if "\\`" in line:
+        return "has an escaped backtick"
+    if re.search(r"[<>{}]", CODE_SPAN.sub("", line)):
+        return "has `<`, `>`, `{` or `}` outside a code span"
+    return None
+
+
 class ReleaseStateTests(unittest.TestCase):
     def assert_log_not_ahead_of_checkpoint(self, updated: datetime, changelog: str) -> None:
         # Checkpoints account for every verified release; editorial entries cover
         # only major changes. A state-only release need not add a dated entry.
         headings = []
-        for line in changelog_body_lines(changelog):
-            if not TOP_HEADING.search(line):
-                continue
-            match = DATE_HEADING.fullmatch(line)
-            self.assertIsNotNone(
-                match,
-                f"release log: {line!r} renders as a top-level heading but is not "
-                "exactly `## <day> <Month> <year>`",
+        for number, line in enumerate(changelog_body_lines(changelog), start=1):
+            error = release_log_format_error(line)
+            self.assertIsNone(
+                error,
+                f"release log body line {number} {line!r} {error}; see the README, "
+                '"Release log entry format"',
             )
-            headings.append(match.group(1))
+            match = DATE_HEADING.fullmatch(line)
+            if match:
+                headings.append(match.group(1))
         self.assertTrue(headings, "release log must retain its dated history")
         for heading in headings:
             self.assertLessEqual(datetime.strptime(heading, "%d %B %Y").date(), updated.date())
@@ -87,7 +109,15 @@ class ReleaseStateTests(unittest.TestCase):
             "12 November 2026\n---",
             "12 November 2026\n===",
             "<h2>12 November 2026</h2>",
+            "<h2\n>12 November 2026</h2>",
+            "<Heading level={2}>12 November 2026</Heading>",
             "## 12 november 2026",
+            "- ## 12 November 2026",
+            "- > ## 12 November 2026",
+            "- 12 November 2026\n  ---",
+            "- A bullet <h2>12 November 2026</h2>",
+            "- A bullet \\`<h2>12 November 2026</h2>\\`",
+            "### Entry\n12 November 2026\n---",
         ):
             with self.subTest(heading=heading):
                 with self.assertRaises(AssertionError):
@@ -101,6 +131,18 @@ class ReleaseStateTests(unittest.TestCase):
             "---\ntitle: Release log\n---\n\n## 11 November 2026\n\n"
             "### Calls placed before 12 November 2026 keep their summary\n\n- A bullet.\n",
         )
+
+    def test_entry_lines_in_the_readme_format_pass(self) -> None:
+        for line in (
+            "### Self-serve outbound campaigns",
+            "- Upload a contact list and launch an agent.",
+            "- **Call one contact now** places one real call.",
+            "- `GET /v1/campaigns/{campaign_id}/export` appends an `extraction.<field>` column.",
+            "- [Read Campaigns](/docs/campaigns) · [Do-not-call](/docs/campaigns#do-not-call-register)",
+            "- 30 days of history are kept.",
+        ):
+            with self.subTest(line=line):
+                self.assertIsNone(release_log_format_error(line))
 
     def test_release_log_must_retain_dated_history(self) -> None:
         with self.assertRaises(AssertionError):
