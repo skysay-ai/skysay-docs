@@ -225,10 +225,12 @@ caller ID, one concurrent call, and Skysay’s configured voice-server IPs
 plus a per-connection authentication token. It does not replace incoming
 routing. Both incoming and outgoing setup require an enabled global outbound
 voice profile, because Telnyx uses it to connect incoming calls to your AI
-agent too. Skysay uses
-the profile assigned to the number’s current connection or the sole enabled
-global profile in the account. If the choice is ambiguous, select the intended
-profile in Telnyx before retrying. Skysay does not expand that profile’s
+agent too. Skysay chooses a profile in this order: the existing dedicated
+Skysay outgoing connection, the number’s current connection, then the sole
+enabled global profile. Setup refuses if no eligible profile can be selected
+unambiguously. Choose the intended profile before the first import. On retries,
+changing the number’s current connection does not override an existing dedicated
+Skysay outgoing connection’s profile. Skysay does not expand that profile’s
 spending or destination permissions.
 
 Telnyx continues charging number rental, carrier traffic and any applicable
