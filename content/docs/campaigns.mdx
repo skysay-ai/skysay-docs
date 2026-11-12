@@ -326,7 +326,8 @@ default is `none`.
   | `omitted_too_large` | the contact's own values already fill the call's data, or a line that says the summary would be too long with it |
 
 - Each text is at most 512 characters; a longer one is cut at a word and ends
-  with an ellipsis. The transcript is not passed on.
+  with an ellipsis. For the conversation's own words, see
+  [the previous transcript](#the-previous-transcript).
 - On a [workflow that protects a value](/docs/call-variables#protected-variables),
   the summary and the follow-up are protected too, because they can repeat
   anything the last call said. The workflow may say them only after its
@@ -345,6 +346,50 @@ default is `none`.
 
 - You can change `followup_context` on a draft and on a scheduled or paused
   campaign. Campaigns created before this setting existed have `none`.
+
+#### The previous transcript
+
+Set `followup_transcript` to `true` and a follow-up call of a free-form AI
+agent is also given the transcript of the last conversation with the person.
+In the workspace it is **Give follow-up calls the last transcript** on the
+schedule step. The default is `false`, and it does not depend on
+`followup_context`: a campaign can give the summary, the transcript, both or
+neither.
+
+- The transcript is added to the end of the AI agent's instructions, after the
+  call's variables, as quoted text it is told never to take as instructions.
+  Each line is one turn, `Agent:` or `Person:`, in the language spoken. It is
+  never read as template syntax, so `{{name}}` in what someone said stays as
+  it was said.
+- It holds at most 4,000 characters. When the conversation was longer, the
+  newest turns are kept and the transcript starts with
+  `[earlier turns left out]`; a single turn longer than that is cut at a word.
+- On GPT-Live the first words of the call come about a second later.
+- "Last time" is the same conversation the summary uses: the last call that
+  reached the person.
+- When the call is placed, the campaign records only whether the call may have
+  the transcript. The Calls drawer shows it under **Previous transcript
+  (eligibility at admission)**:
+
+  | Eligibility | Meaning |
+  | --- | --- |
+  | `eligible` | the call is given the transcript of that conversation |
+  | `no_previous_conversation` | the campaign has not reached this person before |
+  | `withheld` | this AI agent enters a value on a phone keypad, or the earlier call kept a value back until it had confirmed the person (or entered one on a keypad) |
+  | `not_supported` | the AI agent runs a workflow, or uses Eleven Realtime, whose instructions have a size limit |
+
+- The words are read each time the call's configuration is fetched, never
+  copied into the call. A call-back placed before the earlier call's
+  transcript was ready gets it if it is ready when the call starts. A
+  transcript deleted in the meantime is not given, and a call is never held
+  back or refused because of the transcript.
+- `GET /v1/calls/{call_id}/realtime-config` includes it only for Skysay's own
+  voice worker, the gateway that placed the call, or an API key holding
+  `recordings:read`. Any other key gets the same configuration without it. A
+  self-hosted worker that reads configurations with an API key needs
+  `recordings:read` on that key to give the transcript to its calls.
+- You can change `followup_transcript` on a draft and on a scheduled or paused
+  campaign. Campaigns created before this setting existed have `false`.
 
 ### Concurrency
 
