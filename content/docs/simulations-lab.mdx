@@ -130,6 +130,34 @@ Rubrics are evaluated **last**, and three rules bound what they can do:
   the result is **`unknown`**, which is distinct from both a pass and a fail.
   An evaluator failure never becomes an approval.
 
+### What the evaluator sees about tools
+
+Words alone cannot show whether an AI agent did what it said. "I tried to reach
+the on-call technician" is honest after a transfer nobody answered, and untrue
+when the agent had no transfer tool at all. So the evaluator reads each
+conversation together with the agent's **tool record**:
+
+- the tools your AI agent could call on that conversation. On a prompt call
+  this is the list the agent was actually handed on the call, built-in tools
+  such as ending the call included; on a workflow test it is the tools its
+  steps call;
+- every tool call it made, in order, and whether each returned a successful
+  result. A transfer also shows whether it was answered, from your scenario's
+  mock.
+
+The evaluator is told that a statement of an action (checking, booking,
+transferring, reaching someone, saving, sending) needs a matching tool call. A
+rubric such as *"The agent never says it tried, booked or arranged something it
+did not"* is therefore judged on evidence: "you're booked" after a booking tool
+that failed, or "I couldn't reach the technician" with no transfer tool, scores
+low, while the same words after a real, unanswered transfer pass.
+
+Tool arguments and results are never shown to the evaluator. When a call's tool
+record is missing or incomplete, a rubric is never failed for it: the voice
+attempt ends as an error (`tool_events_incomplete`), and a rubric that cannot
+be given a complete record records `unknown`. Long records are cut at 32 tools
+and 32 calls, and the evaluator is told how many were left out.
+
 Every verdict stores the evaluator's provider, model, prompt version, prompt
 hash and the rubric revision it graded. "Same model" and "same question" are
 different claims, and comparing two scores means having both.
