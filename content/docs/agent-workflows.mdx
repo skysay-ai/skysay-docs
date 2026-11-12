@@ -284,10 +284,15 @@ question the line asked — "Have you already paid it?" — is an answer, not a
 denial of identity. Only that one line is added: the workflow's other steps,
 the caller's earlier replies and any variable the line does not state never
 reach the decision model. The values are included only when the model that
-judges replies runs on the same provider as the agent's own model, so your
-data reaches no provider the call was not already using. For any other
-provider the line goes as you wrote it if it names no variable, and is left
-out if it does.
+judges replies runs on the same provider as the model the call was started
+on, so your data reaches no provider the call was not already using. That is
+the model the call was started with, not the agent as it is now: changing the
+agent's model during a call does not change where that call's values go. With
+[Follow the caller](/docs/multilingual-outbound), every language the call may
+switch to must use that same provider. When the agent's model runs on your
+own provider key, the judging model (which runs on Skysay's) counts as
+another provider. For any other provider the line goes as you wrote it if it
+names no variable, and is left out if it does.
 
 Because the two mean different things, a workflow may not point both
 interrupts at one outcome step, and validation refuses a draft that does. Both
@@ -1000,8 +1005,10 @@ answer another workflow question.
 
 A transfer says nothing of its own beyond its read-back, so put a **Tell /
 Say** step before it ("One moment, I'll put you through.") if the caller should
-hear one after the yes. While the person's phone rings the caller hears
-silence. A call with a person on it dials from your number the caller reached
+hear one after the yes. While the person's phone rings the caller hears it
+ringing: silence for about the first five seconds, then a ring every five
+seconds, until the person answers or the ring time ends. The workflow says
+nothing over the ringing. A call with a person on it dials from your number the caller reached
 (inbound) or the number the call was placed from (outbound). Transfer Actions
 run on Standard and GPT-Live workflows alike.
 
