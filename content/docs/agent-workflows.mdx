@@ -10,8 +10,8 @@ turn. You build the graph visually — or describe it in plain language and let
 AI draft it — while Skysay continuously compiles it into a versioned,
 server-validated runtime contract. The model decides nothing on its own
 authority: it chooses between the routes you declared, and the server applies
-the transition. On the Standard engine every line is spoken exactly as you
-wrote it; on GPT-Live 1 the model says each line in its own words (see
+the transition. On the Standard engine the workflow supplies the text sent to the selected
+text-to-speech voice; on GPT-Live 1 the model says each line in its own words (see
 [Spoken workflow calls](#spoken-workflow-calls)).
 
 ## Voice and turn-taking
@@ -585,6 +585,7 @@ Test your own languages before you launch.
 | Listener | OpenAI GPT-Live Transcribe (`gpt-live-transcribe`) | Every call language | English |
 | Voice (Standard) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | English | English |
 | Voice (Standard) | Azure AI Speech neural voices | All the languages it lists | Sinhala, English |
+| Voice (Standard) | Gemini 3.1 Flash TTS (`gemini-3.1-flash-tts-preview`), such as Kore | All the languages it lists | — |
 | Voice (Standard) | Fish Audio S2 Pro (`s2-pro`) | English, Tamil | Tamil |
 | Voice (Standard) | Soniox (`tts-rt-v2`) | All the languages it lists | English |
 | Engine | GPT-Live 1, any of its voices | Every language | English |
@@ -596,14 +597,17 @@ by GPT-Live 1. A Tamil workflow can use Deepgram Nova-3 with Fish Audio, and a
 GPT-Live workflow in any language can use a listener that accepts that
 language.
 
-Azure, as listener or voice, and GPT-Live run on Skysay-managed credentials
-only. A workspace cannot add its own Azure or OpenAI key, and a call whose
-workflow would use a workspace key for one of them is refused before funds are reserved
+Azure, as listener or voice, Gemini 3.1 Flash TTS, and GPT-Live run on
+Skysay-managed credentials only. A workflow using one of these sources with a workspace provider key is
+refused before funds are reserved
 (`source_credential_platform_only`, see
 [When a spoken workflow call is refused](#when-a-spoken-workflow-call-is-refused)).
-Other voices, such as Cartesia and Gemini TTS, and other listeners still work
-on AI agents without a workflow; they are not accepted on spoken workflow calls
-yet. Gemini Live cannot run a spoken workflow.
+Choose Gemini 3.1 Flash TTS on the **Standard** engine to speak authored
+workflow lines with a voice such as Kore. Publish the voice selection and a
+listener that accepts the workflow’s languages before starting calls. This is
+text-to-speech output; **Gemini Live** cannot run a spoken workflow. Other
+Gemini TTS models, Cartesia and other unlisted sources are not accepted for
+spoken workflows. They remain available on ordinary agents where supported.
 
 Which languages count:
 
