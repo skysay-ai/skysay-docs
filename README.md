@@ -232,8 +232,9 @@ CI (`tests/test_release_state.py`, which is the exact rule) holds the whole
 file to this shape so that every release section is seen by its date check.
 The front matter is single-line `key: value` lines between two `---` lines.
 After it every line is blank, `## <day> <Month> <year>`, `### <title>` or
-`- <bullet>`; a title or bullet starts with a letter, a digit, a backtick, `[`
-or `**`. `<`, `>`, `{` and `}` appear only inside single-backtick code spans,
+`- <bullet>`; a title starts with a letter or a digit, a bullet with a letter,
+a digit (not a list number), a backtick, `[` or `**`. `<`, `>`, `{` and `}`
+appear only inside single-backtick code spans,
 the file has no control characters, and no release date is after the
 checkpoint in `release-state.json`.
 
