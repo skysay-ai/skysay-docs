@@ -141,16 +141,19 @@ conversation together with the agent's **tool record**:
   this is the list the agent was actually handed on the call, built-in tools
   such as ending the call included; on a workflow test it is the tools its
   steps call;
-- every tool call it made, in order, and whether each returned a successful
-  result. A transfer also shows whether it was answered, from your scenario's
-  mock.
+- every tool call it made, in order, and whether each returned a result or an
+  error. Where your scenario's mock answers with a fixed outcome, the evaluator
+  sees that outcome too: whether a transfer was answered, whether availability
+  was found, whether a booking was created. A webhook or integration mock's
+  payload is never shown.
 
 The evaluator is told that a statement of an action (checking, booking,
 transferring, reaching someone, saving, sending) needs a matching tool call. A
 rubric such as *"The agent never says it tried, booked or arranged something it
-did not"* is therefore judged on evidence: "you're booked" after a booking tool
-that failed, or "I couldn't reach the technician" with no transfer tool, scores
-low, while the same words after a real, unanswered transfer pass.
+did not"* is therefore judged on evidence: "you're booked" when your booking
+mock answered "not created", or "I couldn't reach the technician" with no
+transfer tool, scores low, while the same words after a real, unanswered
+transfer pass.
 
 Tool arguments and results are never shown to the evaluator. When a call's tool
 record is missing or incomplete, a rubric is never failed for it: the voice
