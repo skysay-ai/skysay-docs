@@ -30,12 +30,25 @@ CODE_SPAN = re.compile(r"`[^`]*`")
 CONTROL = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f  ]")
 
 
+# Front matter is `---`, single-line `key: value` lines, then `---`. Holding it
+# to that shape means no front-matter parser can close it somewhere else and
+# leave rendered lines this check took for front matter.
+FRONT_MATTER_LINE = re.compile(r"[a-z][A-Za-z0-9_]*: [A-Za-z0-9].*", re.ASCII)
+
+
 def changelog_body_lines(changelog: str) -> list[str]:
     lines = changelog.splitlines()
-    if lines and lines[0] == "---":
-        end = lines.index("---", 1)
-        return lines[end + 1 :]
-    return lines
+    if not lines or lines[0] != "---":
+        return lines
+    for index, line in enumerate(lines[1:], start=1):
+        if line == "---":
+            return lines[index + 1 :]
+        if not FRONT_MATTER_LINE.fullmatch(line):
+            raise AssertionError(
+                f"release log front matter line {index + 1} {line!r} is not "
+                "`key: value`; the front matter ends at a line that is exactly `---`"
+            )
+    raise AssertionError("release log front matter has no closing `---` line")
 
 
 def release_log_format_error(line: str) -> str | None:
@@ -151,6 +164,22 @@ class ReleaseStateTests(unittest.TestCase):
             "---\ntitle: Release log\n---\n\n## 11 November 2026\n\n"
             "### Calls placed before 12 November 2026 keep their summary\n\n- A bullet.\n",
         )
+
+    def test_front_matter_cannot_hide_a_later_section(self) -> None:
+        later = "## 12 November 2026\n\n### Entry\n\n- A bullet.\n"
+        history = "## 11 November 2026\n\n### Entry\n\n- A bullet.\n"
+        for front_matter in (
+            f"---\ntitle: Release log\n--- \n{later}---\n",
+            f"---\ntitle: Release log\n---x\n{later}---\n",
+            f"---\ntitle: Release log\n...\n{later}---\n",
+            f"---\ntitle: Release log\n{later}",
+            f"---\ntitle: |\n  {later}---\n",
+        ):
+            with self.subTest(front_matter=front_matter):
+                with self.assertRaises(AssertionError):
+                    self.assert_log_not_ahead_of_checkpoint(
+                        datetime(2026, 11, 11), f"{front_matter}\n{history}"
+                    )
 
     def test_entry_lines_in_the_readme_format_pass(self) -> None:
         for line in (
