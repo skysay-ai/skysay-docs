@@ -724,6 +724,19 @@
           },
           "link": {
             "properties": {
+              "concurrent_conversations": {
+                "description": "How many conversations may run on this link at the same time: 3 until changed, 1 to max_concurrent_conversations. One visitor holds at most 2 at once whatever this is.",
+                "example": 3,
+                "type": "integer"
+              },
+              "daily_conversations_per_visitor": {
+                "description": "How many conversations one visitor may start on this link in a UTC day: 10 until changed, 1 to 1000, or null for no limit. Every conversation is billed to the workspace.",
+                "example": 10,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "enabled": {
                 "type": "boolean"
               },
@@ -738,12 +751,19 @@
             "required": [
               "slug",
               "enabled",
-              "path"
+              "path",
+              "daily_conversations_per_visitor",
+              "concurrent_conversations"
             ],
             "type": [
               "object",
               "null"
             ]
+          },
+          "max_concurrent_conversations": {
+            "description": "The highest concurrent_conversations this link may be given.",
+            "example": 4,
+            "type": "integer"
           },
           "max_session_seconds": {
             "example": 300,
@@ -765,6 +785,7 @@
           "suggested_slug",
           "hosted",
           "max_session_seconds",
+          "max_concurrent_conversations",
           "check"
         ],
         "type": "object"
@@ -8737,6 +8758,7 @@
     },
     "/v1/agents/{agent_id}/browser-sessions/{session_id}/settle": {
       "post": {
+        "description": "Ends the reservation. Repeating it is safe. In the response, busy is true when the voice service was full and turned the session away before an AI agent joined; that session's call is canceled and not charged.",
         "operationId": "settleAgentBrowserSession",
         "parameters": [
           {
@@ -8758,6 +8780,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "busy": {
+                      "description": "True when the voice service was full and turned this session away before an AI agent joined.",
+                      "type": "boolean"
+                    },
+                    "call_id": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "settled",
+                        "expired"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Settled session"
           }
         },
@@ -9588,7 +9639,7 @@
         ]
       },
       "patch": {
-        "description": "Requires agents:write. Send slug, enabled, or both. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
+        "description": "Requires agents:write. Send any of slug, enabled, daily_conversations_per_visitor and concurrent_conversations. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
         "operationId": "updateAgentPublicLink",
         "parameters": [
           {
@@ -9615,6 +9666,21 @@
                 "additionalProperties": false,
                 "minProperties": 1,
                 "properties": {
+                  "concurrent_conversations": {
+                    "description": "How many conversations may run on this link at the same time: 3 until changed, 1 to max_concurrent_conversations. One visitor holds at most 2 at once whatever this is.",
+                    "maximum": 4,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "daily_conversations_per_visitor": {
+                    "description": "How many conversations one visitor may start on this link in a UTC day: 10 until changed, 1 to 1000, or null for no limit. Every conversation is billed to the workspace.",
+                    "maximum": 1000,
+                    "minimum": 1,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
                   "enabled": {
                     "description": "True makes a hosted AI agent publicly callable. False keeps the URL reserved and turns off public access.",
                     "type": "boolean"
@@ -14745,6 +14811,123 @@
           }
         },
         "summary": "List the latest run's contacts with status, disposition, attempts and next attempt (bounded page)",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "post": {
+        "description": "Adds contacts to a scheduled, running or paused campaign: the rows join the campaign's own contact list (the same validation and per-row report as POST /v1/contact-lists/{contact_list_id}/contacts, at most 10,000 rows per request and 50,000 contacts per list) and its run's queue in one transaction, so they are called inside their calling hours like the contacts the campaign launched with. A number on the do-not-call register is enrolled marked `do_not_call` and never dialed. Idempotent: a contact already in the queue is not added again (`already_enrolled`); a number already in the list but not in the queue is enrolled. The audience with the new contacts is authorized as at launch; if it would need review (for example a new destination country) the request is refused with 409 and nothing is added. A campaign that is a draft, completed or cancelled answers 409.",
+        "operationId": "enrollCampaignContacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "contacts": {
+                    "items": {
+                      "type": "object"
+                    },
+                    "maxItems": 10000,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "contacts"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The import report (accepted, rejected, skipped_duplicates, rejections, row_count) with campaign_id, run_id, enrolled, already_enrolled and do_not_call"
+          },
+          "400": {
+            "description": "No contacts, too many rows, or the list would exceed its size limit"
+          },
+          "404": {
+            "description": "The campaign is not in the authenticated workspace"
+          },
+          "409": {
+            "description": "The campaign is not scheduled, running or paused, or the audience with these contacts would need review"
+          }
+        },
+        "summary": "Enroll contacts into a launched campaign",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts": {
+      "get": {
+        "description": "Attempts oldest first. Each has `attempt_no`, `kind` (`first_contact`, `retry`, `callback` or `reopened`: why the contact was called), `channel`, `destination`, `started_at`, `settled_at` (null while the attempt is in flight), `disposition`, `termination_cause`, `call_id`, `decision` (`retry`, `callback`, `deferred` or `finished`: what the campaign did next), `next_at` (when the next attempt was scheduled for) and `finished_reason` (on the attempt that finished the contact, when the campaign named a reason, such as `callback_limit_reached`). A value the campaign did not record is null: attempts from before this history existed have no `kind` and no `decision`. `contact_id` is the `id` of a row of `GET /v1/campaigns/{campaign_id}/contacts`.",
+        "operationId": "listCampaignContactAttempts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The contact, its attempts and pagination"
+          },
+          "404": {
+            "description": "No such campaign or contact in this workspace"
+          }
+        },
+        "summary": "One contact's timeline in a campaign: every attempt in order, its result and what was decided next (bounded page)",
         "tags": [
           "Campaigns"
         ],
