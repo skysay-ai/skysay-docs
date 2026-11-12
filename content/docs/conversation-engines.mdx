@@ -292,15 +292,16 @@ so a reconnect cannot repeat a tool action.
 Eleven Realtime's tool format has named fields only, so Skysay hands it a
 parameter that is an object of names you don't list in advance, such as the
 calendar booking's answers to the event's questions or a webhook parameter
-declared with `additionalProperties`, as a list of name and value pairs. It
+declared with `additionalProperties` set to a schema and no listed properties,
+as a list of name and value pairs. It
 turns the list back into the object before the tool runs, so your webhook or
 calendar receives the same request it would from any other engine. If the model
 gives a name twice or leaves a value out, nothing runs and the model is asked to
 send the request again. A tool whose parameters use something this format
 cannot express, such as a `minimum`, `pattern` or `format` rule, or an object
 of free names that also requires a particular name, is left out of that call:
-the call starts with the AI agent's other tools and records a
-`configured_tool_omitted` event naming the tool.
+the call starts with the AI agent's other tools, and the call's timeline does
+not show the omission.
 
 With Eleven Realtime, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech.
 
