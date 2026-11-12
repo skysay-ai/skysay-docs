@@ -1,11 +1,11 @@
 ---
 title: Import a number you own
-description: Connect a customer-owned DIDWW or DIDLogic number to Skysay.
+description: Connect a customer-owned DIDWW, DIDLogic or Telnyx number to Skysay.
 icon: Import
 ---
 
-Use **Numbers → Import a number** for a number you already own at DIDWW or
-DIDLogic. You keep the number and its carrier account. This does not purchase
+Use **Numbers → Import a number** for a number you already own at DIDWW, DIDLogic or
+Telnyx. You keep the number and its carrier account. This does not purchase
 a number, transfer ownership, or port it to Skysay.
 
 <Walkthrough id="import-a-number" tab="didww" />
@@ -195,6 +195,56 @@ elsewhere. Reconnecting creates a fresh integration generation and rotates
 credentials on its dedicated incoming trunk. Old incoming SIP credentials no
 longer authenticate. Skysay blocks new calls through a disconnected number,
 but disconnect does not delete your carrier trunks.
+
+## Telnyx: connect with one API key
+
+<Walkthrough id="import-a-number" tab="telnyx" />
+
+Choose **Telnyx** in the same **Numbers → Import a number** window. Sign in
+to your own [Telnyx account](https://portal.telnyx.com/#/api-keys), open
+**API Keys → Create API Key**, name the key Skysay and paste it into the
+window. Choose **List my numbers**, select an active owned voice number,
+and choose a published AI agent for incoming calls and/or **Connect outgoing
+calls**. Review the changes and confirm. You can also save the number with
+both directions deferred; saving alone does not change its carrier route.
+
+Listing numbers is read-only. The API key grants account access; Skysay uses
+it during each setup request and does not retain it. Calling authorization
+is stored encrypted. You must enter the key again to retry or change setup.
+
+Incoming setup changes only the selected number’s connection. Skysay creates
+a dedicated incoming connection and destination. Existing number translation,
+technical prefixes or forwarding can prevent safe setup; resolve those at
+Telnyx before trying again. Avoid editing the route while Skysay connects it:
+Telnyx cannot condition the routing update atomically on the previous value.
+Messaging profiles are not changed, and this import does not connect SMS.
+
+Outgoing setup creates a separate connection restricted to the selected
+caller ID, one concurrent call, and Skysay’s configured voice-server IPs
+plus a per-connection authentication token. It does not replace incoming
+routing. An enabled global outbound voice profile is required: Skysay uses
+the profile assigned to the number’s current connection or the sole enabled
+global profile in the account. If the choice is ambiguous, select the intended
+profile in Telnyx before retrying. Skysay does not expand that profile’s
+spending or destination permissions.
+
+Telnyx continues charging number rental and carrier traffic. Skysay charges
+AI/platform usage at your workspace rates. Telnyx balance, account-level,
+verification and destination restrictions still apply. A trial account can
+reject a purchase or call even after you add credit. Importing does not
+purchase a number or upgrade the Telnyx account.
+
+The result reports incoming and outgoing setup separately. A configuration
+check is not proof that a call has connected. Test both directions after
+setup. If a request is interrupted, re-enter the same account’s API key and
+recheck; Skysay reconciles recorded resources rather than creating duplicates
+blindly. A changed or uncertain resource requires support.
+
+**Disconnect from Skysay** blocks calls through this integration. It does not
+delete the number, restore its prior route, or remove Telnyx connections.
+Reroute the number at Telnyx to receive calls elsewhere. Delete its dedicated
+Skysay outgoing connection at Telnyx to revoke that carrier authorization.
+Reconnecting rotates authorization on the integration’s verified resources.
 
 ## DIDLogic
 

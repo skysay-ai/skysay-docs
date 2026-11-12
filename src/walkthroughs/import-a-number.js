@@ -1,4 +1,4 @@
-// Numbers → Import a number: DIDWW, DIDLogic, or your own SIP trunk.
+// Numbers → Import a number: supported carriers or your own SIP trunk.
 // Labels, hints and buttons are the workspace's own wording. Skysay's SIP
 // address is the `skysay` block every workspace gets from
 // GET /v1/sip-connections (a reserved IP; there is no host name for it).
@@ -575,13 +575,55 @@ const didlogic = {
   ],
 };
 
+const telnyxSide = (text) => ({ label: "At Telnyx", blocks: [{ type: "note", text }] });
+const telnyx = {
+  id: "telnyx", label: "From Telnyx", title: "Import a number you own",
+  lede: "Connect an active Telnyx voice number with one API key. Your carrier keeps billing its number and traffic.",
+  steps: [
+    {
+      label: "API key", title: "Import from your carrier",
+      main: [keyFields("Telnyx"), { type: "details", summary: "Where do I get my API key?", blocks: [
+        { type: "list", ordered: true, items: ["Sign in to your own Telnyx account.", "Open API Keys → Create API Key.", "Name the key Skysay, copy it, then paste it here. This grants account access."] },
+      ] }, { type: "buttons", items: [{ text: "List my numbers", primary: true }] }],
+      side: telnyxSide("Use the key for your own Telnyx account. Skysay does not keep it after setup. Account and balance restrictions still apply."),
+    },
+    {
+      label: "Choose a number", title: "Choose a number",
+      intro: "Search for a complete number or use the next page.",
+      main: [numberList("Select", true), { type: "buttons", items: [{ text: "Next page" }] }],
+      side: telnyxSide("Listing is read-only. No number is purchased and no route changes at this step."),
+    },
+    {
+      label: "What it does", title: "Choose what it should do",
+      main: [{ type: "fields", fields: [{ label: "AI agent for incoming calls", value: "Front desk" }] },
+        { type: "checks", items: [{ text: "Connect outgoing calls", checked: true }] },
+        { type: "note", text: "SMS is not connected through this voice import." },
+        { type: "buttons", items: [{ text: "Review setup", primary: true }] }],
+      side: telnyxSide("Choose a published AI agent, or set up incoming later to preserve the current route. Outgoing uses an existing enabled global outbound voice profile."),
+    },
+    {
+      label: "Review", title: "Review setup",
+      main: [{ type: "value", mono: false, label: "Current incoming route", value: "The connection Telnyx reports today" },
+        { type: "note", text: "Connecting incoming moves only this number to Skysay. Outgoing uses a separate dedicated connection. Telnyx bills the number and carrier traffic directly; Skysay bills AI/platform usage." },
+        { type: "checks", items: [{ text: "Replace this number’s incoming route with the selected Skysay AI agent.", checked: true }] },
+        { type: "buttons", items: [{ text: "Connect this number", primary: true }] }],
+      side: telnyxSide("Do not edit the route at the same time. Existing number translation or forwarding can prevent safe setup. Other numbers and messaging profiles stay unchanged."),
+    },
+    {
+      label: "Result", title: "Check the result",
+      main: [{ type: "status", tone: "ok", title: "Number connected", lines: ["Incoming setup complete", "Outgoing configured", "SMS is not connected through this voice import."] }],
+      side: telnyxSide("Configuration checked does not mean a call has connected: test both directions. Disconnect blocks Skysay calling but leaves the Telnyx route and number unchanged; reroute at Telnyx and remove its dedicated outgoing connection to revoke carrier authorization."),
+    },
+  ],
+};
+
 const walkthrough = {
   id: "import-a-number",
   title: "Import a number",
   crumb: "Numbers / Import a number",
   defaultTab: "sip",
   note: "Example values only. Your workspace shows your own numbers and AI agents.",
-  tabs: [didww, didlogic, sipTrunk],
+  tabs: [didww, didlogic, telnyx, sipTrunk],
 };
 
 export default walkthrough;
