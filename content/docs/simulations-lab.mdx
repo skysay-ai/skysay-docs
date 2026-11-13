@@ -149,10 +149,12 @@ conversation together with the agent's **tool record**:
   such as ending the call included; on a workflow test it is the tools its
   steps call;
 - every tool call it made, in order, and whether each returned a result or an
-  error. Where your scenario's mock answers with a fixed outcome, the evaluator
-  sees that outcome too: whether a transfer was answered, whether availability
-  was found, whether a booking was created. A webhook or integration mock's
-  payload is never shown.
+  error. On a prompt agent's voice test, where your scenario's mock answers
+  with a fixed outcome, the evaluator sees that outcome too: whether a transfer
+  was answered, whether availability was found, whether a booking was created.
+  On a workflow test it sees a transfer step's outcome, and for every other
+  tool step only whether it returned a result or an error. A webhook or
+  integration mock's payload is never shown.
 
 The evaluator is told that a statement of an action (checking, booking,
 transferring, reaching someone, saving, sending) needs a matching tool call. A
@@ -166,10 +168,11 @@ What the evaluator can check, tool by tool:
 
 | Tool | The evaluator sees |
 |---|---|
-| `transfer_to_human` | whether it returned an error, and the transfer outcome your mock set (answered or not answered) |
-| `calendar_check_availability` | whether it returned an error, and whether availability was found |
-| `calendar_book_appointment` | whether the booking was confirmed, or not created or unavailable as your mock set, or not done at all (the caller declined, or it was refused or cancelled) |
-| A workflow's transfer step | whether it was answered, busy, rejected or failed |
+| `transfer_to_human` on a prompt agent's voice test | whether it returned an error, and the transfer outcome your mock set (answered or not answered) |
+| `calendar_check_availability` on a prompt agent's voice test | whether it returned an error, and whether availability was found |
+| `calendar_book_appointment` on a prompt agent's voice test | whether the booking was confirmed, or not created or unavailable as your mock set, or not done at all (the caller declined, or it was refused or cancelled) |
+| A workflow's transfer step | whether it was answered, not answered, busy, rejected or failed, or the caller hung up or cancelled it |
+| A workflow's other tool steps, calendar steps included | only whether the step returned a result or an error, or was still waiting for the caller's confirmation |
 | Webhook and integration tools, `send_sms`, `set_call_disposition`, `get_phone_number_coverage`, knowledge search, ending the call | only whether the call returned a result or an error: your mock's payload is never shown |
 
 So a rubric can catch "the appointment is booked" when your booking mock says
@@ -220,8 +223,8 @@ Each judge question carries the agent's tool record (see
 [What the evaluator sees about tools](#what-the-evaluator-sees-about-tools)), so
 the estimate allows for a longer question: a judged scripted run's estimate is
 about twice what it was. Every question is still settled at its measured usage.
-Because the estimate counts against your workspace's in-flight limit, the
-largest judged chat run you can start is now about 110 attempts.
+Because the estimate counts against your workspace's in-flight limit, a large
+judged run leaves less room for other runs started at the same time.
 
 For chat tests, every model call is claimed against that ceiling *before* it is made, including
 your AI agent's own calls: they are the thing being tested, but they are still
