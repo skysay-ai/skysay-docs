@@ -313,9 +313,11 @@ or below your threshold. The top-up runs in the background a few seconds
 after that charge or hold, so the call that crossed the threshold does not
 wait for the card payment. A call that finds your available funds too low
 to hold it at all still has the top-up tried while it is being set up, and
-starts if the top-up covers it. Each top-up adds your configured amount,
-and a short pause follows every attempt, whatever its outcome, before the
-next one can start.
+starts if the top-up covers it. Each top-up adds your configured amount.
+Every attempt, whatever its outcome, starts a 15-minute wait before Skysay
+tries your card again. During those 15 minutes, a call that finds your funds
+too low to hold it is refused without another card attempt. After three
+failed attempts in a row, Skysay stops trying until you save a new card.
 
 ## Incoming calls blocked by insufficient funds
 
@@ -354,8 +356,9 @@ busy signal, nothing is reserved or charged, and no call is created. The caller
 can call again.
 
 The one exception is a call whose setup turns to automatic recharge because
-your available funds are too low to hold it. Once that setup has started a
-top-up from your saved card, this limit no longer applies to the call.
+your available funds are too low to hold it. This limit does not apply to that
+call. If the card payment itself is slow, the caller can still hear a busy
+signal; a top-up that succeeds is credited to your funds either way.
 
 ## A call has ended but funds are still reserved
 
