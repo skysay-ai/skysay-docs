@@ -9,6 +9,37 @@
 // starts expanded. content/docs/ stays a flat file list and meta.json keeps
 // its separators (the section tab row in docs-tabs.jsx still reads them).
 //
+// Long setup guides expose their existing section anchors as nested links.
+// Keep these on the original page so bookmarked carrier links still work;
+// add a provider here only once its guide is available.
+const GUIDE_SECTIONS = {
+  "/docs/import-a-number": [
+    { name: "DIDWW", anchor: "didww-connect-with-one-api-key" },
+    { name: "DIDLogic", anchor: "didlogic" },
+    { name: "Telnyx", anchor: "telnyx-connect-with-one-api-key" },
+  ],
+};
+
+function withGuideSections(node) {
+  const sections = node.type === "page" && GUIDE_SECTIONS[node.url];
+  if (!sections) return node;
+  return {
+    type: "folder",
+    $id: `guide:${node.$id ?? node.url}`,
+    name: node.name,
+    icon: node.icon,
+    index: node,
+    collapsible: true,
+    defaultOpen: true,
+    children: sections.map(({ name, anchor }) => ({
+      type: "page",
+      $id: `${node.$id ?? node.url}#${anchor}`,
+      name,
+      url: `${node.url}#${anchor}`,
+    })),
+  };
+}
+
 // Two behaviours come from fumadocs and are left as they are: a folder that
 // holds the page being read is open on load, and a reader's fold is not
 // remembered across page loads.
@@ -34,9 +65,9 @@ export function groupSeparatorsIntoSections(tree) {
       };
       children.push(section);
     } else if (section) {
-      section.children.push(node);
+      section.children.push(withGuideSections(node));
     } else {
-      children.push(node);
+      children.push(withGuideSections(node));
     }
   }
   return { ...tree, children };
