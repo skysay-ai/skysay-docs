@@ -78,10 +78,17 @@ network. Test those separately before relying on them in production.
 An adaptive scenario uses a **persona** instead of a fixed sequence of turns.
 It describes who the caller is, what they want, how they behave, and when they
 interrupt or change direction. A caller model writes each turn by reading the
-AI agent's last reply.
+conversation so far, oldest line first: what your AI agent said and what the
+caller said, so it does not ask again for what it was told or change details it
+already gave. In a long conversation the oldest lines are left out first. A
+caller line that never played to your agent, because it was cut off, is shown
+to the caller as not heard.
 
 The caller may do exactly three things: **say** something, **interrupt**, or
-**hang up**. That is the whole vocabulary. If the caller model answers with
+**hang up**. That is the whole vocabulary. A hang-up may carry the caller's
+last line: the caller says its goodbye, then hangs up, and that line is the
+caller's last turn in the transcript. Because the caller has left, how fast the
+AI agent would have answered that line is not measured. If the caller model answers with
 anything else — a tool call, a transfer destination, an extra field, or
 something that is not valid JSON — that attempt ends as a typed **error**, not
 as a failure. A caller that misbehaved tells you nothing about your AI agent,
