@@ -265,6 +265,25 @@ The instruction also reaches every language profile a
 [language-following](/docs/language-following) agent can switch to. On
 GPT-Live 1 it also reaches the backend model that decides when to call tools.
 
+## The tool honesty instruction
+
+Every agent with a prompt of its own also gets a short instruction from Skysay,
+added after your prompt on every call and in the builder's **Chat** test. It
+names the tools the agent actually has on that call, says that these are the
+only actions it can take, and tells it never to say it will check, try or do
+something unless it calls the tool for it, nor that an action happened unless
+the tool's result says so. The list is the tools the agent was really given on
+the call, so a tool that could not be set up for that call is left out. On
+GPT-Live 1 the backend model reads the same list, and the list stays the same
+when a language-following agent switches language. It cannot be switched off.
+On Eleven Realtime, which limits the size of an agent's instructions, it is
+left out when adding it would take the instructions over that limit.
+It **reduces**, but does not prevent, an agent promising to look something up,
+book or transfer when it has no tool to do so: the model can still get it
+wrong, and it can still follow a line your prompt scripts, such as "I've
+marked this as urgent", when no tool did that. Agents that run a conversation
+flow, and SMS conversations, do not get this instruction.
+
 ## When both sides go quiet
 
 > **Rolling out.** Ordinary silence remains in observation unless enabled
