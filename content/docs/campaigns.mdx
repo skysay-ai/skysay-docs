@@ -266,7 +266,25 @@ requested time, up to the campaign's [call-back limit](#call-backs).
 ### Call-backs
 
 A person who asks to be called back is called at the time they named, whatever
-the retry policy says. `max_callbacks` sets how many call-backs one contact may
+the retry policy says. The agent records the request with
+`set_call_disposition` (`connected_callback_requested` with `callback_at`) as
+soon as the person asks, with no read-back: like a request to speak to someone,
+the person's own request is the confirmation. A workflow's Action step that
+sets it still confirms it.
+
+- A `callback_at` without a UTC offset is read in the call's local time zone,
+  the one the agent's `call.local_time` is given in (the contact's time zone,
+  else the campaign's, else the one for the person's number, else UTC). When
+  the call's zone is not known, such a time is refused (`callback_at_offset_required`) and the agent is asked
+  to send it with its offset.
+- A time more than a minute in the past, or more than 30 days ahead, is
+  refused (`callback_at_in_past`, `callback_at_too_far_ahead`) and nothing is
+  recorded. The agent is told the current local time so it can ask again.
+- A time at or after the campaign's `ends_at` is recorded, but the campaign
+  ends first, so it is not placed: the result carries `callback_scheduled`
+  `false`, as below.
+
+`max_callbacks` sets how many call-backs one contact may
 be granted in a campaign: 0 to 10, default 2. In the workspace it is
 **Call-back requests per contact** on the **Schedule & retries** step.
 
@@ -287,6 +305,65 @@ be granted in a campaign: 0 to 10, default 2. In the workspace it is
   campaign. The value in force when a call settles is the one that applies.
   Campaigns created before this setting existed have the default.
 
+### Follow-up calls
+
+A retry or a call-back does not have to start from nothing. Every campaign
+call carries the built-in call variable `campaign.call_kind`, which says why
+the contact is being called now:
+
+| `campaign.call_kind` | The call is |
+| --- | --- |
+| `first_contact` | the first call to this contact in the campaign |
+| `retry` | another try after a call that did not reach the person |
+| `callback` | the call-back the person asked for |
+| `reopened` | a call to a contact you put back in the queue from the review inbox |
+
+Set `followup_context` to `summary` and a follow-up call is also told what was
+said the last time the campaign reached this person. In the workspace it is
+**Tell follow-up calls what was said last time** on the **Schedule & retries** step. The
+default is `none`.
+
+| Built-in | Value |
+| --- | --- |
+| `campaign.previous_summary_status` | whether there is a summary; see below |
+| `campaign.previous_summary` | the [call summary](/docs/call-summaries) of that conversation |
+| `campaign.previous_follow_up` | the follow-up that summary named, if it named one |
+
+- "Last time" is the last call that reached the person, not the last dial. A
+  busy line or an unanswered call after a real conversation does not erase it.
+- The call is never held back or refused for a summary.
+  `campaign.previous_summary_status` says what the call was given:
+
+  | Status | Meaning |
+  | --- | --- |
+  | `available` | the summary is in `campaign.previous_summary` |
+  | `no_previous_conversation` | the campaign has not reached this person before |
+  | `pending` | the summary of the last conversation is still being written |
+  | `unavailable` | that conversation has no summary: call summaries are off for the AI agent, the summary failed, or the call left no transcript |
+  | `withheld` | this AI agent is not given what was said last time: it enters a value on a phone keypad, or it does not protect the summary itself and the earlier call kept a value back until it had confirmed the person (or entered one on a keypad), or Skysay cannot tell what that call kept back |
+  | `omitted_too_large` | the contact's own values already fill the call's data, or a line that says the summary would be too long with it; if the data is still too large without the summary, this status and `campaign.call_kind` are left out too |
+
+- Each text is at most 512 characters; a longer one is cut at a word and ends
+  with an ellipsis. The transcript is not passed on.
+- On a [workflow that protects a value](/docs/call-variables#protected-variables),
+  the summary and the follow-up are protected too, because they can repeat
+  anything the last call said. The workflow may say them only after its
+  confirming step, and after the strongest check any of its protected values
+  needs: if one value needs a `knowledge_match`, so does the summary. A
+  workflow with a line, or a read step, that could reach them earlier cannot
+  be published, and the workflow's greeting and instructions cannot name them.
+  Before that step the status already reads `available`; the summary itself
+  stays out of the call until the check is passed.
+- Your AI agent reads these like any other call variable. To open differently
+  on a follow-up call, write both openings into the first message:
+
+  ```text
+  {{#campaign.previous_summary}}Hi again, this is Acme calling you back as agreed.{{/campaign.previous_summary}}{{^campaign.previous_summary}}Hi, this is Acme calling about your delivery.{{/campaign.previous_summary}}
+  ```
+
+- You can change `followup_context` on a draft and on a scheduled or paused
+  campaign. Campaigns created before this setting existed have `none`.
+
 ### Concurrency
 
 `max_concurrency` caps the campaign's simultaneous calls and never exceeds your
@@ -303,6 +380,39 @@ the limit in force: the copy's `max_concurrency` is at most the limit and its
 `reserved_concurrency` at most one less. Any setting lowered to fit is listed in
 the response's `clamped` (empty when the copy matches the original), and the
 dashboard says so too.
+
+### Add contacts to a running campaign
+
+A campaign's audience is copied from its contact list when you launch it. To
+add people afterwards, enroll them:
+`POST /v1/campaigns/{campaign_id}/contacts` (MCP: `enroll_campaign_contacts`),
+with the same rows as a contact-list import, at most 10,000 a request.
+
+```json
+{ "contacts": [{ "phone_e164": "+14155550123", "name": "Dana Reyes" }] }
+```
+
+- The rows join the campaign's own contact list and its queue in one step.
+  They are called inside their calling hours, like the contacts the campaign
+  launched with.
+- The campaign must be scheduled, running or paused. A draft takes its
+  contacts from its list at launch; a completed or cancelled campaign answers
+  `409`, so duplicate it to call more people.
+- Enrolling is safe to repeat. A contact already in the campaign is not added
+  twice, and the response says so in `already_enrolled`. A number already in
+  the list but not yet in the campaign is enrolled.
+- A number on your do-not-call register is enrolled marked `do_not_call` and
+  is never dialled.
+- The campaign is checked as at launch with the new contacts in it. If the
+  check would not allow them, for example a destination country that needs a
+  review, the request answers `409` and nothing is added.
+- A campaign does not complete for running out of contacts while an enrolled
+  contact is still to be called. It still ends at its end date, and contacts
+  not yet called are then skipped.
+
+The response is the list import's report (`accepted`, `rejected`,
+`skipped_duplicates`, `rejections`) plus `campaign_id`, `run_id`, `enrolled`,
+`already_enrolled` and `do_not_call`.
 
 ## Dispositions
 
@@ -346,6 +456,9 @@ only from your own workspace.
   opens the ordinary [call evidence](/docs/read-call-evidence);
   `GET /v1/campaigns/{campaign_id}/results` adds each contact's last-call
   [business outcome](#business-outcomes).
+- `GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts` returns one
+  contact's [history](#contact-history): every attempt in order, its result
+  and what the campaign decided next.
 - Webhooks: `campaign.launched`, `campaign.contact.completed`,
   `campaign.completed`. Per-call events are unchanged and carry
   `external_reference` (the contact's reference) and
@@ -383,6 +496,48 @@ Click a call outcome or a result answer to show only the contacts with it;
 click it again, or the chip above the table, to clear it. Filters combine
 with the tab. **Export CSV** then downloads exactly the rows the table shows,
 in the same order, and its label gives the count.
+
+### Contact history
+
+Every contact has a history: each attempt the campaign made, in order, with
+its result and what the campaign decided next. On the campaign page, click the
+number in a contact's **Attempts** column to open it under the row. **Open this
+person in Contacts** shows the same number on the
+[Contacts](/docs/contacts#all-contacts) page, with its lists and its most
+recent calls and SMS conversations.
+
+A history opened from **Contacts**, or from a link someone shared, opens above
+the table when the contact's row is not on the page of the table you are
+looking at. The page address keeps the open history, so reloading the page or
+sharing the link shows it again.
+
+| Column | Value |
+| --- | --- |
+| Kind | why the contact was called: **First call**, **Retry**, **Call-back**, or **Called again after review** |
+| Result | the attempt's [disposition](#dispositions), or a dash when there is none: the call is in progress, or the attempt was postponed |
+| Next step | **Retry scheduled for** a time, **Call-back scheduled for** a time, **Postponed to** a time (the attempt was not made, for example because no line was free), or **No further calls**, with the reason when the campaign named one |
+| Open | the call's [evidence](/docs/read-call-evidence) |
+
+The API and MCP return the same history:
+`GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts` and the MCP
+tool `list_campaign_contact_attempts`. `contact_id` is the `id` of a row of
+`GET /v1/campaigns/{campaign_id}/contacts`.
+
+| Field | Value |
+| --- | --- |
+| `attempt_no` | 1 for the first attempt |
+| `kind` | `first_contact`, `retry`, `callback` or `reopened` |
+| `started_at`, `settled_at` | when the attempt was made and when its result was recorded; `settled_at` is `null` while the call is in progress |
+| `disposition`, `termination_cause` | how the attempt ended |
+| `call_id` | the call, when one was placed |
+| `decision` | `retry`, `callback`, `deferred` or `finished` |
+| `next_at` | when the next attempt was scheduled for |
+| `finished_reason` | on the attempt that finished the contact, the reason when the campaign named one, for example `callback_limit_reached` |
+
+Attempts are returned oldest first, 50 a page (`limit` up to 200, `offset`,
+`has_more`). A value the campaign did not record is `null`: attempts made
+before contact history existed have no `kind` and no `decision`, and the
+campaign page shows them as not recorded.
 
 ## Edit a campaign
 
