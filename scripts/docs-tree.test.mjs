@@ -71,6 +71,30 @@ test("folder ids are distinct", () => {
   assert.equal(new Set(ids).size, ids.length);
 });
 
+test("carrier imports are one folder with stable links to real guide sections", () => {
+  const overview = page("import-a-number");
+  const input = { children: [separator("Guides"), overview, page("keep-your-number")] };
+  const before = JSON.stringify(input);
+  const { children: [guides] } = groupSeparatorsIntoSections(input);
+  const [imports, nextPage] = guides.children;
+  assert.equal(imports.type, "folder");
+  assert.equal(imports.index, overview);
+  assert.equal(imports.defaultOpen, true);
+  assert.equal(imports.collapsible, true);
+  assert.deepEqual(imports.children.map(({ name }) => name), ["DIDWW", "DIDLogic", "Telnyx"]);
+  const mdx = readFileSync(path.join(ROOT, "content/docs/import-a-number.mdx"), "utf8");
+  const anchors = new Set([...mdx.matchAll(/^## (.+)$/gm)].map(([, heading]) =>
+    heading.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-"),
+  ));
+  for (const child of imports.children) {
+    const [url, anchor] = child.url.split("#");
+    assert.equal(url, overview.url);
+    assert.ok(anchors.has(anchor), `missing guide section ${child.url}`);
+  }
+  assert.equal(nextPage.url, "/docs/keep-your-number");
+  assert.equal(JSON.stringify(input), before, "the source tree must stay unchanged");
+});
+
 test("meta.json: one folder per section, holding exactly its pages", () => {
   const sections = parseDocsSections(meta.pages);
   const input = {
