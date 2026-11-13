@@ -3941,6 +3941,11 @@
             ],
             "type": "string"
           },
+          "followup_transcript": {
+            "default": false,
+            "description": "Free-form AI agents only: a follow-up call (a retry or a call-back) is given the previous conversation's transcript, newest turns first, at most 4,000 characters, as quoted data at the end of its prompt. Not given on a workflow agent or Eleven Realtime, on a call with a keypad variable, or when the earlier call held a value back or keyed one. Independent of followup_context.",
+            "type": "boolean"
+          },
           "from_number_ids": {
             "items": {
               "type": "string"
@@ -4082,6 +4087,10 @@
               "summary"
             ],
             "type": "string"
+          },
+          "followup_transcript": {
+            "description": "Free-form AI agents only: a follow-up call (a retry or a call-back) is given the previous conversation's transcript, newest turns first, at most 4,000 characters, as quoted data at the end of its prompt. Not given on a workflow agent or Eleven Realtime, on a call with a keypad variable, or when the earlier call held a value back or keyed one. Independent of followup_context. Omitting it keeps the stored value.",
+            "type": "boolean"
           },
           "from_number_ids": {
             "items": {
@@ -14604,7 +14613,7 @@
         ]
       },
       "post": {
-        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the workspace's concurrent-call limit (the plan's allowance unless Skysay set a different limit for the workspace; `reserved_concurrency` at most one less), a call-back budget (`max_callbacks`, 0 to 10, default 2: how many call-backs one contact may be granted; a request beyond it finishes the contact with `skip_reason` `callback_limit_reached`), follow-up context (`followup_context`, `none` or `summary`, default `none`: whether a retry or call-back is given the summary of the previous conversation with the contact), and an optional schedule. A campaign is locked at launch; duplicate it to change anything. The purpose is a free-form label shown on the campaign and recorded on each of its calls; no purpose is refused.",
+        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the workspace's concurrent-call limit (the plan's allowance unless Skysay set a different limit for the workspace; `reserved_concurrency` at most one less), a call-back budget (`max_callbacks`, 0 to 10, default 2: how many call-backs one contact may be granted; a request beyond it finishes the contact with `skip_reason` `callback_limit_reached`), follow-up context (`followup_context`, `none` or `summary`, default `none`: whether a retry or call-back is given the summary of the previous conversation with the contact), follow-up transcript (`followup_transcript`, boolean, default `false`, free-form AI agents only: whether a retry or call-back is given the previous conversation's transcript, at most 4,000 characters), and an optional schedule. A campaign is locked at launch; duplicate it to change anything. The purpose is a free-form label shown on the campaign and recorded on each of its calls; no purpose is refused.",
         "operationId": "createCampaign",
         "requestBody": {
           "content": {
@@ -14689,7 +14698,7 @@
         ]
       },
       "patch": {
-        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, max_callbacks, followup_context, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` must be at most the workspace's concurrent-call limit and a changed `reserved_concurrency` at most the limit minus one; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
+        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, max_callbacks, followup_context, followup_transcript, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` must be at most the workspace's concurrent-call limit and a changed `reserved_concurrency` at most the limit minus one; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
         "operationId": "updateCampaign",
         "parameters": [
           {
