@@ -272,6 +272,15 @@ soon as the person asks, with no read-back: like a request to speak to someone,
 the person's own request is the confirmation. A workflow's Action step that
 sets it still confirms it.
 
+On a [conversation workflow](/docs/agent-workflows), taking the workflow's
+`callback` global interrupt schedules the call-back at the time the person
+named, under the same rules and campaign limits below. The turn that takes the
+interrupt reads the time from what the caller said, and the call's event log
+records it as [`call.workflow_callback_time`](/docs/read-call-evidence#callworkflow_callback_time),
+with the reason when there is no time to schedule. An authored route to the
+interrupt's target step schedules nothing: only the interrupt records a
+call-back request.
+
 - A `callback_at` without a UTC offset is read in the call's local time zone,
   the one the agent's `call.local_time` is given in (the contact's time zone,
   else the campaign's, else the one for the person's number, else UTC). When
@@ -279,7 +288,9 @@ sets it still confirms it.
   to send it with its offset.
 - A time more than a minute in the past, or more than 30 days ahead, is
   refused (`callback_at_in_past`, `callback_at_too_far_ahead`) and nothing is
-  recorded. The agent is told the current local time so it can ask again.
+  recorded. The agent is told the current local time so it can ask again. On a
+  workflow, the refusal is the event's `reason` and the contact is finished
+  with `connected_callback_requested`, as when no time was named.
 - A time at or after the campaign's `ends_at` is recorded, but the campaign
   ends first, so it is not placed: the result carries `callback_scheduled`
   `false`, as below.
@@ -492,11 +503,11 @@ another outcome: the contact is closed and not dialed again by this campaign,
 and nothing is added to the register. When it
 is `wrong_party` or `callback`, the attempt is `connected_wrong_party` or
 `connected_callback_requested` unless the agent declared an outcome. A
-workflow callback carries no time, so the contact is finished with that
-disposition rather than dialed again; only an agent's declared callback with
-`callback_at` schedules a call. The last request wins: a caller who asked not
-to be contacted and then asked to be called back is recorded as a callback
-request, not `do_not_call`. Every interrupt the call took stays on its
+workflow callback is dialed again at the time the person named, as a
+[call-back](#call-backs); when no time was named or the time was refused, the
+contact is finished with that disposition. The last request wins: a caller who
+asked not to be contacted and then asked to be called back is recorded as a
+callback request, not `do_not_call`, and called back at the time they named. Every interrupt the call took stays on its
 [`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended)
 if you want a stop request to win. Only interrupts the workflow runner took
 count: a route you named like an interrupt decides nothing, and a run is read

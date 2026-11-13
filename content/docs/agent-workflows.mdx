@@ -157,6 +157,15 @@ rail. They can preempt any ordinary step, and when a caller's utterance
 matches more than one, the server picks the highest-precedence interrupt from
 a fixed order; the model never decides precedence.
 
+**The callback interrupt reads the time.** When a reply takes the `callback`
+interrupt, the turn also reads when the caller asked to be called back ("in
+two minutes", "tomorrow at three"), on the call's own local clock, and records
+it on the call as [`call.workflow_callback_time`](/docs/read-call-evidence#callworkflow_callback_time).
+On a campaign call the campaign places the [call-back](/docs/campaigns#call-backs)
+at that time. Only the interrupt records a call-back request: an authored route
+to the same step records none, including in workflows published before this
+reading existed. New payment-reminder drafts no longer add such a route.
+
 **What counts as a request for a person.** The human-request interrupt means an
 explicit request to speak to a person instead of the AI agent ("Can I talk to
 someone at reception?", "Put me through to a real person"). Asking a question,
