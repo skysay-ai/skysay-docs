@@ -316,6 +316,49 @@ be granted in a campaign: 0 to 10, default 2. In the workspace it is
   campaign. The value in force when a call settles is the one that applies.
   Campaigns created before this setting existed have the default.
 
+#### A call-back a mailbox asked for
+
+Some voicemail greetings say "call me back later". An agent that hears one
+may record a call-back as if a person had asked. Skysay checks for this when
+the attempt settles. It looks at what the call's voicemail detection heard
+from the other end:
+
+- one voicemail greeting that ended in a record beep;
+- nothing else before that greeting or after the beep;
+- and the whole call heard.
+
+When all of these hold, a `connected_callback_requested` attempt settles as
+`voicemail`. This applies whether the agent declared the call-back or a
+workflow took its `callback` interrupt. The requested time is dropped. Your
+voicemail retry policy applies, and the call-back does not count against
+`max_callbacks`. The call keeps its own record of what was said: the agent's
+declaration and the workflow's interrupts are unchanged.
+
+Anything a person could have said keeps the call-back. That includes speech
+before the greeting, any sound after the beep, or a stretch of the call that
+was not heard. For example, Dana's mailbox answers a campaign call: "Hi, it's
+Dana, I can't take your call, please call me back later", then the beep. The
+agent records a call-back. Nothing is heard after the beep, so the attempt
+settles as `voicemail` and your voicemail retry policy decides when Dana is
+called again, instead of the campaign calling her mailbox back at the time
+the agent recorded. Limits:
+
+- The check needs voicemail detection. An AI agent whose
+  [voicemail setting](/docs/voicemail-detection#the-four-settings) is `off`
+  hears nothing, so every call-back it records stands. `shadow`, `hang_up`
+  and `leave_message` all watch.
+- A greeting with no record beep is never treated this way, so a call-back it
+  "asked for" stands.
+- Speech within about 12 seconds before the beep is taken to be the greeting.
+- Faint sound after the beep, even line noise, keeps the call-back. Some
+  mailbox call-backs therefore still stand.
+- The check reads the voice worker's own end-of-call report. If the attempt
+  settled before that report arrived, it keeps its outcome.
+
+The terminal [`call.ended`](/docs/webhooks) event's `details` carries
+`recording_evidence: true` on such calls, as described in
+[Post-call results](/docs/post-call-results#a-recording-that-asked-for-a-call-back).
+
 ### Follow-up calls
 
 A retry or a call-back does not have to start from nothing. Every campaign
@@ -507,7 +550,10 @@ workflow callback is dialed again at the time the person named, as a
 [call-back](#call-backs); when no time was named or the time was refused, the
 contact is finished with that disposition. The last request wins: a caller who
 asked not to be contacted and then asked to be called back is recorded as a
-callback request, not `do_not_call`, and called back at the time they named. Every interrupt the call took stays on its
+callback request, not `do_not_call`, and called back at the time they named. A
+call-back recorded on a call that only reached a voicemail greeting with a beep
+settles as `voicemail` (see
+[A call-back a mailbox asked for](#a-call-back-a-mailbox-asked-for)). Every interrupt the call took stays on its
 [`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended)
 if you want a stop request to win. Only interrupts the workflow runner took
 count: a route you named like an interrupt decides nothing, and a run is read
