@@ -83,6 +83,12 @@ Adding a page automatically adds it to the sidebar, the search index,
 `/llms.txt`, `/llms-full.txt`, its own `.md` URL, and the sitemap. There is no
 second place to register it.
 
+The long import guide also exposes its carrier sections as children of one
+collapsible sidebar group. `GUIDE_SECTIONS` in `src/lib/docs-tree.js` points
+to the existing headings, preserving bookmarked URLs. When a new carrier's
+guide is available, add its heading anchor there; do not add a placeholder
+for a provider whose import is not yet supported.
+
 ## Running locally
 
 Requires Node 22 or newer.
