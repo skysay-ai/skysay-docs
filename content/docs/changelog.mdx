@@ -4,6 +4,146 @@ description: Major Skysay releases, with links to the features and guides you ca
 icon: Journal
 ---
 
+## 12 November 2026
+
+### Gemini 3.1 voices can speak workflow lines
+
+- Choose Gemini 3.1 Flash TTS on the Standard engine for a spoken workflow, with a voice such as Kore and a listener that accepts the workflow's languages.
+- Gemini workflow speech uses Skysay-managed credentials. Test the spoken audio in your language before launching; a language listing is not a tested-language badge.
+- [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls)
+
+### Follow-up campaign calls can be given the last transcript
+
+- A campaign has a new setting on its schedule step, **Give follow-up calls the last transcript** (`followup_transcript`); it is off by default and separate from the summary.
+- A follow-up call of a free-form AI agent is then given the last conversation with that person, at most 4,000 characters, newest turns kept.
+- Workflow agents, Eleven Realtime, agents that enter values on a keypad and calls after one that kept a value back do not get it; the Calls drawer shows each call's eligibility.
+- The transcript lengthens the AI agent's instructions, so each follow-up call that has it uses more input tokens.
+- [The previous transcript](/docs/campaigns#the-previous-transcript)
+
+### Read the documents behind an AI agent's knowledge
+
+- An AI agent's **Knowledge** section now lists each attached base's documents with their name, size, type and status.
+- Choose **View text** beside a searchable document to read the text your agent searches, in a side panel, without leaving the AI agent.
+- **Manage knowledge base** opens that base on the Knowledge page, and **Back to the agent** brings you back.
+- [Inspect attached sources](/docs/knowledge-bases#inspect-attached-sources)
+
+### Interrupted ElevenLabs Flash and Turbo voices stop at the end of a word
+
+- When a caller interrupts an AI agent with an ElevenLabs Flash v2.5 or Turbo v2.5 voice, the agent now stops at the end of the word it is saying, once the reply's audio is produced.
+- Every other voice, and a reply still being produced, keeps the short fade; either way the agent is silent within about half a second.
+- [Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in)
+
+### The Simulations Lab test caller follows the whole conversation
+
+- An adaptive test caller now reads the conversation so far, both sides, oldest line first, instead of only your AI agent's last reply.
+- It is less likely to ask again for what your agent already said or to change details it gave; in a long conversation the oldest lines are left out first.
+- [The adaptive caller](/docs/simulations-lab#the-adaptive-caller)
+
+### Follow-up campaign calls know what was said last time
+
+- Every campaign call carries a new built-in call variable, `campaign.call_kind`: `first_contact`, `retry`, `callback` or `reopened`.
+- A campaign has a new setting, **Tell follow-up calls what was said last time** (`followup_context` `summary` in the API and MCP); it is off for existing campaigns.
+- A follow-up call then carries the summary of the last conversation with that person in `campaign.previous_summary`.
+- A call is never held back for a summary; `campaign.previous_summary_status` says whether there is one.
+- [Follow-up calls in campaigns](/docs/campaigns#follow-up-calls) · [Built-in call variables](/docs/call-variables)
+
+### Follow-up summaries keep what a call protects
+
+- On a workflow that protects a value, the summary is protected too: the workflow says it only after its confirming step, at the strongest check any of its protected values needs.
+- AI agents that enter a value on a phone keypad are not given the summary.
+- A follow-up call is not given the summary of an earlier call that kept a value back until it had confirmed the person, or entered one on a keypad, unless its own AI agent protects the summary; `campaign.previous_summary_status` then reads `withheld`.
+- [Follow-up calls in campaigns](/docs/campaigns#follow-up-calls)
+
+### See what happened to each campaign contact, call by call
+
+- On the campaign page, click the number in a contact's **Attempts** column to open its history: every attempt in order, whether it was a first call, a retry or a call-back, how it ended and what the campaign decided next.
+- The same history is in the API (`GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts`) and MCP (`list_campaign_contact_attempts`).
+- Attempts made before 11 November show their result; their kind and next step read as not recorded.
+- [Contact history](/docs/campaigns#contact-history)
+
+### Go from a campaign contact to the person on Contacts, and back
+
+- In a campaign contact's history, **Open this person in Contacts** shows that number's lists and its most recent calls and SMS conversations.
+- On **Contacts**, a call a campaign placed names the campaign; click it to open that campaign with the person's history open, even when the contact is not on the first page of the table.
+- [Contact history](/docs/campaigns#contact-history) · [Contacts](/docs/contacts)
+
+### Add contacts to a campaign that is already running
+
+- `POST /v1/campaigns/{campaign_id}/contacts` (MCP: `enroll_campaign_contacts`) adds up to 10,000 contacts to a scheduled, running or paused campaign; they are called inside their calling hours.
+- Repeating a request is safe: a contact already in the campaign is not added twice.
+- A campaign no longer completes for running out of contacts while one you enrolled is still to be called; it still ends at its end date.
+- [Add contacts to a running campaign](/docs/campaigns#add-contacts-to-a-running-campaign)
+
+### Campaign call-back requests are recorded on the call
+
+- When a person on a campaign call asks to be called back, the AI agent records it at once with `set_call_disposition`, with no read-back, and the campaign calls back at that time; before, most campaign agents could not record it.
+- On the Standard engine this includes a request made in the person's first words on picking up, in the languages listed under **Who speaks first**.
+- A call-back time without a UTC offset is read in the call's local time zone; one in the past or more than 30 days ahead is refused and the agent asks again.
+- A call-back at or after the campaign's end date is recorded but not placed, and the AI agent is told so.
+- [Call-backs in campaigns](/docs/campaigns#call-backs) · [Who speaks first](/docs/who-speaks-first#what-the-agent-says-first)
+
+### Public link owners set the conversation limits
+
+- Each public link now has two limits you set under **Share**: conversations per visitor per day (10 until changed, up to 1000, or no limit) and conversations at the same time (3 until changed, up to 4).
+- In the API and MCP they are `daily_conversations_per_visitor` and `concurrent_conversations`; the read also returns `max_concurrent_conversations`.
+- The daily limit now counts each link separately, so a visitor's conversations on one link no longer use up another link's allowance; existing links keep 10 and 3.
+- [Public link limits](/docs/public-link#limits)
+
+### Busy instead of silence when every voice line is in use
+
+- A public link visitor or a browser test that arrives while every voice line is in use now sees the busy message within a few seconds, instead of a silent room.
+- The turned-away conversation is listed in **Calls** as canceled and is not charged; on a public link it does not count toward the visitor's daily limit.
+- [Public links](/docs/public-link) · [Browser tests](/docs/trial-calls)
+
+### Transfers ring for the caller
+
+- While an AI transfer rings the person's phone, the caller now hears ringing (a ring every five seconds after about five seconds of silence) instead of silence, for agent transfers and workflow transfer steps.
+- Call recordings now keep what the agent says while a transfer rings; before, those words were missing from the recording.
+- [Transfer to a human](/docs/transfer-to-a-human#what-the-caller-hears-while-it-rings) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Agents are told which tools they have on each call
+
+- Every free-form AI agent is now told, on voice calls and in the builder's **Chat** test, which tools it can use, that they are its only actions, and to say an action was done only when a tool's result says so.
+- When a caller asks for something no tool can do, the agent is told to say plainly what it can do instead, rather than promise to check or arrange it.
+- A line your prompt scripts, such as "your details have been saved", can still be said when no tool backs it, so change such lines.
+- [The tool honesty instruction](/docs/how-calls-end#the-tool-honesty-instruction)
+
+### Eleven Realtime takes tools with free-name objects
+
+- On Eleven Realtime, a tool parameter that is an object of names you do not list in advance, such as calendar booking answers, now works; before, the call dropped at the start.
+- A tool whose parameters the engine cannot express is left out of the call, and the call starts with the AI agent's other tools.
+- [Eleven Realtime](/docs/conversation-engines#eleven-realtime)
+
+### A request the caller spoke over runs nothing and is asked again
+
+- If the caller speaks while a free-form voice agent's request for a business action is still on its way, nothing is prepared or run, and the agent is told so instead of being told the tool failed.
+- The agent takes in what the caller said before asking again; a calendar booking refused this way shows **Calendar request refused** in the timeline.
+- [Business actions](/docs/business-actions#what-the-caller-experiences) · [Calendar booking](/docs/calendar-booking)
+
+### Workflow values go only to the call's own provider
+
+- On a workflow call, the line the caller just heard goes with its values to the model judging the reply only when that model's provider is the one the call started on.
+- Changing the AI agent's model during a call does not change this; the values are left out when a **Follow the caller** language uses another provider or the call's model runs on your own key.
+- [Agent workflows](/docs/agent-workflows#payment-reminder-identity-clarification)
+
+### The AI caller says goodbye and hangs up
+
+- In Simulations Lab voice and chat tests, the AI caller can now end the conversation with its own last line and hang up, instead of saying goodbye and carrying on.
+- That closing line is the caller's last turn in the transcript; in voice tests, how fast your AI agent would have answered it is not counted against timing rules.
+- [The adaptive caller](/docs/simulations-lab#the-adaptive-caller)
+
+### Calls whose connection is lost finish cleanly
+
+- A call or Simulations Lab voice test whose connection is lost before it ends now finishes cleanly: its usage and recording are saved, and a lab test no longer holds a Simulations Lab slot.
+- Any other call process that stops making progress after its call has ended is now ended after 15 minutes instead of staying stuck.
+- [Live-call voice tests](/docs/simulations-lab#live-call-voice-tests)
+
+### Simulations Lab voice tests run to their ceiling
+
+- A funded Simulations Lab voice test is no longer stopped for budget two minutes in; it runs to its call ceiling (150 seconds by default).
+- The Simulations Lab test caller now hears the first words of your AI agent's turns, which it often missed before, so the evaluator reads fuller transcripts.
+- [Ceilings and cost](/docs/simulations-lab#ceilings-and-cost) · [The adaptive caller](/docs/simulations-lab#the-adaptive-caller)
+
 ## 11 November 2026
 
 ### Live agents end a call only after their goodbye
