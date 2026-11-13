@@ -1,4 +1,5 @@
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/page";
+import { findNeighbour } from "fumadocs-core/page-tree";
 import { notFound } from "next/navigation";
 
 import { getMDXComponents } from "@/mdx-components";
@@ -17,7 +18,7 @@ export default async function DocsPageRoute(props) {
     // The breadcrumb is off: sidebar sections are folders now (see
     // src/lib/docs-tree.js), and fumadocs would otherwise print the section
     // name above every page title, which these pages never showed.
-    <DocsPage role="main" toc={page.data.toc} full={page.data.full} breadcrumb={{ enabled: false }}>
+    <DocsPage role="main" toc={page.data.toc} full={page.data.full} breadcrumb={{ enabled: false }} footer={{ items: findNeighbour(source.pageTree, page.url) }}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>

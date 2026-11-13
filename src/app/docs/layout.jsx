@@ -5,6 +5,7 @@ import { baseLinks, baseNavOptions } from "@/lib/docs-layout.config";
 import { groupSeparatorsIntoSections } from "@/lib/docs-tree.js";
 import { docsSectionTabs } from "@/lib/docs-tabs.jsx";
 import { source } from "@/lib/source";
+import { SidebarAnchorNavigation } from "@/components/sidebar-anchor-navigation";
 
 // The sidebar's sections as collapsible folders, open by default, without the
 // separators' icons. See src/lib/docs-tree.js.
@@ -53,6 +54,7 @@ export default function DocsRootLayout({ children }) {
         // nothing when clicked.
         themeSwitch={{ enabled: false }}
       >
+        <SidebarAnchorNavigation />
         {children}
       </DocsLayout>
     </RootProvider>
