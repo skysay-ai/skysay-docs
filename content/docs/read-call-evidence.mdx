@@ -231,6 +231,27 @@ internal bookkeeping log rather than a webhook replay, so it contains types
 that are never delivered to any webhook endpoint. Reading it needs
 `calls:read`.
 
+### `call.workflow_callback_time`
+
+Written by a [workflow](/docs/agent-workflows) turn that took the `callback`
+global interrupt: the time the caller asked to be called back, as the turn read
+it from what they said. It is written in the same commit as the turn and never
+delivered to a webhook endpoint. Any call whose workflow takes the interrupt
+gets one, campaign call or not; only a [campaign](/docs/campaigns#call-backs)
+schedules a call from it.
+
+| Field | Meaning |
+| --- | --- |
+| `callback_at` | The time, in UTC (`...Z`), or empty when there is none to schedule. |
+| `reason` | `read` when there is a time; `no_time` when the caller named none; `time_unavailable` when the time could not be read within the turn (a timeout or a provider error); or the refusal `callback_at_in_past`, `callback_at_too_far_ahead`, `callback_at_offset_required` or `invalid_callback_at`. |
+| `run_id` | The workflow run the turn belongs to. |
+| `interrupt_seq` | The sequence number of the run step that took the interrupt. |
+| `requested_at` | When the time was read. |
+
+A campaign uses the time only when the event belongs to the last interrupt the
+call's workflow took; a later stop request, wrong-party reply or declared
+outcome decides as before.
+
 ### `call.wrong_party_signals`
 
 Written once when a call ends on a wrong-party verdict — the caller said they

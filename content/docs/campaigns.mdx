@@ -272,6 +272,15 @@ soon as the person asks, with no read-back: like a request to speak to someone,
 the person's own request is the confirmation. A workflow's Action step that
 sets it still confirms it.
 
+On a [conversation workflow](/docs/agent-workflows), taking the workflow's
+`callback` global interrupt schedules the call-back at the time the person
+named, under the same rules and campaign limits below. The turn that takes the
+interrupt reads the time from what the caller said, and the call's event log
+records it as [`call.workflow_callback_time`](/docs/read-call-evidence#callworkflow_callback_time),
+with the reason when there is no time to schedule. An authored route to the
+interrupt's target step schedules nothing: only the interrupt records a
+call-back request.
+
 - A `callback_at` without a UTC offset is read in the call's local time zone,
   the one the agent's `call.local_time` is given in (the contact's time zone,
   else the campaign's, else the one for the person's number, else UTC). When
@@ -279,7 +288,9 @@ sets it still confirms it.
   to send it with its offset.
 - A time more than a minute in the past, or more than 30 days ahead, is
   refused (`callback_at_in_past`, `callback_at_too_far_ahead`) and nothing is
-  recorded. The agent is told the current local time so it can ask again.
+  recorded. The agent is told the current local time so it can ask again. On a
+  workflow, the refusal is the event's `reason` and the contact is finished
+  with `connected_callback_requested`, as when no time was named.
 - A time at or after the campaign's `ends_at` is recorded, but the campaign
   ends first, so it is not placed: the result carries `callback_scheduled`
   `false`, as below.
@@ -304,6 +315,49 @@ be granted in a campaign: 0 to 10, default 2. In the workspace it is
 - You can change `max_callbacks` on a draft and on a scheduled or paused
   campaign. The value in force when a call settles is the one that applies.
   Campaigns created before this setting existed have the default.
+
+#### A call-back a mailbox asked for
+
+Some voicemail greetings say "call me back later". An agent that hears one
+may record a call-back as if a person had asked. Skysay checks for this when
+the attempt settles. It looks at what the call's voicemail detection heard
+from the other end:
+
+- one voicemail greeting that ended in a record beep;
+- nothing else before that greeting or after the beep;
+- and the whole call heard.
+
+When all of these hold, a `connected_callback_requested` attempt settles as
+`voicemail`. This applies whether the agent declared the call-back or a
+workflow took its `callback` interrupt. The requested time is dropped. Your
+voicemail retry policy applies, and the call-back does not count against
+`max_callbacks`. The call keeps its own record of what was said: the agent's
+declaration and the workflow's interrupts are unchanged.
+
+Anything a person could have said keeps the call-back. That includes speech
+before the greeting, any sound after the beep, or a stretch of the call that
+was not heard. For example, Dana's mailbox answers a campaign call: "Hi, it's
+Dana, I can't take your call, please call me back later", then the beep. The
+agent records a call-back. Nothing is heard after the beep, so the attempt
+settles as `voicemail` and your voicemail retry policy decides when Dana is
+called again, instead of the campaign calling her mailbox back at the time
+the agent recorded. Limits:
+
+- The check needs voicemail detection. An AI agent whose
+  [voicemail setting](/docs/voicemail-detection#the-four-settings) is `off`
+  hears nothing, so every call-back it records stands. `shadow`, `hang_up`
+  and `leave_message` all watch.
+- A greeting with no record beep is never treated this way, so a call-back it
+  "asked for" stands.
+- Speech within about 12 seconds before the beep is taken to be the greeting.
+- Faint sound after the beep, even line noise, keeps the call-back. Some
+  mailbox call-backs therefore still stand.
+- The check reads the voice worker's own end-of-call report. If the attempt
+  settled before that report arrived, it keeps its outcome.
+
+The terminal [`call.ended`](/docs/webhooks) event's `details` carries
+`recording_evidence: true` on such calls, as described in
+[Post-call results](/docs/post-call-results#a-recording-that-asked-for-a-call-back).
 
 ### Follow-up calls
 
@@ -492,11 +546,14 @@ another outcome: the contact is closed and not dialed again by this campaign,
 and nothing is added to the register. When it
 is `wrong_party` or `callback`, the attempt is `connected_wrong_party` or
 `connected_callback_requested` unless the agent declared an outcome. A
-workflow callback carries no time, so the contact is finished with that
-disposition rather than dialed again; only an agent's declared callback with
-`callback_at` schedules a call. The last request wins: a caller who asked not
-to be contacted and then asked to be called back is recorded as a callback
-request, not `do_not_call`. Every interrupt the call took stays on its
+workflow callback is dialed again at the time the person named, as a
+[call-back](#call-backs); when no time was named or the time was refused, the
+contact is finished with that disposition. The last request wins: a caller who
+asked not to be contacted and then asked to be called back is recorded as a
+callback request, not `do_not_call`, and called back at the time they named. A
+call-back recorded on a call that only reached a voicemail greeting with a beep
+settles as `voicemail` (see
+[A call-back a mailbox asked for](#a-call-back-a-mailbox-asked-for)). Every interrupt the call took stays on its
 [`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended)
 if you want a stop request to win. Only interrupts the workflow runner took
 count: a route you named like an interrupt decides nothing, and a run is read

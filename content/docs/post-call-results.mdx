@@ -366,6 +366,19 @@ it is neither redialled nor discounted. `ivr_timeout` with `navigation_limit`, `
 `data_not_authorised` or `keys_not_accepted` is terminal whatever `person_reached` says, and `no_human_after_answer` is never
 a pick-up. The same field is in the `call.completed` webhook, and the terminal `call.ended` event's `details` carries it as a boolean when the platform reported one.
 
+### A recording that asked for a call-back
+
+The terminal `call.ended` event's `details` carries `recording_evidence: true` in one case. The
+call's voicemail detection heard one voicemail greeting that ended in a record beep, nothing else
+from the other end, and the whole call. The key is absent otherwise; it is never `false`. It is not
+on the call resource or in `call.completed`. A campaign uses it to settle a call-back that such a
+greeting "asked for" as `voicemail` (see
+[Campaigns](/docs/campaigns#a-call-back-a-mailbox-asked-for)).
+
+The key is on `call.ended` when the voice worker's own end-of-call report is the event that creates
+it. A call whose `call.ended` came from another report, for example when the platform closed a call
+whose worker stopped answering, has no key.
+
 ### When the media session is lost
 
 `media_session_lost` is the one reason that names something nobody chose. It
