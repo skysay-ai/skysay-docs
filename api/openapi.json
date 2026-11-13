@@ -724,6 +724,19 @@
           },
           "link": {
             "properties": {
+              "concurrent_conversations": {
+                "description": "How many conversations may run on this link at the same time: 3 until changed, 1 to max_concurrent_conversations. One visitor holds at most 2 at once whatever this is.",
+                "example": 3,
+                "type": "integer"
+              },
+              "daily_conversations_per_visitor": {
+                "description": "How many conversations one visitor may start on this link in a UTC day: 10 until changed, 1 to 1000, or null for no limit. Every conversation is billed to the workspace.",
+                "example": 10,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "enabled": {
                 "type": "boolean"
               },
@@ -738,12 +751,19 @@
             "required": [
               "slug",
               "enabled",
-              "path"
+              "path",
+              "daily_conversations_per_visitor",
+              "concurrent_conversations"
             ],
             "type": [
               "object",
               "null"
             ]
+          },
+          "max_concurrent_conversations": {
+            "description": "The highest concurrent_conversations this link may be given.",
+            "example": 4,
+            "type": "integer"
           },
           "max_session_seconds": {
             "example": 300,
@@ -765,6 +785,7 @@
           "suggested_slug",
           "hosted",
           "max_session_seconds",
+          "max_concurrent_conversations",
           "check"
         ],
         "type": "object"
@@ -3920,6 +3941,11 @@
             ],
             "type": "string"
           },
+          "followup_transcript": {
+            "default": false,
+            "description": "Free-form AI agents only: a follow-up call (a retry or a call-back) is given the previous conversation's transcript, newest turns first, at most 4,000 characters, as quoted data at the end of its prompt. Not given on a workflow agent or Eleven Realtime, on a call with a keypad variable, or when the earlier call held a value back or keyed one. Independent of followup_context.",
+            "type": "boolean"
+          },
           "from_number_ids": {
             "items": {
               "type": "string"
@@ -4061,6 +4087,10 @@
               "summary"
             ],
             "type": "string"
+          },
+          "followup_transcript": {
+            "description": "Free-form AI agents only: a follow-up call (a retry or a call-back) is given the previous conversation's transcript, newest turns first, at most 4,000 characters, as quoted data at the end of its prompt. Not given on a workflow agent or Eleven Realtime, on a call with a keypad variable, or when the earlier call held a value back or keyed one. Independent of followup_context. Omitting it keeps the stored value.",
+            "type": "boolean"
           },
           "from_number_ids": {
             "items": {
@@ -8737,6 +8767,7 @@
     },
     "/v1/agents/{agent_id}/browser-sessions/{session_id}/settle": {
       "post": {
+        "description": "Ends the reservation. Repeating it is safe. In the response, busy is true when the voice service was full and turned the session away before an AI agent joined; that session's call is canceled and not charged.",
         "operationId": "settleAgentBrowserSession",
         "parameters": [
           {
@@ -8758,6 +8789,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "busy": {
+                      "description": "True when the voice service was full and turned this session away before an AI agent joined.",
+                      "type": "boolean"
+                    },
+                    "call_id": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "session_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "settled",
+                        "expired"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Settled session"
           }
         },
@@ -9588,7 +9648,7 @@
         ]
       },
       "patch": {
-        "description": "Requires agents:write. Send slug, enabled, or both. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
+        "description": "Requires agents:write. Send any of slug, enabled, daily_conversations_per_visitor and concurrent_conversations. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
         "operationId": "updateAgentPublicLink",
         "parameters": [
           {
@@ -9615,6 +9675,21 @@
                 "additionalProperties": false,
                 "minProperties": 1,
                 "properties": {
+                  "concurrent_conversations": {
+                    "description": "How many conversations may run on this link at the same time: 3 until changed, 1 to max_concurrent_conversations. One visitor holds at most 2 at once whatever this is.",
+                    "maximum": 4,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "daily_conversations_per_visitor": {
+                    "description": "How many conversations one visitor may start on this link in a UTC day: 10 until changed, 1 to 1000, or null for no limit. Every conversation is billed to the workspace.",
+                    "maximum": 1000,
+                    "minimum": 1,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
                   "enabled": {
                     "description": "True makes a hosted AI agent publicly callable. False keeps the URL reserved and turns off public access.",
                     "type": "boolean"
@@ -12103,7 +12178,7 @@
             "description": "Bounded DID list with channels, voice-only capability, and already-imported flags"
           }
         },
-        "summary": "List owned DIDLogic or DIDWW numbers using a transient customer API key; discovery never changes routing",
+        "summary": "List owned DIDLogic, DIDWW or Telnyx numbers using a transient customer API key; discovery never changes routing",
         "tags": [
           "Numbers"
         ]
@@ -12134,7 +12209,7 @@
             "description": "Readiness steps plus the provider activation-evidence block"
           }
         },
-        "summary": "Preview one DIDWW routing change and issue a scoped confirmation token, or check existing DIDLogic SIP readiness",
+        "summary": "Preview one DIDWW or Telnyx routing change and issue a scoped confirmation token, or check existing DIDLogic SIP readiness",
         "tags": [
           "Numbers"
         ]
@@ -14538,7 +14613,7 @@
         ]
       },
       "post": {
-        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the workspace's concurrent-call limit (the plan's allowance unless Skysay set a different limit for the workspace; `reserved_concurrency` at most one less), a call-back budget (`max_callbacks`, 0 to 10, default 2: how many call-backs one contact may be granted; a request beyond it finishes the contact with `skip_reason` `callback_limit_reached`), follow-up context (`followup_context`, `none` or `summary`, default `none`: whether a retry or call-back is given the summary of the previous conversation with the contact), and an optional schedule. A campaign is locked at launch; duplicate it to change anything. The purpose is a free-form label shown on the campaign and recorded on each of its calls; no purpose is refused.",
+        "description": "One agent, one to ten caller-id numbers, one contact list, a purpose, a consent basis (existing_customer or explicit_consent), local calling windows (per contact timezone or one fixed zone), a per-disposition retry policy or preset (sales, collections, single_attempt), campaign concurrency within the workspace's concurrent-call limit (the plan's allowance unless Skysay set a different limit for the workspace; `reserved_concurrency` at most one less), a call-back budget (`max_callbacks`, 0 to 10, default 2: how many call-backs one contact may be granted; a request beyond it finishes the contact with `skip_reason` `callback_limit_reached`), follow-up context (`followup_context`, `none` or `summary`, default `none`: whether a retry or call-back is given the summary of the previous conversation with the contact), follow-up transcript (`followup_transcript`, boolean, default `false`, free-form AI agents only: whether a retry or call-back is given the previous conversation's transcript, at most 4,000 characters), and an optional schedule. A campaign is locked at launch; duplicate it to change anything. The purpose is a free-form label shown on the campaign and recorded on each of its calls; no purpose is refused.",
         "operationId": "createCampaign",
         "requestBody": {
           "content": {
@@ -14623,7 +14698,7 @@
         ]
       },
       "patch": {
-        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, max_callbacks, followup_context, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` must be at most the workspace's concurrent-call limit and a changed `reserved_concurrency` at most the limit minus one; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
+        "description": "A draft or needs_review campaign accepts every setting. A scheduled or paused campaign accepts the run-safe settings only: name, from_number_ids, time_zone_mode, time_zone, calling_windows, retry_policy / retry_policy_preset, max_concurrency, reserved_concurrency, max_callbacks, followup_context, followup_transcript, ends_at and language, plus scheduled_start_at while still scheduled. Agent, contact list, purpose and consent basis are locked after launch (duplicate the campaign to change them); a running campaign must be paused first. The edit is serialized with the dispatcher and with pause/resume/cancel: a concurrent status change answers 409. Changing the calling windows or zone re-evaluates contacts that were waiting for the old window on the next tick. A changed `max_concurrency` must be at most the workspace's concurrent-call limit and a changed `reserved_concurrency` at most the limit minus one; one left as it was is kept even if the limit was lowered since, and the dispatcher never runs more calls than the limit allows. The response is the campaign plus `changed`, the list of settings that actually changed.",
         "operationId": "updateCampaign",
         "parameters": [
           {
@@ -14745,6 +14820,123 @@
           }
         },
         "summary": "List the latest run's contacts with status, disposition, attempts and next attempt (bounded page)",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      },
+      "post": {
+        "description": "Adds contacts to a scheduled, running or paused campaign: the rows join the campaign's own contact list (the same validation and per-row report as POST /v1/contact-lists/{contact_list_id}/contacts, at most 10,000 rows per request and 50,000 contacts per list) and its run's queue in one transaction, so they are called inside their calling hours like the contacts the campaign launched with. A number on the do-not-call register is enrolled marked `do_not_call` and never dialed. Idempotent: a contact already in the queue is not added again (`already_enrolled`); a number already in the list but not in the queue is enrolled. The audience with the new contacts is authorized as at launch; if it would need review (for example a new destination country) the request is refused with 409 and nothing is added. A campaign that is a draft, completed or cancelled answers 409.",
+        "operationId": "enrollCampaignContacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "contacts": {
+                    "items": {
+                      "type": "object"
+                    },
+                    "maxItems": 10000,
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "contacts"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The import report (accepted, rejected, skipped_duplicates, rejections, row_count) with campaign_id, run_id, enrolled, already_enrolled and do_not_call"
+          },
+          "400": {
+            "description": "No contacts, too many rows, or the list would exceed its size limit"
+          },
+          "404": {
+            "description": "The campaign is not in the authenticated workspace"
+          },
+          "409": {
+            "description": "The campaign is not scheduled, running or paused, or the audience with these contacts would need review"
+          }
+        },
+        "summary": "Enroll contacts into a launched campaign",
+        "tags": [
+          "Campaigns"
+        ],
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
+    "/v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts": {
+      "get": {
+        "description": "Attempts oldest first. Each has `attempt_no`, `kind` (`first_contact`, `retry`, `callback` or `reopened`: why the contact was called), `channel`, `destination`, `started_at`, `settled_at` (null while the attempt is in flight), `disposition`, `termination_cause`, `call_id`, `decision` (`retry`, `callback`, `deferred` or `finished`: what the campaign did next), `next_at` (when the next attempt was scheduled for) and `finished_reason` (on the attempt that finished the contact, when the campaign named a reason, such as `callback_limit_reached`). A value the campaign did not record is null: attempts from before this history existed have no `kind` and no `decision`. `contact_id` is the `id` of a row of `GET /v1/campaigns/{campaign_id}/contacts`.",
+        "operationId": "listCampaignContactAttempts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaign_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The contact, its attempts and pagination"
+          },
+          "404": {
+            "description": "No such campaign or contact in this workspace"
+          }
+        },
+        "summary": "One contact's timeline in a campaign: every attempt in order, its result and what was decided next (bounded page)",
         "tags": [
           "Campaigns"
         ],
@@ -16427,204 +16619,6 @@
         "summary": "Read shallow public API liveness",
         "tags": [
           "Account"
-        ]
-      }
-    },
-    "/v1/highlevel/calls/outcome": {
-      "post": {
-        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
-        "operationId": "getHighLevelCallOutcome",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "approval_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "contact_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "location_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "approval_id",
-                  "location_id",
-                  "contact_id"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "callId": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "enum": [
-                        "finished",
-                        "pending",
-                        "not_dialed",
-                        "unknown"
-                      ],
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "callId",
-                    "state",
-                    "status"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Original approved call result"
-          },
-          "400": {
-            "description": "Invalid or unverified contact"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Missing scope or expired approval"
-          },
-          "404": {
-            "description": "Bound approval or call not found"
-          },
-          "409": {
-            "description": "Installation changed or refresh in progress"
-          }
-        },
-        "summary": "Get highlevel call outcome",
-        "tags": [
-          "Integrations"
-        ],
-        "x-required-scopes": [
-          "calls:read"
-        ]
-      }
-    },
-    "/v1/highlevel/calls/start": {
-      "post": {
-        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
-        "operationId": "startHighLevelCall",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "approval_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "contact_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  },
-                  "location_id": {
-                    "maxLength": 128,
-                    "minLength": 1,
-                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "approval_id",
-                  "location_id",
-                  "contact_id"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "callId": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "enum": [
-                        "finished",
-                        "pending",
-                        "not_dialed",
-                        "unknown"
-                      ],
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "callId",
-                    "state",
-                    "status"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Original approved call result"
-          },
-          "400": {
-            "description": "Invalid or unverified contact"
-          },
-          "401": {
-            "description": "Authentication required"
-          },
-          "403": {
-            "description": "Missing scope or expired approval"
-          },
-          "404": {
-            "description": "Bound approval or call not found"
-          },
-          "409": {
-            "description": "Installation changed or refresh in progress"
-          }
-        },
-        "summary": "Start highlevel call",
-        "tags": [
-          "Integrations"
-        ],
-        "x-required-scopes": [
-          "calls:write"
         ]
       }
     },
