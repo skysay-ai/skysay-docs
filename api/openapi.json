@@ -7433,7 +7433,7 @@
         "type": "object"
       },
       "VoicePreviewRequest": {
-        "description": "One short preview of a selected voice: a bounded caller sentence for a text-to-speech voice, or Skysay's fixed sample for a conversation-engine voice (GPT-Live-1, Gemini Live, Eleven Realtime). Customer requests bind preview spend to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
+        "description": "One bounded voice audition for a TTS or native conversational voice. TTS speaks supplied text; conversational output may rephrase. Empty text uses the platform sample. Preview spend is bound to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
         "properties": {
           "agent_id": {
             "description": "Optional saved hosted agent pin for a managed preview only. It must belong to the authenticated project and exactly match the requested platform-managed provider, model, voice id, and language. It permits re-testing a stored selection missing from the current provider listing; it does not authorize a new voice choice or any BYOK selection.",
@@ -7476,7 +7476,7 @@
             "type": "string"
           },
           "text": {
-            "description": "Optional sentence for a text-to-speech voice to speak. Omitted or blank falls back to a short product sample only when no audio_environment is supplied. With an audio_environment it is required and must be non-blank, so the requested text is never silently replaced. It is synthesized, never stored, and never echoed in the response. A conversation-engine voice (GPT-Live-1, Gemini Live, Eleven Realtime) plays Skysay's fixed sample instead: typed text is refused with voice_preview_fixed_sample, and an audio_environment needs no text.",
+            "description": "Optional audition sentence, at most 200 characters. TTS speaks it; native conversational engines may rephrase. Custom content is not persisted or shared. Empty text uses the platform sample; TTS with ambience requires explicit text.",
             "maxLength": 200,
             "type": "string"
           },
@@ -16622,6 +16622,204 @@
         ]
       }
     },
+    "/v1/highlevel/calls/outcome": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "getHighLevelCallOutcome",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Get highlevel call outcome",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/highlevel/calls/start": {
+      "post": {
+        "description": "Uses the original administrator-approved HighLevel contact and installation. Starting rechecks opt-outs and uses existing Skysay admission and billing. A retry returns the original call; it never authorizes a replacement. Outcome reads return only callId/state/status for that approval. Native HighLevel workflow steps can map these values to the original contact's dedicated fields.",
+        "operationId": "startHighLevelCall",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "location_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "location_id",
+                  "contact_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "callId": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "finished",
+                        "pending",
+                        "not_dialed",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "state",
+                    "status"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Original approved call result"
+          },
+          "400": {
+            "description": "Invalid or unverified contact"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or expired approval"
+          },
+          "404": {
+            "description": "Bound approval or call not found"
+          },
+          "409": {
+            "description": "Installation changed or refresh in progress"
+          }
+        },
+        "summary": "Start highlevel call",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "calls:write"
+        ]
+      }
+    },
     "/v1/hosted-ai-credentials": {
       "get": {
         "description": "Returns credential metadata only. Plaintext, ciphertext, nonce, encryption-key identifiers, and secret fingerprints are never returned.",
@@ -21346,7 +21544,7 @@
     },
     "/v1/voice-previews": {
       "post": {
-        "description": "An explicit Listen action for one selected voice. A text-to-speech voice speaks a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied); every preview keeps no audio or telemetry and returns a short in-memory WAV only. A selected outgoing audio_environment makes a deterministic, headroom-safe local audition; for a text-to-speech voice it requires explicit non-blank text, and it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A conversation-engine voice previews differently: it plays Skysay's own fixed sample sentence for the requested language (the response carries text_source: platform_sample and cached). GPT-Live-1 (provider openai, model gpt-live-1) and Gemini Live (provider gemini, model gemini-3.8-live) render it once per voice, language and sample as a short real live session on the platform credential, then serve it from a tenant-agnostic cache, and a platform-wide concurrency cap answers 429 when every preview slot is busy. Eleven Realtime (provider elevenlabs, model eleven_realtime_v1_max) plays only a validated sample Skysay imported and never contacts a provider; a voice and language without one is voice_preview_unavailable. For all three, typed text is refused with error code voice_preview_fixed_sample rather than replaced, an audio_environment needs no text and is mixed over the sample for that request only (the cached sample stays dry), credential_id and delivery do not apply, and the preview is never metered as a call.",
+        "description": "An explicit Listen action for one selected voice. A text-to-speech voice speaks a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied); every preview keeps no audio or telemetry and returns a short in-memory WAV only. A selected outgoing audio_environment makes a deterministic, headroom-safe local audition; for a text-to-speech voice it requires explicit non-blank text, and it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A conversation-engine voice (GPT-Live-1, Gemini Live or Eleven Realtime) can also preview up to 200 characters through a bounded native session on the platform credential. Conversational output may rephrase; this is a voice audition, not a verbatim text-to-speech guarantee. Custom text/audio are not stored in the shared sample cache (text_source: custom, cached: false). Empty text keeps the platform sample behavior (text_source: platform_sample): GPT-Live and Gemini render once per voice/language/sample and reuse a shared dry clip; Eleven plays a validated imported sample and returns voice_preview_unavailable if absent. All native generation uses the shared platform concurrency cap and per-workspace allowance; 429 means busy or rate limited. A selected audio_environment is mixed for this request only. Native credential_id and delivery do not apply, and previews are never metered as calls.",
         "operationId": "createVoicePreview",
         "requestBody": {
           "content": {
@@ -21363,7 +21561,7 @@
             "description": "Bounded base64-encoded WAV preview"
           },
           "400": {
-            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept; also typed text for a GPT-Live-1, Gemini Live or Eleven Realtime voice (voice_preview_fixed_sample)"
+            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept"
           },
           "404": {
             "description": "The selected BYOK credential does not exist in this workspace"

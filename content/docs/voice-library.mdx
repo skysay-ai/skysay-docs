@@ -239,12 +239,21 @@ A preview can also carry a [delivery profile](/docs/delivery-profiles)
 way a call with that profile would perform it; the response says whether the
 selected provider and model applied it.
 
-Text you type is sent and spoken exactly as written by text-to-speech voices
-(GPT-Live voices use a fixed sample sentence instead; see below). Skysay
-does not translate it. If you leave the text blank, the library uses a localized sample
-sentence for the selected language where one is available. If there is no such
-sentence, enter your own text rather than receiving an English fallback. Live
-preview remains bounded, metered, and rate-limited for the workspace.
+Type a short sentence (up to 200 characters), then press **Play** beside a voice.
+The same custom-preview control is available in the Voice Library, AI-agent
+creation and a saved AI agent's Voice settings. Playing a voice does not select
+it or change the AI agent's greeting, instructions or language. Use the separate
+voice-selection button when you want to change the voice.
+
+Text-to-speech voices speak your text. GPT-Live, Gemini Live and Eleven Realtime
+use their own short native session and may rephrase it; these previews let you
+hear the voice, rather than promising a verbatim reading. Skysay does not store
+custom text or audio in its shared sample cache. Generated previews are bounded
+and rate-limited; provider failures appear beside Play so you can retry.
+
+Leaving the field blank keeps the existing platform sample behavior. Choose a
+preview language when needed. Only one preview plays at a time; editing the
+text or changing the voice stops the previous preview.
 
 ## OpenAI GPT-Live 1 voices
 
@@ -273,19 +282,12 @@ text-to-speech voices, and a few things differ:
   Southern U.S. Broad regional labels remain searchable without being guessed
   into a single-country accent. These descriptions do not guarantee accent
   fidelity or language support; audition the voice in your intended language.
-- **Play runs a short real GPT-Live session.** The clip is rendered once per
-  voice and sample sentence and cached, so the same audition plays instantly
-  next time. It uses a fixed Skysay sample sentence for the chosen
-  preview language; text you type is not sent to a GPT-Live voice, and the
-  engine paraphrases rather than reading verbatim. With an
-  [ambience](/docs/audio-environments) selected, it is mixed over that sample.
-  Previews are not charged to your workspace and never count as call usage.
-- **Both figures say what they measure.** The latency is the time to first
-  audio on a scripted greeting, measured by Skysay on the date the row
-  shows; reply latency after a caller speaks is not measured and is not shown
-  as zero. The price is call duration at the per-minute rate, plus the backend
-  model's tokens billed separately per call; see
-  [Conversation engines](/docs/conversation-engines#billing) for the rate.
+- **Play runs a short real GPT-Live session.** Typed text is auditioned in
+  the selected voice and preview language and may be rephrased. Custom previews
+  are not cached. With no text, the platform sample is rendered once per voice,
+  language and sample version, then cached for the next audition. A selected
+  [ambience](/docs/audio-environments) is mixed for this request only. Previews
+  are not charged to your workspace and never count as call usage.
 - **Use switches the engine.** Choosing a GPT-Live voice for an agent sets
   the agent's conversation engine to GPT-Live 1 and says so. The change is a
   draft until you publish, exactly as any other voice change.
@@ -319,15 +321,13 @@ Voices page its section says so once, and the model itself shows **Not
 available yet**. **Use in AI agent** stays disabled. Listening does not approve
 a voice for publishing, telephone calls or browser conversations.
 
-For Eleven Realtime, these samples are produced by the native Realtime
-model with the displayed voice, rather than by an ElevenLabs text-to-speech
-model. Playback uses a validated platform sample in the selected language.
-It does not send your instructions or typed text to ElevenLabs. If that exact
-voice and language have no validated sample, playback reports unavailable;
-it does not substitute another voice, language or model, or start a new live
-session. Custom delivery is not available for these samples. A selected
-[ambience](/docs/audio-environments) is mixed over the sample by Skysay, without
-contacting ElevenLabs.
+For Eleven Realtime, previews use the native Realtime model with the displayed
+voice, rather than an ElevenLabs text-to-speech model. Typed text starts a short,
+tool-free native session and is not kept in the shared cache. With no text,
+playback uses a validated platform sample in the selected language; a missing
+sample reports unavailable. No other voice, language or model is substituted.
+Custom delivery is not available. A selected
+[ambience](/docs/audio-environments) is mixed by Skysay for this audition only.
 
 The catalog count reflects the imported voices available for browsing, not
 ElevenLabs' entire voice library or a count approved for calls. ElevenLabs
