@@ -92,26 +92,69 @@ published, there is nothing to publish.
 
 ## Prompt drafts and published versions
 
-In **Identity**, choose **Edit prompt** to open a bounded editor. Long prompts
-scroll inside it, keeping the controls in reach. Rename a draft, duplicate it
-for an alternative, or archive it. **Show archived** lets you restore an archived
-draft. Drafts are saved to your workspace and remain available after a reload.
+Every AI agent has a prompt draft from the moment it is created. The draft holds
+the instructions you wrote in **New AI agent**, where **Prompt name (optional)**
+names it; left blank, it is called "Initial prompt". You can rename it, edit it
+and publish it like any other draft. Through the API, `prompt_name` on
+`POST /v1/agents` (and on the MCP `create_agent` tool) sets the same name.
+
+<Diagram name="prompt-drafts-and-live.svg" alt="How a prompt goes live. A prompt draft saves your edits without changing calls. Review and publish compares it with the live text and, once confirmed, makes it the live prompt that calls use. Each published version is kept in a read-only history, and any of them can start a new draft. A prompt published through the API or MCP is shown read-only until you save it as a draft." />
+
+### Which prompt is live
+
+**Identity** shows an **Active prompt** row: the prompt's name, **Live ·
+published** with the date, how many drafts the AI agent has, and **Open prompt
+editor**. When the live draft has edits that are not live yet, the row turns
+amber and says **Unpublished changes**: calls still use the version published
+earlier, and your edits are saved but not in use. Before the AI agent is first
+published the row says **Not published yet**.
+
+A prompt published through the API or MCP is not one of your drafts. It is
+shown read-only, as **Not one of your drafts**; **Save as draft** keeps it as a
+draft you can edit.
+
+### Work with drafts
+
+**Open prompt editor** opens a bounded editor. Long prompts scroll inside it,
+keeping the controls in reach. The draft list holds your drafts and shows how
+many there are; the live one carries a **Live** badge, or **Unpublished
+changes** when it has edits that are not live.
+
+- **New draft** asks for a name and whether to start from a copy of the draft
+  you have open or from a blank one. A new draft is not live until you publish
+  it.
+- Rename a draft in **Draft name**.
+- **Archive draft** keeps the draft open, read-only, with **Undo** and
+  **Restore draft**. The live prompt can't be archived.
+- **Hide archived** is on to begin with. Switch it off and archived drafts
+  appear in the list straight away, read-only until restored.
 
 Editing saves automatically. **Done** waits for any pending save before closing.
 A failed save keeps your text in the editor. If another session has changed the
 same draft, save your text as a copy instead of overwriting that session.
 
-**Use this draft** copies the selected text into the AI-agent configuration
-form. It does not publish. Review the changes and use **Publish changes** to
-activate them. Editing, duplicating or archiving a prompt draft never changes
-the prompt used by calls. The most recent 20 published versions are read-only
-snapshots; duplicate one to edit it. Selecting alternatives is manual, not
-automatic A/B traffic allocation.
-
-You can import or drop a UTF-8 `.txt` or `.md` file, up to 64 KB. Preview the
+You can import or drop a UTF-8 `.txt` or `.md` file, up to 64 KiB. Preview the
 replacement and confirm it before it replaces the draft. Markdown and template
-variables remain plain prompt text. Binary or invalid UTF-8 files are rejected.
-The library holds up to 50 drafts, including archived drafts.
+variables remain plain prompt text, and **Insert call variable** adds one where
+the cursor is. Binary or invalid UTF-8 files are rejected. An AI agent holds up
+to 50 drafts, including archived drafts.
+
+### Review and publish
+
+Editing, creating or archiving a draft never changes the prompt used by calls.
+**Review and publish**, in the editor and on **Identity**, opens one review
+that shows the live text beside the new text, with the lines that differ
+tinted. Publishing covers the whole AI agent, so the review also lists any
+other settings waiting to go live with the prompt. Confirming it either makes
+the selected draft the live prompt or publishes your edits to the draft that is
+already live. Choosing between drafts is manual, not automatic A/B traffic
+allocation.
+
+**Published versions** is a read-only history of what went live, newest first,
+showing the 20 most recent. A published version can't be changed, so every past
+call still matches the prompt it ran on. **New draft from v3** (the number is
+the version you are viewing) copies that version into a new draft you can edit
+and publish.
 
 ## Stopping and resuming an agent
 
