@@ -98,6 +98,12 @@ names it; left blank, it is called "Initial prompt". You can rename it, edit it
 and publish it like any other draft. Through the API, `prompt_name` on
 `POST /v1/agents` (and on the MCP `create_agent` tool) sets the same name.
 
+AI agents created before every agent got this draft have one too, called
+"Initial prompt" and holding the agent's current prompt; drafts you had already
+made are left as they were. If that prompt was edited after
+the agent was last published, the draft shows **Unpublished changes**: calls
+still use the published version until you publish it.
+
 <Diagram name="prompt-drafts-and-live.svg" alt="How a prompt goes live. A prompt draft saves your edits without changing calls. Review and publish compares it with the live text and, once confirmed, makes it the live prompt that calls use. Each published version is kept in a read-only history, and any of them can start a new draft. A prompt published through the API or MCP is shown read-only until you save it as a draft." />
 
 ### Which prompt is live
@@ -142,7 +148,8 @@ to 50 drafts, including archived drafts.
 ### Review and publish
 
 Editing, creating or archiving a draft never changes the prompt used by calls.
-**Review and publish**, in the editor and on **Identity**, opens one review
+**Review and publish**, in the editor and on **Identity** while there are
+unpublished changes, opens one review
 that shows the live text beside the new text, with the lines that differ
 tinted. Publishing covers the whole AI agent, so the review also lists any
 other settings waiting to go live with the prompt. Confirming it either makes
