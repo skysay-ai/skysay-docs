@@ -60,7 +60,8 @@ your month** calculator. Enter:
   model ([conversation engines](/docs/conversation-engines));
 - whether the calls are outgoing phone calls, incoming phone calls or browser
   calls;
-- for phone calls, the country and how many phone numbers you keep (up to 100).
+- for phone calls, the country and how many phone numbers you keep (the
+  calculator takes up to 100; your workspace allowance is above).
 
 It returns a receipt: the Skysay runtime, one line per model, the carrier, the
 number rental and a monthly total. The lists show only the models you can pick
@@ -72,7 +73,8 @@ The estimate is a planning figure, not a quote:
 
 - Each model is priced at a reference usage per connected minute, the amount
   billing holds for a minute of conversation. A real call is charged for what
-  it actually used, so a talkative call costs more and a quiet one less.
+  it actually used, so a call's transcriber, language-model and voice charges
+  can come out above or below the estimate.
 - The carrier bills whole minutes per call (60/60), while the runtime and the
   models are charged per connected minute. A 2.5-minute call is three carrier
   minutes but 2.5 minutes of AI usage.
@@ -101,14 +103,16 @@ Besides the price book (`public_price_book`) it has two blocks:
   rates.
 - `carrier_rates`: per country, the outgoing and incoming carrier price per
   minute as a lowest-to-highest range, and the monthly and setup price of the
-  phone number Skysay sells there. A missing range means Skysay offers no such
-  call to that country; a missing number means its price is on request.
+  phone number Skysay sells there. A missing range means the catalogue lists no
+  price for that kind of call to that country, so the calculator cannot estimate
+  it; a missing number means its price is on request.
   `truncated: true` means the list stopped at a size limit and may be missing
   countries. If the country prices cannot be read, `carrier_rates` is `null`
   and the pricing page estimates only the countries in the price book.
 
 Country and number prices update within about 10 minutes of a price change.
-The [API reference](/docs/api-reference) lists every field.
+The operation's description in the [OpenAPI document](/docs/openapi) describes
+the fields.
 
 ## Billed-number allowance
 
