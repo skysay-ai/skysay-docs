@@ -278,10 +278,11 @@ soon as it is ready. Press **Play** again (it shows **Stop** while the preview
 loads and plays) to stop at any point; stopping a GPT-Live or Gemini Live
 preview also ends its live session.
 
-A live preview reads your whole sentence, up to the 200-character limit. If
-the connection or the voice service fails after the voice has started, the
-preview stops and **Play** shows "The preview stopped early. Try again." You
-never hear the end of an older preview after changing the text or the voice.
+A live preview reads your whole sentence, up to the 200-character limit; it is
+no longer cut off after 8 seconds. If the connection or the voice service fails
+after the voice has started, the preview stops and **Play** shows "The preview
+stopped early. Try again." You never hear the end of an older preview after
+changing the text or the voice.
 
 For example, you type the 190-character greeting "Hi, this is Maya from
 Northwind Dental. I can book a new appointment, move or cancel one you already
@@ -292,8 +293,13 @@ the sound stops at once.
 
 ### Preview a voice over the API
 
-`POST /v1/voice-previews` returns the whole preview as one WAV file. To play a
-preview as it is produced, send the same request body to
+`POST /v1/voice-previews` returns the whole preview as one WAV file, so for a
+GPT-Live or Gemini Live voice the response comes once the voice has finished
+speaking: a long sentence takes as long as the voice needs, up to a 30-second
+session. Past that the request fails with `voice_preview_timed_out`, and past
+the 1 MiB audio limit with `voice_preview_too_large`; you never receive a clip
+that was cut short. To play a preview as it is produced, send the same request
+body to
 `POST /v1/voice-previews/stream`. It answers with
 [NDJSON](https://github.com/ndjson/ndjson-spec), one JSON object per line:
 
@@ -315,10 +321,12 @@ preview as it is produced, send the same request body to
   slot, a voice that does not speak) arrives before any audio, with the same
   HTTP status and JSON error body as `POST /v1/voice-previews`.
 - Closing the connection ends a GPT-Live or Gemini Live preview session.
+- The same per-voice field rules apply: for Eleven Realtime send only the voice
+  fields, and GPT-Live and Gemini Live refuse a `credential_id`.
 - The limits are the same: up to 200 characters of text, 10 previews a minute
   per workspace, and the shared limit on preview sessions running at once. A
-  live preview may run up to 25 seconds, and fails rather than being cut short
-  if the voice talks past the size limit.
+  live preview may run up to a 30-second session, and fails rather than being
+  cut short if the voice talks past the size limit.
 
 ## OpenAI GPT-Live 1 voices
 
