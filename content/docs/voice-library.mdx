@@ -294,9 +294,10 @@ the sound stops at once.
 ### Preview a voice over the API
 
 `POST /v1/voice-previews` returns the whole preview as one WAV file, so for a
-GPT-Live or Gemini Live voice the response comes once the voice has finished
-speaking: a long sentence takes as long as the voice needs, up to a 30-second
-session. Past that the request fails with `voice_preview_timed_out`, and past
+GPT-Live, Gemini Live or Eleven Realtime voice the response comes once the
+voice has finished speaking: a long sentence takes as long as the voice needs,
+with its first audio within 10 seconds and the whole session within 30 seconds.
+Past either the request fails with `voice_preview_timed_out`, and past
 the 1 MiB audio limit with `voice_preview_too_large`; you never receive a clip
 that was cut short. To play a preview as it is produced, send the same request
 body to
@@ -325,8 +326,9 @@ body to
   fields, and GPT-Live and Gemini Live refuse a `credential_id`.
 - The limits are the same: up to 200 characters of text, 10 previews a minute
   per workspace, and the shared limit on preview sessions running at once. A
-  live preview may run up to a 30-second session, and fails rather than being
-  cut short if the voice talks past the size limit.
+  live preview has its first audio within 10 seconds and runs at most a
+  30-second session, and fails rather than being cut short if the voice talks
+  past the size limit.
 
 ## OpenAI GPT-Live 1 voices
 
