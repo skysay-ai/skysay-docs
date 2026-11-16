@@ -7441,7 +7441,7 @@
         "description": "One bounded voice audition for a TTS or native conversational voice. TTS speaks supplied text; conversational output may rephrase. Empty text uses the platform sample. Preview spend is bound to the authenticated workspace; organization_id is an optional consistency hint and a foreign value is rejected.",
         "properties": {
           "agent_id": {
-            "description": "Optional saved hosted agent pin for a managed preview only. It must belong to the authenticated project and exactly match the requested platform-managed provider, model, voice id, and language. It permits re-testing a stored selection missing from the current provider listing; it does not authorize a new voice choice or any BYOK selection.",
+            "description": "Optional saved hosted agent pin for a managed text-to-speech preview only; every voice refuses one longer than 512 characters after trimming surrounding whitespace. It must belong to the authenticated project and exactly match the requested platform-managed provider, model, voice id, and language. It permits re-testing a stored selection missing from the current provider listing; it does not authorize a new voice choice or any BYOK selection. Text-to-speech only: Eleven Realtime refuses a non-empty value with 400 voice_preview_unsupported, so send only the voice fields; GPT-Live-1 and Gemini Live ignore it.",
             "type": "string"
           },
           "audio_environment": {
@@ -7449,11 +7449,11 @@
             "description": "Optional immutable ambience selection. When present, the preview WAV is a deterministic headroom-safe local audition only; this does not claim a receiver-side final mix. Provider voice and explicit language are unchanged."
           },
           "credential_id": {
-            "description": "Optional selected BYOK credential. It is validated at the provider and then used to render this preview; a platform credential is never a fallback.",
+            "description": "Optional selected BYOK credential for a text-to-speech voice. It is validated at the provider and then used to render this preview; a platform credential is never a fallback. A conversation-engine voice refuses it with 400 voice_preview_unsupported: Eleven Realtime any non-empty value, GPT-Live-1 and Gemini Live a non-blank one. An empty value counts as absent.",
             "type": "string"
           },
           "delivery": {
-            "description": "Optional delivery profile, the same value an agent stores in `voice_polish.delivery`. The preview applies exactly the provider settings a call with that profile would use; for a provider/model without a truthful control (Fish Audio, Azure) the audio is unchanged and the response reports `delivery_applied: false`.",
+            "description": "Optional delivery profile, the same value an agent stores in `voice_polish.delivery`. The preview applies exactly the provider settings a call with that profile would use; for a provider/model without a truthful control (Fish Audio, Azure) the audio is unchanged and the response reports `delivery_applied: false`. Text-to-speech only: GPT-Live-1 and Gemini Live ignore a valid profile, and Eleven Realtime refuses one with 400 voice_preview_unsupported.",
             "enum": [
               "natural",
               "lively",
@@ -7486,7 +7486,7 @@
             "type": "string"
           },
           "voice_id": {
-            "description": "Exact provider voice id. On a platform credential it must be present in the browsable voice inventory, except an existing saved hosted agent may explicitly re-test its exact current selection; with a BYOK credential any id the provider accepts is allowed, so cloned and private voices work.",
+            "description": "Exact provider voice id. For a text-to-speech voice on a platform credential it must be present in the browsable voice inventory, except an existing saved hosted agent may explicitly re-test its exact current selection; with a BYOK credential any id the provider accepts is allowed, so cloned and private voices work. A conversation-engine voice must be one of that engine's own voices.",
             "type": "string"
           }
         },
@@ -21351,7 +21351,7 @@
     },
     "/v1/voice-previews": {
       "post": {
-        "description": "An explicit Listen action for one selected voice. A text-to-speech voice speaks a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied); every preview keeps no audio or telemetry and returns a short in-memory WAV only. A selected outgoing audio_environment makes a deterministic, headroom-safe local audition; for a text-to-speech voice it requires explicit non-blank text, and it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential the voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A conversation-engine voice (GPT-Live-1, Gemini Live or Eleven Realtime) can also preview up to 200 characters through a bounded native session on the platform credential. Conversational output may rephrase; this is a voice audition, not a verbatim text-to-speech guarantee. Custom text/audio are not stored in the shared sample cache (text_source: custom, cached: false). Empty text keeps the platform sample behavior (text_source: platform_sample): GPT-Live and Gemini render once per voice/language/sample and reuse a shared dry clip; Eleven plays a validated imported sample and returns voice_preview_unavailable if absent. All native generation uses the shared platform concurrency cap and per-workspace allowance; 429 means busy or rate limited. A selected audio_environment is mixed for this request only. Native credential_id and delivery do not apply, and previews are never metered as calls.",
+        "description": "An explicit Listen action for one selected voice. A text-to-speech voice speaks a bounded caller sentence (defaulting to a short product sample only when no audio_environment is supplied); every preview keeps no audio or telemetry and returns a short in-memory WAV only. A selected outgoing audio_environment makes a deterministic, headroom-safe local audition; for a text-to-speech voice it requires explicit non-blank text, and it never substitutes the text, language, voice, or claims a receiver-side final mix. A small per-workspace fixed-window limit protects provider spend. Every language a provider advertises can be previewed. On a platform credential a text-to-speech voice must be one the workspace could browse and select, except an existing saved hosted agent may re-test its exact current platform-managed selection by supplying agent_id when it has disappeared from a listing; arbitrary typed IDs never create shared runtime evidence. With a selected BYOK credential (text-to-speech only) the credential is validated at the provider and then used to render, so any voice id that provider accepts works, and a platform credential is never a fallback. A conversation-engine voice (GPT-Live-1, Gemini Live or Eleven Realtime) can also preview up to 200 characters through a bounded native session on the platform credential. Conversational output may rephrase; this is a voice audition, not a verbatim text-to-speech guarantee. Custom text/audio are not stored in the shared sample cache (text_source: custom, cached: false). Empty text keeps the platform sample behavior (text_source: platform_sample): GPT-Live and Gemini render once per voice/language/sample and reuse a shared dry clip; Eleven plays a validated imported sample and returns voice_preview_unavailable if absent. All native generation uses the shared platform concurrency cap and per-workspace allowance; 429 means busy or rate limited. A selected audio_environment is mixed for this request only. For Eleven Realtime send only the voice fields. Every voice first gets the shared checks (agent_id at most 512 characters after trimming surrounding whitespace, delivery one of its profiles); then Eleven Realtime refuses a non-empty agent_id, credential_id or delivery with 400 voice_preview_unsupported, for custom text and the platform sample alike, and GPT-Live-1 and Gemini Live refuse a non-blank credential_id the same way and ignore agent_id and delivery. An empty value counts as absent. Previews are never metered as calls.",
         "operationId": "createVoicePreview",
         "requestBody": {
           "content": {
@@ -21368,7 +21368,7 @@
             "description": "Bounded base64-encoded WAV preview"
           },
           "400": {
-            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept"
+            "description": "Invalid tenant-bound project, stack, voice, preview text, audio_environment, or a BYOK credential the provider did not accept. voice_preview_unsupported also answers a field a conversation-engine voice refuses: a non-empty agent_id, credential_id or delivery for Eleven Realtime, a non-blank credential_id for GPT-Live-1 and Gemini Live."
           },
           "404": {
             "description": "The selected BYOK credential does not exist in this workspace"
