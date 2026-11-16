@@ -201,15 +201,14 @@ with the carrier before ordering. A changed price requires confirmation.
 
 A confirmed purchase (`POST /v1/number-requests` with
 `customer_purchase_confirmed`) is checked before it is saved: Skysay must be
-able to carry incoming calls for that market. When no capacity plan or inbound
-rate covers it, the request is refused with **409** and nothing is created or
-charged:
+able to carry incoming calls for that market. When no capacity plan covers it,
+the request is refused with **409** and nothing is created or charged:
 
 ```json
 {
   "error": "inbound_coverage_missing",
   "message": "Skysay cannot carry incoming calls for this number type yet, so it cannot be bought. Nothing was charged.",
-  "blocker": "carrier_rate_missing"
+  "blocker": "capacity_plan_unavailable"
 }
 ```
 

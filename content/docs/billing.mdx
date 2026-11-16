@@ -48,6 +48,68 @@ Higher capacity must be agreed and validated for your workload; do not assume
 a higher limit from a pricing label. Check your workspace's current limits
 before launching a batch of calls.
 
+## Estimating a month
+
+The **[pricing page](https://skysay.ai/pricing#estimate)** has an **Estimate
+your month** calculator. Enter:
+
+- how many calls you expect per month (up to 1,000,000) and their average
+  length (half a minute to 60 minutes);
+- the call language;
+- either a transcriber, a language model and a voice, or one conversational
+  model ([conversation engines](/docs/conversation-engines));
+- whether the calls are outgoing phone calls, incoming phone calls or browser
+  calls;
+- for phone calls, the country and how many phone numbers you keep (up to 100).
+
+It returns a receipt: the Skysay runtime, one line per model, the carrier, the
+number rental and a monthly total. The lists show only the models you can pick
+in a workspace today, and only those that support the chosen language. When
+you change the language, a model that cannot speak it is replaced and the
+calculator says which one replaced it and why.
+
+The estimate is a planning figure, not a quote:
+
+- Each model is priced at a reference usage per connected minute, the amount
+  billing holds for a minute of conversation. A real call is charged for what
+  it actually used, so a talkative call costs more and a quiet one less.
+- The carrier bills whole minutes per call (60/60), while the runtime and the
+  models are charged per connected minute. A 2.5-minute call is three carrier
+  minutes but 2.5 minutes of AI usage.
+- Where a country's carrier price differs by the number dialled, the estimate
+  uses that country's highest price.
+- A language model marked **your own key** costs $0 from Skysay; the model's
+  provider bills you directly.
+- Browser calls have no carrier or number line.
+- A number's setup fee is shown once, outside the monthly total. A country
+  whose number price is given on request leaves numbers out of the total.
+
+Pay as you go runs up to 3 calls at the same time. For more, [contact
+us](https://skysay.ai/contact) about Scale.
+
+### The prices behind the estimate
+
+The calculator reads the same public catalogue an API client can read with
+`GET /v1/pricing/catalog`. It needs no key and carries retail prices only.
+Besides the price book (`public_price_book`) it has two blocks:
+
+- `model_rates`: the platform runtime rate and, for every transcriber,
+  language model, voice and conversational model you can pick now, the
+  languages it supports, its price per billed unit (per second of audio, per
+  token, per character) and the reference usage per connected minute. A
+  language model run on your own key has `billing: "your_own_key"` and no
+  rates.
+- `carrier_rates`: per country, the outgoing and incoming carrier price per
+  minute as a lowest-to-highest range, and the monthly and setup price of the
+  phone number Skysay sells there. A missing range means Skysay offers no such
+  call to that country; a missing number means its price is on request.
+  `truncated: true` means the list stopped at a size limit and may be missing
+  countries. If the country prices cannot be read, `carrier_rates` is `null`
+  and the pricing page estimates only the countries in the price book.
+
+Country and number prices update within about 10 minutes of a price change.
+The [API reference](/docs/api-reference) lists every field.
+
 ## Billed-number allowance
 
 Open **[Phone numbers](https://skysay.ai/numbers)** or
