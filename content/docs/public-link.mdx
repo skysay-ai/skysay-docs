@@ -58,9 +58,11 @@ the share links.
 1. In **Share**, under **Shared conversations**, choose **Share a conversation**.
    The list shows this AI agent's calls only, newest first, with who was on
    the call, its length and its first line. Listen to any of them in place.
-2. Choose **Add** on a call. A call that cannot be shared says why: still in
-   progress, no recording, recording processing, shorter than 15 seconds or
-   longer than 10 minutes. Calls from Simulations Lab are not listed.
+2. Choose **Add** on a call. Only a finished call can be shared. A call that
+   cannot be shared says why: not finished yet (**Call in progress**, which
+   includes a call Skysay may still retry), no recording, recording
+   processing, shorter than 15 seconds or longer than 10 minutes. Calls from
+   Simulations Lab are not listed.
 3. Give each recording the title visitors see (up to 80 characters) and put
    them in order with the arrows. Visitors can always read the transcript and
    download the audio: anyone who can play a recording can keep it anyway.
@@ -76,6 +78,10 @@ retention. When you remove it, its normal retention applies again. Deleting
 the call's recording removes it from the page at once.
 Turning the link off hides the page and its recordings.
 
+Each time a visitor plays or downloads a shared conversation, Skysay records
+one `recording.accessed` audit event for it in your workspace
+(`GET /v1/audit-events`). Opening the page records nothing.
+
 If two people edit the shared conversations at once, the second save is refused and
 asks to reload the page, so neither overwrites the other.
 
@@ -90,8 +96,8 @@ on. Existing links have it on.
 
 | Action | REST | MCP | Scope |
 | --- | --- | --- | --- |
-| Read the current link or check a proposed address | `GET /v1/agents/{agent_id}/public-link` | `get_agent_public_link` | `agents:read` |
-| Publish, turn off, or rename the link, change its limits, turn live conversations on or off, or replace the shared conversations | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write`, and `recordings:read` to send `recordings` |
+| Read the current link or check a proposed address | `GET /v1/agents/{agent_id}/public-link` | `get_agent_public_link` | `agents:read`, and `recordings:read` to see the shared conversations |
+| Publish, turn off, or rename the link, change its limits, turn live conversations on or off, or replace the shared conversations | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write`, and `recordings:read` to send or see `recordings` |
 | List this AI agent's calls to choose conversations to share from | `GET /v1/agents/{agent_id}/public-link/recording-candidates` | `list_agent_public_link_recording_candidates` | `agents:read` and `recordings:read` |
 
 Use a credential for the AI agent's workspace. MCP takes `agent_id` in
@@ -125,6 +131,8 @@ Use the same fields in the PATCH body or MCP write arguments:
   each refused entry by its `index` with a `code`: `duplicate`, `not_found`,
   `other_agent`, `invalid_title`, `in_progress`, `no_recording`,
   `processing`, `too_short` or `too_long`.
+- Without `recordings:read`, REST and MCP leave `recordings` and
+  `recordings_etag` out of both the read and the write answer.
 
 A successful change returns the saved settings. `link.path` is relative to
 `https://skysay.ai`, and `link` is null until an address is saved. An enabled
