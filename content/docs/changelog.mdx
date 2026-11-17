@@ -6,6 +6,65 @@ icon: Journal
 
 ## 17 November 2026
 
+### Share recorded conversations on an AI agent's public page
+
+- In **Share**, under **Shared conversations**, choose up to 5 finished calls of that AI agent, each 15 seconds to 10 minutes long, to show on its public page.
+- Visitors play them under **Recorded conversations** with the call's timeline, read the transcript and download the audio; a call with a real caller needs your confirmation that they agreed.
+- **Live conversations** switches the live conversation off and keeps the page with only the recordings; nothing is billed while it is off.
+- `PATCH /v1/agents/{agent_id}/public-link` takes `live_enabled` and `recordings`, and the new `GET /v1/agents/{agent_id}/public-link/recording-candidates` lists calls to share; both need `recordings:read` for recordings.
+- [Shared conversations](/docs/public-link#shared-conversations) · [Live conversations](/docs/public-link#live-conversations)
+
+### Homepage demo: the greeting is protected from a visitor who speaks at once
+
+- On GPT-Live 1 and Gemini Live, the homepage demo does not hear the visitor until its greeting has been spoken, as browser tests do; a question asked as the demo connects is asked again after the greeting.
+- [Conversation engines](/docs/conversation-engines#calls-where-the-agent-speaks-first)
+
+### Public link conversations keep their full five minutes
+
+- On a public link, the countdown now starts when the visitor first hears the AI agent, not while the page is still connecting.
+- If nothing is heard within 10 seconds of connecting, the countdown starts anyway, so every conversation still ends on its own.
+- A conversation now holds the cost of 6 minutes from your balance when it starts, and is still charged only for the time used.
+- [Public links](/docs/public-link)
+
+### Live voice previews in the workspace play again
+
+- Live voice previews (**Play live** in the Voice library and **Listen** when choosing a voice for an AI agent) did not play between 14:13 and 15:42 UTC on 17 November; they stopped with "The preview stopped early. Try again." and work again now.
+- [Preview a voice in the intended language](/docs/voice-library#preview-a-voice-in-the-intended-language)
+
+### Voice picker: Load more under the list
+
+- In the creation **Voice step** and an AI agent's **Voice settings**, **Load more** under the voice list adds the next 60 voices, until there are no more.
+- The line under the list says how many voices it shows of how many match, for example "Showing 120 of 1,152 matching voices".
+- [Choose a voice stack](/docs/wire-an-agent#2-choose-a-voice-stack)
+
+### Voice previews start playing as the voice speaks
+
+- Voice previews on GPT-Live and Gemini Live voices start playing while the voice is still speaking, instead of after the whole sentence is ready.
+- **Play** turns into **Stop** while a preview loads and plays; stopping also ends the voice's live session.
+- A GPT-Live preview now reads your whole sentence (up to 200 characters) instead of stopping after 8 seconds.
+- `POST /v1/voice-previews` returns the whole sentence for GPT-Live and Gemini Live voices, up to a 30-second session, and fails with a clear error code rather than returning a cut clip; the new `POST /v1/voice-previews/stream` streams a preview as it is produced.
+- [When the voice starts](/docs/voice-library#when-the-voice-starts) · [Preview a voice over the API](/docs/voice-library#preview-a-voice-over-the-api)
+
+### Estimate your month: your number's country and where calls go
+
+- The pricing page estimate now asks for the country of your phone numbers and, for outbound calls, the country you call; an outbound call is priced at the rate of the country called.
+- For outbound calls, only countries selling a number that can place calls are offered, and sanctioned destinations are never listed.
+- `GET /v1/pricing/catalog`'s `carrier_rates` adds `outbound_number`, a number in each country that can place calls, with its monthly and setup price.
+- [Estimating a month](/docs/billing#estimating-a-month) · [Estimate your month](https://skysay.ai/pricing#estimate)
+
+### Gemini Live: a caller who speaks right after the greeting is heard sooner
+
+- When the engine finishes the greeting but its transcript of it stops short, the caller is heard about a second after the greeting instead of after a long wait.
+- The greeting counts as delivered only when the text that arrived matches the configured greeting closely enough.
+- [Conversation engines](/docs/conversation-engines#calls-where-the-agent-speaks-first)
+
+### Browser conversations start speaking without a long silence
+
+- In a browser test or on a public link, the AI agent's greeting now waits at most half a second when the microphone picks up room noise, instead of up to eight seconds.
+- A greeting delayed this way plays to the end; what the visitor says while it plays is not heard.
+- Phone calls, later replies, the speech-to-speech engines and AI agents that run a workflow are unchanged.
+- [When the caller seems to start talking before a reply](/docs/wire-an-agent#when-the-caller-seems-to-start-talking-before-a-reply)
+
 ### Soniox speech-to-text: Real-time v6 offered, v5 retired
 
 - Soniox speech-to-text now offers Soniox Real-time v6 (`stt-rt-v6`). v5 can no longer be chosen. Skysay moves every agent still on v5 to v6 before v5 is removed on 15 December, with nothing to republish.

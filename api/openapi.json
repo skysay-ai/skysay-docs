@@ -28,7 +28,7 @@
             "items": {
               "$ref": "#/components/schemas/AgentLanguageProfileOverride"
             },
-            "maxItems": 69,
+            "maxItems": 32,
             "type": "array"
           },
           "languages": {
@@ -38,7 +38,7 @@
               "minLength": 2,
               "type": "string"
             },
-            "maxItems": 69,
+            "maxItems": 32,
             "minItems": 1,
             "type": "array"
           },
@@ -388,7 +388,7 @@
             "type": "boolean"
           },
           "scope": {
-            "description": "Valid only when enabled. Omit for selected compatibility. All is expanded only at explicit publication and can be unavailable when a provider candidate limit, or the 69-language limit of an AI agent's selection, is smaller than the compatible set.",
+            "description": "Valid only when enabled. Omit for selected compatibility. All is expanded only at explicit publication and can be unavailable when a provider candidate limit, or the 32-language limit of an AI agent's selection, is smaller than the compatible set.",
             "enum": [
               "selected",
               "all"
@@ -472,14 +472,14 @@
             "items": {
               "type": "string"
             },
-            "maxItems": 69,
+            "maxItems": 32,
             "type": "array"
           },
           "profiles": {
             "items": {
               "$ref": "#/components/schemas/AgentLanguageProfileOverride"
             },
-            "maxItems": 69,
+            "maxItems": 32,
             "type": "array"
           },
           "published_at": {
@@ -495,7 +495,7 @@
               "maxLength": 35,
               "type": "string"
             },
-            "maxItems": 69,
+            "maxItems": 32,
             "type": "array"
           },
           "published_starting_language": {
@@ -745,6 +745,10 @@
               "enabled": {
                 "type": "boolean"
               },
+              "live_enabled": {
+                "description": "Whether visitors can start a conversation.",
+                "type": "boolean"
+              },
               "path": {
                 "example": "/talk/front-desk",
                 "type": "string"
@@ -756,6 +760,7 @@
             "required": [
               "slug",
               "enabled",
+              "live_enabled",
               "path",
               "daily_conversations_per_visitor",
               "concurrent_conversations"
@@ -770,9 +775,68 @@
             "example": 4,
             "type": "integer"
           },
+          "max_recordings": {
+            "example": 5,
+            "type": "integer"
+          },
           "max_session_seconds": {
             "example": 300,
             "type": "integer"
+          },
+          "recordings": {
+            "description": "The shared conversations on the page, in order. Only for a credential with recordings:read.",
+            "items": {
+              "properties": {
+                "call_id": {
+                  "type": "string"
+                },
+                "duration_seconds": {
+                  "type": "number"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "recorded_at": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "recording_id": {
+                  "type": "string"
+                },
+                "source": {
+                  "description": "Who was on the call: team is a workspace member's own test from the dashboard.",
+                  "enum": [
+                    "team",
+                    "public_link",
+                    "phone_inbound",
+                    "phone_outbound"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "transcript_status": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "recording_id",
+                "call_id",
+                "title",
+                "recorded_at",
+                "duration_seconds",
+                "source",
+                "transcript_status"
+              ],
+              "type": "object"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "recordings_etag": {
+            "description": "Send back with the next recordings change. Only for a credential with recordings:read.",
+            "type": "string"
           },
           "suggested_slug": {
             "description": "A suggestion for a new link, when available from the name.",
@@ -787,11 +851,136 @@
           "version",
           "agent_id",
           "link",
+          "max_recordings",
           "suggested_slug",
           "hosted",
           "max_session_seconds",
           "max_concurrent_conversations",
           "check"
+        ],
+        "type": "object"
+      },
+      "AgentPublicLinkRecordingCandidates": {
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "candidates": {
+            "items": {
+              "properties": {
+                "call_id": {
+                  "type": "string"
+                },
+                "duration_seconds": {
+                  "type": "number"
+                },
+                "first_line": {
+                  "properties": {
+                    "speaker": {
+                      "enum": [
+                        "agent",
+                        "caller"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "ineligible_reason": {
+                  "enum": [
+                    null,
+                    "in_progress",
+                    "no_recording",
+                    "processing",
+                    "too_short",
+                    "too_long"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recorded_at": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "recording_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source": {
+                  "description": "Who was on the call: team is a workspace member's own test from the dashboard.",
+                  "enum": [
+                    "team",
+                    "public_link",
+                    "phone_inbound",
+                    "phone_outbound"
+                  ]
+                },
+                "transcript_status": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "call_id",
+                "recording_id",
+                "recorded_at",
+                "duration_seconds",
+                "source",
+                "transcript_status",
+                "first_line",
+                "ineligible_reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pagination": {
+            "properties": {
+              "has_more": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "next_cursor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "returned": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "limit",
+              "returned",
+              "has_more",
+              "next_cursor"
+            ],
+            "type": "object"
+          },
+          "version": {
+            "const": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "agent_id",
+          "candidates",
+          "pagination"
         ],
         "type": "object"
       },
@@ -1505,7 +1694,7 @@
             "items": {
               "$ref": "#/components/schemas/AgentLanguageProfileOverride"
             },
-            "maxItems": 69,
+            "maxItems": 32,
             "type": "array"
           },
           "languages": {
@@ -1515,7 +1704,7 @@
               "minLength": 2,
               "type": "string"
             },
-            "maxItems": 69,
+            "maxItems": 32,
             "minItems": 1,
             "type": "array"
           },
@@ -7832,7 +8021,7 @@
                   "pattern": "^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$",
                   "type": "string"
                 },
-                "maxItems": 69,
+                "maxItems": 32,
                 "minItems": 1,
                 "type": "array",
                 "uniqueItems": true
@@ -7903,7 +8092,7 @@
                   "maxLength": 64,
                   "type": "string"
                 },
-                "maxItems": 69,
+                "maxItems": 32,
                 "type": "array"
               },
               "model": {
@@ -9598,7 +9787,7 @@
     },
     "/v1/agents/{agent_id}/public-link": {
       "get": {
-        "description": "Requires agents:read. A link may be unset, private, or public.",
+        "description": "Requires agents:read. A link may be unset, private, or public. The shared conversations (recordings, recordings_etag) are included only with recordings:read.",
         "operationId": "getAgentPublicLink",
         "parameters": [
           {
@@ -9653,7 +9842,7 @@
         ]
       },
       "patch": {
-        "description": "Requires agents:write. Send any of slug, enabled, daily_conversations_per_visitor and concurrent_conversations. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
+        "description": "Requires agents:write, and recordings:read to send recordings; the response includes the shared conversations only with recordings:read. Send any of slug, enabled, live_enabled, daily_conversations_per_visitor, concurrent_conversations and recordings. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
         "operationId": "updateAgentPublicLink",
         "parameters": [
           {
@@ -9686,6 +9875,10 @@
                     "minimum": 1,
                     "type": "integer"
                   },
+                  "consent_confirmed": {
+                    "description": "Sent with recordings. True confirms the callers agreed to their recording being shared outside the workspace; required when a newly added recording is of a call not made by the workspace's team.",
+                    "type": "boolean"
+                  },
                   "daily_conversations_per_visitor": {
                     "description": "How many conversations one visitor may start on this link in a UTC day: 10 until changed, 1 to 1000, or null for no limit. Every conversation is billed to the workspace.",
                     "maximum": 1000,
@@ -9698,6 +9891,38 @@
                   "enabled": {
                     "description": "True makes a hosted AI agent publicly callable. False keeps the URL reserved and turns off public access.",
                     "type": "boolean"
+                  },
+                  "live_enabled": {
+                    "description": "False keeps the page and its recordings up but lets no visitor start a conversation.",
+                    "type": "boolean"
+                  },
+                  "recordings": {
+                    "description": "Replaces the whole list of shared conversations shown on the page, in this order: at most 5, each a finished call with this AI agent whose recording is 15 s to 10 min long. Any refused entry refuses the whole request with 422 and a code per entry. Recordings stay while they are on the page.",
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "recording_id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "description": "Plain text the visitor sees above the player.",
+                          "maxLength": 80,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "recording_id",
+                        "title"
+                      ],
+                      "type": "object"
+                    },
+                    "maxItems": 5,
+                    "type": "array"
+                  },
+                  "recordings_etag": {
+                    "description": "Sent with recordings: the recordings_etag last read. A different current list answers 409.",
+                    "type": "string"
                   },
                   "slug": {
                     "description": "The last segment of the URL. After trimming and lowercasing it must have 3 to 40 characters and contain letters a-z, digits, and single hyphens between words. Reserved addresses are refused.",
@@ -9734,13 +9959,76 @@
             "description": "No such AI agent in the authenticated workspace and requested project"
           },
           "409": {
-            "description": "The requested address is already taken"
+            "description": "The requested address is already taken, or the recordings changed since recordings_etag"
+          },
+          "422": {
+            "description": "A recording cannot be shared; the body names each refused entry and its code"
           },
           "423": {
             "description": "Workspace risk controls block this configuration change"
           }
         },
         "summary": "Change an AI agent's public link",
+        "tags": [
+          "Agents"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/public-link/recording-candidates": {
+      "get": {
+        "description": "Requires agents:read and recordings:read. This AI agent's calls, newest first, with who was on each call and why it cannot be shared yet when it cannot. Phone numbers are never included.",
+        "operationId": "listAgentPublicLinkRecordingCandidates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "When supplied, the AI agent must be in this project.",
+            "in": "query",
+            "name": "project_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "A previous page's pagination.next_cursor.",
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPublicLinkRecordingCandidates"
+                }
+              }
+            },
+            "description": "One page of candidate calls"
+          },
+          "400": {
+            "description": "An invalid cursor"
+          },
+          "401": {
+            "description": "Missing or invalid credential"
+          },
+          "403": {
+            "description": "Missing permission or workspace binding"
+          },
+          "404": {
+            "description": "No such AI agent in the authenticated workspace and requested project"
+          }
+        },
+        "summary": "List calls to share on an AI agent's public link",
         "tags": [
           "Agents"
         ]
