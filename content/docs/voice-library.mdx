@@ -271,6 +271,71 @@ Leaving the field blank keeps the existing platform sample behavior. Choose a
 preview language when needed. Only one preview plays at a time; editing the
 text or changing the voice stops the previous preview.
 
+### When the voice starts
+
+A GPT-Live or Gemini Live preview starts playing as soon as the voice has
+spoken its first moment, while the rest of the sentence is still being
+generated, so a long sentence no longer means a long wait before you hear
+anything. Text-to-speech voices and Eleven Realtime play their finished clip as
+soon as it is ready. Press **Play** again (it shows **Stop** while the preview
+loads and plays) to stop at any point; stopping a GPT-Live or Gemini Live
+preview also ends its live session.
+
+A live preview reads your whole sentence, up to the 200-character limit; it is
+no longer cut off after 8 seconds. If the connection or the voice service fails
+after the voice has started, the preview stops and **Play** shows "The preview
+stopped early. Try again." You never hear the end of an older preview after
+changing the text or the voice.
+
+For example, you type the 190-character greeting "Hi, this is Maya from
+Northwind Dental. I can book a new appointment, move or cancel one you already
+have, and answer questions about our opening hours and prices. What would you
+like to do?" and press **Play** on a Gemini Live voice. The voice starts within
+a second or two and reads the whole greeting; you press **Stop** halfway and
+the sound stops at once.
+
+### Preview a voice over the API
+
+`POST /v1/voice-previews` returns the whole preview as one WAV file, so for a
+GPT-Live or Gemini Live voice the response comes once the voice has finished
+speaking: a long sentence takes as long as the voice needs, with its first
+audio within 10 seconds and the whole session within 30 seconds. Past either
+the request fails with `voice_preview_timed_out`, and past the 1 MiB audio
+limit with `voice_preview_too_large`; you never receive a clip that was cut
+short. An Eleven Realtime preview keeps its own limit: 9 seconds to prepare,
+connect and receive the reply. Past that, or past its audio size limit, it
+fails with `voice_preview_rejected`. To play a preview as it is produced, send the same request
+body to
+`POST /v1/voice-previews/stream`. It answers with
+[NDJSON](https://github.com/ndjson/ndjson-spec), one JSON object per line:
+
+```json
+{"type":"start","provider":"gemini","model":"gemini-3.8-live","voice_id":"Kore","language":"en","encoding":"pcm_s16le","sample_rate_hz":24000,"text_source":"custom","sample_language":"en","cached":false}
+{"type":"audio","seq":0,"pcm_base64":"AAD+/wMA..."}
+{"type":"audio","seq":1,"pcm_base64":"BwAKAAgA..."}
+{"type":"end","audio_bytes":412800,"duration_ms":8600}
+```
+
+- The `start` frame carries the same fields as the WAV response, plus the
+  audio format: mono 16-bit little-endian PCM at `sample_rate_hz`.
+- Each `audio` frame holds at most 200 ms of that PCM, base64-encoded, in
+  `seq` order. Play them back to back.
+- The last frame is exactly one `end`, or one `error` frame such as
+  `{"type":"error","error":"voice_preview_timed_out"}` if the preview failed
+  after it started. A response that stops without an `end` frame also failed.
+- Every refusal (an invalid request, the workspace allowance, a busy preview
+  slot, a voice that does not speak) arrives before any audio, with the same
+  HTTP status and JSON error body as `POST /v1/voice-previews`.
+- Closing the connection ends a GPT-Live or Gemini Live preview session.
+- The same per-voice field rules apply: for Eleven Realtime send only the voice
+  fields, and GPT-Live and Gemini Live refuse a `credential_id`.
+- The limits are the same: up to 200 characters of text, 10 previews a minute
+  per workspace, and the shared limit on preview sessions running at once. A
+  GPT-Live or Gemini Live preview has its first audio within 10 seconds and
+  runs at most a 30-second session, and fails rather than being cut short if
+  the voice talks past the size limit. Eleven Realtime keeps its own 9-second
+  limit, as above.
+
 ## OpenAI GPT-Live 1 voices
 
 The fourteen [GPT-Live 1](/docs/conversation-engines) voices are listed under
