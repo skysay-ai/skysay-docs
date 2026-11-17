@@ -1,6 +1,6 @@
 ---
 title: Share an AI agent with a public link
-description: Give one AI agent an address anyone can open to talk to it in the browser, or to listen to sample calls, with no account. Conversations are recorded, appear in Calls and are billed to your balance.
+description: Give one AI agent an address anyone can open to talk to it in the browser, or to listen to recorded conversations, with no account. Conversations are recorded, appear in Calls and are billed to your balance.
 icon: ShareAndroid
 ---
 
@@ -47,14 +47,15 @@ reserved.
 Only an AI agent that Skysay hosts can have a public link. A webhook agent or
 a realtime audio agent cannot.
 
-## Sample recordings
+## Shared conversations
 
-You can put up to 5 recordings of calls with this AI agent on its page.
+You can share up to 5 recorded conversations with this AI agent on its page:
+real calls it had, which you choose.
 Visitors play them in the browser, with no microphone, and can forward the
 page to whoever decides. They appear below the live conversation and above
 the share links.
 
-1. In **Share**, under **Sample recordings**, choose **Add a recording**.
+1. In **Share**, under **Shared conversations**, choose **Share a conversation**.
    The list shows this AI agent's calls only, newest first, with who was on
    the call, its length and its first line. Listen to any of them in place.
 2. Choose **Add** on a call. A call that cannot be shared says why: still in
@@ -68,20 +69,20 @@ the share links.
    a phone call. Adding one asks you to confirm that the callers agreed to
    their recording being shared outside your workspace. Skysay keeps who
    confirmed it and when.
-5. Choose **Save recordings**.
+5. Choose **Save**.
 
-A recording stays available while it is on the page, even past its normal
+A shared conversation's recording stays available while it is on the page, even past its normal
 retention. When you remove it, its normal retention applies again. Deleting
 the call's recording removes it from the page at once.
 Turning the link off hides the page and its recordings.
 
-If two people edit the recordings at once, the second save is refused and
+If two people edit the shared conversations at once, the second save is refused and
 asks to reload the page, so neither overwrites the other.
 
 ## Live conversations
 
 **Live conversations** turns the conversation on the page on or off. With it
-off, the page shows only the sample recordings, nobody can start a
+off, the page shows only the shared conversations, nobody can start a
 conversation, and nothing is billed. The link's limits apply only while it is
 on. Existing links have it on.
 
@@ -90,8 +91,8 @@ on. Existing links have it on.
 | Action | REST | MCP | Scope |
 | --- | --- | --- | --- |
 | Read the current link or check a proposed address | `GET /v1/agents/{agent_id}/public-link` | `get_agent_public_link` | `agents:read` |
-| Publish, turn off, or rename the link, change its limits, turn live conversations on or off, or replace the sample recordings | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write`, and `recordings:read` to send `recordings` |
-| List this AI agent's calls to choose sample recordings from | `GET /v1/agents/{agent_id}/public-link/recording-candidates` | `list_agent_public_link_recording_candidates` | `agents:read` and `recordings:read` |
+| Publish, turn off, or rename the link, change its limits, turn live conversations on or off, or replace the shared conversations | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write`, and `recordings:read` to send `recordings` |
+| List this AI agent's calls to choose conversations to share from | `GET /v1/agents/{agent_id}/public-link/recording-candidates` | `list_agent_public_link_recording_candidates` | `agents:read` and `recordings:read` |
 
 Use a credential for the AI agent's workspace. MCP takes `agent_id` in
 the tool arguments. To check an address, pass `check` as a query parameter
@@ -113,7 +114,7 @@ Use the same fields in the PATCH body or MCP write arguments:
   needs an address before its limits can be set.
 
 - To turn live conversations off and keep the page, send `{"live_enabled":false}`.
-- To set the sample recordings, send the whole list in page order:
+- To set the shared conversations, send the whole list in page order:
   `{"recordings":[{"recording_id":"rec_…","title":"Booking a consultation","allow_download":true,"show_transcript":true}],"consent_confirmed":true,"recordings_etag":"…"}`.
   Take `recording_id` from the candidates list. `allow_download` and
   `show_transcript` default to true. `consent_confirmed` is required when a
@@ -139,8 +140,8 @@ languages it speaks, and a notice that the conversation is recorded, shared
 with your business and lasts up to 5 minutes. The visitor presses
 **Start talking** and allows the microphone.
 
-When the page has sample recordings, they follow, under **Listen to sample
-calls**. Each shows its title, the date it was recorded and its
+When the page has shared conversations, they follow, under **Recorded
+conversations**. Each shows its title, the date it was recorded and its
 length, and plays with a waveform the visitor can click to jump anywhere,
 with speed control and no autoplay. **Show transcript** opens the transcript,
 which highlights the line being played; a transcript that was not captured in
@@ -218,7 +219,7 @@ conversation is listed in **Calls** as canceled and is not charged. It does
 not count toward the visitor's daily limit, and it frees its place on the
 link at once.
 
-The page keeps playing its sample recordings when your balance is empty or
+The page keeps playing its shared conversations when your balance is empty or
 during maintenance, since they cost nothing to serve; a suspended AI agent's
 page shows none.
 
