@@ -24,6 +24,9 @@ confirmed booking tools, using the same caller-confirmation contract as write Ac
 Native [Pipedrive calling](/docs/pipedrive) connects a CRM user to a workspace,
 starts user-confirmed outbound AI calls and saves results on the original contact.
 
+Native [Close CRM](#close-crm) connects a Close organization to a project,
+calls a selected contact with your AI agent, and logs the result on its original lead.
+
 ## The three parts
 
 | Part | What it is | Who controls it |
@@ -277,6 +280,84 @@ Your endpoint receives the durable action ID in `tool_call_id`. Deduplicate it,
 validate the server-injected ownership against your records, and enforce your
 own business rules. An uncertain result is not permission to retry a mutation
 under a fresh ID.
+
+## Close CRM
+
+Connect Close to call a CRM contact with a Skysay AI agent and keep the result
+with that contact's lead. You can also link an existing finished inbound or
+outbound phone call. This does not replace Close's built-in dialer or synchronize SMS.
+
+<Diagram name="close-crm-calls.svg" alt="Connect your Close organization to a Skysay project, select the contact and phone, and confirm an AI call. After the call ends, Skysay sends its real outcome, AI summary and a secure Skysay recording and transcript link to an external call activity on the original Close lead. A delivery whose result is unconfirmed is not automatically retried." />
+
+### Connect your account
+
+1. Open **Integrations → CRM → Close CRM** as a workspace owner or administrator.
+2. Choose an active hosted AI agent and an active caller number from the current project.
+3. Select **Connect Close**, sign in to Close, and choose the intended Close organization.
+4. Review and approve Close's consent screen. Return to Skysay and check that the account is **Connected**.
+
+<Callout type="warn" title="Close grants broad access">
+Close currently grants full API access and offline access, not individual read/write
+permissions. The grant inherits the approving Close user's permissions. Only connect
+the intended organization. Skysay uses this connection to read contacts and create
+external call activities; it does not import your email or calendar.
+</Callout>
+
+One Close organization connects to one Skysay project at a time. Disconnect the
+existing connection before connecting it elsewhere or changing the selected agent
+or number. Disconnect removes stored credentials, attempts to revoke the Close
+grant, and cancels waiting exports. A request already sent to Close may still finish.
+
+### Call a contact
+
+Select **Load contacts**. Each page contains up to 25 contacts, newest first;
+**Previous** and **Next** move between pages. Enter a lead ID to limit the list to
+that lead. Close may require this filter when your approving user cannot view all leads.
+
+Choose the exact contact phone, confirm that you authorize the call, then select
+**Call with AI agent**. Normal calling charges, destination permissions,
+do-not-call checks and other Skysay safeguards still apply. Skysay verifies that
+the contact still belongs to that lead and still has the selected phone before admission.
+An accepted request is not proof that the phone connected.
+
+To log an existing call, choose its matching contact, enter the finished Skysay
+call ID, and select **Log existing call**. Only a phone call in the connected
+project with a matching contact phone can be linked. Simulations are not exported.
+
+### What Close receives
+
+After a linked call ends, Skysay waits about two minutes for its AI summary,
+then creates an external call activity with the original contact, lead, phone,
+direction and actual terminal status. Busy, unanswered, failed and cancelled
+calls are not relabelled as successful calls. If no summary is available,
+the activity says so.
+
+The note contains a secure link to the call in Skysay. Recordings and transcripts
+still require authorized Skysay access; no public recording URL is created.
+This is not an embedded audio player in Close. Later transcript changes are not
+automatically exported again.
+
+**Call delivery history** shows the newest 20 linked calls. **Unconfirmed** means
+the remote create may have succeeded but its response was lost. Check Close
+before taking further action. Skysay does not automatically replay ambiguous
+creates, because that could duplicate the activity.
+
+### API and MCP
+
+The [API reference](/docs/api-reference) documents these same actions:
+
+| Action | REST endpoint | MCP tool |
+| --- | --- | --- |
+| Read a bounded contact page | `POST /v1/close/actions/contacts` | `list_close_contacts` |
+| Start one authorized AI call | `POST /v1/close/actions/start` | `start_close_call` |
+| Link an existing finished call | `POST /v1/close/actions/log` | `log_close_call` |
+| Read call and delivery status | `POST /v1/close/actions/outcome` | `get_close_call_outcome` |
+
+Connect the account in the workspace first. Contact lookup requires `agents:write`;
+starting or exporting a call also requires `calls:write` and `recordings:read`,
+because the result can include a conversation summary. Outcome reads require
+`calls:read`. Reuse the same `request_key` and exact contact, lead and phone when
+retrying an uncertain call-start request. A changed payload with that key is refused.
 
 ## Production checklist
 
