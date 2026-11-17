@@ -191,8 +191,10 @@ agent-editor setting.
 
 ### Calls where the agent speaks first
 
-Inbound phone calls and browser tests keep their existing agent-first opening.
-The following input hold and quick-reply recovery apply to that opening path.
+Inbound phone calls, outbound calls set to have the agent speak first, and
+browser tests keep their agent-first opening. On GPT-Live 1 and Gemini Live,
+the following input hold and quick-reply recovery apply to that opening path.
+Eleven Realtime does not use this input hold.
 
 While the opening plays, the engine does not hear the line. A voice-to-voice
 engine answers whatever it hears, so hold music, an automated announcement or
@@ -203,12 +205,25 @@ what it said covers the opening, and the line has then been quiet for about a
 second. Skysay itself keeps listening the whole time, so answer detection and
 the call recording are not affected.
 
-On GPT-Live, a quick reply after the greeting stops can arrive while Skysay is
-still checking that quiet period. Skysay briefly retains this post-greeting
-audio and passes it to the engine once the opening check succeeds, before new
-live audio. Silent intervals are not replayed; a recovered reply includes at most
-200 milliseconds of leading quiet. Retention is limited to two seconds and stays
-in memory.
+If the engine reports that it has finished the greeting but sends no text of
+it, there is nothing to compare: Skysay lets the engine hear the line again
+once the greeting has been audible for at least a second and the line has then
+been quiet for about a second and a half. Such a call is not counted as having
+delivered the configured opening.
+
+On Gemini Live this also keeps the caller's first words from cancelling the
+greeting before it starts: without the hold, someone who spoke as the call
+connected could stop the greeting, and a browser test could end without the
+agent saying anything.
+
+A quick reply after the greeting stops can arrive while Skysay is still
+checking that quiet period. Skysay briefly retains this post-greeting audio and
+passes it to the engine once the opening check succeeds, before new live audio.
+On Gemini Live this needs the engine to have finished sending the greeting's
+audio; if it was cut off or the connection dropped, the reply is not passed on.
+Silent intervals are not replayed; a recovered reply includes at most 200
+milliseconds of leading quiet. Retention is limited to two seconds and stays in
+memory.
 
 A reply can also begin over the greeting's last words, when the person starts
 answering in a pause or before the final syllable has finished. If they are
@@ -240,14 +255,25 @@ buffer reaches its limit, or the call is ending. Normal listening still resumes 
 If the caller's reply was not understood, the agent may still need to ask them
 to repeat it.
 
-Two consequences to plan for:
+Consequences to plan for:
 
 - A short sound during the opening, such as a "hello?", is not passed to the
-  engine afterwards if it ended before the greeting did. On GPT-Live, if the person keeps speaking for more than
-  about a second, the engine starts hearing the line again and is first given the
+  engine afterwards if it ended before the greeting did. On a phone call, if
+  the person keeps speaking for more than about a second once the greeting
+  can be heard, the engine starts hearing the line again and is first given the
   last two seconds of what they said, so it can stop its greeting and answer
   them. This is the same one-second rule the Standard engine uses for its
   opening line.
+- On Gemini Live, if the person starts speaking before the greeting can be
+  heard, the greeting is held back until they stop. What they said before the
+  greeting began is not passed on to the engine: they hear the greeting and
+  need to say it again.
+- In browser tests the one-second rule does not apply: a person who keeps
+  talking over the greeting does not take the floor. What they say during the
+  greeting is not passed on if they stop before it ends; a reply that runs on
+  past the end of the greeting is passed on as described above. A test caller
+  that says one line over the greeting and then waits for an answer gets the
+  greeting, not an answer to what it said.
 - If the engine does not finish the opening, it starts listening anyway: 12
   seconds after the call is answered if it has said nothing, or at most 6 seconds
   plus a tenth of a second per character of the opening (never more than 30
