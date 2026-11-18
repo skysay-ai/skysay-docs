@@ -216,11 +216,15 @@ transcriber or voice to make a larger set work.
 Some transcribers require a candidate list. If all compatible languages exceed
 that provider's simultaneous limit, choose a subset or another compatible
 transcriber. Skysay does not silently select a smaller list for you. An AI
-agent can have every call language Skysay offers (69 today), so a transcriber
-with no candidate list, such as Deepgram Nova-3's multilingual mode, can follow
-the caller across every language the rest of the configuration speaks. The
-same limit applies to an AI agent that runs a workflow and to its workflow's
-voice input.
+agent can have up to 256 languages, more than every call language Skysay
+offers, so a transcriber with no candidate list, such as Deepgram Nova-3's
+multilingual mode, can follow the caller across every language the rest of the
+configuration speaks. If **All supported languages** would ever come to more
+than 256, it is refused with both numbers and you choose a subset; it is never
+shortened. The same limit applies to an AI agent that runs a workflow and to
+its workflow's voice input. The agent catalog returns it as
+`max_call_languages`, and the voice-stack response as
+`language_profiles.max_languages`.
 
 The opening language determines how the AI agent starts before the caller
 speaks. Publish the configuration to freeze its accepted languages for future
@@ -353,8 +357,8 @@ Read `language_profiles.revision` from the voice-stack response and send it as
 detect a stale editor instead of overwriting a newer edit. Omitting the revision
 skips this check for compatibility; it does not protect a stale client from
 overwriting newer settings. The selected language set must contain at least one
-entry and at most one per call language (69 today); a larger set is refused, never
-shortened.
+entry and at most 256 (`language_profiles.max_languages`); a larger set is
+refused, never shortened.
 To remove a language, supply the remaining selected languages and omit any
 override for the removed language from the replacement profiles array. Keep at
 least one language, including the opening language; an empty set is invalid.
