@@ -223,11 +223,12 @@ retained quick reply is passed on, only when that text matches the configured
 greeting closely enough.
 
 A greeting the agent generates (an agent with no fixed first message) is
-protected while the agent is heard speaking it. The protection normally ends
-shortly after the greeting. If the greeting does not finish, or Skysay cannot
-follow the call's audio, the protection ends on its own. On a phone call a
-caller who keeps talking over the greeting still takes the floor as described
-below.
+protected until the agent has been heard for at least a second and the line
+has then been quiet for about a second and a half, which is normally just
+after the greeting. A pause that long inside the greeting also ends the
+protection. If the greeting does not finish, the protection ends on its own,
+as described below. On a phone call a caller who keeps talking over the
+greeting still takes the floor as described below.
 
 On Gemini Live this also keeps the caller's first words from cancelling the
 greeting before it starts: without the hold, someone who spoke as the call
@@ -293,10 +294,15 @@ Consequences to plan for:
   that says one line over the greeting and then waits for an answer gets the
   greeting, not an answer to what it said.
 - If the engine does not finish the opening, it starts listening anyway: 12
-  seconds after the call is answered if it has said nothing, or at most 6 seconds
-  plus a tenth of a second per character of the opening (never more than 30
-  seconds) after it started speaking. A call whose engine said something
-  other than the configured opening is not counted as having delivered it.
+  seconds after the call is answered if it has said nothing. For a fixed first
+  message, at most 6 seconds plus a tenth of a second per character of the
+  opening (never more than 30 seconds) after it started speaking. For a
+  generated greeting, 6 seconds after it started speaking once the line has
+  been quiet for about a second and a half or Skysay has stopped receiving the
+  call's audio, and at most 30 seconds after it started speaking. In every case
+  the engine hears the line again at most 42 seconds after the protection
+  began. A call whose engine said something other than the configured opening
+  is not counted as having delivered it.
 
 Without an opening message, GPT-Live and Gemini Live write their own
 greeting. When the call carries per-call context, that greeting asks for the
