@@ -175,13 +175,22 @@ Counts describe distinct voices and can overlap between models.
 
 Under **Provider**, expand **Fish Audio** and select **S2.1-Pro** to find a
 voice for a Standard agent or a spoken workflow. Preview a phrase in the
-caller's language, then select that model and voice in the agent and publish.
-Existing agents keep the model you published for them.
+caller's language. To use S2.1-Pro on calls, explicitly select it with the
+voice in the agent and publish. Existing agents keep their published model.
 
 For API setup, look up `fishaudio` and `s2.1-pro` in
 `GET /v1/agent-catalog?component=tts`. Use the languages and voice IDs
 available for your selection. Skysay meters the Fish voice by the UTF-8
 bytes of text sent for synthesis. See [speech billing](/docs/billing#speech-that-is-interrupted-or-refused).
+
+If you already use your own Fish Audio key and a private voice is missing
+under S2.1-Pro, refresh the voice list for that key. For an **Active** key,
+call `POST /v1/hosted-ai-credentials/{credential_id}/validate` with a Skysay
+API key that has `agents:write`. Supply the existing credential ID in the
+path and its `organization_id` and `project_id` in the JSON body. Skysay uses
+the stored Fish key. After successful validation, check the voice picker
+again with that credential selected. Its private voices stay scoped to that
+key and project.
 
 ## Pages and model groups
 
