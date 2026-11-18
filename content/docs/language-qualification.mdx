@@ -48,9 +48,9 @@ For ElevenLabs text-to-speech models (Flash v2.5, Turbo v2.5, v3 and v4 Turbo),
 the languages a voice can run a call in are the languages ElevenLabs itself
 lists for that model, read by the same background refresh as the voices.
 Skysay keeps no list of its own for these models. When ElevenLabs adds a
-language to a model, it becomes available after the next refresh, within the
-call languages Skysay offers. ElevenLabs lists Norwegian as `no`; in Skysay it
-is `nb` (Norwegian Bokmål), and the two are matched.
+language to a model, it becomes available after the next refresh, with no
+Skysay release. ElevenLabs lists Norwegian as `no`; in Skysay it is `nb`
+(Norwegian Bokmål), and the two are matched.
 
 - **Only the stored list counts.** A language the latest stored list does not
   name is refused when you save or publish, with a reason naming the model and
@@ -229,21 +229,30 @@ language, and how to test yours, is on
 Because there is no language setting, there is no per-language profile to
 publish either. An outbound call names its language in
 `runtime_config.language` and the call opens in that language, for any
-language Skysay supports — no publishing step comes first. A language Skysay
-does not support is refused before the call is placed. The same applies to
-Gemini Live.
+language code — no publishing step comes first. A value that is not a language
+code is refused before the call is placed. The same applies to Gemini Live.
 
 ## Call languages
 
-An AI agent can take calls in a language only when Skysay has both a voice
-that speaks it and a transcriber that hears callers in it, and the catalog
-offers only those voices and transcribers for that language. There are 69:
-English, Estonian, Sinhala, Tamil, German, Spanish, Finnish, French, Italian,
-Dutch, Portuguese, Russian, Swedish and Ukrainian, plus the languages below,
-added with Gemini 3.8 Flash-Lite TTS. For each of these, Gemini 3.8 Flash-Lite
-TTS is the voice.
+Skysay keeps no list of call languages. An AI agent can take calls in a
+language when every part of its stack accepts it:
 
-Deepgram Nova-3 and Soniox Real-time v6 are offered for every call language:
+- **Gemini voices, every language model, and the Deepgram Nova-3, Soniox
+  Real-time v6 and OpenAI transcribers** accept any language code. The
+  provider decides on each call.
+- **ElevenLabs voices** accept the languages ElevenLabs lists for the model
+  (above).
+- **Azure AI Speech and Google Chirp 2 transcribers, and the Azure, Cartesia,
+  Soniox and Fish Audio voices,** accept the languages they list, shown in the
+  catalog.
+
+So a language no Skysay list names, for example Turkish, works on Deepgram
+Nova-3 with a Gemini voice, or with an ElevenLabs voice whose model lists it.
+The editor offers the languages the listed voices and transcribers name and
+the ones ElevenLabs lists, and always keeps the languages your AI agent
+already has. The API accepts any language code on such a stack.
+
+Deepgram Nova-3 and Soniox Real-time v6 are offered for every language:
 Skysay keeps no list of the languages a transcriber hears, and the provider
 decides on each call. A language the provider refuses when the call connects
 ends that call visibly, with `ended_reason` `model_session_lost` and
@@ -274,7 +283,10 @@ does it take one that hears every language, as Deepgram Nova-3 does for
 Finnish plus Belarusian. An agent whose transcriber is saved keeps it.
 
 Azure AI Speech and Google Chirp 2 need a regional tag for each language, so
-they are offered for the languages Skysay has a tag for, shown below.
+they are offered for the languages Skysay has a tag for. The table below lists
+the languages Skysay measured when it added Gemini 3.8 Flash-Lite TTS, with
+the transcribers that hear callers in each; it is a record of that check, not
+a limit.
 
 | Language | Code | Transcribers that hear callers |
 | --- | --- | --- |
@@ -337,10 +349,11 @@ they are offered for the languages Skysay has a tag for, shown below.
 Chinese is Mandarin, whether written in simplified or traditional characters.
 Arabic is Modern Standard Arabic; Egyptian Arabic is a separate language. The
 Dari transcriber is a Persian (Iran) model. Every language above was measured
-before it was added: Flash-Lite spoke a greeting and a short line 15 times
-each, and a transcriber read every clip back at telephone quality. That is a
-qualification check, not an accuracy guarantee: test your own conversation
-before going live.
+when it was added: Flash-Lite spoke a greeting and a short line 15 times each,
+and a transcriber read every clip back at telephone quality. That is a
+qualification check, not an accuracy guarantee, and a language outside the
+table has not been measured by Skysay: test your own conversation before going
+live.
 
 ## Choosing a language and voice
 
