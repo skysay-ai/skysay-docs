@@ -390,6 +390,21 @@ reply, `output_cut_off` follows that record: `yes` when playback of the reply
 was stopped, `no` when it played to its end, even if the other person made a
 sound meanwhile.
 
+An AI agent turn's `metadata.actually_spoken` says two more things.
+`playout_completed` is whether the reply played to its end.
+`verbatim_text_confirmed` is whether Skysay can also confirm it word for word:
+the reply played to its end and was never paused on the way. When the other
+person makes a sound, the AI agent can pause for a moment and then carry on;
+a fraction of a word can be lost where it paused. Such a reply has
+`playout_completed: true` and `verbatim_text_confirmed: false`. It is not cut
+off, and Calls shows it as an ordinary reply:
+
+- Dana: "Hi."
+- AI agent: starts a 21-second reply. Dana coughs two seconds in; the agent's
+  voice dips for a moment, then it speaks to the end.
+- Calls: the whole reply, not cut off. In the API, `output_cut_off` is `no`,
+  `playout_completed` is `true` and `verbatim_text_confirmed` is `false`.
+
 ## Listen turn by turn in Calls
 
 The Calls workspace keeps the mixed recording player and can also show a compact
