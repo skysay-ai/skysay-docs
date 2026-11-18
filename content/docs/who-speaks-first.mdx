@@ -105,6 +105,39 @@ decides the words: a timing safeguard does not guarantee that it understands
 every request or repeats a configured opening exactly. Test your agent's
 languages and instructions with representative calls.
 
+### Say who is calling and why
+
+An agent that places calls should say who is calling and why, both in its
+**System prompt** and in its **First message**. An agent written to answer
+calls, with a first message such as "How can I help you today?", is set up to
+hear a person who called it. Reused to place calls, it can take a business's
+greeting as a sign that it dialled the wrong number, apologise, and may end
+the call. We have seen this in our own tests on Gemini Live.
+
+An agent written to answer calls, placing one:
+
+> **Person:** "Good morning, Mill Street Bakery, this is Dana, how can I help?"
+>
+> **Agent:** "I'm sorry, I think I've dialled the wrong number. Goodbye."
+
+The bakery was the number the agent was meant to call, and the call ends
+before it has said why it called.
+
+The same call, with a system prompt that says the agent calls customers for
+Northwind Deliveries to confirm tomorrow's delivery, and the first message
+"Hi, this is Maya from Northwind Deliveries. I'm calling to confirm tomorrow's
+delivery.":
+
+> **Person:** "Good morning, Mill Street Bakery, this is Dana, how can I help?"
+>
+> **Agent:** "Hi, this is Maya from Northwind Deliveries. I'm calling to confirm
+> tomorrow's delivery. Will someone be there to receive it?"
+
+If one agent both answers and places calls, give the calls it places their
+own opening: `POST /v1/calls` accepts a per-call `first_message` (not for an
+agent that runs a workflow), as described in
+[Call variables](/docs/call-variables#write-them-into-lines).
+
 The two-second silent-line rule is when the opening is requested. Model and
 audio processing add time before the person hears it. If caller audio briefly
 stops arriving, Skysay waits for a fresh observed quiet interval; it does not
