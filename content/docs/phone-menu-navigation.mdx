@@ -275,8 +275,9 @@ It has four jobs, and nothing else changes while it is in a menu or a queue:
   speech gets no spoken decline: the callback is never taken, and the call stays
   in the queue.
 - **Giving up on a menu.** When no option fits the call's task, the menu asks
-  for something the call does not carry, or the key presses change nothing, it
-  ends the call instead of guessing. The call ends as **Menu had no matching
+  for a keypad value the call does not carry (see
+  [Numbers the menu asks for](#numbers-the-menu-asks-for)), or the key presses
+  change nothing, it ends the call instead of guessing. The call ends as **Menu had no matching
   option** and is not redialled.
 
 **Hold music and answer detection.** While a call is in a menu or on hold, the
@@ -308,12 +309,18 @@ the agent still answers the menu it actually hears.
 ## Numbers the menu asks for
 
 A menu often asks for a number: a card number, a PIN, a government ID, a date of
-birth, an account or booking reference. These come **only from the call's own
-data**, as a [keypad variable](/docs/call-variables): you declare the variable
-with `keypad` and a class (`card`, `pin`, `government_id`, `date_of_birth`,
-`reference` or `other`) and send its value with the call. The agent never
-makes one up, and a menu that asks for a number the call does not carry gets
-nothing.
+birth, an account or booking reference. What happens depends on one thing:
+whether the call carries a keypad value.
+
+| The call | A menu asks for a number |
+| --- | --- |
+| carries at least one [keypad variable](/docs/call-variables#keypad-variables) value | The platform enters or speaks the value itself. The model never sees it, never says a number to a menu, and a menu that asks for a number the call does not carry gets nothing. |
+| carries no keypad value, on a Standard AI agent without a conversation workflow | The AI agent answers a **spoken** request in its own voice, from its instructions. See [When the call carries no keypad value](#when-the-call-carries-no-keypad-value). |
+
+With a keypad value, numbers come **only from the call's own data**: you declare
+the variable with `keypad` and a class (`card`, `pin`, `government_id`,
+`date_of_birth`, `reference` or `other`) and send its value with the call. The
+agent never makes one up.
 
 - **The model never sees the value.** It is not in the prompt, the
   conversation, a tool request or a webhook. The agent can ask for the field to
@@ -323,6 +330,76 @@ nothing.
   timeline and logs.
 - **The value is deleted at the end of the call.** It is not kept in the call
   record afterwards, so a retry needs the value sent again with the new call.
+
+### When the call carries no keypad value
+
+Many calls have a number the menu will ask for, such as an order number, written
+straight into the AI agent's instructions and no keypad variable at all. On such
+a call, when a menu asks **aloud** for a number, the AI agent answers it in its
+own voice:
+
+> Menu: "Please say your order number."
+>
+> AI agent, a few seconds after the menu stops: "K, zero, four, eight, one, two, zero, seven."
+
+What to know before you rely on it:
+
+- **It answers any number a menu asks for aloud, not only order numbers.** That
+  includes a PIN, a card number, a government ID or a date of birth. Skysay does
+  not check the question's words and does not check the answer.
+- **The answer comes from the model.** It says a number its instructions hold,
+  says it does not have one, or gets it wrong. If your instructions hold several
+  numbers, it can pick the wrong one.
+- **To keep a number away from the model, send it as a keypad variable.** A
+  number you write into the instructions is text the model reads and may say. A
+  [keypad variable](/docs/call-variables#keypad-variables) is never shown to the
+  model, and as soon as a call carries one, the model's voice answers no number
+  request on that call: every number is entered or spoken by the platform.
+- **One answer per request.** The agent waits until the menu has been quiet for
+  about two and a half seconds, answers once, and answers again only if the menu
+  asks again. A request said in two sentences is one request when the second
+  sentence is heard as part of the menu.
+- **It applies to** outbound calls of AI agents on the Standard engine that do
+  not run a conversation workflow. Conversation workflows, Gemini Live and
+  GPT-Live are unchanged: there, a menu that asks for a number the call does not
+  carry gets nothing.
+
+Not answered aloud, on any call:
+
+- a request that takes the keypad only ("enter your account number");
+- a request that also offers a key ("say your order number, or press 1 if you do
+  not have it"): the agent may press the key the menu names, as before;
+- a request that offers a callback.
+
+What can still go wrong:
+
+- **A sentence of the menu can be heard as a person.** Some menus add a sentence
+  that sounds like someone talking ("I'll wait"). The agent then asks its check
+  question, as it does whenever it may have reached a person, instead of
+  answering. The menu usually takes that question for a wrong answer and asks
+  again while the check is still under way, and that repeat is not answered
+  either:
+
+  > Menu: "Please give me your web order number. If you need a moment to locate it, I'll wait."
+  >
+  > AI agent: "Hello, this is an assistant. Am I speaking with a person?"
+  >
+  > Menu: "Sorry, I didn't get that. Please give me your web order number."
+  >
+  > AI agent: (says nothing)
+  >
+  > Menu, after a pause: "Thanks. Please hold while I get someone to help with your order."
+
+  The number is then given only if the menu asks once more after the check has
+  ended, or to the person who picks up. A menu worded like this one often goes
+  unanswered.
+- Two different questions asked back to back, before the agent has answered,
+  are answered together, once.
+- If the agent says nothing at all (the model produced no reply), nothing asks
+  it again; the call ends on the menu time limit like any unanswered menu.
+
+A call whose AI agent declares a keypad variable but that was sent no value for
+it counts as carrying none.
 
 ### Typed and spoken values
 
