@@ -1098,6 +1098,11 @@
             "minimum": 600,
             "type": "integer"
           },
+          "knowledge_search_immediate": {
+            "default": false,
+            "description": "On cascade voice calls in acknowledge mode, a knowledge search may play a ready phrase as soon as the search starts. Other tools keep their configured delay. Off by default.",
+            "type": "boolean"
+          },
           "mode": {
             "default": "off",
             "enum": [
@@ -8947,7 +8952,7 @@
                     "type": "string"
                   },
                   "draft": {
-                    "description": "Only read when snapshot is 'draft'. `first_message`, `instructions` and `language` apply to an agent without a selected language set (a published set pins the per-locale greeting, prompt and language). `stack` applies to every draft test and names its conversation engine in `stack.voice_frontend` (a declared engine) plus that engine's own fields: for cascade the `transcriber`, `model` and `voice` selections (`{provider, model, voice_id}`; leaving GPT-Live needs all three); for GPT-Live the `voice` (`{provider: 'openai', model: 'gpt-live-1', voice_id}`) and `model` (`{provider: 'openai', model: <backend>}`) -- no transcriber, a cascade one riding along is refused. A stack with no `voice_frontend` is a partial cascade overlay on the stored engine. Gemini Live uses its own model and voice. Eleven Realtime uses provider elevenlabs and model eleven_realtime_v1_max; it requires a literal first_message and an agent-first opening. It bills a flat $0.15 per connected minute, and its instructions, including Skysay's tool instructions, are limited to 8,000 bytes. While Follow the caller is published for the agent, a draft stack is tested in the test's one language, without following the caller.",
+                    "description": "Only read when snapshot is 'draft'. `first_message`, `instructions` and `language` apply to an agent without a selected language set (a published set pins the per-locale greeting, prompt and language). `stack` applies to every draft test and names its conversation engine in `stack.voice_frontend` (a declared engine) plus that engine's own fields: for cascade the optional `tool_wait` choice for this test (mode off suppresses the saved choice, omission keeps it), and the `transcriber`, `model` and `voice` selections (`{provider, model, voice_id}`; leaving GPT-Live needs all three); for GPT-Live the `voice` (`{provider: 'openai', model: 'gpt-live-1', voice_id}`) and `model` (`{provider: 'openai', model: <backend>}`) -- no transcriber, a cascade one riding along is refused. A stack with no `voice_frontend` is a partial cascade overlay on the stored engine. Gemini Live uses its own model and voice. Eleven Realtime uses provider elevenlabs and model eleven_realtime_v1_max; it requires a literal first_message and an agent-first opening. It bills a flat $0.15 per connected minute, and its instructions, including Skysay's tool instructions, are limited to 8,000 bytes. While Follow the caller is published for the agent, a draft stack is tested in the test's one language, without following the caller.",
                     "properties": {
                       "first_message": {
                         "type": "string"
@@ -8965,6 +8970,9 @@
                           },
                           "opening": {
                             "$ref": "#/components/schemas/AgentOpening"
+                          },
+                          "tool_wait": {
+                            "$ref": "#/components/schemas/AgentToolWait"
                           },
                           "transcriber": {
                             "type": "object"
