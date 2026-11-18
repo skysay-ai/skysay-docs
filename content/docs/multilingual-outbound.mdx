@@ -215,11 +215,12 @@ transcriber or voice to make a larger set work.
 
 Some transcribers require a candidate list. If all compatible languages exceed
 that provider's simultaneous limit, choose a subset or another compatible
-transcriber. Skysay does not silently select a smaller list for you. The same
-applies to the 32 languages an AI agent can have: a transcriber with no
-candidate list, such as Deepgram Nova-3's multilingual mode, can be compatible
-with more than 32 languages, and then **All supported languages** is
-unavailable and you choose up to 32 of them.
+transcriber. Skysay does not silently select a smaller list for you. An AI
+agent can have every call language Skysay offers (69 today), so a transcriber
+with no candidate list, such as Deepgram Nova-3's multilingual mode, can follow
+the caller across every language the rest of the configuration speaks. The
+same limit applies to an AI agent that runs a workflow and to its workflow's
+voice input.
 
 The opening language determines how the AI agent starts before the caller
 speaks. Publish the configuration to freeze its accepted languages for future
@@ -307,17 +308,18 @@ first one that can run a call in every selected language. English plus German,
 for example, shares Gemini `gemini-3.1-flash-tts-preview`. ElevenLabs
 `eleven_v3` is shared only into languages where it is already the default, so
 it never becomes English's voice unless you choose it.
-It costs about twice as much per character as the English-only
+It costs about twice as much per character as
 `eleven_flash_v2_5`, and it is synthesized in chunks over HTTP rather than on
 Flash's realtime connection; we have not measured how its response time
 compares with Flash. You can still choose `eleven_v3` as the agent's voice, and
 then English and Estonian share it. Each voice in `GET /v1/agent-catalog` lists
 the languages it runs in `languages` and the languages it is picked for
 automatically in `default_languages`; for `eleven_v3` that is Estonian only.
-ElevenLabs `eleven_v4_turbo` can be chosen for English, Spanish, French,
-German, Italian, Portuguese, Dutch, Russian, Swedish, and Estonian. It is the
-default for none of them, so an unsaved agent never lands on it, and an agent
-that already has a voice keeps that voice. It is Standard-engine text-to-speech, not a
+ElevenLabs `eleven_v4_turbo` can be chosen for every call language that
+ElevenLabs lists for the model (see
+[ElevenLabs voices](/docs/language-qualification#elevenlabs-voices-speak-the-languages-elevenlabs-lists)).
+It is the default for none of them, so an unsaved agent never lands on it, and
+an agent that already has a voice keeps that voice. It is Standard-engine text-to-speech, not a
 voice-to-voice engine. It costs $0.050 per 1,000 characters. On a phone
 call it uses ElevenLabs' dialogue connection, because the Flash connection
 rejects this model. The end of a reply decays naturally, so Skysay does not
@@ -325,7 +327,7 @@ buffer it into sentences the way it does for `eleven_v3`.
 
 When no default is shared, the opening language's default is shown. English
 plus Estonian shows English's `eleven_flash_v2_5`, and German plus Estonian
-shows German's Gemini voice; neither speaks Estonian. In the agent editor, each
+shows German's Gemini voice. In the agent editor, each
 language the shown voice cannot serve then gets that language's own recommended
 voice as an override (`eleven_v3` for Estonian), which you see and publish with
 the rest.
@@ -350,7 +352,9 @@ Read `language_profiles.revision` from the voice-stack response and send it as
 `language_profile_revision` when saving `languages` or `language_profiles` to
 detect a stale editor instead of overwriting a newer edit. Omitting the revision
 skips this check for compatibility; it does not protect a stale client from
-overwriting newer settings. The selected language set must contain 1–32 entries.
+overwriting newer settings. The selected language set must contain at least one
+entry and at most one per call language (69 today); a larger set is refused, never
+shortened.
 To remove a language, supply the remaining selected languages and omit any
 override for the removed language from the replacement profiles array. Keep at
 least one language, including the opening language; an empty set is invalid.

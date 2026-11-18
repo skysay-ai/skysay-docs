@@ -623,6 +623,49 @@ without it does not mean the other party was silent.** A call whose captions
 were all missing can have a transcript made only of the agent's turns. That
 transcript counts as available, like any transcript that has turns.
 
+### When the AI agent's opening has no transcript
+
+On a GPT-Live or Gemini Live call, the engine can speak the agent's opening
+without sending a transcript of it. The caller hears the greeting, but the
+transcript then starts with the caller, as if the AI agent never greeted:
+
+- AI agent: "Namaste, this is Priya from Acme. How can I help?" The caller
+  hears it in full.
+- Caller: "I'd like to change my booking."
+- Without the note, the transcript's first line would be the caller's
+  question.
+
+So the transcript shows a note where the opening would be, under **AI agent**:
+**"The AI agent spoke here. No transcript is available for this speech."**,
+with when it started and stopped. It carries no words of what was said.
+
+When the agent's first message is a fixed line, the note also shows that line
+under **"First message as configured, not a transcript"**. It is what the agent
+was set up to say, not a record of what was said: the engine may have said it
+differently. A generated opening has no fixed line, so it shows only the note.
+
+The note appears only when the opening was heard and the transcript has no text
+for any of it. If any part of the opening has a transcript, the transcript
+shows that text and there is no note. Speech later in the call that has no
+transcript does not get a note. As before, the transcript then counts as
+partial.
+
+Three cases show no note:
+
+- **The opening is first heard late.** Skysay stops holding the caller back
+  when the opening has made no sound for 12 seconds, or, on a phone call, when
+  the caller has kept talking for more than about a second (see
+  [Calls where the agent speaks first](/docs/conversation-engines#calls-where-the-agent-speaks-first)).
+  If the opening only becomes audible after that, there is no note, and the
+  transcript starts with the caller as before.
+- **The call has no transcript at all.** For example, the agent greets
+  without a transcript and the caller hangs up without a word. The call
+  shows no transcript, and no note.
+- **Workflow calls** never show the note.
+
+Live captions during a test call or on the website demo do not show the note.
+Only the transcript of the finished call does.
+
 ### What reaches the API and post-call analysis
 
 Tool rows and language switches are shown in the Calls workspace only. The
@@ -635,11 +678,18 @@ was. They are added to the transcript API beside the turns, never among them:
   adds an `events` list with one entry per moment:
   `{"type": "caller_spoke_no_transcript", "speaker": "caller", "start_ms": ...}`.
   There is no text, because none exists.
+- The AI agent's opening note is one more `events` entry,
+  `{"type": "agent_opening_no_transcript", "speaker": "agent", "start_ms": ...}`,
+  at most one per call. Its `timeline` entry also has `end_ms` and
+  `configured_text`: the agent's fixed first message, or `""` for a generated
+  opening. `configured_text` is configuration, not a transcript, and is never
+  part of `text`.
 - The transcript stream places the same entries between the turns, in reading
   order, under their own `type`, beside the existing `turn` entries. A client
   that reads stream entries should check `type` before reading turn fields
   such as `data.text`: a `caller_spoke_no_transcript` entry's `data` holds only
-  `speaker` and `start_ms`.
+  `speaker` and `start_ms`, and an `agent_opening_no_transcript` entry's `data`
+  holds `speaker`, `start_ms`, `end_ms` and `configured_text`.
 - Post-call extraction reads a `[spoke, no transcript]` line for the caller at
   that point, and is told the line carries no content. It can then see that
   the person answered without inventing what they said.
