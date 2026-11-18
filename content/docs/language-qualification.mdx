@@ -54,8 +54,8 @@ Skysay release. ElevenLabs lists Norwegian as `no`; in Skysay it is `nb`
 
 - **Only the stored list counts.** A language the latest stored list does not
   name is refused when you save or publish, with a reason naming the model and
-  the language. Until a refresh has stored a list for a model, every call
-  language is accepted for it.
+  the language. Until a refresh has stored a list for a model, any language
+  code is accepted for it.
 - **A model missing from one listing keeps its last list.** If a refresh does
   not describe a model, that model keeps the list it had and the other models
   update.
@@ -229,8 +229,9 @@ language, and how to test yours, is on
 Because there is no language setting, there is no per-language profile to
 publish either. An outbound call names its language in
 `runtime_config.language` and the call opens in that language, for any
-language code — no publishing step comes first. A value that is not a language
-code is refused before the call is placed. The same applies to Gemini Live.
+two- or three-letter language code, such as `tr` — no publishing step comes
+first. Any other value, a region-tagged code such as `tr-TR` included, is
+refused before the call is placed. The same applies to Gemini Live.
 
 ## Call languages
 
@@ -238,19 +239,28 @@ Skysay keeps no list of call languages. An AI agent can take calls in a
 language when every part of its stack accepts it:
 
 - **Gemini voices, every language model, and the Deepgram Nova-3, Soniox
-  Real-time v6 and OpenAI transcribers** accept any language code. The
-  provider decides on each call.
+  Real-time v6 and OpenAI transcribers** accept any two- or three-letter
+  language code. The provider decides on each call.
 - **ElevenLabs voices** accept the languages ElevenLabs lists for the model
   (above).
-- **Azure AI Speech and Google Chirp 2 transcribers, and the Azure, Cartesia,
-  Soniox and Fish Audio voices,** accept the languages they list, shown in the
-  catalog.
+- **Azure AI Speech and Google Chirp 2 transcribers** accept the languages
+  Skysay has a regional tag for (below). **Azure, Cartesia, Soniox and Fish
+  Audio voices** accept the languages they list, shown in the catalog. These
+  lists did not change.
 
 So a language no Skysay list names, for example Turkish, works on Deepgram
 Nova-3 with a Gemini voice, or with an ElevenLabs voice whose model lists it.
 The editor offers the languages the listed voices and transcribers name and
 the ones ElevenLabs lists, and always keeps the languages your AI agent
-already has. The API accepts any language code on such a stack.
+already has. The API accepts any two- or three-letter language code on such
+a stack. A language is always a bare code: a region-tagged code such as
+`tr-TR` or `en-US` is refused when you create an AI agent, with a reason
+naming the transcriber that does not accept it.
+
+An AI agent set to **All supported languages** on a transcriber that keeps no
+list follows the languages the editor offers. When you next save it, it can
+publish more languages than before (more than 69, up to 256). Its current
+publication does not change until then.
 
 Deepgram Nova-3 and Soniox Real-time v6 are offered for every language:
 Skysay keeps no list of the languages a transcriber hears, and the provider
