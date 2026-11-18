@@ -128,15 +128,17 @@ dropped call. `voice_polish.tool_wait` chooses what the caller hears instead:
 In the AI agent editor, open **Advanced → Tuning → During tool waits**. Choose
 **One phrase** and turn on **Speak when a knowledge search starts**. This option
 is for AI agents with separate speech recognition, language model and voice
-components. An ordinary question that needs no lookup never triggers the search
+components; on GPT-Live and Gemini Live calls it has no effect. A knowledge
+search is the AI agent's knowledge-base lookup (`search_knowledge_base`); other
+tools, and an ordinary question that needs no lookup, never trigger the search
 phrase. Use **Current draft** in the browser test to try the switch on or off
 before publishing. Phone calls and public Talk links use the published choice.
 
 For example, a caller asks, “What is the minimum deposit?” When the search
 starts, the AI agent can say “Let me check.” The lookup runs while the phrase
 plays. If the caller speaks again or the answer starts, the phrase cuts off.
-It fills part of the silence without speeding up the answer. Skysay keeps it
-out of the conversation transcript and reply-time measurement.
+It fills part of the silence without speeding up the answer. Like other
+tool-wait feedback, it never appears in the transcript lines.
 
 You can make the same choice through the voice-stack API:
 
@@ -153,7 +155,9 @@ You can make the same choice through the voice-stack API:
 ```
 
 The search phrase and general acknowledgements share a limit of one spoken
-filler per turn, a two-turn cooldown and a maximum of six per call. If the
+filler per turn, a two-turn cooldown and a maximum of six per call; a search
+that starts when that allowance is used up, or while the caller or the AI agent
+is speaking, gets no phrase. If the
 phrase is unavailable in the call language, still preparing, or fails to
 synthesize, the AI agent can carry on with the lookup and its answer. Preparing
 phrases uses the call's selected voice and incurs its usual synthesis charges.
