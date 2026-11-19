@@ -361,10 +361,9 @@ What to know before you rely on it:
   start menu navigation: the agent answers the line as it answers any question,
   a few seconds after the line stops. The Calls page shows no menu for that
   request and counts no menu time for it.
-- **Asked while the agent is already in a menu or on hold** (it pressed a key
-  first, or was waiting in a queue), the agent waits until the menu has been
-  quiet for about two and a half seconds, answers once, and answers again only
-  if the menu asks again.
+- **Asked while the agent is already in a menu or on hold, it is not answered.**
+  Once the agent has pressed a key or is waiting in a queue, a spoken request
+  for a number gets nothing, as before.
 - **Only in a language the agent's own speech recognition is set for.** The
   model answers from the words it heard. A request in a language its
   recognition is not set for is handled as before and is not answered aloud.
@@ -429,25 +428,15 @@ What can still go wrong:
   >
   > AI agent, during the music: "Hello, I am calling to check the delivery status of order K0481207."
 
-- **Inside a menu, a sentence that sounds like a person comes first.** When the
-  agent is already in a menu and the request is followed by a sentence that
-  sounds like someone talking ("I'll wait"), the agent asks its check question,
-  as it does whenever it may have reached a person, instead of answering. A
-  repeat of the request that comes while that check is still under way is not
-  answered either:
+- **Inside a menu the request is not answered.** When the agent is already in
+  a menu or on hold, the request is treated as before and the menu hears
+  nothing:
 
-  > Menu: "Please give me your web order number. If you need a moment to locate it, I'll wait."
+  > Menu: "For orders, press 1. For anything else, press 2." (the agent presses 1)
   >
-  > AI agent: "Hello, this is an assistant. Am I speaking with a person?"
-  >
-  > Menu: "Sorry, I didn't get that. Please give me your web order number."
+  > Menu: "Now, please tell me your order number."
   >
   > AI agent: (says nothing)
-
-- Two different questions asked back to back, before the agent has answered,
-  are answered together, once.
-- If the agent says nothing at all (the model produced no reply), nothing asks
-  it again.
 
 A call whose AI agent declares a keypad variable but that was sent no value for
 it counts as carrying none.
