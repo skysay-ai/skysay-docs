@@ -40,15 +40,23 @@ export function pagesFileUrls(env = process.env) {
 }
 
 // One page line as the web app writes it: a title without brackets, the
-// markdown URL of a page on this site, and a description, with no control
-// character anywhere. The fetched text is printed in /llms.txt under Skysay's
+// markdown URL of a page on this site, and a plain-text description, with no
+// control character anywhere. The fetched text is printed in /llms.txt under Skysay's
 // name, so a line that links anywhere else, or carries anything that could
 // start a new line or section, is not a page line.
 const PAGE_LINE = /^- \[[^\[\]]+\]\(https:\/\/skysay\.ai\/[a-z0-9]+(?:[/-][a-z0-9]+)*\.md\): \S.*$/;
 const CONTROL_CHARACTER = /[\x00-\x1f\x7f\x85\u2028\u2029]/;
 
+// The description is plain text: anything that could be a second link (a
+// markdown link, an autolink, a bare URL or HTML) is not.
+const DESCRIPTION_MARKUP = /\]\(|:\/\/|[<>]|www\./i;
+
 export function isPageLine(line) {
-  return !CONTROL_CHARACTER.test(line) && PAGE_LINE.test(line);
+  if (CONTROL_CHARACTER.test(line) || !PAGE_LINE.test(line)) {
+    return false;
+  }
+  const description = line.slice(line.indexOf("): ") + 3);
+  return !DESCRIPTION_MARKUP.test(description);
 }
 
 // The page lines of the English section: the `- [` lines between the English
