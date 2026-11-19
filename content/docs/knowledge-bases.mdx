@@ -17,6 +17,8 @@ bases you attached to that agent and uses the matching passages to answer.
   dashboard to create your first base; no operator activation is required.
 </Callout>
 
+<Diagram name="knowledge-base-search.svg" alt="You upload documents (TXT, Markdown, PDF or DOCX, up to 20 MB) into a knowledge base, which Skysay stores privately and indexes. On a call, when the caller asks a question, your hosted agent searches only the bases attached to it, gets back up to five short, sourced passages and answers from them; afterwards the Calls page shows the source titles used. Text inside a document cannot change the agent's instructions or permissions." />
+
 ## Set up a knowledge base
 
 <Steps>
@@ -37,7 +39,7 @@ easier to understand and maintain.
 
 Upload a TXT, Markdown, PDF, or DOCX file up to 20 MB. Skysay stores the
 source privately, extracts its text asynchronously, and creates a searchable
-index. The document is usable when its status becomes **Ready**.
+index. The document is usable when its status becomes **Searchable**.
 
 </Step>
 
@@ -47,7 +49,13 @@ index. The document is usable when its status becomes **Ready**.
 
 Under **Agent access**, attach the ready base to one or more hosted agents. An
 agent can search only bases explicitly attached to it. Detaching a base removes
-it from future calls without deleting the source.
+it from future calls without deleting the source. The agent's **Knowledge**
+section shows on which kinds of call the search runs; see
+[What runs on calls](/docs/what-runs-on-calls).
+
+When the AI agent is offered in the live demo on the Skysay homepage, it
+searches its attached bases there as it does on its phone calls. A homepage
+demo's searches count toward the demo's per-visitor tool limits.
 
 </Step>
 
@@ -63,9 +71,32 @@ not expose the caller's search query or raw retrieved passages in the dashboard.
 
 </Steps>
 
+## Inspect attached sources
+
+Open an AI agent's **Knowledge** section to see its attached bases and their
+documents. Each file shows its name, size, format and processing status.
+Choose **View text** beside a searchable document to read the extracted text
+in a side panel without leaving the AI agent. This is the text available for
+search, rather than a visual preview of the original PDF or Word file.
+
+The panel loads text when you open it, with pagination for longer documents.
+Processing, unreadable or failed files show their status instead of offering
+a preview. If the text is temporarily unavailable, the panel says so; choose
+**Try again** there to rebuild it, or check the source in the knowledge
+workspace.
+
+Choose **Manage knowledge base** to open that base in the workspace Knowledge
+page, where you can upload, replace, retry or delete sources. **Back to the
+agent** returns to the same Knowledge section. Managing a shared base affects
+every AI agent that uses it.
+
+Document lists show up to 20 recent files per base, with a notice when the
+list is shortened. Previewing a source changes neither its content nor the
+AI agent's published configuration.
+
 ## How retrieval works
 
-During an authorized LiveKit call, the model can invoke one bounded tool:
+During a call, the model can invoke one bounded tool:
 
 ```text
 search_knowledge_base(query="Are towels included with the sauna booking?")
@@ -80,6 +111,32 @@ Uploaded content is treated as untrusted data. Text inside a document cannot
 change the agent's permissions, call another tool, send a message, or override
 the agent's system instructions.
 
+### In a workflow
+
+An agent with a published [workflow](/docs/agent-workflows) does not offer its
+model this tool. Instead, a workflow **Read tool** step set to **Search the
+knowledge base** searches the bases attached to the agent, as in the
+**Customer support** and **Appointment booking** starter templates. Attaching
+a base is still what makes it searchable; a workflow never attaches one.
+
+- The platform works out the question from what the caller said.
+- The answer is never text a model wrote. A model only picks which sentences
+  of the matching passages answer the question; Skysay checks that they are
+  the document's exact words and quotes each whole sentence they come from, at
+  most 300 characters in all. So the answer is in the document's language. A
+  later line says it as `{{tool.knowledge_answer}}`, inside its own section:
+  `{{#tool.knowledge_answer}}{{tool.knowledge_answer}}{{/tool.knowledge_answer}}`.
+- When no base is attached, or nothing in the documents answers the question,
+  the step takes its error route, so the workflow can say it does not know or
+  hand the caller on.
+- A call that holds a protected value runs no search.
+
+Each search is recorded on the call like any other. The workflow builder's
+**Chat** test does not search: once a base with a ready document is attached,
+it fills the answer with a placeholder (`test-knowledge_answer`); before that,
+the step takes its error route as on a call. See
+[Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call).
+
 ## Updating and deleting content
 
 - Upload a new source when business information changes.
@@ -93,7 +150,9 @@ the agent's system instructions.
 Source files are Customer Content. They are stored in Skysay private object
 storage, not published at a public URL. Google Gemini processes the source text
 and live search query needed to create embeddings and retrieve relevant
-passages. A source is available only to the hosted agents you attach to it.
+passages. In a workflow, Google Gemini also picks which sentences of those
+passages answer the question; the answer the caller hears is the document's
+own words. A source is available only to the hosted agents you attach to it.
 
 See the [Privacy Policy](/privacy) for the wider data-processing terms.
 

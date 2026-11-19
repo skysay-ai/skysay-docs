@@ -6,8 +6,10 @@ icon: Network
 
 No MCP client? Every capability is also a plain JSON REST endpoint under `/v1`.
 Authenticate with the same scoped `sky_` key as a Bearer token. The
-[OpenAPI spec](/docs/openapi) is the machine-readable source of truth; this is
-the human map. For copy-pasteable requests and responses from a new key to a
+[OpenAPI spec](/docs/openapi)
+([`openapi.json`](https://skysay.ai/control-plane/openapi.json)) is the
+machine-readable source of truth; this is the human map. To try requests, use
+the [Skysay API Postman workspace](https://www.postman.com/skysay-ai/skysay-api). For copy-pasteable requests and responses from a new key to a
 placed call, follow the [Quickstart with curl](/docs/quickstart-curl). Failed
 requests are described in [Errors](/docs/errors).
 
@@ -197,8 +199,8 @@ version page to compare. An existing agent with no draft returns
 compiles, repairs, calls AI/providers, or writes state.
 
 The [Generated API reference](/docs/api-reference) and
-[live OpenAPI document](/control-plane/openapi.json) carry the exact request
-and response contracts.
+[live OpenAPI document](https://skysay.ai/control-plane/openapi.json) carry the
+exact request and response contracts.
 
 ## Audio environments
 
@@ -363,6 +365,18 @@ matches no destination — see
 The wallet's purchased availability and browser-only promotional credit are
 separate. See [Billing and browser credit](/docs/billing) before treating a
 balance as available phone spending.
+
+## Activation checklist
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/activation-state` | The setup steps, each with `complete` and `next_action`, and the first incomplete step as `next_step`. |
+
+Pass `project_id` to read one project; leave it out for the whole workspace.
+`metrics` holds exact totals for that scope: `agents`, `trial_calls`,
+`numbers`, `number_requests`, `calls` (live calls; simulations are not
+counted) and `sms_conversations`, plus `available_balance_minor`. Every
+count is the full total, however many records the workspace holds.
 
 <Callout title="Keys & scopes are identical to MCP">
   REST and MCP share the same scoped keys and the same fail-closed scope checks.

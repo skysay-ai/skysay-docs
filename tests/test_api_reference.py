@@ -65,8 +65,9 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("no AI or provider call", workflows)
 
     def test_call_evidence_guide_explains_safe_per_turn_audio(self) -> None:
-        calls = self.schema["paths"]["/v1/dashboard/calls"]["get"]
-        self.assertIn("has_audio", calls["description"])
+        # has_audio is a field of the Calls workspace read, which the public
+        # snapshot deliberately does not carry; the guide is its documentation.
+        self.assertNotIn("/v1/dashboard/calls", self.schema["paths"])
         guide = (ROOT / "content" / "docs" / "read-call-evidence.mdx").read_text(
             encoding="utf-8"
         )
@@ -110,17 +111,13 @@ class ApiReferenceTests(unittest.TestCase):
         self.assertIn("/docs/integrations", guide_text["customer-applications"])
         self.assertIn("complete cached catalog", guide_text["voice-library"])
         self.assertIn("up to 100", guide_text["voice-library"])
-        # The coverage caveat is pinned to the statement a customer actually
-        # sees. The workspace dropped its standing "a provider's accessible
-        # search window may be incomplete" line (skysay#11, founder
-        # 2026-09-15); `sourceWindowLimited` survives only to select the
-        # end-of-results notice, whose words these are. The page followed in
-        # skysay-docs#13 and this pin did not, so it asserted a phrase the
-        # product had stopped making.
-        # Both phrases are contiguous in the MDX: a pin that spans the hard
-        # wrap fails on where the paragraph happens to break, not on what it
-        # says.
-        self.assertIn("provider catalogue results are incomplete", guide_text["voice-library"])
+        # The coverage caveat is the page's own: the workspace no longer shows
+        # any incomplete-catalogue line (the search-window line went on
+        # 2026-09-15, the end-of-results notice on 2026-11-04), so the page
+        # must not describe a note the product no longer makes.
+        # The phrase is contiguous in the MDX: a pin that spans the hard wrap
+        # fails on where the paragraph happens to break, not on what it says.
+        self.assertNotIn("provider catalogue results are incomplete", guide_text["voice-library"])
         self.assertIn(
             "not as a claim that no other provider voices exist",
             guide_text["voice-library"],

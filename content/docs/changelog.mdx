@@ -1,16 +1,1114 @@
 ---
 title: Release log
 description: Major Skysay releases, with links to the features and guides you can use today.
-icon: ClockRotateRight
+icon: Journal
 ---
 
-Major product updates, newest first. Follow the links in each entry to configure
-or use the feature.
+## 18 November 2026
 
-The initial roundup covers 18–31 August 2026. Dates are in UTC and follow
-verified production deployments, not pull-request merge dates. For features
-released across several services, an entry uses the date by which the required
-services were confirmed deployed.
+### A phrase when a knowledge search starts
+
+- On a cascade AI agent, turn on **Advanced → Tuning → During tool waits → One phrase → Speak when a knowledge search starts**: the agent says one short phrase in its own voice as a knowledge search begins.
+- The phrase stops when the caller speaks or the answer starts, and shares the acknowledgement allowance (one per turn, at most six per call). It is off by default; other tools keep their delay.
+- [Speak when a knowledge search starts](/docs/voice-behavior#speak-when-a-knowledge-search-starts)
+
+### A shorter language label on public links
+
+- A public link shows **Multilingual · Follows the caller** when its published AI agent follows the caller's language.
+- Fixed-language AI agents show their opening language.
+- [Public links](/docs/public-link#what-visitors-see)
+
+### Call languages are open
+
+- Skysay keeps no list of call languages: an AI agent can take calls in any language every part of its stack accepts. Gemini voices, language models and the Deepgram, Soniox and OpenAI transcribers accept any two- or three-letter language code, and ElevenLabs voices accept what ElevenLabs lists.
+- Turkish and other languages no Skysay list named now work, for example on Deepgram Nova-3 with a Gemini voice.
+- Azure, Cartesia, Soniox and Fish Audio voices keep their lists; a region-tagged code such as `tr-TR` is refused; an agent on **All supported languages** can publish more than 69 languages on its next save.
+- [Call languages](/docs/language-qualification#call-languages)
+
+### Voice Library: every Fish Audio S2.1-Pro voice listed
+
+- The Voice Library now lists Fish Audio S2.1-Pro voices from Fish Audio's whole listing, about 1,000 at this release, where it showed 100 before.
+- [Fish Audio S2.1-Pro](/docs/voice-library#fish-audio-s21-pro)
+
+### Fish Audio S2.1-Pro for agents and spoken workflows
+
+- Choose S2.1-Pro under Fish Audio in the Voice Library and preview the voice in a caller's language before you publish.
+- The agent catalog lists the available languages and voices for this model. Call speech is metered by the UTF-8 bytes sent to Fish Audio.
+- With your own Fish Audio key, validate the key again to refresh its private voices for S2.1-Pro.
+- [Fish Audio S2.1-Pro](/docs/voice-library#fish-audio-s21-pro) · [Spoken workflow voices](/docs/agent-workflows#which-voices-and-listeners-a-spoken-workflow-accepts)
+
+### Up to 256 languages per AI agent
+
+- An AI agent can have up to 256 languages; **All supported languages** above that is refused with both numbers, never shortened.
+- The agent catalog returns the limit as `max_call_languages`, and the voice-stack response as `language_profiles.max_languages`.
+- [Multilingual calls](/docs/multilingual-outbound)
+
+### Calls: phone-menu actions named in the timeline
+
+- The Calls timeline and the waveform of a shared recording now name phone-menu actions: `press_digits`, `wait_on_hold` and `abandon_navigation`.
+- Calls recorded before this release keep the generic label for these actions.
+- [Read call evidence](/docs/read-call-evidence)
+
+### Soniox speech-to-text: v5 removed
+
+- Soniox Real-time v5 (`stt-rt-v5`) is no longer available; every agent that used it already runs on v6.
+- Calls that used v5 keep their call details and charges; a test run made on v5 stays readable but cannot be rerun.
+- [Agent workflows](/docs/agent-workflows) · [Reruns and regressions](/docs/simulations-lab#reruns-and-regressions)
+
+### ElevenLabs voices in every language ElevenLabs lists
+
+- ElevenLabs Flash v2.5, Turbo v2.5, v3 and v4 Turbo voices run calls in every language ElevenLabs lists for the model, with no Skysay list in between.
+- A language ElevenLabs does not list for the model is refused when you save or publish, and a call in a language it stops listing is refused before it starts.
+- An AI agent can select every call language, workflow agents included, and **All supported languages** is no longer limited to 32.
+- [Provider languages](/docs/language-qualification#elevenlabs-voices-speak-the-languages-elevenlabs-lists) · [Multilingual calls](/docs/multilingual-outbound)
+
+### Voice-to-voice engines: a long generated greeting is no longer cut short by its protection
+
+- On GPT-Live and Gemini Live, a greeting the agent generates is protected until it has been spoken and the line goes quiet, not for a fixed 6 seconds.
+- A quick reply right after a generated greeting can now be passed on to the engine, as after a fixed first message.
+- [Conversation engines](/docs/conversation-engines#calls-where-the-agent-speaks-first)
+
+### Eleven Realtime previews play as the voice arrives
+
+- An Eleven Realtime preview of your own text now starts playing while the rest of the reply is still arriving, instead of after the whole clip is ready; the platform sample still plays as one clip.
+- **Stop** now ends the Eleven Realtime session too, and the 9-second limit counts from when the preview slot is reserved.
+- [When the voice starts](/docs/voice-library#when-the-voice-starts) · [Preview a voice over the API](/docs/voice-library#preview-a-voice-over-the-api)
+
+### Calls: a note where the AI agent's opening has no transcript
+
+- The Calls transcript now shows when the AI agent's opening was heard but has no transcript: a note under **AI agent** in place of a missing greeting, with the agent's fixed first message beside it, marked as configuration and not a transcript.
+- The transcript API lists the note as `agent_opening_no_transcript` in `events` and `timeline`; `turns` and `text` are unchanged.
+- [When the AI agent's opening has no transcript](/docs/read-call-evidence#when-the-ai-agents-opening-has-no-transcript)
+
+### Simulations Lab: no rerun on a retired speech-to-text model
+
+- A run whose agent or test caller listened with a retired speech-to-text model, such as Soniox `stt-rt-v5`, cannot be rerun; start a new run from the suite instead.
+- The run and its verdicts stay readable, and **Save as regression** still works.
+- [Reruns and regressions](/docs/simulations-lab#reruns-and-regressions)
+
+## 17 November 2026
+
+### Share recorded conversations on an AI agent's public page
+
+- In **Share**, under **Shared conversations**, choose up to 5 finished calls of that AI agent, each 15 seconds to 10 minutes long, to show on its public page.
+- Visitors play them under **Recorded conversations** with the call's timeline, read the transcript and download the audio; a call with a real caller needs your confirmation that they agreed.
+- **Live conversations** switches the live conversation off and keeps the page with only the recordings; nothing is billed while it is off.
+- `PATCH /v1/agents/{agent_id}/public-link` takes `live_enabled` and `recordings`, and the new `GET /v1/agents/{agent_id}/public-link/recording-candidates` lists calls to share; both need `recordings:read` for recordings.
+- [Shared conversations](/docs/public-link#shared-conversations) · [Live conversations](/docs/public-link#live-conversations)
+
+### Homepage demo: the greeting is protected from a visitor who speaks at once
+
+- On GPT-Live 1 and Gemini Live, the homepage demo does not hear the visitor until its greeting has been spoken, as browser tests do; a question asked as the demo connects is asked again after the greeting.
+- [Conversation engines](/docs/conversation-engines#calls-where-the-agent-speaks-first)
+
+### Public link conversations keep their full five minutes
+
+- On a public link, the countdown now starts when the visitor first hears the AI agent, not while the page is still connecting.
+- If nothing is heard within 10 seconds of connecting, the countdown starts anyway, so every conversation still ends on its own.
+- A conversation now holds the cost of 6 minutes from your balance when it starts, and is still charged only for the time used.
+- [Public links](/docs/public-link)
+
+### Live voice previews in the workspace play again
+
+- Live voice previews (**Play live** in the Voice library and **Listen** when choosing a voice for an AI agent) did not play between 14:13 and 15:42 UTC on 17 November; they stopped with "The preview stopped early. Try again." and work again now.
+- [Preview a voice in the intended language](/docs/voice-library#preview-a-voice-in-the-intended-language)
+
+### Voice picker: Load more under the list
+
+- In the creation **Voice step** and an AI agent's **Voice settings**, **Load more** under the voice list adds the next 60 voices, until there are no more.
+- The line under the list says how many voices it shows of how many match, for example "Showing 120 of 1,152 matching voices".
+- [Choose a voice stack](/docs/wire-an-agent#2-choose-a-voice-stack)
+
+### Voice previews start playing as the voice speaks
+
+- Voice previews on GPT-Live and Gemini Live voices start playing while the voice is still speaking, instead of after the whole sentence is ready.
+- **Play** turns into **Stop** while a preview loads and plays; stopping also ends the voice's live session.
+- A GPT-Live preview now reads your whole sentence (up to 200 characters) instead of stopping after 8 seconds.
+- `POST /v1/voice-previews` returns the whole sentence for GPT-Live and Gemini Live voices, up to a 30-second session, and fails with a clear error code rather than returning a cut clip; the new `POST /v1/voice-previews/stream` streams a preview as it is produced.
+- [When the voice starts](/docs/voice-library#when-the-voice-starts) · [Preview a voice over the API](/docs/voice-library#preview-a-voice-over-the-api)
+
+### Estimate your month: your number's country and where calls go
+
+- The pricing page estimate now asks for the country of your phone numbers and, for outbound calls, the country you call; an outbound call is priced at the rate of the country called.
+- For outbound calls, only countries selling a number that can place calls are offered, and sanctioned destinations are never listed.
+- `GET /v1/pricing/catalog`'s `carrier_rates` adds `outbound_number`, a number in each country that can place calls, with its monthly and setup price.
+- [Estimating a month](/docs/billing#estimating-a-month) · [Estimate your month](https://skysay.ai/pricing#estimate)
+
+### Gemini Live: a caller who speaks right after the greeting is heard sooner
+
+- When the engine finishes the greeting but its transcript of it stops short, the caller is heard about a second after the greeting instead of after a long wait.
+- The greeting counts as delivered only when the text that arrived matches the configured greeting closely enough.
+- [Conversation engines](/docs/conversation-engines#calls-where-the-agent-speaks-first)
+
+### Browser conversations start speaking without a long silence
+
+- In a browser test or on a public link, the AI agent's greeting now waits at most half a second when the microphone picks up room noise, instead of up to eight seconds.
+- A greeting delayed this way plays to the end; what the visitor says while it plays is not heard.
+- Phone calls, later replies, the speech-to-speech engines and AI agents that run a workflow are unchanged.
+- [When the caller seems to start talking before a reply](/docs/wire-an-agent#when-the-caller-seems-to-start-talking-before-a-reply)
+
+### Soniox speech-to-text: Real-time v6 offered, v5 retired
+
+- Soniox speech-to-text now offers Soniox Real-time v6 (`stt-rt-v6`). v5 can no longer be chosen. Skysay moves every agent still on v5 to v6 before v5 is removed on 15 December, with nothing to republish.
+- v6 writes spoken amounts and codes as they are said: "fifteen dollars and twenty cents" becomes "15 dollars and 20 cents", and codes are written without hyphens the caller did not say.
+- [Voice and turn-taking](/docs/agent-workflows#voice-and-turn-taking) · [Call languages](/docs/language-qualification#call-languages)
+
+### Gemini Live: the greeting is no longer cut by a caller who speaks at once
+
+- On calls where the agent speaks first, Gemini Live does not hear the line until its greeting has been spoken, as on GPT-Live 1.
+- A caller who says "hello?" as the call connects no longer stops the greeting, and a browser test no longer ends without the agent speaking.
+- A quick reply right after the greeting still reaches the agent; on a phone call, someone who keeps talking for more than a second takes the floor.
+- [Conversation engines](/docs/conversation-engines#calls-where-the-agent-speaks-first)
+
+### Estimate your month on the pricing page
+
+- The pricing page now estimates a month from your calls per month, call length, call language, the models your AI agent uses, and outbound, inbound or browser-only calls.
+- Choose the country you call, or for inbound calls the country of your number; a country with several carrier rates is estimated at its highest rate.
+- The receipt itemises Skysay runtime, each model, the carrier in whole minutes per call, rounding to the cent per call, and phone numbers; real calls are charged on actual usage.
+- `GET /v1/pricing/catalog` now returns `model_rates`, the price of each model you can pick, and `carrier_rates`, per-country call and number prices.
+- [Estimate your month](https://skysay.ai/pricing#estimate)
+
+## 16 November 2026
+
+### Spoken simulation callers support Hindi and Kannada
+
+- Spoken simulation tests can use Azure neural caller voices in Hindi and Kannada when the corresponding managed voices are available.
+- An unavailable caller voice or listener now returns a clear HTTP 422 refusal before a run or spend is created.
+- [Run a simulation suite](/docs/simulations-lab#running-a-suite) · [Language support](/docs/language-qualification)
+
+### Voice picker filters search the full directory
+
+- Provider filters and name searches in the creation **Voice step** and **Voice settings** now search all text-to-speech voices in the AI agent's language.
+- Filter menus show voice counts; results remain bounded to 60 voices in creation and six in Voice settings, with a link to browse further.
+- [Choose a voice stack](/docs/wire-an-agent#2-choose-a-voice-stack) · [Voice library](/docs/voice-library)
+
+## 15 November 2026
+
+### Prompt editor shows which prompt is live
+
+- Every AI agent now has a named prompt draft from creation; **Prompt name (optional)** in **New AI agent**, or `prompt_name` on `POST /v1/agents`, sets it (default "Initial prompt").
+- **Identity** shows an **Active prompt** row with the live prompt's name and publish date; it turns amber with **Unpublished changes** when edits are saved but not live.
+- **Review and publish** opens one review with the live text beside the new text and lists other settings that go live, because publishing covers the whole AI agent.
+- **Published versions** is a read-only history, newest first; **New draft from** a version copies it into an editable draft. Limits stay at 50 drafts and 64 KiB.
+- [Prompt drafts and published versions](/docs/wire-an-agent#prompt-drafts-and-published-versions)
+
+### Hear any voice say your own words
+
+- Type up to 200 characters and press **Play** to audition a voice in the Voice Library, in **New AI agent** or in a saved AI agent's **Voice** settings.
+- Text-to-speech voices read your text exactly; GPT-Live, Gemini Live and Eleven Realtime voices speak it in a short live session and may rephrase it.
+- Playing a voice never selects it or changes the AI agent; leave the field blank to hear the platform's sample sentence.
+- Custom previews of live voices are not cached and count against your workspace's preview allowance of 10 a minute.
+- [Preview a voice in the intended language](/docs/voice-library#preview-a-voice-in-the-intended-language)
+
+## 13 November 2026
+
+### Call-backs follow what was said, and browser tests wait for your microphone
+
+- A conversation workflow's call-back interrupt now hears the time the person asked for, and a campaign calls back then, recorded as the `call.workflow_callback_time` event.
+- A call-back that a voicemail greeting "asked for", such as "call me back later" before the beep, now settles as voicemail; `call.ended` carries `recording_evidence: true`.
+- A browser test no longer fails when you allow the microphone late; a workflow agent waits for it to speak its first line, and the silence limit still applies.
+- The campaign wizard and **Campaigns** page now say **AI agent** in every language; the second wizard step is **AI agent & numbers**.
+- [Call-backs](/docs/campaigns#call-backs) · [A call-back a mailbox asked for](/docs/campaigns#a-call-back-a-mailbox-asked-for) · [Hear your agent in the browser](/docs/trial-calls#hear-your-agent-in-the-browser) · [Launch a campaign](/docs/launch-a-campaign)
+
+### Import carrier numbers with clearer guides
+
+- Connect a voice number you already own at Telnyx through the shared import dialog.
+- Follow DIDWW, DIDLogic and Telnyx tutorials from one carrier-import group in the docs menu.
+- Check pending setup, recheck corrected connections and test the supported call directions.
+- [Import a number you own](/docs/import-a-number#telnyx-connect-with-one-api-key)
+
+## 12 November 2026
+
+### Gemini 3.1 voices can speak workflow lines
+
+- Choose Gemini 3.1 Flash TTS on the Standard engine for a spoken workflow, with a voice such as Kore and a listener that accepts the workflow's languages.
+- Gemini workflow speech uses Skysay-managed credentials. Test the spoken audio in your language before launching; a language listing is not a tested-language badge.
+- [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls)
+
+### Follow-up campaign calls can be given the last transcript
+
+- A campaign has a new setting on its schedule step, **Give follow-up calls the last transcript** (`followup_transcript`); it is off by default and separate from the summary.
+- A follow-up call of a free-form AI agent is then given the last conversation with that person, at most 4,000 characters, newest turns kept.
+- Workflow agents, Eleven Realtime, agents that enter values on a keypad and calls after one that kept a value back do not get it; the Calls drawer shows each call's eligibility.
+- The transcript lengthens the AI agent's instructions, so each follow-up call that has it uses more input tokens.
+- [The previous transcript](/docs/campaigns#the-previous-transcript)
+
+### Read the documents behind an AI agent's knowledge
+
+- An AI agent's **Knowledge** section now lists each attached base's documents with their name, size, type and status.
+- Choose **View text** beside a searchable document to read the text your agent searches, in a side panel, without leaving the AI agent.
+- **Manage knowledge base** opens that base on the Knowledge page, and **Back to the agent** brings you back.
+- [Inspect attached sources](/docs/knowledge-bases#inspect-attached-sources)
+
+### Interrupted ElevenLabs Flash and Turbo voices stop at the end of a word
+
+- When a caller interrupts an AI agent with an ElevenLabs Flash v2.5 or Turbo v2.5 voice, the agent now stops at the end of the word it is saying, once the reply's audio is produced.
+- Every other voice, and a reply still being produced, keeps the short fade; either way the agent is silent within about half a second.
+- [Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in)
+
+### The Simulations Lab test caller follows the whole conversation
+
+- An adaptive test caller now reads the conversation so far, both sides, oldest line first, instead of only your AI agent's last reply.
+- It is less likely to ask again for what your agent already said or to change details it gave; in a long conversation the oldest lines are left out first.
+- [The adaptive caller](/docs/simulations-lab#the-adaptive-caller)
+
+### Automatic recharge runs in the background
+
+- Automatic recharge now runs in the background a few seconds after the charge or call hold that crosses your threshold; that call no longer waits for the card payment.
+- An incoming call that cannot be set up within a few seconds is refused instead of started late, with nothing reserved or charged for it. A call whose setup turns to automatic recharge is not covered by this limit.
+- [Automatic recharge](/docs/billing#automatic-recharge) · [Incoming calls that cannot be set up in time](/docs/billing#incoming-calls-that-cannot-be-set-up-in-time)
+
+### Simulations Lab rubrics see what your AI agent's tools did
+
+- Simulations Lab quality rubrics now see your AI agent's tool record: the tools it could call on the test and every tool call it made, in order, with its outcome.
+- A rubric about honesty, such as "never says it tried or booked something it did not", is judged on that evidence instead of on wording alone.
+- A rubric is never failed for a missing tool record: a voice test without one ends as an error, and the rubric records `unknown`.
+- The evaluator's prompt versions are now `judge.v2` (text tests) and `judge.live.v2` (voice tests); a judged scripted run's estimate is about twice what it was, still settled at measured usage.
+- [What the evaluator sees about tools](/docs/simulations-lab#what-the-evaluator-sees-about-tools)
+
+### Follow-up campaign calls know what was said last time
+
+- Every campaign call carries a new built-in call variable, `campaign.call_kind`: `first_contact`, `retry`, `callback` or `reopened`.
+- A campaign has a new setting, **Tell follow-up calls what was said last time** (`followup_context` `summary` in the API and MCP); it is off for existing campaigns.
+- A follow-up call then carries the summary of the last conversation with that person in `campaign.previous_summary`.
+- A call is never held back for a summary; `campaign.previous_summary_status` says whether there is one.
+- [Follow-up calls in campaigns](/docs/campaigns#follow-up-calls) · [Built-in call variables](/docs/call-variables)
+
+### Follow-up summaries keep what a call protects
+
+- On a workflow that protects a value, the summary is protected too: the workflow says it only after its confirming step, at the strongest check any of its protected values needs.
+- AI agents that enter a value on a phone keypad are not given the summary.
+- A follow-up call is not given the summary of an earlier call that kept a value back until it had confirmed the person, or entered one on a keypad, unless its own AI agent protects the summary; `campaign.previous_summary_status` then reads `withheld`.
+- [Follow-up calls in campaigns](/docs/campaigns#follow-up-calls)
+
+### See what happened to each campaign contact, call by call
+
+- On the campaign page, click the number in a contact's **Attempts** column to open its history: every attempt in order, whether it was a first call, a retry or a call-back, how it ended and what the campaign decided next.
+- The same history is in the API (`GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts`) and MCP (`list_campaign_contact_attempts`).
+- Attempts made before 11 November show their result; their kind and next step read as not recorded.
+- [Contact history](/docs/campaigns#contact-history)
+
+### Go from a campaign contact to the person on Contacts, and back
+
+- In a campaign contact's history, **Open this person in Contacts** shows that number's lists and its most recent calls and SMS conversations.
+- On **Contacts**, a call a campaign placed names the campaign; click it to open that campaign with the person's history open, even when the contact is not on the first page of the table.
+- [Contact history](/docs/campaigns#contact-history) · [Contacts](/docs/contacts)
+
+### Add contacts to a campaign that is already running
+
+- `POST /v1/campaigns/{campaign_id}/contacts` (MCP: `enroll_campaign_contacts`) adds up to 10,000 contacts to a scheduled, running or paused campaign; they are called inside their calling hours.
+- Repeating a request is safe: a contact already in the campaign is not added twice.
+- A campaign no longer completes for running out of contacts while one you enrolled is still to be called; it still ends at its end date.
+- [Add contacts to a running campaign](/docs/campaigns#add-contacts-to-a-running-campaign)
+
+### Campaign call-back requests are recorded on the call
+
+- When a person on a campaign call asks to be called back, the AI agent records it at once with `set_call_disposition`, with no read-back, and the campaign calls back at that time; before, most campaign agents could not record it.
+- On the Standard engine this includes a request made in the person's first words on picking up, in the languages listed under **Who speaks first**.
+- A call-back time without a UTC offset is read in the call's local time zone; one in the past or more than 30 days ahead is refused and the agent asks again.
+- A call-back at or after the campaign's end date is recorded but not placed, and the AI agent is told so.
+- [Call-backs in campaigns](/docs/campaigns#call-backs) · [Who speaks first](/docs/who-speaks-first#what-the-agent-says-first)
+
+### Public link owners set the conversation limits
+
+- Each public link now has two limits you set under **Share**: conversations per visitor per day (10 until changed, up to 1000, or no limit) and conversations at the same time (3 until changed, up to 4).
+- In the API and MCP they are `daily_conversations_per_visitor` and `concurrent_conversations`; the read also returns `max_concurrent_conversations`.
+- The daily limit now counts each link separately, so a visitor's conversations on one link no longer use up another link's allowance; existing links keep 10 and 3.
+- [Public link limits](/docs/public-link#limits)
+
+### Busy instead of silence when every voice line is in use
+
+- A public link visitor or a browser test that arrives while every voice line is in use now sees the busy message within a few seconds, instead of a silent room.
+- The turned-away conversation is listed in **Calls** as canceled and is not charged; on a public link it does not count toward the visitor's daily limit.
+- [Public links](/docs/public-link) · [Browser tests](/docs/trial-calls)
+
+### Transfers ring for the caller
+
+- While an AI transfer rings the person's phone, the caller now hears ringing (a ring every five seconds after about five seconds of silence) instead of silence, for agent transfers and workflow transfer steps.
+- Call recordings now keep what the agent says while a transfer rings; before, those words were missing from the recording.
+- [Transfer to a human](/docs/transfer-to-a-human#what-the-caller-hears-while-it-rings) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Agents are told which tools they have on each call
+
+- Every free-form AI agent is now told, on voice calls and in the builder's **Chat** test, which tools it can use, that they are its only actions, and to say an action was done only when a tool's result says so.
+- When a caller asks for something no tool can do, the agent is told to say plainly what it can do instead, rather than promise to check or arrange it.
+- A line your prompt scripts, such as "your details have been saved", can still be said when no tool backs it, so change such lines.
+- [The tool honesty instruction](/docs/how-calls-end#the-tool-honesty-instruction)
+
+### Eleven Realtime takes tools with free-name objects
+
+- On Eleven Realtime, a tool parameter that is an object of names you do not list in advance, such as calendar booking answers, now works; before, the call dropped at the start.
+- A tool whose parameters the engine cannot express is left out of the call, and the call starts with the AI agent's other tools.
+- [Eleven Realtime](/docs/conversation-engines#eleven-realtime)
+
+### A request the caller spoke over runs nothing and is asked again
+
+- If the caller speaks while a free-form voice agent's request for a business action is still on its way, nothing is prepared or run, and the agent is told so instead of being told the tool failed.
+- The agent takes in what the caller said before asking again; a calendar booking refused this way shows **Calendar request refused** in the timeline.
+- [Business actions](/docs/business-actions#what-the-caller-experiences) · [Calendar booking](/docs/calendar-booking)
+
+### Workflow values go only to the call's own provider
+
+- On a workflow call, the line the caller just heard goes with its values to the model judging the reply only when that model's provider is the one the call started on.
+- Changing the AI agent's model during a call does not change this; the values are left out when a **Follow the caller** language uses another provider or the call's model runs on your own key.
+- [Agent workflows](/docs/agent-workflows#payment-reminder-identity-clarification)
+
+### The AI caller says goodbye and hangs up
+
+- In Simulations Lab voice and chat tests, the AI caller can now end the conversation with its own last line and hang up, instead of saying goodbye and carrying on.
+- That closing line is the caller's last turn in the transcript; in voice tests, how fast your AI agent would have answered it is not counted against timing rules.
+- [The adaptive caller](/docs/simulations-lab#the-adaptive-caller)
+
+### Calls whose connection is lost finish cleanly
+
+- A call or Simulations Lab voice test whose connection is lost before it ends now finishes cleanly: its usage and recording are saved, and a lab test no longer holds a Simulations Lab slot.
+- Any other call process that stops making progress after its call has ended is now ended after 15 minutes instead of staying stuck.
+- [Live-call voice tests](/docs/simulations-lab#live-call-voice-tests)
+
+### Simulations Lab voice tests run to their ceiling
+
+- A funded Simulations Lab voice test is no longer stopped for budget two minutes in; it runs to its call ceiling (150 seconds by default).
+- The Simulations Lab test caller now hears the first words of your AI agent's turns, which it often missed before, so the evaluator reads fuller transcripts.
+- [Ceilings and cost](/docs/simulations-lab#ceilings-and-cost) · [The adaptive caller](/docs/simulations-lab#the-adaptive-caller)
+
+## 11 November 2026
+
+### Live agents end a call only after their goodbye
+
+- On GPT-Live 1, Gemini Live and Eleven Realtime, an agent's `end_call` now ends the call only when the agent's latest line was its goodbye; otherwise the call stays open and the agent is told so.
+- If the caller has just spoken and the agent answers with `end_call` alone, the agent gets one turn to say its goodbye, and that goodbye ends the call.
+- If Skysay cannot judge the line within 2.5 seconds, the hang-up goes ahead as before; Standard agents are not affected.
+- On these engines the standing instruction now tells an agent that reached the wrong person to apologise and say a short goodbye before it ends the call.
+- [On live engines, end_call needs the agent's goodbye](/docs/how-calls-end#on-live-engines-end_call-needs-the-agents-goodbye) · [The standing call-ending instruction](/docs/how-calls-end#the-standing-call-ending-instruction)
+
+### Unanswered campaign calls are called again
+
+- A campaign call that rang out or reached a busy line is now recorded as `no_answer` or `busy` and follows your retry policy; before, it was recorded as a completed conversation and not called again.
+- A call the person answered still counts as a conversation and is never redialled.
+- [Retries](/docs/campaigns#retries)
+
+### Campaigns limit call-backs per contact
+
+- A campaign has a new setting, **Call-back requests per contact** (`max_callbacks` in the API and MCP): how many times one person can ask to be called back, 0 to 10, default 2.
+- One request more ends that person's calls in the campaign; the contact shows **No call-backs left** (`skip_reason` `callback_limit_reached`).
+- The AI agent is told on the call when no call-back will be placed, so it does not promise one.
+- Existing campaigns, running ones included, have the default of 2.
+- [Call-backs in campaigns](/docs/campaigns#call-backs)
+
+### Phone numbers read in full on ElevenLabs voices
+
+- On Standard agents with an ElevenLabs voice, a written number such as `415-555-0182` is now spoken with every digit; before, some digits could be skipped.
+- Voice previews in the workspace are read the same way, so a preview sounds like the call.
+- [Voice library](/docs/voice-library)
+
+### Manage a public link with the API or MCP
+
+- `GET` and `PATCH /v1/agents/{agent_id}/public-link`, and the MCP tools `get_agent_public_link` and `set_agent_public_link`, read, check, publish, turn off and rename an AI agent's public link.
+- Reading needs `agents:read` and changing needs `agents:write`; while the link is on, anyone can start a browser conversation billed to your balance.
+- [Manage the link with REST or MCP](/docs/public-link#manage-the-link-with-rest-or-mcp) · [MCP tool reference](/docs/tool-reference)
+
+### Integrations grouped by what your AI agents can do
+
+- **Integrations** now groups what you can connect by what your AI agents can do, such as **CRM** and **Calendars & scheduling**, with **Connect** or **Manage** beside each provider.
+- Your own API is under **Developer tools → Custom API**, and the same catalog is shown before and after you connect anything.
+- [Integrations](/docs/integrations) · [Calendar booking](/docs/calendar-booking)
+
+### Simulations Lab ends an attempt whose test caller cannot listen
+
+- When our test caller cannot start its speech recognition, the attempt now ends at once as an error, **Our test caller failed.** (`caller_listener_unavailable`), instead of running for minutes without hearing your AI agent.
+- An error never counts for or against your AI agent.
+- [What an attempt shows](/docs/simulations-lab#what-an-attempt-shows)
+
+### Clearer refusals for number requests and calls
+
+- `POST /v1/number-requests` (MCP `request_number`) with a missing, unknown or another workspace's `project_id` now answers `400`.
+- `POST /v1/trial-calls` and `POST /v1/calls` (MCP `create_trial_call`, `create_outbound_call`) with no agent, or an unknown or another workspace's `agent_id` or `agent_endpoint_id`, now answer `400` naming the field instead of a server error.
+- The voice-stack answers (`GET` and `PATCH /v1/agents/{agent_id}/voice-stack`, MCP `get_agent_voice_stack` and `set_agent_voice_stack`) no longer warn about prompt languages on GPT-Live 1, Gemini Live or Eleven Realtime, which have no language setting.
+- [What each status means](/docs/errors#what-each-status-means) · [Engines and the language axis](/docs/conversation-engines#engines-and-the-language-axis)
+
+### Agents no longer report a booking as failed while the caller says yes
+
+- When a free-form voice AI agent checks a booking again while the caller's "yes" is still being processed, or after the booking succeeded, it now gets the booking's real status instead of an error.
+- So the agent no longer tells the caller that a successful booking failed.
+- [Receipts and uncertain outcomes](/docs/business-actions#receipts-and-uncertain-outcomes)
+
+### Incoming calls stay with one AI agent
+
+- When an incoming call reached a second voice worker while the first was already serving it, the second could join the call or drop it.
+- The second worker now stands aside, so the caller keeps one AI agent and the call carries on.
+- [Why calls fail](/docs/why-calls-fail)
+
+### Existing AI agents can end their calls
+
+- Every existing free-form hosted AI agent that did not have `end_call` now has it, so it can end a call after its goodbye; scripted workflow agents are unchanged.
+- It applies from each agent's next call, with nothing to republish; to keep an agent from ending calls itself, remove `end_call` from its tools.
+- [The agent ends the call with end_call](/docs/how-calls-end#the-agent-ends-the-call-with-end_call)
+
+## 10 November 2026
+
+### Share an AI agent with a public link
+
+- Turn on **Public link** under **Share** to give a hosted AI agent an address such as `skysay.ai/talk/your-address` that anyone can open to talk to it in the browser.
+- Visitors need no account; each conversation lasts up to 5 minutes, uses the agent's published setup and real tools, and cannot use phone-only tools such as SMS or transfer.
+- Every conversation is a recorded call in **Calls** with the type **Public link**, billed to your balance at browser-call rates; welcome browser credit does not pay for it.
+- A link runs up to 3 conversations at once, and a visitor up to 2 at once and 10 a day.
+- [Share an AI agent with a public link](/docs/public-link) · [Calls and billing](/docs/public-link#calls-and-billing)
+
+### Live agents hang up after their spoken goodbye
+
+- On GPT-Live 1, Gemini Live and Eleven Realtime, an agent with `end_call` ends the call after its goodbye and about 2 seconds of quiet, even if it never calls the tool.
+- A goodbye said again after the other side spoke ends the call at once, so the agent stops repeating "goodbye" to a voicemail box; the call reports `agent_completed`.
+- It works in any language, pauses during phone menus and hold, and leaves agents without `end_call` as they were.
+- A new hosted agent made with **New AI Agent** in **Agents** or `POST /v1/agents` without a `tools` field now gets `end_call`; send your own `tools` list to leave it out.
+- [The spoken goodbye ends the call](/docs/how-calls-end#on-live-engines-the-spoken-goodbye-ends-the-call) · [The agent ends the call with end_call](/docs/how-calls-end#the-agent-ends-the-call-with-end_call)
+
+### Forwarded and backup calls ring for the caller
+
+- While Skysay rings your phone on a forwarded call or a phone backup call, the caller now hears a ring every 5 seconds instead of silence.
+- The first ring comes about 5 seconds after the caller is connected, so a phone answered sooner is reached with no ring.
+- The ring stops when your phone answers or the call ends as no answer or busy; charges, statuses and the 30-second ring limit are unchanged.
+- [Forward calls to a phone](/docs/forward-to-a-phone) · [Phone backup limitations](/docs/phone-backup#limitations)
+
+### Keep your number hears keypad tones sent as audio
+
+- The **Keep your number** forwarding test now counts the code whether your phone sends key presses as signalling or as audio tones; spoken digits do not count.
+- A tone drowned out by speech or noise is not counted, so key the code without talking over it.
+- A received test now reads "Your test call reached your AI agent and the code matched.", with what the test cannot prove beside it; the condition still shows as not verified.
+- [Understand the result](/docs/keep-your-number#understand-the-result)
+
+### Replace an AI agent's signing key
+
+- An outside agent, or a hosted agent with a webhook tool, shows **Check that requests come from Skysay** on its page; **Get a new signing key** shows a new key once.
+- The old key stops working at once, so put the new one in your server straight away.
+- `POST /v1/agents/{agent_id}/webhook-secret/rotate` does the same with an `agents:write` key; it is not an MCP tool, so the key never enters a model's context.
+- [Signing key](/docs/wire-an-agent#signing-key)
+
+### Clearer refusals for number rules and outgoing calls
+
+- A number rule now keeps only the fields its action uses, so switching a number back to forwarding without a `phone_number` answers `400` instead of reusing an old number.
+- Sending a number to a phone server without `phone_server_id` answers `400` instead of a server error.
+- `POST /v1/calls` with an unknown sending number, or another workspace's, now answers `404`, and your own number from another project `400`, instead of a server error.
+- [Forward calls to a phone](/docs/forward-to-a-phone) · [What each status means](/docs/errors#what-each-status-means)
+
+### Skysay in Arabic
+
+- The Skysay website and workspace are now available in Arabic, laid out right to left; this documentation stays in English.
+- [Skysay in Arabic](/ar)
+
+### Forward to a phone now connects calls to the number you set
+
+- A number set to **Forward to a phone number** now rings the phone you saved on every call, showing your Skysay number, with no AI agent, recording or transcript.
+- Both carrier legs are billed at normal rates by the started minute, the incoming one from when your phone starts ringing; own-SIP-trunk numbers pay only the flat $0.05-per-minute fee.
+- Your phone rings for up to 30 seconds while the caller hears silence, and a call lasts up to 30 minutes; Skysay dials once and never forwards to a Skysay number or into a loop.
+- **Calls** lists each forwarded call as Completed, No answer, Busy, Canceled or Failed.
+- [Forward calls to a phone](/docs/forward-to-a-phone) · [Pricing of a forwarded call](/docs/forward-to-a-phone#pricing)
+
+## 9 November 2026
+
+### Keep your number shows mobile forwarding codes
+
+- In **Keep your number**, the forwarding step now lists common mobile codes for the conditions you chose, filled in with your Skysay line, such as `**67*+12025550123#` when busy.
+- Each condition shows its turn-off code, such as `##67#`, and `##002#` turns off all forwarding on the phone.
+- These are examples, not a tested recipe: your telco may use other codes, and business or landline numbers usually need its portal or support.
+- The forwarding instructions in the API and MCP carry the same codes in `example_codes` and `example_stop_all_code`.
+- [Example forwarding codes](/docs/keep-your-number#example-forwarding-codes)
+
+### MCP consent offers every tool permission, ticked
+
+- When you connect an assistant over MCP, the consent screen now lists every permission its tools need under **You can also allow**, already ticked.
+- That is 11 permissions on `/mcp` and 10 on `/mcp/openai`, which never offers **Add purchased funds**; untick anything you don't want the app to do.
+- Connections made before 10 November 2026 were upgraded to the same permissions a new connection from that client gets, so no reconnect is needed.
+- **Add purchased funds** (`wallet:write`) still approves no payment: each top-up needs the owner's approval of the exact amount, currency and purpose.
+- [Permissions, consent and reconnecting](/docs/mcp#permissions-consent-and-reconnecting) · [Adding funds through MCP](/docs/billing#adding-funds-through-mcp)
+
+### The workspace shows an outside agent's signing secret
+
+- After you create a webhook or realtime audio agent with the workspace form, its page shows the agent's signing secret once.
+- Copy it before you leave or refresh the page; if you lose it, duplicate the agent, and the copy gets a new secret.
+- Your service uses the secret to verify `X-Agent-Telco-Signature` on every request Skysay sends to it.
+- [Bring your own agent](/docs/wire-an-agent#bring-your-own-agent) · [Post-call results](/docs/post-call-results)
+
+### Outside audio agents connect before an outgoing call is dialled
+
+- On an outgoing call with an outside audio agent (`external_audio`), Skysay now opens and confirms its `wss://` audio stream before dialling, so nobody answers into silence.
+- If the agent doesn't accept the connection within 5 seconds, nobody is dialled: the call ends `failed` with `external_audio_stream_unreachable`, and nothing is charged.
+- The number rule action **Send live audio to my app** (`send_live_audio_to_my_app`) is removed: attach the agent with `answer_with_skysay_agent`, which rules saved with the old action now use.
+- [Audio stream protocol](/docs/audio-stream-protocol#the-connection) · [Wire an agent to a number](/docs/wire-an-agent)
+
+### Corrections to billing, SMS and test calls
+
+- A per-minute call on your own SIP trunk that ran past its hold when the wallet couldn't pay the rest now shows **Payment due** with the outstanding amount, not paid in full.
+- `POST /v1/messages` without a sending number or recipient now answers `400` naming `from_phone_number_id` or `to_phone_number`, and an unknown sending number `404`, instead of a server error.
+- **Run browser call** on **Calls** and in setup is now **Open test panel**: it opens the test panel to talk to your AI agent instead of creating a simulated call.
+- A tool call the server refused, such as a callback request it couldn't save, now shows as failed in the call's timeline and in the test panel.
+- [Call amounts on Overview](/docs/billing#call-amounts-on-overview) · [Send SMS](/docs/send-sms) · [Test an agent](/docs/trial-calls)
+
+## 8 November 2026
+
+### Agents hosted outside Skysay take phone calls
+
+- An outside audio agent (`external_audio`) now answers and places calls on a Skysay number: Skysay connects the call's audio to its `audio_stream_url`.
+- The connection is a signed `wss://` websocket opened while the phone rings, carrying 16 kHz PCM both ways with `start`, `stop`, `clear` and `hangup` messages.
+- On your own SIP trunk, a call with an outside audio agent costs a flat $0.05 per minute, incoming and outgoing, shown as its own line on the call's charges.
+- A webhook agent (`external_text`) still can't take phone calls: Skysay refuses its outgoing calls before dialling, and nothing is charged.
+- [Audio stream protocol](/docs/audio-stream-protocol) · [Wire an agent to a number](/docs/wire-an-agent) · [Bring your own SIP trunk (API)](/docs/bring-your-own-sip-trunk)
+
+## 6 November 2026
+
+### Bring your own SIP trunk
+
+- Connect a SIP trunk from any carrier in **Numbers → Import a number → Any carrier: your own SIP trunk**, add its numbers and confirm they are yours.
+- Your carrier keeps billing the line and its minutes; Skysay charges platform and AI minutes only, with no monthly number fee.
+- A trunk carries voice only, signs in with a SIP username and password or from fixed IP addresses, and can carry calls out, incoming calls or both.
+- A paused connection can be resumed from its banner with **Resume now**, up to three times in any 24 hours, or through the API.
+- [Set up your own SIP trunk](/docs/sip-trunk-setup) · [Bring your own SIP trunk (API)](/docs/bring-your-own-sip-trunk) · [Paused calls](/docs/sip-trunk-setup#paused-calls)
+
+### Choose a number range
+
+- In **Phone numbers → Get a number**, choose a **Number range** and checkout shows that range's setup and monthly price.
+- Your request keeps the selected range through purchase; Skysay does not substitute a different prefix.
+- Search accepts national or international prefixes, such as `0845`, `44845` or `+44 845`, and regions by name or code.
+- [Choose a number range or an exact number](/docs/regulated-numbers#choose-a-number-range-or-an-exact-number)
+
+### A transfer that rings out reports no_answer
+
+- When the person's phone rings for the whole ring time and Skysay stops the ringing, the transfer now reports `no_answer`, not `failed`.
+- In a workflow, that call takes the no-answer error route, `transfer:no_answer`.
+- A network timeout, or a cancellation at any other moment, is still reported as `failed`.
+- [What the tool reports back](/docs/transfer-to-a-human#what-the-tool-reports-back) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Shorter confirmations before an action
+
+- Before an action or a transfer, the AI agent now asks in one short sentence of about eight seconds, in the call's language, and waits for a yes.
+- A transfer asks “I'll connect you to *name*. Shall I go ahead?” and never says the destination number or the caller's own number.
+- If a read-back is still too long after one retry, the action is not prepared: a workflow **Action** takes its error route with `policy_reason` `action_readback_over_budget`.
+- [What the caller experiences](/docs/business-actions#what-the-caller-experiences) · [Transfer steps](/docs/agent-workflows#transfer-steps)
+
+### Thinking tokens on their own line
+
+- When a language model thinks before it answers, those thinking tokens are charged on their own line in the call's cost breakdown, **llm · reasoning tokens** (`reasoning_tokens`).
+- They are charged at the model's thinking rate from the call's pricing snapshot; for every model Skysay offers today that is its output rate.
+- [The language model's thinking](/docs/billing#the-language-models-thinking)
+
+### Pay as you go: 3 simultaneous calls
+
+- A pay-as-you-go workspace holds up to **3 simultaneous live calls**, shared across projects and agents.
+- A campaign's `max_concurrency` now follows the workspace's concurrent-call limit, and `reserved_concurrency` is at most one less; the campaign wizard shows the limit that applies.
+- A campaign saved above a lowered limit keeps its values but never starts a call that would take the workspace past the limit.
+- [Pay as you go](/docs/billing#pay-as-you-go) · [Campaign concurrency](/docs/campaigns#concurrency)
+
+## 5 November 2026
+
+### Incoming calls run your published workflow
+
+- An incoming call to an AI agent with a published workflow now runs that workflow, the same way the calls the agent places do.
+- If the published workflow can't run on the call, the call is refused as `workflow_binding_failed`, nothing is charged, and the AI agent's readiness shows the reason.
+- A **Phone** test pin still answers its one declared caller with the pinned version; every other caller reaches the published workflow.
+- [When a spoken workflow call is refused](/docs/agent-workflows#when-a-spoken-workflow-call-is-refused) · [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls)
+
+### Calls are transcribed in the EU
+
+- Skysay Cloud sends every Deepgram transcription of a call to Deepgram's EU endpoint, `api.eu.deepgram.com`: the agent's transcriber, workflow listeners and phone-menu detection.
+- A self-hosted gateway picks its region with `SKYSAY_DEEPGRAM_REGION`: unset or `eu` for the EU, `us` for the US; any other value stops Deepgram transcription.
+- [Where Deepgram transcribes a call](/docs/deployment-modes#where-deepgram-transcribes-a-call)
+
+## 4 November 2026
+
+### Call and text out as soon as you have a number
+
+- A workspace with a bought or imported number places outbound calls and sends SMS straight away: there is no approval step and no list of blocked words.
+- `purpose`, `categories` and `user_authorization` are optional on every call and SMS; Skysay records them when you send them and never refuses a call for them.
+- A call is still refused for a suspension, a sanctioned destination, a destination outside your country list, a caller number awaiting registration, or a caller ID that isn't yours.
+- [Policy & outbound](/docs/policy-and-outbound) · [Purpose and authorization are optional](/docs/policy-and-outbound#purpose-and-authorization-are-optional) · [What is never refused](/docs/policy-and-outbound#what-is-never-refused)
+
+### Voices: a Favorites tab, one preview language and live engines with an ambience
+
+- **Favorites** is now one of four tabs beside **All voices**, **Text-to-speech voices** and **Conversation engines (Live)**, and lists every voice you saved.
+- Choose a **Preview language** once for the whole page; every voice that speaks it plays in it, and **Change** picks another language for one voice.
+- GPT-Live 1, Gemini Live and Eleven Realtime previews play Skysay's fixed sample with your selected ambience mixed over it.
+- [Save favorite voices](/docs/voice-library#save-favorite-voices) · [Preview voices in one language](/docs/voice-library#preview-voices-in-one-language) · [Audition it deliberately](/docs/audio-environments#audition-it-deliberately)
+
+## 3 November 2026
+
+### Keep your number and forward calls to an AI line
+
+- Open **Numbers → Keep your number** to forward busy, unanswered, unreachable or all calls from your current provider to a dedicated Skysay line routed to your AI agent.
+- Your number stays with its provider: nothing is ported or imported, SMS is not forwarded, and saving a setup never buys or reroutes a number.
+- Forwarded calls keep the configured business number in their Calls detail, and workspace owners can opt in to an email when a setup needs attention.
+- [Keep your existing number](/docs/keep-your-number) · [Call history and optional alerts](/docs/keep-your-number#call-history-and-optional-alerts)
+
+### Prompt drafts beside the published prompt
+
+- **Identity → Edit prompt** opens an editor whose drafts save automatically to your workspace; rename, duplicate, archive or restore up to 50 of them.
+- **Use this draft** copies a draft into the AI agent's form without publishing it, and the 20 most recent published versions stay as read-only snapshots.
+- [Prompt drafts and published versions](/docs/wire-an-agent#prompt-drafts-and-published-versions)
+
+### Favorite voices and a grouped provider picker
+
+- Star a voice to save it, then turn on **Favorites** to browse only your saved voices with the same filters and previews.
+- The Provider picker groups each provider's models under its name, so you can select a whole provider or individual models.
+- [Save favorite voices](/docs/voice-library#save-favorite-voices) · [Choose providers and models](/docs/voice-library#choose-providers-and-models)
+
+### Workflows recover from unheard answers and say goodbye when a run fails
+
+- When the listener recognises no words in an answer, the agent apologises and asks the same question again, at most twice in a row.
+- When a workflow run fails, the agent says the workflow's goodbye line once, in the call's language, before it ends the call.
+- Publishing warns with `AGENT_TOOL_NOT_CONFIGURED` when an **Action** step needs a tool the AI agent cannot use.
+- [When the caller isn't understood](/docs/agent-workflows#when-the-caller-isnt-understood) · [When a workflow run fails](/docs/agent-workflows#when-a-workflow-run-fails) · [A step this AI agent can't run](/docs/agent-workflows#a-step-this-ai-agent-cant-run)
+
+### Outbound checks name the caller number's own limits
+
+- A call refused by a number's own Number rules now names the number, its list and the destination country, with the setting to change.
+- `POST /v1/policies/authorize-outbound` asks the same number limits when you send `from_number_id`, answering `stage: "outbound_number_rules"`.
+- [The caller number's own limits](/docs/policy-and-outbound#the-caller-numbers-own-limits) · [Check before you call](/docs/policy-and-outbound#check-before-you-call)
+
+## 1 November 2026
+
+### Connect your own PBX to an AI agent
+
+- Choose **PBX** on a hosted AI agent to connect calls from your own Asterisk PBX without ordering a Skysay phone number.
+- Create a named connection key, copy its password once, and paste the generated `websocket_client.conf` and dialplan snippets into Asterisk.
+- [Connect your PBX](/docs/wire-an-agent#connect-your-pbx) · [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys)
+
+## 31 October 2026
+
+### Deepgram agents follow the caller's language on their own
+
+- AI agents on Deepgram that follow the caller now switch to another published language when the caller is heard speaking it, from their next call, with no republish needed.
+- Follow the caller is on by default for an agent with two or more languages unless you turned it off; an agent published earlier takes the default at its next publish.
+- [Optional: follow the caller](/docs/multilingual-outbound#optional-follow-the-caller) · [Automatic switching availability by language](/docs/language-qualification#automatic-switching-availability-by-language)
+
+### Browser tests count down and end at 3 minutes
+
+- A browser test from an AI agent's test panel lasts at most 3 minutes of conversation, and the panel counts down its last 30 seconds.
+- It then ends with `ended_reason` `max_call_duration_reached`; earlier browser tests that reached this limit were reported as `media_session_lost`.
+- [A browser test reached its limit](/docs/post-call-results#when-a-call-ends-automatically) · [Why a call ended](/docs/post-call-results#why-a-call-ended)
+
+### Voice simulations run as live calls
+
+- An **AI caller · voice** test is now a live call in a test room: a synthetic caller talks to your real AI agent on its own engine, with no phone number.
+- Voice tests keep your configured business tools and use your scenario's mock responses for the final effect; every test first checks that the call ended normally.
+- Voice tests reserve funds from your workspace wallet and charge measured usage up to the maximum shown before you start; scripted tests stay free.
+- [Live-call voice tests](/docs/simulations-lab#live-call-voice-tests) · [Business tools with scenario mocks](/docs/simulations-lab#business-tools-with-scenario-mocks)
+
+### Calls listen in any language
+
+- A call now listens for the other party in any language its transcriber can hear, with no fixed list of listening languages; what the agent says does not change.
+- To keep an AI agent's calls listening only in its own language, choose **Listening → The AI agent's language only** or send `"listening": {"mode": "agent_language"}`.
+- [Hearing the other party in any language](/docs/multilingual-outbound#hearing-the-other-party-in-any-language) · [Locking listening to the agent's language](/docs/multilingual-outbound#locking-listening-to-the-agents-language)
+
+### Voicemail Hang up acts on proof of a mailbox
+
+- An agent set to **Hang up** now ends the call without a message when a record beep after a greeting proves a mailbox and the line then stays quiet, about 6.5 seconds later.
+- The call ends with `ended_reason` `no_human_after_answer` and `reason_detail` `recorded_message_only`; **Leave a message** still only watches.
+- A beep after a greeting is the only proof of a mailbox, in every language, and a mailbox phrase on its own is only suspicion.
+- [Voicemail detection](/docs/voicemail-detection) · [What happens on a call today](/docs/voicemail-detection#what-happens-on-a-call-today)
+
+### Interruptions count one word in every language
+
+- On a hosted phone call, `min_interruption_words` now defaults to 1 in every language, so an interruption needs one recognized word as well as the speech duration.
+- It takes effect where the transcriber reports words in time, today Deepgram Nova-3; listening sounds such as "mm-hm" and "okay" are not counted in English.
+- [Interruptions and barge-in](/docs/wire-an-agent#interruptions-and-barge-in) · [Sounds that do not count as words](/docs/wire-an-agent#sounds-that-do-not-count-as-words)
+
+### Calendar booking is availability-only until you allow booking
+
+- Selecting a calendar on an AI agent now defaults to **Check availability only**; choose **Check availability and book** to let it create appointments.
+- Browser voice tests also default to availability only; real test bookings need saved booking permission, a dedicated test connection and **Allow real test bookings**.
+- [Give an AI agent permission](/docs/calendar-booking#give-an-ai-agent-permission) · [Test without accidental appointments](/docs/calendar-booking#test-without-accidental-appointments)
+
+## 27 October 2026
+
+### AI agents can check phone-number coverage
+
+- Attach the built-in `get_phone_number_coverage` tool and an AI agent can answer questions about the countries Skysay supports phone numbers in during a call.
+- [Read Skysay phone-number coverage during a conversation](/docs/wire-an-agent#read-skysay-phone-number-coverage-during-a-conversation)
+
+### No Eleven Realtime minutes without a conversation
+
+- An Eleven Realtime call whose ElevenLabs conversation never starts is not charged any Eleven Realtime minutes, and a voice that cannot be prepared fails within seconds instead of holding the line.
+- [Eleven Realtime](/docs/conversation-engines#eleven-realtime)
+
+### Estonian and Finnish phone menus
+
+- Phone menu navigation now also works in Estonian and Finnish menus, on a best-effort basis; a keypad value is not given in them yet.
+- [Phone menu navigation: languages](/docs/phone-menu-navigation#languages)
+
+### The OpenAPI spec lists only customer operations
+
+- `/openapi.json` now publishes the 220 operations customers call and leaves out internal routes; no route changed behaviour.
+- [OpenAPI](/docs/openapi) · [API reference](/docs/api-reference)
+
+### Phone menus hear the line's language
+
+- On a call with no keypad value to enter, phone menu navigation hears menus and people in any language Deepgram's multilingual mode covers, and a key choice cut off by a menu that keeps talking is asked again once the line is quiet.
+- [Phone menu navigation](/docs/phone-menu-navigation)
+
+### Duplicated AI agents keep their saved settings
+
+- Duplicating an AI agent copies its saved settings exactly as saved, even ones today's defaults would set differently. [Duplicate a saved configuration](/docs/agent-actions#duplicate-a-saved-configuration)
+
+## 26 October 2026
+
+### Eleven Realtime is available to every workspace
+
+- **Eleven Realtime** is now a conversation engine any AI agent can choose, billed at a flat $0.15 per connected minute, with the ElevenLabs voices in the voice library.
+- [Conversation engines](/docs/conversation-engines) · [Voice library](/docs/voice-library)
+
+### Workflow agents reply sooner
+
+- A workflow agent passes on the caller's words as soon as speech recognition finishes, and reuses its connection for each line, so its replies start about a second sooner.
+- [Agent workflows](/docs/agent-workflows)
+
+### Phone menus in every transcribed language
+
+- Phone menu navigation works in every language the agent's transcribers cover, instead of a fixed list of menu languages.
+- [Phone menu navigation](/docs/phone-menu-navigation)
+
+### Simulations Lab says why a voice test can't start
+
+- When a Simulations Lab voice test can't start, the lab now explains why.
+- [Simulations Lab](/docs/simulations-lab)
+
+### Workflow calls no longer end over a line that never played
+
+- A repeat of an unheard workflow line now counts toward the limit only if it actually began playing; a caller saying "Hello?" while the agent is still preparing its reply no longer ends the call.
+- A caller who keeps talking over lines that did play still ends with `ended_reason` `workflow_line_undelivered`, so a recording on the line is not answered forever.
+- [When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)
+
+### Workflow agents follow the navigation hint in phone menus
+
+- A workflow agent that reaches a phone menu now chooses with the call's `navigation_hint`, as other agents already did, instead of choosing without it.
+- [Phone menu navigation](/docs/phone-menu-navigation)
+
+### Simulated test calls are not summarized
+
+- A simulated test call, such as one placed with `POST /v1/web-calls`, gets a `skipped` summary with `reason` `no_conversation`, because its transcript is sample text rather than anything said.
+- [Read it](/docs/call-summaries#read-it)
+
+### Campaign results you can filter, export and act on
+
+- The campaign page has four contact tabs and a **Result** column that shows each contact's answers to your AI agent's result fields, read from their last call.
+- Click a call outcome or a result answer to show only those contacts; **Export CSV** then downloads exactly the rows the table shows.
+- From the review inbox you can add a number to your do-not-call register in one step.
+- [On the campaign page](/docs/campaigns#on-the-campaign-page) · [Export results](/docs/campaigns#export-results) · [Review inbox](/docs/campaigns#review-inbox)
+
+### Test a draft campaign with one call, and delete campaigns
+
+- **Call one contact now** on a draft places one real, billed call to a contact from its list, with the campaign's AI agent, caller ID and that contact's own values; through the API it is `POST /v1/campaigns/{campaign_id}/test-call`.
+- You can delete a campaign that can no longer place calls; its calls, recordings, transcripts and billing records stay, and your do-not-call register is unchanged.
+- [Test call on a draft](/docs/campaigns#test-call-on-a-draft) · [Delete a campaign](/docs/campaigns#delete-a-campaign)
+
+### A clearer campaign wizard and Calls page
+
+- The wizard's **Import check** shows, before launch, how many contacts are on your do-not-call register and which of the list's languages the AI agent has not published.
+- Retries start from a preset (sales, collections or single attempt), with one line per outcome saying how many attempts it gets.
+- The **Calls** page filters by campaign, and a call that has not been dialed yet can be cancelled from its detail with **Cancel call**.
+- [Launch a campaign](/docs/launch-a-campaign) · [Filter calls by campaign](/docs/read-call-evidence#filter-calls-by-campaign) · [Cancel a call that has not been dialed](/docs/read-call-evidence#cancel-a-call-that-has-not-been-dialed)
+
+### Ask steps take the route you wrote for the reply
+
+- On a workflow Ask step, a reply such as "I've already paid" now takes the route you wrote for it, instead of being treated as a dispute.
+- The dispute, hardship, callback and human-request interrupts are weighed against the step's own routes as one choice; wrong party, cease contact and language change still take priority over any route.
+- [The canvas](/docs/agent-workflows#the-canvas)
+
+### Workflow calls end truthfully when a line is not heard
+
+- If the caller keeps speaking over a step whose line they never heard in full, the step is spoken again at most twice, and the third time the workflow stops instead of repeating the line.
+- These calls, and GPT-Live 1 calls whose line was not said in full, end with `ended_reason` `workflow_line_undelivered` and a `failed` workflow, never as if the caller hung up.
+- [When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)
+
+### Skysay in Italian
+
+- The website and workspace are available in Italian: choose **Italiano** in the language selector or open the Italian homepage directly.
+- Italian customer notification emails follow the account's saved locale, and the homepage offers its three public demos in Italian.
+- [Website language and public demos](/docs/multilingual-outbound#website-language-and-public-demos)
+
+## 24 October 2026
+
+### Workflow calls report a listener failure truthfully
+
+- When a workflow agent's speech listener fails while the caller is on the line, the call now ends with `ended_reason` `listener_unavailable` instead of reading as if the caller hung up.
+- The workflow still shows as `incomplete`, and anything the caller said that the listener never delivered is missing from the transcript, so check the recording before calling the contact again.
+- [When a workflow's listener fails](/docs/post-call-results#when-a-workflows-listener-fails)
+
+### A free AI summary of every call
+
+- After a call's transcript is stored, Skysay writes a short AI summary: what happened, whether a follow-up is needed, whether the agent's goal was met, and the other party's sentiment.
+- Summaries are on for every AI agent and free; you can turn them off for one AI agent in its **After the call** section.
+- Read them on the **Calls** page or through `GET /v1/calls/{call_id}/summary`; every field is an AI estimate, and Skysay never acts on it.
+- [Call summaries](/docs/call-summaries) · [After the call](/docs/after-the-call)
+
+### Spoken workflows keep every word the caller says
+
+- A spoken workflow call no longer drops caller audio when its listener falls behind: up to 10 seconds is held and delivered in order.
+- If the backlog would pass 10 seconds, the call ends as a capacity failure instead of carrying on with missing speech.
+- [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls)
+
+## 23 October 2026
+
+### GPT-Live workflow lines count only when spoken in full
+
+- A GPT-Live 1 workflow line now counts as spoken only once the caller has heard all of it; if the model pauses mid-line, Skysay waits up to 3 seconds for the rest.
+- A line the engine does not finish before the end of the workflow ends the call as a workflow failure, so the caller never moves past a question they did not hear.
+- An unfinished closing line still ends the call as `agent_completed` with the recorded outcome and is left out of the transcript.
+- [How the lines are spoken](/docs/agent-workflows#how-the-lines-are-spoken)
+
+### GPT-Live confirmation read-backs speak only the request
+
+- A GPT-Live agent asking the caller to confirm an action now speaks the read-back itself, never the instructions around it.
+- A refusal such as "no, thanks" is always taken as a no, never as a neutral goodbye.
+- [What the caller experiences](/docs/business-actions#what-the-caller-experiences)
+
+### Agents confirm business actions before they run
+
+- Bookings, messages and callback requests are writes: the agent reads back exactly what will change and acts only after the caller says yes.
+- A no, silence, a hang-up or a second unclear reply never approves a write, and changed details need a new read-back.
+- An answer counts only once the caller has heard the read-back, so an "okay" while it is still playing approves nothing.
+- A yes or no spoken in pieces or followed by "thank you, goodbye" is understood correctly, and after a decline the agent says truthfully whether anything was saved.
+- [Confirming business actions](/docs/business-actions) · [What the caller experiences](/docs/business-actions#what-the-caller-experiences)
+
+### Email alert when an incoming call cannot be funded
+
+- When an incoming call is refused for lack of available purchased funds, Skysay emails the workspace's verified active owners.
+- The email shows available and reserved funds at the attempt and links to **Billing**; it never includes the caller's number, audio or a transcript.
+- At most one alert is sent per workspace in 24 hours, and none if the funds would now cover the call.
+- [Incoming calls blocked by insufficient funds](/docs/billing#incoming-calls-blocked-by-insufficient-funds)
+
+## 22 October 2026
+
+### Duplicate and delete AI agents
+
+- Use **Actions** in the AI agents list, its details panel or the AI agent editor to **Duplicate AI agent** or **Delete AI agent…**.
+- A copy is independent, stopped and unpublished, with its own connection and signing secret; numbers, routes, campaigns and call history are not copied.
+- Deletion first lists what still uses the AI agent, such as a number, route or unfinished campaign; calls, transcripts and billing records are kept.
+- Through the API, use `POST /v1/agents/{agent_id}/duplicate`, `GET /v1/agents/{agent_id}/deletion-check` and `DELETE /v1/agents/{agent_id}`, or the matching MCP tools.
+- [Duplicate and delete AI agents](/docs/agent-actions) · [API and MCP](/docs/agent-actions#api-and-mcp)
+
+### Faster number-rules sync and exact activation checklist totals
+
+- A self-hosted gateway's number-rules sync now costs the same three database reads however many numbers the workspace holds.
+- A number with a broken provider-account or end-user link is now routed instead of failing the whole number-rules document.
+- `GET /v1/activation-state` now reads counts instead of whole lists, so long SMS threads no longer slow it down.
+- Every `metrics` value is now an exact total; `number_requests` previously stopped at 100.
+- [Credentials for a self-hosted gateway](/docs/deployment-modes#credentials-for-a-self-hosted-gateway) · [Activation checklist](/docs/rest-endpoints#activation-checklist)
+
+### A dropped Gemini Live connection is no longer billed while it closes
+
+- When a Gemini Live connection drops mid-call, billing now stops as soon as the drop is detected, not up to about 10 seconds later when the connection finishes closing.
+- A connection that fails while it is still being opened is still billed until it closes.
+- [Billing](/docs/billing#pay-as-you-go)
+
+## 21 October 2026
+
+### Azure realtime listener on spoken workflows hears callers again
+
+- Spoken workflows using the Azure realtime listener were refusing the caller's first turn, so the call ended before the workflow could continue.
+- The listener now returns the caller's words again, in English and in Sinhala, for a workflow that listens for one language.
+- [Which voices and listeners a spoken workflow accepts](/docs/agent-workflows#which-voices-and-listeners-a-spoken-workflow-accepts)
+
+### Protected call variables on GPT-Live workflows
+
+- A GPT-Live agent with a published workflow can now hold protected call variables, as a Cascade workflow already could.
+- The live session only speaks the lines the workflow releases, so a protected value reaches the caller only after the confirming step.
+- A GPT-Live or Gemini Live agent without a workflow, and any Gemini Live agent, still refuses protected variables with `PROTECTED_FIELD_ON_LIVE_ENGINE`.
+- [Protected variables](/docs/call-variables#protected-variables) · [Agent workflows](/docs/agent-workflows)
+
+### Spoken workflows accept every language their listener and voice support
+
+- A spoken workflow call is now accepted in every language Skysay lists for its listener and voice, and GPT-Live 1 workflows in every language.
+- Languages Skysay has run end to end carry a **Tested by Skysay** badge in the workspace; the badge marks a language, it is never a requirement.
+- Through the API, `GET /v1/agent-catalog` returns each workflow listener's and voice's `languages` and `tested_languages`.
+- [Which voices and listeners a spoken workflow accepts](/docs/agent-workflows#which-voices-and-listeners-a-spoken-workflow-accepts) · [Choose how the workflow hears callers](/docs/agent-workflows#choose-how-the-workflow-hears-callers)
+
+### Workflow listeners and GPT-Live lines are charged the seconds Skysay measures
+
+- Deepgram Nova-3, Azure and Soniox listeners, the Soniox voice and GPT-Live 1 workflow lines report no usage of their own, so they are now charged at the seconds Skysay measures.
+- Lines charged this way are marked **Measured by Skysay** in the call's cost breakdown.
+- A spoken workflow call now settles when it ends and releases the rest of its hold straight away; a call whose sources measured nothing is not charged.
+- [Workflow billing](/docs/agent-workflows#billing) · [A call has ended but funds are still reserved](/docs/billing#a-call-has-ended-but-funds-are-still-reserved)
+
+### One Voice and Tuning setup for calls and workflows
+
+- An agent's listener is now set once, under **Voice → Transcriber**, and its interruption sensitivity under **Tuning → Turn-taking**; ordinary calls and workflows share them.
+- A workflow's **Publish** view shows the saved listener, languages, credential source and timing; publishing freezes a copy, so later edits never change a published version or a call in progress.
+- OpenAI GPT-Live Transcribe is a new English workflow listener on Skysay-managed credentials, billed by the audio seconds OpenAI reports.
+- Through the API, send `voice_setup` to `PATCH /v1/agents/{agent_id}/voice-stack` with `expected_voice_setup_revision`; a stale revision returns `409`.
+- [Voice and turn-taking](/docs/agent-workflows#voice-and-turn-taking) · [Configure shared input through the API](/docs/agent-workflows#configure-shared-input-through-the-api)
+
+### Workflows run the agent's knowledge base, calendar and Integration actions
+
+- A workflow's read tool steps can search the AI agent's knowledge base, check calendar availability and run Integration actions that only read data.
+- A workflow can book an appointment: the booking is read back to the caller and confirmed before it is made, on Cascade and GPT-Live alike.
+- Webhook tools, and Integration actions that change data, still cannot run inside a workflow.
+- [Tools on a workflow call](/docs/agent-workflows#tools-on-a-workflow-call) · [Book an appointment](/docs/agent-workflows#book-an-appointment)
+
+### Workflow transfer steps put the caller through to a person
+
+- A **Transfer** step dials the number in the AI agent's **Transfer to a human** tool and rings it for up to 25 seconds.
+- When the person answers, the caller is connected and the workflow ends as `transferred`; if nobody answers or the line is busy, the step's failure route runs.
+- Browser **Talk** tests, **Chat** and **Simulations** never dial, so use a **Phone** test to try a transfer.
+- [Transfer steps](/docs/agent-workflows#transfer-steps) · [Transfer to a human](/docs/transfer-to-a-human)
+
+### Interrupted ElevenLabs and Gemini replies are charged what was sent or reported
+
+- An ElevenLabs reply the caller interrupts is charged the characters already sent to ElevenLabs, as Cartesia, Fish Audio and Azure replies already were.
+- Gemini voices are charged the tokens Google reported for each reply; an interrupted reply is charged what had been reported when it stopped, never an estimate.
+- A reply the provider rejects, or that is lost to a connection failure, is not charged.
+- [Speech that is interrupted or refused](/docs/billing#speech-that-is-interrupted-or-refused)
+
+### An OpenAI connector profile that calls without wallet top-ups
+
+- `https://api.skysay.ai/mcp/openai` keeps calling enabled but never lists or runs `create_wallet_topup`, and refuses `wallet:write` at consent.
+- Each call still needs your approval of its caller, recipient, purpose and expected cost, and normal number readiness and destination policy apply.
+- [OpenAI connector: calling without wallet top-ups](/docs/mcp#openai-connector-calling-without-wallet-top-ups)
+
+## 20 October 2026
+
+### Spoken workflows with a listener you choose, and GPT-Live 1 in English
+
+- In a workflow's publish panel, **Voice input** sets the listener that hears callers: Deepgram Nova-3, Azure AI Speech real-time transcription or Soniox Real-time v5, for the languages each is tested for.
+- A GPT-Live 1 agent can now run a published workflow in English, speaking each line in its own wording while the workflow still decides the next step.
+- A published workflow keeps its listener: AI generation never chooses it, and a draft with no `voice_input` cannot publish over a version that has one (`400`).
+- Azure and GPT-Live run on Skysay-managed credentials only, and Gemini Live still cannot run a spoken workflow.
+- [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls) · [Accepted voices and listeners](/docs/agent-workflows#which-voices-and-listeners-a-spoken-workflow-accepts) · [Workflows on GPT-Live 1](/docs/conversation-engines#workflows)
+
+### Interrupted speech is charged from what the voice provider received
+
+- For Cartesia, Fish Audio and Azure voices, a reply the caller interrupts, or that Skysay stops at the end of the call, is charged the text already sent to the voice.
+- A reply the voice provider rejects, or loses to a connection failure or timeout, is not charged; when Skysay retries it, only the attempt that succeeds is charged.
+- The unit is characters for Cartesia and Azure and UTF-8 bytes for Fish Audio.
+- [Speech that is interrupted or refused](/docs/billing#speech-that-is-interrupted-or-refused)
+
+### Gemini Live is billed for the time the call is connected
+
+- A hosted agent on Gemini Live is billed for the time the call is connected to the engine, at $0.023 per minute, including silence.
+- While the engine reconnects after a dropped connection, nothing is billed.
+- [Billing](/docs/billing)
+
+### Transcript permission when an AI client keeps asking you to reconnect
+
+- On a full MCP connection, the consent screen offers **Transcripts** (`recordings:read`) unticked when the app did not ask for it; leaving it unticked grants no content access.
+- If a transcript request keeps asking you to reconnect, check that the consent screen shows the intended workspace and tick **Transcripts** before approving.
+- Approved access carries over only for the same user, workspace, OAuth client and resource; the read-only connector still offers no transcripts or recordings.
+- [Permissions, consent and reconnecting](/docs/mcp#permissions-consent-and-reconnecting)
+
+### Faster Voices browsing
+
+- Browsing and filtering the voice catalog under **Voices** is faster.
+- [Voice library](/docs/voice-library)
+
+### Imported numbers show the carrier's country flag
+
+- An imported number now shows the flag of the country its carrier reports, including in the **Numbers → Import a number** screens.
+- [Import a number you own](/docs/import-a-number)
+
+### Maintenance window on 20 October
+
+- Skysay was in a planned maintenance window from 17:05 to 18:15 UTC on 20 October, about 70 minutes, while workflows were upgraded for spoken calls.
+- [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls)
+
+## 19 October 2026
+
+### Calendar bookings are read back before they are made
+
+- An AI agent with calendar tools reads the whole booking back in one sentence and books only after a clear, explicit yes.
+- An unclear answer gets one "is that a yes?"; any change to the details, or moving on to another slot, means a new read-back.
+- Silence, a no or a hang-up never books, and Skysay refuses a booking that arrives within a few seconds of its read-back.
+- [During a conversation](/docs/calendar-booking#during-a-conversation)
+
+### See what runs on each call
+
+- **Tools → What runs on calls** shows which tools, knowledge base search, calendar tools and phone menu navigation an AI agent gets on each engine and kind of call.
+- When something does not run, its row says why, and a tool an engine cannot run is left out of that call instead of stopping it.
+- [What runs on calls](/docs/what-runs-on-calls)
+
+### The homepage demo is a real, recorded call
+
+- A conversation with the AI agent in the live demo on the skysay.ai homepage is now a real call, recorded and transcribed like a phone call and never billed.
+- The demo AI agent uses its own tools and knowledge bases, on the standard pipeline and on Gemini Live, exactly as it does on its phone calls.
+- Each session appears in the demo workspace's **Calls** as **Homepage demo**, with its recording and transcript.
+- A demo session runs at most 10 tool calls or knowledge searches, and one visitor at most 30 a day (UTC); tools that act on a phone caller are refused.
+- [Homepage demo calls](/docs/read-call-evidence#homepage-demo-calls) · [Try the homepage demo](/docs/trial-calls#try-the-homepage-demo)
+
+### Gemini Live transcripts keep the caller's lines in the order they were spoken
+
+- On Gemini Live calls, **Calls** no longer shows a caller's line after the agent's reply to it, or the caller's goodbye after the agent's.
+- Each caller line is now placed where the caller started speaking, and the corrected order is stored with the call, on phone calls and browser tests alike.
+- Calls recorded before this release keep their stored order; GPT-Live and standard-pipeline calls are unchanged.
+- [Tool calls and language switches in the transcript](/docs/read-call-evidence#tool-calls-and-language-switches-in-the-transcript)
+
+### Request SMS activation from the SMS page
+
+- On the **SMS** page, hover over or focus **SMS out** beside the number filter to see whether sending is available and how the selected number is connected.
+- Choose **Request SMS activation** to contact support with the selected number and its country; it sends no message and submits no carrier application.
+- Support confirms the carrier registration your use case and destination countries need, such as US 10DLC or Toll-Free verification, and any fees before enabling sending.
+- [Check SMS sending setup](/docs/send-sms#check-sms-sending-setup) · [When a number can't send](/docs/send-sms#when-a-number-cant-send)
+
+### Connect and fund a workspace through MCP
+
+- Connect a supported AI client through Skysay's existing email or social sign-in, then choose its workspace and permissions.
+- After you grant payment permission, `create_wallet_topup` returns a Stripe checkout link or accepts an approved token from a compatible wallet.
+- Each top-up still needs your approval of its exact amount and currency; phone numbers, calls and SMS use purchased funds.
+- [Connect Grok Bot](/docs/grok-bot) · [MCP permissions](/docs/mcp#permissions-consent-and-reconnecting) · [Add funds through MCP](/docs/billing#adding-funds-through-mcp)
+
+### Phone menu navigation is on by default for every AI agent
+
+- Every AI agent now answers automated phone menus and waits on hold on its outbound calls, without being switched on; turn it off per AI agent under **Tools**.
+- An AI agent you turned off stays off through every later save, and the editor shows one checkbox, ticked unless you untick it.
+- Agents on GPT-Live, or set only to Estonian or Finnish, save and publish normally, show why they don't navigate yet, and place their calls without it.
+- Hold defaults to 600 seconds and menus to 180; inbound calls are unchanged.
+- [Phone menu navigation](/docs/phone-menu-navigation) · [Turn it off or change its limits](/docs/phone-menu-navigation#turn-it-on) · [Which agents can use it](/docs/phone-menu-navigation#which-agents-can-use-it)
+
+### A menu read in pieces is answered as one menu
+
+- When a phone menu pauses mid-sentence, for example "To hear these options again," then "press nine", the agent keeps the pieces of that menu together.
+- It presses a key only once the menu has finished, choosing among all of the menu's options; this can add a few seconds before the key is sent.
+- [What the agent does](/docs/phone-menu-navigation#what-the-agent-does)
+
+## 18 October 2026
+
+### UAE mobile numbers on request
+
+- **Phone numbers → Get a number → United Arab Emirates** now offers a **Mobile** row marked **On request**, for businesses only.
+- Nothing is charged when you request it; Skysay orders the number by hand, usually in about 15 business days, and asks you for a UAE business address and registration certificate.
+- When the number is enabled, the setup fee and the first month ($360.00 in total) are charged from your purchased wallet funds; if the wallet cannot cover it, the number is not enabled.
+- [Numbers offered on request](/docs/regulated-numbers#numbers-offered-on-request)
+
+### A cancelled hang-up no longer leaves a quiet line open
+
+- When the caller speaks during the agent's goodbye and the hang-up is cancelled, the call keeps going and the usual silence check-in applies, on phone calls and browser tests.
+- After 30 seconds of quiet the agent asks whether the caller is still there and ends the call 15 seconds later if nobody answers; workflow agents end after 45 seconds of quiet.
+- The standing call-ending instruction now tells every agent that a cancelled hang-up is not the end: listen, answer, and end again only when the caller needs nothing else.
+- [Speaking again during a goodbye](/docs/how-calls-end#speaking-again-during-a-goodbye) · [The standing call-ending instruction](/docs/how-calls-end#the-standing-call-ending-instruction)
+
+### See when the agent asked to close a call, and what actually happened
+
+- **Calls** shows closing receipts separately from the ending: a closing request accepted, a request cancelled because the caller spoke, the close committed, and the close command sent.
+- A successful `end_call` tool row means the request ran, not that the other person was disconnected; the receipts show the difference.
+- `GET /v1/calls/{call_id}/observability` returns the same receipts.
+- [Closing requests are not disconnections](/docs/read-call-evidence#closing-requests-are-not-disconnections)
+
+### AI agents navigate phone menus and wait on hold
+
+- On outbound calls, a Cascade or Gemini Live agent presses keys or answers spoken menus, waits in hold queues and declines callback offers.
+- Turn it on under **Tools → Navigate phone menus and wait on hold**, or with `navigation` on `PATCH /v1/agents/{agent_id}/voice-stack`; hold defaults to 600 seconds and menus to 180.
+- Menus are navigated in English, German, French, Spanish, Italian, Dutch, Portuguese, Russian and Polish; GPT-Live agents and Estonian or Finnish menus are not supported.
+- Pass a `navigation_hint` in `call_context` to say which options to choose; a call that runs out of menu or hold time ends with `ivr_timeout`.
+- [Phone menu navigation](/docs/phone-menu-navigation) · [Turn it on](/docs/phone-menu-navigation#turn-it-on) · [How these calls end](/docs/phone-menu-navigation#how-these-calls-end)
+
+### Connect a DIDWW number you already own
+
+- In **Numbers → Import a number**, paste one DIDWW API key, pick a number you own and connect it to a published AI agent for incoming calls, outgoing calls or both.
+- Skysay creates dedicated SIP trunks and sets credentials, destination and caller ID itself; you keep the number and your DIDWW account, and nothing is ported.
+- Skysay shows the number's current DIDWW route and asks you to confirm before changing it; DIDWW still controls verification, outbound permissions and balance.
+- [Import a number you own](/docs/import-a-number) · [DIDWW: connect with one API key](/docs/import-a-number#didww-connect-with-one-api-key)
+
+### Calendar booking preview: an AI agent books an appointment the caller confirms
+
+- Connect Google Calendar, Calendly or Cal.com in **Integrations → Calendar booking**, and an AI agent can check free times and book one appointment the caller confirms.
+- Choose a writable calendar or a Calendly or Cal.com event type, the appointment length and the timezone; tokens stay encrypted on the server and never reach the agent.
+- This is a preview: each provider needs its own real-account proof, and only providers the platform has configured offer **Connect**.
+- [Calendar booking](/docs/calendar-booking) · [Connect and select a destination](/docs/calendar-booking#connect-and-select-a-destination)
 
 ## 14 October 2026
 
@@ -19,7 +1117,7 @@ services were confirmed deployed.
 - `POST /v1/available-numbers/search` and `GET /v1/available-numbers` take optional `area_code` and `region` filters, and each row says where the number is.
 - In **Phone numbers → Get a number**, the checkout dialog has area code and state fields and offers **Refresh list** once the list is a few minutes old.
 - A number you picked can still be bought after its list snapshot expires; Skysay checks it with the carrier again before ordering.
-- [Choose an exact number](/docs/regulated-numbers#choose-an-exact-number)
+- [Choose an exact number](/docs/regulated-numbers#choose-a-number-range-or-an-exact-number)
 
 ### Carrier requirements are validated before you pay for a regulated number
 
@@ -103,6 +1201,13 @@ services were confirmed deployed.
 - [What a recording contains](/docs/read-call-evidence#what-a-recording-contains)
 
 ## 8 October 2026
+
+### Recording waveform colours show who was speaking
+
+- The recording waveform in **Calls** shows audio from the AI side in teal and audio from the other side in purple.
+- The colours come from the recorded audio channels themselves, so missing or late captions no longer change them; background sound and echo carry their channel's colour.
+- When the source cannot be verified, the waveform stays neutral and says **Audio source colors are unavailable**.
+- [Play a recording in Calls](/docs/read-call-evidence#play-a-recording-in-calls)
 
 ### Recover a silent GPT-Live opening after reconnecting
 

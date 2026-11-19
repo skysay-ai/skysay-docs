@@ -4,6 +4,8 @@ description: Pay-as-you-go usage, a separate $5 browser-testing credit, and purc
 icon: CreditCard
 ---
 
+<Diagram name="call-funds-hold.svg" alt="A hosted call first holds its estimated cost from your funds, and holds another five minutes each time its funded time runs low; if no more time can be held the call ends as completed with funding_exhausted. When the call ends it is charged for its measured usage at its original prices and the unused part of the hold is returned; usage above the hold shows as payment due, and an ended call with no usage report after 24 hours has its hold returned without a charge, with one exception for workflow calls explained below. Browser tests do not renew; they keep their 180-second limit. Phone calls, numbers and SMS use purchased funds." />
+
 ## Pay as you go
 
 PAYG has **no monthly platform subscription**. Add purchased funds when you
@@ -13,19 +15,27 @@ top-up is a one-time purchase, not a recurring plan subscription.
 Core agents, supported provider choices, tools, knowledge bases, API, MCP,
 webhooks, and standard call evidence do not require a paid platform plan.
 Usage is still metered. Phone-number rental and setup charges are separate;
-an imported number's carrier may bill you directly. A hosted agent on
+an imported number's carrier may bill you directly. A call on
+[your own SIP trunk](/docs/bring-your-own-sip-trunk) with an outside audio
+agent costs a flat $0.05 per minute, incoming and outgoing. A hosted agent on
 [GPT-Live 1](/docs/conversation-engines) is billed by call duration, from the
 moment the call is placed, at $0.05 per minute, including silence, plus tokens
-for the backend that handles tools.
+for the backend that handles tools. A GPT-Live call that runs a
+[workflow](/docs/agent-workflows#billing) is billed for the seconds of each
+workflow line the caller heard plus the workflow listener's speech-to-text,
+both measured by Skysay, with no backend tokens. A hosted agent
+on Gemini Live is billed for the time the call is connected to the engine, at
+$0.023 per minute, including silence; while the engine reconnects after a dropped connection, nothing is
+billed.
 
 PAYG's standard workspace allowance is **10 billed phone numbers** and
-**10 simultaneous live calls**, shared across projects and agents. Number
+**3 simultaneous live calls**, shared across projects and agents. Number
 rental and setup are charged separately; this is permission to hold up to ten
 paid numbers, not ten free numbers. Carrier-billed imports and zero-rental
 numbers do not consume the billed-number allowance. Owning more numbers does
 not multiply the concurrent-call allowance.
 
-For more than 10 billed numbers or 10 simultaneous calls, **[contact us](https://skysay.ai/contact)**
+For more than 10 billed numbers or 3 simultaneous calls, **[contact us](https://skysay.ai/contact)**
 about **Scale**. An Skysay operator can set a workspace's concurrent-call
 limit below or above the plan allowance. A value of `0` resets that control to
 the plan default; it does not disable calls. Choosing or changing a use-case
@@ -37,6 +47,93 @@ checks still apply. This allowance is not a guarantee of ten connected calls.
 Higher capacity must be agreed and validated for your workload; do not assume
 a higher limit from a pricing label. Check your workspace's current limits
 before launching a batch of calls.
+
+## Estimating a month
+
+The **[pricing page](https://skysay.ai/pricing#estimate)** has an **Estimate
+your month** calculator. Enter:
+
+- how many calls you expect per month (up to 1,000,000) and their average
+  length (half a minute to 60 minutes);
+- the call language;
+- either a transcriber, a language model and a voice, or one conversational
+  model ([conversation engines](/docs/conversation-engines));
+- whether the calls are outgoing phone calls, incoming phone calls or browser
+  calls;
+- for phone calls, **your phone numbers**: the country of your numbers and how
+  many you keep (the calculator takes up to 100; your workspace allowance is
+  above);
+- for outgoing calls, **where the calls go**: the country you call. One
+  destination per estimate.
+
+It returns a receipt: the Skysay runtime, one line per model, the carrier, the
+number rental and a monthly total. The lists show only the models you can pick
+in a workspace today, and only those that support the chosen language. When
+you change the language, a model that cannot speak it is replaced and the
+calculator says which one replaced it and why.
+
+The estimate is a planning figure, not a quote:
+
+- Each model is priced at a reference usage per connected minute, the amount
+  billing holds for a minute of conversation. A real call is charged for what
+  it actually used, so a call's transcriber, language-model and voice charges
+  can come out above or below the estimate.
+- The carrier bills whole minutes per call (60/60), while the runtime and the
+  models are charged per connected minute. A 2.5-minute call is three carrier
+  minutes but 2.5 minutes of AI usage.
+- An outgoing call's carrier price depends on the country called, not on your
+  number's country: a UK number calling the US pays the US price. An incoming
+  call's carrier price depends on the country of the number that is called.
+- Where a country's carrier price differs by the number dialled, the estimate
+  uses that country's highest price.
+- For outgoing calls, the number list shows only countries that sell a number
+  able to place calls; some numbers, often toll-free ones, can only receive
+  them. The destination list shows only countries with an outgoing price, and
+  never a destination Skysay does not call.
+- A language model marked **your own key** costs $0 from Skysay; the model's
+  provider bills you directly.
+- Browser calls have no carrier or number line.
+- A number's setup fee is shown once, outside the monthly total. A country
+  whose number price is given on request leaves numbers out of the total.
+
+Pay as you go runs up to 3 calls at the same time. For more, [contact
+us](https://skysay.ai/contact) about Scale.
+
+### The prices behind the estimate
+
+The calculator reads the same public catalogue an API client can read with
+`GET /v1/pricing/catalog`. It needs no key and carries retail prices only.
+Besides the price book (`public_price_book`) it has two blocks:
+
+- `model_rates`: the platform runtime rate and, for every transcriber,
+  language model, voice and conversational model you can pick now, the
+  languages it supports, its price per billed unit (per second of audio, per
+  token, per character) and the reference usage per connected minute. A
+  language model run on your own key has `billing: "your_own_key"` and no
+  rates. `languages` names the same languages the agent editor offers: the
+  ones Skysay's listed voices and transcribers name and the ones ElevenLabs
+  lists for its models (an ElevenLabs model lists exactly those). It follows
+  the background refresh, with no release. A model that keeps no language
+  list, such as a Gemini voice, accepts other language codes too. At most
+  1,024 languages are listed; `languages_truncated` is `true` when some were
+  left out.
+- `carrier_rates`: per country, the outgoing and incoming carrier price per
+  minute as a lowest-to-highest range, the monthly and setup price of the
+  phone number you can buy there (`number`: a local number where one is sold,
+  otherwise the cheapest), and of the number chosen the same way among those
+  that can place outgoing calls (`outbound_number`). The outgoing price is
+  that of the country called, whatever your number's country. A missing range
+  means the catalogue lists no price for that kind of call to that country, so
+  the calculator cannot estimate it; a missing `number` means Skysay sells no
+  number there yet, and a missing `outbound_number` that no number sold there
+  can place calls.
+  `truncated: true` means the list stopped at a size limit and may be missing
+  countries. If the country prices cannot be read, `carrier_rates` is `null`
+  and the pricing page estimates only the countries in the price book.
+
+Country and number prices update within about 10 minutes of a price change.
+The operation's description in the [OpenAPI document](/docs/openapi) describes
+the fields.
 
 ## Billed-number allowance
 
@@ -87,6 +184,65 @@ configured site origin. In this mode the persisted checkout claim governs
 idempotency, including when a caller supplies its own key. Standalone top-ups
 keep their ordinary return behavior.
 
+## Adding funds through MCP
+
+A full MCP connection can request purchased funds with `create_wallet_topup`
+on `/mcp`. This tool is not available on the OpenAI `/mcp/openai` profile or
+the `/mcp/read-only` profile. Full-connector funding requires
+consented `wallet:write`. The consent screen offers it ticked; untick it to
+leave funding out. It approves no payment. Read the wallet currency with `account_overview`, then
+ask the owner to approve the exact amount, currency and purchase purpose:
+**purchased Skysay calling credit**. The workspace comes only from the
+authenticated connection.
+
+For a wallet in USD, an owner-approved $10 request looks like:
+
+```json
+{
+  "method": "card_checkout",
+  "amount_minor": 1000,
+  "currency": "USD",
+  "idempotency_key": "unique-owner-approved-purchase",
+  "payment_approved": true
+}
+```
+
+Use the actual wallet currency, in three uppercase letters. A missing or
+mismatched currency refuses before payment. Current top-up limits apply.
+Never put card numbers, CVC, passwords, verification codes or payment tokens
+in an idempotency key, chat message or log.
+
+| Path | What happens | What it proves |
+| --- | --- | --- |
+| `card_checkout` | The tool returns a direct Stripe hosted-checkout URL. The owner completes payment there. No Skysay dashboard visit is needed to initiate it. | MCP initiation with browser checkout; not entirely in-chat payment. |
+| `shared_payment_token` | A compatible host/wallet obtains an owner-approved token scoped to the seller, amount and currency, then submits it through the tool. A configured Stripe seller profile is required. | Backend support; actual host/default-card and merchant acceptance are separate. |
+| Website **Billing → Add funds** | The existing hosted Checkout flow remains available with its existing return context. | Website funding; unchanged by MCP permission. |
+
+With `method: "shared_payment_token"` and `request_challenge: true`, the tool
+can return seller/amount/currency metadata before purchase approval. This is
+JSON metadata, not native payment UI or MCP elicitation. If the seller profile
+is unavailable, use `card_checkout`. The owner obtains and approves tokens in
+their compatible wallet; Skysay does not collect their payment credentials.
+See Stripe's [seller token contract](https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens?agent-seller=seller)
+and [Link buyer approval flow](https://docs.stripe.com/agentic-commerce/agents/link-agent-wallet/use-link-wallet-pay-online).
+Client support for MCP or [URL elicitation](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation)
+does not itself supply a native wallet or payment card.
+
+A checkout, pending payment, successful redirect or synchronous token response
+is not spendable credit. Only a matching signed Stripe webhook adds purchased
+funds, once. Check `account_overview` before ordering numbers or placing paid
+calls. Retry an uncertain result with the **same idempotency key and identical
+parameters**; do not authorize another payable attempt. A definite token
+refusal requires new owner approval, a new token and a new key. Reusing a card
+key with changed parameters is refused by Stripe's idempotency contract; it
+does not amend the earlier approval. Never reuse an approval for another
+workspace, amount, currency or credential.
+
+The same contract is available to scoped API clients at the retained
+`POST /v1/agent/onboarding/headless/payments` URL. It does not enable signup.
+None of these payment paths expands the $5 browser-only welcome grant or
+changes normal purchased-funds number, PSTN or SMS billing.
+
 ## Your browser-testing credit
 
 An eligible customer receives a **one-time USD $5 welcome credit** when signing
@@ -105,12 +261,24 @@ released when the session settles. Once browser credit is exhausted, further
 tests require purchased funds. A negative purchased balance must be resolved;
 browser credit does not cancel a debt.
 
-<Callout title="Browser credit is not phone credit">
-  Welcome credit cannot pay for PSTN calls, SMS, phone-number rental or setup.
+<Callout title="Browser testing only">
+  Welcome credit cannot fund number setup, number rental, PSTN calls or SMS.
+  Those require purchased funds and a number that is ready with its carrier.
   It is not cash, refundable purchased credit, or transferable to another
-  workspace. The anonymous homepage demo is a separate, bounded demo; it does
-  not replenish your workspace credit.
+  workspace. The anonymous homepage demo is separate and does not replenish
+  workspace credit. SMS signup is deferred.
 </Callout>
+
+A browser test whose requested opening fails with confirmed zero agent output
+may have its unused hold released without charge. The trusted worker decision
+must win before native usage is accepted. Usage accepted first settles
+normally; a final settled, released or payment-due result is preserved. Missing
+usage or an empty transcript alone does not release a hold at once; the usual
+24-hour recovery in
+[A call has ended but funds are still reserved](#a-call-has-ended-but-funds-are-still-reserved)
+still applies. A late usage report
+after an authorized release does not charge the customer again. Retrying starts
+a separate test with the normal balance checks.
 
 ## Reading your balance and costs
 
@@ -136,6 +304,55 @@ components used. BYOK provider charges follow that component's billing mode;
 bringing a provider key does not make unrelated platform or carrier usage free.
 New calls use their own pricing snapshot. Existing call prices and historical
 wallet entries are not rewritten when the catalog changes.
+
+### The language model's thinking
+
+Some language models think before they answer. The provider charges for those
+thinking tokens even though the caller never hears them, so Skysay charges them
+too:
+
+- They appear on their own line in the call's cost breakdown, **llm · reasoning
+  tokens** (dimension `reasoning_tokens`), beside the model's input and output
+  tokens. Output is the reply itself.
+- They are charged at the model's thinking rate from the call's pricing
+  snapshot. For every model Skysay offers today that is its output rate, as the
+  providers charge it.
+- A model that does not think shows zero on that line.
+- When a provider reports its total tokens for a reply but not how many were
+  thinking, Skysay charges everything in the total beyond the prompt, so no
+  token the provider billed is left out.
+
+### Speech that is interrupted or refused
+
+A caller often talks over the agent, and the agent stops speaking. For the
+voices Skysay measures itself (Cartesia, ElevenLabs, Fish Audio and Azure), the
+voice charge for each reply is the text Skysay had already sent to the voice
+provider:
+
+- A reply that finishes is charged the text that was sent.
+- A reply the caller interrupts, or that Skysay stops at the end of the call,
+  is charged the text sent before it stopped. Text the agent had not sent yet
+  is not charged.
+- A reply the voice provider rejects with an error is not charged.
+- A reply lost to a connection failure or a provider timeout is not charged.
+  When Skysay retries it, only the attempt that succeeds is charged.
+
+The unit is the provider's own, counted the way the provider counts it:
+characters for Cartesia, ElevenLabs and Azure, and UTF-8 bytes for Fish Audio.
+Azure counts escaped markup, and counts each Chinese character twice.
+
+Gemini voices are charged in the tokens Google reports for each reply (the
+text sent and the audio generated):
+
+- A reply that finishes is charged the tokens Google reported for it.
+- A reply the caller interrupts is charged the tokens Google had reported when
+  it stopped, never an estimate.
+- A reply Google rejects, or that comes back without audio, is not charged,
+  and neither is a reply lost to a connection failure.
+
+An interrupted reply never holds the call's reservation: the call settles with
+the rest of its measured usage. Voice-to-voice engines (GPT-Live and Gemini
+Live) are charged by session time, so none of this applies to them.
 
 ## Usage history and the ledger
 
@@ -175,6 +392,61 @@ for a larger selection, choose a shorter date range or a single type.
 no cursor), and its totals cover the returned entries only. Use Usage and
 ledger or its export for a complete record.
 
+## Automatic recharge
+
+When automatic recharge is on, Skysay tops up your balance from your saved
+card when a charge or a call's hold takes your available purchased funds to
+or below your threshold. The top-up runs in the background a few seconds
+after that charge or hold, so the call that crossed the threshold does not
+wait for the card payment. A call that finds your available funds too low
+to hold it at all still has the top-up tried while it is being set up, and
+starts if the top-up covers it. Each top-up adds your configured amount.
+Every attempt, whatever its outcome, starts a 15-minute wait before Skysay
+tries your card again. During those 15 minutes, a call that finds your funds
+too low to hold it is refused without another card attempt. After three
+failed attempts in a row, Skysay stops trying until you save a new card.
+
+## Incoming calls blocked by insufficient funds
+
+If an incoming phone call is refused because there are not enough available
+purchased funds to reserve it, Skysay emails the workspace's active owners
+whose email addresses are verified. The notification identifies the workspace
+and attempt time, shows available and reserved purchased funds at the attempt,
+and links to **[Billing](https://skysay.ai/billing)**. It does not include the
+caller's number, call audio or a transcript.
+
+Review pending holds and add funds for new calls if needed. Browser-testing
+credit cannot pay for phone calls. Reserved funds are temporarily unavailable;
+they can also belong to completed calls whose settlement is still pending.
+If funds appear stuck, reply to the notification for help rather than assuming
+the number needs to be activated again.
+
+Skysay sends at most one of these emails per workspace in any 24 hours;
+further refused calls in that window do not send another. Before sending,
+Skysay checks funding again and does not send the alert if the original
+reserve can now be covered. While an automatic top-up is still being
+confirmed, the alert waits: it is sent only if the top-up does not cover the
+call. Alerts that are more than a day old are not sent late. Email delivery is
+asynchronous and is not guaranteed to arrive before another call.
+
+The refused attempt remains in **Calls**. No call audio starts and no Skysay
+call-usage charge is posted for that rejected attempt. Number rental and
+existing charges are separate. A funding failure does not itself mean that the
+number or its agent assignment is still activating.
+
+## Incoming calls that cannot be set up in time
+
+Skysay answers an incoming phone call only if it can set the call up within a
+few seconds. If setting it up takes longer, for example because our systems
+are responding slowly, Skysay does not start the call late: the caller hears a
+busy signal, nothing is reserved or charged, and no call is created. The caller
+can call again.
+
+The one exception is a call whose setup turns to automatic recharge because
+your available funds are too low to hold it. This limit does not apply to that
+call. If the card payment itself is slow, the caller can still hear a busy
+signal; a top-up that succeeds is credited to your funds either way.
+
 ## A call has ended but funds are still reserved
 
 A completed or otherwise ended hosted call can briefly keep its reservation
@@ -182,11 +454,17 @@ while Skysay receives the AI components' usage reports. The reservation is not
 a final charge. When the measured usage arrives, Skysay settles the call at its
 original prices and returns any unused funds.
 
+A spoken [workflow](/docs/agent-workflows#billing) call settles when it ends,
+including the listener and voice seconds Skysay measures itself.
+
 Skysay retries reports that could not be delivered. If a terminal call still
 has no trustworthy usage report after 24 hours, automatic recovery returns its
 reservation without charging for the unmetered call. Skysay absorbs that cost;
 it does not estimate missing usage from the transcript or call length. A later
-report does not add a charge after this release. Returned promotional credit
+report does not add a charge after this release. One exception: when an
+answered workflow call's every source was measured at zero, nothing is
+unmetered, so recovery charges its platform and carrier lines, as the report
+would have. Returned promotional credit
 remains promotional credit, and purchased funds return as purchased funds.
 
 A call that is still active keeps its reservation. If an ended call remains
@@ -221,7 +499,10 @@ use actual component usage; variable model/tool use, delayed usage reports or
 a delayed carrier disconnect can exceed reserved credit. Unused reserved funds
 are released after settlement, and unpaid usage can still appear as **payment
 due**. Funding new call time does not itself collect historical unpaid charges.
-Browser-only promotional credit remains restricted to eligible browser calls.
+Promotional credit funds eligible browser calls only. All telephone calls,
+number setup/rental and SMS use purchased funds. They retain normal funded
+runtime renewal, transfer and settlement behavior; there is no setup-call
+waiver of overrun charges or purchased-funds debt.
 
 ## Existing subscription records
 
@@ -233,20 +514,20 @@ assuming an existing recurring charge has stopped.
 
 ## Call amounts on Overview
 
-For component-metered calls, Recent calls uses the same wallet billing verdict
-as Calls. Once settlement is available, the amount is the settled charge, not
-the larger amount reserved at admission. Released holds show **Released**;
+For component-metered calls, and for per-minute calls on
+[your own SIP trunk](/docs/bring-your-own-sip-trunk) with an outside audio
+agent, Recent calls uses the same wallet billing verdict as Calls. Once
+settlement is available, the amount is the settled charge, not the larger
+amount reserved at admission. Released holds show **Released**;
 reservations awaiting usage remain explicitly labelled as reserved. A
-**payment due** result separates the amount paid from the outstanding amount.
+**payment due** result separates the amount paid from the outstanding amount,
+including a per-minute call that ran past its hold when the wallet could not
+pay the rest.
 
 Overview spend totals combine settled charges with still-pending reservations
 and SMS charges. Released reservations and unpaid balances do not count as
 settled spend. Legacy calls without a component-billing verdict retain their
 existing cost calculation.
-
-For `GET /v1/dashboard/billing`, ordinary reads require `account:read`,
-`usage:read` and `wallet:read`. Adding `number_request_id` also requires
-`numbers:read` to read the selected request.
 
 ## Transcript translation
 

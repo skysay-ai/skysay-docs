@@ -31,9 +31,20 @@ The library opens on **All voices**, which lists both kinds: the
 text-to-speech voices first, then the conversation engines, whose voices are
 chosen and previewed differently on an agent (see
 [GPT-Live 1 voices](#openai-gpt-live-1-voices)). **Text-to-speech voices** and
-**Conversation engines (Live)** narrow the list to one kind. Search and filters
-apply to whichever of these you are viewing, across the
-complete cached catalog, not only the rows already visible on the current page.
+**Conversation engines (Live)** narrow the list to one kind, and
+**Favorites** lists the voices you saved (see
+[Save favorite voices](#save-favorite-voices)). These four are tabs: one is
+selected at a time. Search and filters apply to whichever tab you are viewing,
+across the complete cached catalog, not only the rows already visible on the
+current page.
+
+The conversation engines are the ones where one model hears the caller and
+speaks its own audio: GPT-Live 1, Gemini Live and Eleven Realtime. A voice
+offered both by text-to-speech models and by a conversation engine, such as an
+ElevenLabs voice that also speaks on Eleven Realtime, is listed in each
+section: once with its text-to-speech models, once with the engine. The
+question mark beside each section heading explains what that kind of voice
+does on a call.
 
 Within that, the order comes from the catalog's own data; nothing is
 hand-picked:
@@ -56,13 +67,15 @@ voice can move up or down between visits.
 You can combine these filters:
 
 - **Language** — the languages the voice's model declares.
-- **Accent** — grouped by language. A language with several stated accents
-  lists them by region underneath (for example English, then American or
-  British); a language with only one is a single entry named for the language
-  (for example Polish). Only accents the provider states are listed. Voices
-  whose provider states no accent appear only when you tick **Include voices
-  with no stated accent**; supporting several languages is never read as a
-  native accent in each of them.
+- **Accent / regional style** — grouped by language. A language with several
+  stated accents lists them by region; a language with only one is a single
+  entry named for the language. The filter also includes explicit national
+  regional styles from the GPT-Live catalogue: **British** includes Vesper,
+  alongside voices whose provider states British English. This is a discovery
+  alias, not a provider-certified accent or language claim. A provider's stated
+  accent takes precedence over a regional-style alias. **Include voices with
+  no stated accent or regional style** finds voices with neither. Supporting
+  several languages never implies a native accent in each of them.
 - **Gender** — the provider's own value.
 - **Voice age** — Young, Middle-aged or Older, only where the provider states
   an age.
@@ -101,6 +114,85 @@ Voice language claims remain model-specific. When a provider gives no
 per-voice language list, Skysay uses only that model's declared languages;
 it does not infer a language from another voice with the same provider or name.
 
+## Preview voices in one language
+
+Next to the preview text, choose a **Preview language** once for the whole
+page. Every voice that speaks it then plays in that language when you press
+Play, with no language to choose on each row; the row shows the language as a
+small label. To hear one voice in another language, use **Change** on that row;
+**Reset to** the page language undoes it for that voice. A voice that cannot
+speak the chosen language says so and lists its own languages to pick from.
+If the voice has a published sample, Play still plays that sample in the
+language it was recorded in.
+
+The choice is remembered in this browser only. Clear it to go back to each
+voice's own published sample. A language filter still decides which voices are
+listed: if the filter leaves out the preview language, the voices play as if
+none was chosen.
+
+## Save favorite voices
+
+Use the star beside a voice to save it, then open the **Favorites** tab to
+browse your saved choices: every favorite, both text-to-speech voices and
+conversation engines. Select **All voices**, **Text-to-speech voices** or
+**Conversation engines (Live)** to return to that tab's full list. A voice
+listed in both sections is one favorite: its star is set in both places.
+
+Switching to or from Favorites clears the Provider filter, so a provider chosen
+on one tab never hides voices on the other; filter by provider again within the
+tab if you want to. Your search, language and other filters stay as they are.
+The Favorites tab has the same previews and pagination as the rest of the
+library. An older link that named both a kind and Favorites opens Favorites.
+
+Favorites belong to you within the current workspace. They are saved in your
+account, so signing in on another device shows the same choices. Other workspace
+members have their own favorites. Starring a voice does not choose it for an AI
+agent, publish a change or start an audio preview. A failed save leaves the star
+unchanged so you can try again.
+
+A provider-evidenced voice shared by several models has one favorite. Distinct
+model-specific voices remain separate. Favorites use the public catalog:
+saving one does not expose private voices from a bring-your-own-key account or
+make an unavailable model usable. A voice that leaves the available catalog
+stops appearing in Favorites.
+
+The voice pickers in AI-agent creation and editing also have stars and a
+Favorites filter. Opening that filter loads your saved text-to-speech voices
+from the full directory. Those pickers show 60 voices at a time (Voice
+settings starts with six), with **Load more** under the list for the next
+ones. Choosing a voice still checks the AI agent's required languages and
+available models.
+
+## Choose providers and models
+
+The Provider picker groups each provider's eligible models beneath its name.
+Select a provider to include all its models, or select individual models.
+A partially selected provider shows a mixed checkbox. Search by provider,
+model, or both; matching models keep their provider heading for context.
+Counts describe distinct voices and can overlap between models.
+
+### Fish Audio S2.1-Pro
+
+Under **Provider**, expand **Fish Audio** and select **S2.1-Pro** to find a
+voice for a Standard agent or a spoken workflow. Preview a phrase in the
+caller's language. To use S2.1-Pro on calls, explicitly select it with the
+voice in the agent and publish. Existing agents keep their published model.
+
+For API setup, look up `fishaudio` and `s2.1-pro` in
+`GET /v1/agent-catalog?component=tts`. Use the languages and voice IDs
+available for your selection. Skysay meters the Fish voice by the UTF-8
+bytes of text sent for synthesis. See [speech billing](/docs/billing#speech-that-is-interrupted-or-refused).
+
+If you already use your own Fish Audio key and a private voice is missing
+under S2.1-Pro, refresh the voice list for that key: call
+`POST /v1/hosted-ai-credentials/{credential_id}/validate` with a Skysay API key
+that has `agents:write`. Supply the existing credential ID in the path and its
+`organization_id` and `project_id` in the JSON body. Skysay checks the stored
+Fish key with Fish Audio; when Fish Audio accepts it, the credential is active
+and Skysay refreshes that key's voice list. Then check the voice picker again
+with that credential selected. Its private voices stay scoped to that key and
+project.
+
 ## Pages and model groups
 
 The library opens with up to 24 voice groups per page and accepts a page size
@@ -134,10 +226,8 @@ instead of treating it as missing just because it is on a later library page.
 
 The library keeps the last successful cached inventory visible while a refresh
 is running or has failed. A partial or ranked provider search can show useful
-results without proving that it found every voice the provider offers. When the
-library says its provider catalogue results are incomplete — a note that
-appears at the end of such a result set — treat the library as the available
-cached window, not as a claim that no other provider voices exist.
+results without proving that it found every voice the provider offers. Treat
+the library as the available cached window, not as a claim that no other provider voices exist.
 
 Only a completed authoritative provider refresh can remove a previously cached
 voice for absence. Provider eligibility, licensing and your agent's existing
@@ -166,17 +256,115 @@ provider-supplied recording has no spoken-language assertion and is not treated
 as English or as a match for another language. The row uses the bounded live
 preview instead.
 
-A preview can also carry a [delivery profile](/docs/delivery-profiles)
-(`natural`, `lively`, `calm` or `precise`) so you hear the voice performed the
-way a call with that profile would perform it; the response says whether the
-selected provider and model applied it.
+A text-to-speech preview can also carry a
+[delivery profile](/docs/delivery-profiles) (`natural`, `lively`, `calm` or
+`precise`) so you hear the voice performed the way a call with that profile
+would perform it; the response says whether the selected provider and model
+applied it. GPT-Live and Gemini Live ignore the profile, and Eleven Realtime
+refuses it with `voice_preview_unsupported`, so for a conversation-engine voice
+send only the voice fields.
 
-Text you type is sent and spoken exactly as written by text-to-speech voices
-(GPT-Live voices use a fixed sample sentence instead; see below). Skysay
-does not translate it. If you leave the text blank, the library uses a localized sample
-sentence for the selected language where one is available. If there is no such
-sentence, enter your own text rather than receiving an English fallback. Live
-preview remains bounded, metered, and rate-limited for the workspace.
+Type a short sentence (up to 200 characters), then press **Play** beside a voice.
+The same custom-preview control is available in the Voice Library, AI-agent
+creation and a saved AI agent's Voice settings. Playing a voice does not select
+it or change the AI agent's greeting, instructions or language. Use the separate
+voice-selection button when you want to change the voice.
+
+Text-to-speech voices speak your text. GPT-Live, Gemini Live and Eleven Realtime
+use their own short native session and may rephrase it; these previews let you
+hear the voice, rather than promising a verbatim reading. For example, you type
+"Hi, this is Maya from Northwind Dental, calling to confirm your cleaning on
+Tuesday at 3 pm." A text-to-speech voice reads exactly that; a GPT-Live voice
+might say "Hi there, it's Maya from Northwind Dental. I'm calling to confirm
+your cleaning this Tuesday at three." Calls are not affected: on a call the
+AI agent follows its own instructions, not the preview text.
+
+Skysay does not store custom text or audio in its shared sample cache, so a
+custom preview of a GPT-Live, Gemini Live or Eleven Realtime voice starts a new
+native session every time. Each one counts against your workspace's
+voice-preview allowance (10 previews a minute) and against Skysay's shared
+limit on preview sessions running at once; when either is reached, **Play**
+says so and you can try again a moment later. Replaying the platform sample of
+a GPT-Live or Gemini Live voice from the cache uses neither. Previews are never
+charged as call usage. Provider failures appear beside **Play** so you can
+retry.
+
+Leaving the field blank keeps the existing platform sample behavior. Choose a
+preview language when needed. Only one preview plays at a time; editing the
+text or changing the voice stops the previous preview.
+
+### When the voice starts
+
+A GPT-Live, Gemini Live or Eleven Realtime preview of your own text starts
+playing as soon as the voice has spoken its first moment, while the rest of the
+sentence is still arriving, so a long sentence no longer means a long wait
+before you hear anything. Text-to-speech voices and the Eleven Realtime platform
+sample play their finished clip as soon as it is ready. Press **Play** again (it
+shows **Stop** while the preview loads and plays) to stop at any point; stopping
+a GPT-Live, Gemini Live or Eleven Realtime preview also ends its live session.
+
+A live preview reads your whole sentence, up to the 200-character limit; it is
+no longer cut off after 8 seconds. If the connection or the voice service fails
+after the voice has started, the preview stops and **Play** shows "The preview
+stopped early. Try again." You never hear the end of an older preview after
+changing the text or the voice.
+
+For example, you type the 190-character greeting "Hi, this is Maya from
+Northwind Dental. I can book a new appointment, move or cancel one you already
+have, and answer questions about our opening hours and prices. What would you
+like to do?" and press **Play** on a Gemini Live voice. The voice starts within
+a second or two and reads the whole greeting; you press **Stop** halfway and
+the sound stops at once.
+
+### Preview a voice over the API
+
+`POST /v1/voice-previews` returns the whole preview as one WAV file, so for a
+GPT-Live or Gemini Live voice the response comes once the voice has finished
+speaking: a long sentence takes as long as the voice needs, with its first
+audio within 10 seconds and the whole session within 30 seconds. Past either
+the request fails with `voice_preview_timed_out`, and past the 1 MiB audio
+limit with `voice_preview_too_large`; you never receive a clip that was cut
+short. An Eleven Realtime preview keeps its own limit: 9 seconds, counted from
+when its preview slot is reserved, to prepare, connect and receive the reply.
+Past that, or past its audio size limit, it fails with
+`voice_preview_rejected`; a reply whose start is not audible fails with
+`voice_preview_no_speech`. To play a preview as it is produced, send the same request
+body to
+`POST /v1/voice-previews/stream`. It answers with
+[NDJSON](https://github.com/ndjson/ndjson-spec), one JSON object per line:
+
+```json
+{"type":"start","provider":"gemini","model":"gemini-3.8-live","voice_id":"Kore","language":"en","encoding":"pcm_s16le","sample_rate_hz":24000,"text_source":"custom","sample_language":"en","cached":false}
+{"type":"audio","seq":0,"pcm_base64":"AAD+/wMA..."}
+{"type":"audio","seq":1,"pcm_base64":"BwAKAAgA..."}
+{"type":"end","audio_bytes":412800,"duration_ms":8600}
+```
+
+- The `start` frame carries the same fields as the WAV response, plus the
+  audio format: mono 16-bit little-endian PCM at `sample_rate_hz`.
+- Each `audio` frame holds at most 200 ms of that PCM, base64-encoded, in
+  `seq` order. Play them back to back.
+- The last frame is exactly one `end`, or one `error` frame such as
+  `{"type":"error","error":"voice_preview_timed_out"}` if the preview failed
+  after it started. A response that stops without an `end` frame also failed.
+- Every refusal (an invalid request, the workspace allowance, a busy preview
+  slot, a voice that does not speak) arrives before any audio, with the same
+  HTTP status and JSON error body as `POST /v1/voice-previews`.
+- GPT-Live and Gemini Live send audio once the voice has spoken 300 ms;
+  Eleven Realtime sends your text's audio as it arrives, once its first 100 ms
+  are audible. Text-to-speech voices and the Eleven Realtime platform sample
+  arrive as one finished clip.
+- Closing the connection ends a GPT-Live, Gemini Live or Eleven Realtime
+  preview session.
+- The same per-voice field rules apply: for Eleven Realtime send only the voice
+  fields, and GPT-Live and Gemini Live refuse a `credential_id`.
+- The limits are the same: up to 200 characters of text, 10 previews a minute
+  per workspace, and the shared limit on preview sessions running at once. A
+  GPT-Live or Gemini Live preview has its first audio within 10 seconds and
+  runs at most a 30-second session, and fails rather than being cut short if
+  the voice talks past the size limit. Eleven Realtime keeps its own 9-second
+  limit, as above; on this route the time your client takes to read counts
+  too, and a failure after the audio started is an `error` frame.
 
 ## OpenAI GPT-Live 1 voices
 
@@ -200,12 +388,17 @@ text-to-speech voices, and a few things differ:
   not a limit on what it speaks) and whether the voice is Natural or
   Generated. Marin and Cedar are OpenAI's undocumented voices: they show a
   presentation and nothing else.
-- **Play runs a short real GPT-Live session.** The clip is rendered once per
-  voice and sample sentence and cached, so the same audition plays instantly
-  next time. It uses a fixed Skysay sample sentence for the chosen
-  preview language; text you type is not sent to a GPT-Live voice, and the
-  engine paraphrases rather than reading verbatim. Previews are not charged to
-  your workspace and never count as call usage.
+- **Regional styles are searchable.** Search for the provider's words, such
+  as British, Irish, Australian, Brazilian, Filipino, North American or
+  Southern U.S. Broad regional labels remain searchable without being guessed
+  into a single-country accent. These descriptions do not guarantee accent
+  fidelity or language support; audition the voice in your intended language.
+- **Play runs a short real GPT-Live session.** Typed text is auditioned in
+  the selected voice and preview language and may be rephrased. Custom previews
+  are not cached. With no text, the platform sample is rendered once per voice,
+  language and sample version, then cached for the next audition. A selected
+  [ambience](/docs/audio-environments) is mixed for this request only. Previews
+  are not charged to your workspace and never count as call usage.
 - **Both figures say what they measure.** The latency is the time to first
   audio on a scripted greeting, measured by Skysay on the date the row
   shows; reply latency after a caller speaks is not measured and is not shown
@@ -237,3 +430,58 @@ preview)** as the replacement. An agent that already uses it keeps running, its
 editor keeps it as the current selection, and its voice stack carries a warning
 naming the replacement. Google Gemini TTS (Flash 3.1, preview) and Google Gemini
 TTS (Flash-Lite 3.8) both stream.
+
+## Preview-only conversation models
+
+A model can have listening samples before it is ready for calls. On the
+Voices page its section says so once, and the model itself shows **Not
+available yet**. **Use in AI agent** stays disabled. Listening does not approve
+a voice for publishing, telephone calls or browser conversations.
+
+For Eleven Realtime, previews use the native Realtime model with the displayed
+voice, rather than an ElevenLabs text-to-speech model. Typed text starts a short,
+tool-free native session and is not kept in the shared cache. With no text,
+playback uses a validated platform sample in the selected language; a missing
+sample reports unavailable. No other voice, language or model is substituted.
+Custom delivery is not available. A selected
+[ambience](/docs/audio-environments) is mixed by Skysay for this audition only.
+
+The catalog count reflects the imported voices available for browsing, not
+ElevenLabs' entire voice library or a count approved for calls. ElevenLabs
+[advertises 90+ languages](https://elevenlabs.io/docs/overview/models);
+that is a provider claim, not a statement that Skysay has tested every language.
+Sample availability varies by voice and language. A dash in the price or latency
+column means that no callable price or measured call latency is available.
+
+Preview-only entries appear only where samples have been provisioned. This
+status does not announce general availability of Eleven Realtime calls.
+
+
+## Eleven Realtime conversations
+
+When enabled for calls, **Eleven Realtime** provides speech and reasoning
+as one conversation engine. Choose a voice, language and instructions. Configure
+a written first message and let the AI agent speak first. Generated openings,
+caller-first pickup, phone-menu navigation and controlled workflows are not
+supported by this integration. Tools still run through your AI agent's configured
+permissions. The silence timeout can end a native call without an additional
+spoken check-in or farewell.
+
+With Eleven Realtime, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech.
+
+The initial catalog contains 21 premade voices from the connected provider
+account. ElevenLabs advertises 90+ languages; Skysay exposes 90 base language
+choices from the native API's 91 accepted codes. These are provider-declared
+capabilities, not a claim that Skysay has tested every voice/language combination.
+Sinhala is not accepted by this native API. Listening samples remain exact
+voice/model/language recordings and may be available for fewer combinations.
+
+Eleven Realtime costs $0.15 per connected minute, charged by the second,
+with the usual platform, telephone and applicable tool charges. Its agent
+instructions are limited to 8,000 bytes; see
+[Eleven Realtime](/docs/conversation-engines#eleven-realtime). A reservation is an estimate, not the final
+price. Repeated delivery of the same usage does not create another charge.
+
+Availability depends on the deployed runtime and provider configuration.
+A preview-only badge still means you can listen but cannot select the model
+for a call. This documentation does not announce production activation.

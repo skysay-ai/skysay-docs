@@ -1,15 +1,18 @@
 ---
 title: Conversation engines
-description: Choose Standard speech-to-text, model, and text-to-speech, or GPT-Live 1, which listens and speaks at once.
+description: Choose a Standard voice stack or a live conversation engine.
 icon: ChatLines
 ---
 
 A hosted Skysay AI agent answers the phone with one **conversation engine**.
 The default is **Standard**: speech-to-text, a model, then text-to-speech. You
-can instead choose **GPT-Live 1**, which listens and speaks at the same time.
+can instead choose an available live engine, which listens and speaks within
+one session. The catalog states which engines can currently be selected.
 
-Telephony still uses Skysay numbers and LiveKit. GPT-Live 1 does not send
-the call to OpenAI SIP.
+Every engine uses the same Skysay numbers and call handling. GPT-Live 1 does
+not send the call to OpenAI SIP.
+
+<Diagram name="conversation-engines.svg" alt="Standard passes the caller's speech through three parts you choose: speech-to-text, a model that writes the reply, and text-to-speech, so interruptions, acknowledgements and tool-wait speech stay under your control. A live engine (GPT-Live 1, Gemini Live, or Eleven Realtime when enabled) hears and speaks in one session, so the live model handles barge-in and turn-taking itself; GPT-Live 1 also uses a backend model for tools." />
 
 ## Choose the engine
 
@@ -22,11 +25,18 @@ wizard's voice step.
 - **GPT-Live 1** replaces those three rows with a GPT-Live voice and a backend
   model for tools. The live model owns barge-in, backchannels, and waiting
   speech, so acknowledgements and turn-taking stay off for that engine.
+- **Gemini Live**, when enabled, is a Google Gemini Live session that listens
+  and speaks at once. It navigates phone menus, but it cannot run workflow
+  calls yet.
+- **Eleven Realtime**, when enabled, uses a native ElevenLabs session
+  for speech, reasoning and tool requests. It requires a written greeting and
+  an agent-first opening. See [Eleven Realtime](#eleven-realtime).
 
-`GET /v1/agent-catalog` lists both engines under `conversation_engines`.
+`GET /v1/agent-catalog` lists the engines under `conversation_engines`.
 Standard remains the default when you omit the field. Each row declares what
 the engine can do rather than leaving you to infer it from its name; today the
-one declared property is `has_language_axis`.
+properties include `has_language_axis`, `supports_manual_replies` and
+`supports_deferred_tool_replies`.
 
 ## Engines and the language axis
 
@@ -57,9 +67,10 @@ Two things to know:
 - On an agent with published languages, a **Current draft** test takes the
   voice and engine from the draft and the prompt and greeting from the
   published languages. The panel says so.
-- While **Follow the caller** is published for an agent, the panel offers only
-  **Published**: the published Follow contract is bound to the published
-  transcriber. Publish the voice change to test it.
+- While **Follow the caller** is published for an agent, a **Current draft**
+  test runs in the language selected in the panel only and does not follow the
+  caller, so you can hear a voice change before you publish it. Published calls
+  and **Published** tests still follow the caller. The panel says so.
 
 If a test cannot start because of the agent's setup, the panel lists what
 needs fixing in the same words the Agents page uses, with a link to the
@@ -67,16 +78,24 @@ section, rather than an error code.
 
 ## On the homepage demo
 
-The anonymous homepage demo offers every active agent in the Skysay demo
-workspace, whatever its engine. A GPT-Live or Gemini Live agent appears once,
+The anonymous homepage demo offers active agents in the Skysay demo workspace
+whose engine is supported by its platform-funded billing path. Eleven Realtime
+is not yet offered in the anonymous demo; use its workspace browser test
+panel instead. A GPT-Live or Gemini Live agent appears once,
 in its own language, and follows the visitor's language inside the session, as
 it does on a phone call. It opens with its configured greeting, and the demo's
 session length and daily limits apply exactly as they do to a Standard agent.
+The greeting is protected as on a browser test: until it has been spoken the
+engine hears silence instead of the visitor (see
+[Calls where the agent speaks first](#calls-where-the-agent-speaks-first)). A
+visitor who asks something as the demo connects hears the greeting in full;
+the question itself is not passed on, so they ask it again after the greeting.
 
 ## API and MCP
 
-The discriminator is `voice_frontend`: `cascade` or `gpt_live`. Omit it and
-the agent stays Standard.
+The discriminator is `voice_frontend`: use an engine identifier from the
+catalog, such as `cascade` (Standard), `gpt_live`, `gemini_live` or
+`eleven_realtime`. Omit it and the agent stays Standard. An unavailable engine cannot be selected.
 
 An engine whose catalog row says `has_language_axis: false` refuses
 `languages`, `language_profiles` and `follow_caller`. Both writers refuse them
@@ -177,8 +196,10 @@ agent-editor setting.
 
 ### Calls where the agent speaks first
 
-Inbound phone calls and browser tests keep their existing agent-first opening.
-The following input hold and quick-reply recovery apply to that opening path.
+Inbound phone calls, outbound calls set to have the agent speak first,
+browser tests and the homepage demo keep their agent-first opening. On GPT-Live 1 and Gemini Live,
+the following input hold and quick-reply recovery apply to that opening path.
+Eleven Realtime does not use this input hold.
 
 While the opening plays, the engine does not hear the line. A voice-to-voice
 engine answers whatever it hears, so hold music, an automated announcement or
@@ -189,13 +210,63 @@ what it said covers the opening, and the line has then been quiet for about a
 second. Skysay itself keeps listening the whole time, so answer detection and
 the call recording are not affected.
 
-On GPT-Live, a quick reply after the greeting stops can arrive while Skysay is
-still checking that quiet period. Skysay briefly retains this post-greeting
-audio and passes it to the engine once the opening check succeeds, before new
-live audio. Silent intervals are not replayed; a recovered reply includes at most
-200 milliseconds of leading quiet. Retention is limited to two seconds and stays
-in memory. This does not recover words spoken over the audible greeting or establish what the
-person meant.
+If the engine reports that it has finished the greeting but sends no text of
+it, there is nothing to compare: Skysay lets the engine hear the line again
+once the greeting has been audible for at least a second and the line has then
+been quiet for about a second and a half. Such a call is not counted as having
+delivered the configured opening.
+
+If the engine reports that it has finished the greeting but its transcript
+stops short of the opening, Skysay checks the text it has once the line has
+been quiet for about a second, instead of waiting for the rest. The call is counted as having delivered the configured opening, and a
+retained quick reply is passed on, only when that text matches the configured
+greeting closely enough.
+
+A greeting the agent generates (an agent with no fixed first message) is
+protected until the agent has been heard for at least a second and the line
+has then been quiet for about a second and a half, which is normally just
+after the greeting. A pause that long inside the greeting also ends the
+protection. If the greeting does not finish, the protection ends on its own,
+as described below. On a phone call a caller who keeps talking over the
+greeting still takes the floor as described below.
+
+On Gemini Live this also keeps the caller's first words from cancelling the
+greeting before it starts: without the hold, someone who spoke as the call
+connected could stop the greeting, and a browser test could end without the
+agent saying anything.
+
+A quick reply after the greeting stops can arrive while Skysay is still
+checking that quiet period. Skysay briefly retains this post-greeting audio and
+passes it to the engine once the opening check succeeds, before new live audio.
+On Gemini Live this needs the engine to have finished sending the greeting's
+audio; if it was cut off or the connection dropped, the reply is not passed on.
+Silent intervals are not replayed; a recovered reply includes at most 200
+milliseconds of leading quiet. Retention is limited to two seconds and stays in
+memory.
+
+A reply can also begin over the greeting's last words, when the person starts
+answering in a pause or before the final syllable has finished. If they are
+still speaking when the greeting ends, Skysay passes that reply to the engine
+from its first word, not only the part after the greeting. Up to about a second
+of speech from before the greeting ended is included. Skysay does this only if
+part of the reply was heard at least about 0.3 seconds away from the
+greeting's audio, where the greeting's own echo on the line could not have
+caused it. Otherwise only the part after the greeting is passed on, as before.
+This also happens when the reply started more than about a second before the
+greeting ended, or when the caller's audio stopped arriving for more than a
+quarter of a second while they spoke.
+
+Limits to plan for:
+
+- Skysay cannot tell speech from other sound. Music or an automated
+  announcement that starts in the last second of the greeting and continues
+  after it is also passed on from where it started.
+- The 0.3-second margin assumes the greeting's echo returns within that time.
+  On a line whose echo takes longer to come back, the echo of the greeting's
+  last word can be passed on with the reply. Echo delay on real phone networks
+  has not been measured. Audio that starts after the greeting is passed on
+  with no echo margin, as it was before this change.
+- This recovery does not establish what the person meant.
 
 Recovery is skipped when opening delivery cannot be established, the connection
 restarts, observation is interrupted, delayed audio arrives in a burst, the
@@ -203,25 +274,129 @@ buffer reaches its limit, or the call is ending. Normal listening still resumes 
 If the caller's reply was not understood, the agent may still need to ask them
 to repeat it.
 
-Two consequences to plan for:
+Consequences to plan for:
 
-- Anything the person on the line says during the opening is not passed to
-  the engine afterwards. If they speak over the greeting, the engine answers
-  what they say next.
+- A short sound during the opening, such as a "hello?", is not passed to the
+  engine afterwards if it ended before the greeting did. On a phone call, if
+  the person keeps speaking for more than about a second once the greeting
+  can be heard, the engine starts hearing the line again and is first given the
+  last two seconds of what they said, so it can stop its greeting and answer
+  them. This is the same one-second rule the Standard engine uses for its
+  opening line.
+- On Gemini Live, if the person starts speaking before the greeting can be
+  heard, the greeting is held back until they stop. What they said before the
+  greeting began is not passed on to the engine: they hear the greeting and
+  need to say it again.
+- In browser tests the one-second rule does not apply: a person who keeps
+  talking over the greeting does not take the floor. What they say during the
+  greeting is not passed on if they stop before it ends; a reply that runs on
+  past the end of the greeting is passed on as described above. A test caller
+  that says one line over the greeting and then waits for an answer gets the
+  greeting, not an answer to what it said.
 - If the engine does not finish the opening, it starts listening anyway: 12
-  seconds after the call is answered if it has said nothing, or at most 6 seconds
-  plus a tenth of a second per character of the opening (never more than 30
-  seconds) after it started speaking. A call whose engine said something
-  other than the configured opening is not counted as having delivered it.
+  seconds after the call is answered if it has said nothing. For a fixed first
+  message, at most 6 seconds plus a tenth of a second per character of the
+  opening (never more than 30 seconds) after it started speaking. For a
+  generated greeting, 6 seconds after it started speaking once the line has
+  been quiet for about a second and a half or Skysay has stopped receiving the
+  call's audio, and at most 30 seconds after it started speaking. In every case
+  the engine hears the line again at most 42 seconds after the protection
+  began. A call whose engine said something other than the configured opening
+  is not counted as having delivered it.
 
 Without an opening message, GPT-Live and Gemini Live write their own
 greeting. When the call carries per-call context, that greeting asks for the
 person by first name only, or who is speaking when the first name is unclear,
 and states no amount, reference or other account detail.
 
-Phone and browser Talk workflow runs cannot use GPT-Live. Skysay rejects
-that combination before reserving call funds or dispatching media. Ordinary
-GPT-Live calls and text workflow simulations remain available.
+## Eleven Realtime
+
+When enabled, `eleven_realtime` selects `elevenlabs` and
+`eleven_realtime_v1_max` for both the model and voice. Choose an exact voice
+from the catalog, a supported language, a nonempty literal first message and
+`opening.first_speaker: "agent"`. A draft browser test can carry this opening
+policy in `draft.stack.opening`; it does not change the published agent.
+
+The model can write delivery directions in square brackets into its replies,
+such as `[cheerful]` or `[slow]`. They shape how the voice sounds and are not
+spoken, so Skysay removes them from captions, the call transcript and anything
+derived from it, such as summaries. Other short bracketed text in a reply is
+treated the same way, so do not instruct the agent to say bracketed text.
+
+The native model decides normal turns and requests tools. Skysay executes those
+tools using the same call permissions as other engines. Tools that change business
+data require the independent confirmation listener configured for native engines;
+its transcription charges are separate from the native model charge. This integration does
+not support generated greetings, caller-first openings, phone-menu navigation,
+controlled workflows or manually forced replies. **Eleven Realtime cannot
+use Transfer to human yet.** Remove `transfer_to_human` and `cancel_transfer`
+before choosing this engine, or choose an engine that supports deferred tool
+replies. Skysay refuses conflicting changes, publication and call starts; it
+does not silently disable a configured transfer. Synchronous tools, including
+webhooks, `end_call`, `send_sms` and an explicitly configured `request_callback`,
+remain available subject to their ordinary permissions and confirmation rules.
+Silence can end a call without
+an extra check-in or farewell. Native connections are not retried after failure,
+so a reconnect cannot repeat a tool action.
+
+Eleven Realtime's tool format has named fields only, so Skysay hands it a
+parameter that is an object of names you don't list in advance, such as the
+calendar booking's answers to the event's questions or a webhook parameter
+declared with `additionalProperties` set to a schema and no listed properties,
+as a list of name and value pairs. It
+turns the list back into the object before the tool runs, so your webhook or
+calendar receives the same request it would from any other engine. If the model
+gives a name twice or leaves a value out, nothing runs and the model is asked to
+send the request again. A tool whose parameters use something this format
+cannot express, such as a `minimum`, `pattern` or `format` rule, or an object
+of free names that also requires a particular name, is left out of that call:
+the call starts with the AI agent's other tools, and the call's timeline does
+not show the omission.
+
+With Eleven Realtime, while an action runs, the agent cannot hear or answer the caller. Speech during that wait is absent from the transcript; the caller must repeat it after the action finishes. Speaking cannot stop an action that is already running. Interruptions work during normal speech.
+
+There are 21 initial catalog voices and 90 base language choices, derived from
+the native API's 91 accepted locale codes. These are provider declarations;
+not every combination has been tested. Sinhala is not an accepted native API
+language. [Listening samples](/docs/voice-library#preview-only-conversation-models)
+use validated recordings and may cover fewer voice/language combinations.
+
+Eleven Realtime costs $0.15 per connected minute, charged by the second on
+the call's own connected time: the same duration as the platform charge, so a
+2-minute call costs $0.30. Platform, telephone and applicable tool charges are
+additional. The wallet reservation is an estimate, not the final charge, and
+duplicate usage cannot charge the same call twice. A call whose ElevenLabs conversation never
+starts is charged no Eleven Realtime minutes.
+
+An Eleven Realtime agent's instructions can be at most 8,000 bytes of
+text, including the instructions Skysay adds for its tools. That is about
+8,000 characters of English and fewer in most other scripts. A longer prompt
+cannot be published on this engine, and the save or engine change names the
+limit and the prompt's current size.
+
+A preview-only entry remains unavailable for calls until the deployed
+integration is enabled.
+
+## Workflows
+
+A GPT-Live 1 agent can run a published [workflow](/docs/agent-workflows) in
+any language. The live session speaks every workflow line in GPT's own voice
+and its own wording, not word for word; the workflow still decides which step
+comes next. The agent's **Voice → Transcriber** listener, shared with its
+workflow, hears the caller, so a GPT-Live workflow needs a listener chosen
+there like any spoken workflow, one that accepts every language of the call
+(Azure real-time transcription, for example, accepts English, Sinhala and
+Tamil). Phone menu navigation does not run on these calls.
+
+OpenAI publishes no per-language list for GPT-Live 1, so Skysay accepts it in
+every language it runs calls in and blocks none up front. English is the
+language Skysay has tested on GPT-Live workflow calls, and it carries the
+**Tested by Skysay** badge; any other language is accepted untested. How well
+GPT-Live 1 holds a language varies (see
+[What Skysay has tested](/docs/language-following#what-skysay-has-tested) for
+free-form calls), so test your own languages before you launch. See
+[Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls) for the
+checks and their messages. Gemini Live still cannot run workflow calls.
 
 ## Call evidence
 
@@ -241,7 +416,8 @@ GPT-Live saves native captions and full-call recordings when recording is enable
 Captions can be imperfect, especially across languages, and for some languages
 (Sinhala most often) they can be missing entirely. When the other party spoke
 and the engine answered without a caption, the transcript in the Calls
-workspace marks it with a "Spoke — no transcript" line; see
+workspace marks it with a "Spoke — no transcript" line. An opening the caller
+heard but that has no transcript gets a note under the AI agent instead; see
 [Read call evidence](/docs/read-call-evidence). Per-turn audio clips and
 some timing evidence can be incomplete even when the full recording is available.
 Check the call's evidence status before using those details to assess audio quality
@@ -252,6 +428,11 @@ or response speed.
 GPT-Live 1 is billed by call duration, from the moment the call is placed, at
 **$0.05 per minute**, including silence, plus tokens for the backend that
 handles tools. Standard speech-to-text is not charged on that path.
+
+A GPT-Live workflow call is billed differently: GPT-Live session time at the
+same per-minute rate, plus the workflow listener's speech-to-text. It has no
+backend token line, because no backend model writes the words, and no
+text-to-speech line.
 
 See the [generated API reference](/docs/api-reference) for the exact request
 and response shapes.
@@ -264,18 +445,33 @@ speech detection says the caller is already speaking, the model's `end_call`
 request is refused. If the caller starts speaking while that close is pending,
 Skysay withdraws the close and leaves the conversation open. After the goodbye,
 there is up to 750 ms for the caller to take the floor, within the existing
-shutdown time limit.
+shutdown time limit. The model's `end_call` ends a call only when the agent's
+latest line was its goodbye; otherwise the call stays open and the model is
+told so (see
+[`end_call` needs the agent's goodbye](/docs/how-calls-end#on-live-engines-end_call-needs-the-agents-goodbye)).
 
 This safeguard is automatic; there is no new agent-editor switch or API field.
 It detects speech activity rather than meaning: noise can keep a call open,
 and speech the detector misses cannot stop closure. It does not establish
-identity, confirm a promise, count clarification questions, undo a goodbye
-already heard, or end a call when the model forgets to invoke `end_call`.
-Balance limits and other platform-enforced endings still close the call.
+identity, confirm a promise, count clarification questions or undo a goodbye
+already heard. Balance limits and other platform-enforced endings still close
+the call.
 
-On phone and workspace browser-test calls, the existing farewell fallback can
-also request closure after it recognizes the caller's closing words. If the
-caller takes the floor again, that pending request is withdrawn; a later
-goodbye can request a fresh close. A fallback close does not mean the model
-invoked `end_call`. Model tool use and actual call disconnection are separate
-evidence.
+On phone and workspace browser-test calls, Skysay also ends the call when the
+agent has said its goodbye and the model did not invoke `end_call`: see
+[the spoken goodbye ends the call](/docs/how-calls-end#on-live-engines-the-spoken-goodbye-ends-the-call).
+The close waits for about 2 seconds of quiet from both sides, and the agent
+answering the caller withdraws it; a later goodbye can request a fresh one.
+A call closed this way does not mean the model invoked `end_call`. Model tool use and actual call
+disconnection are separate evidence.
+
+## Workflow listening
+
+Ordinary live conversations use their engine's native listening. Spoken
+workflows use the agent's shared **Voice → Transcriber** setting independently
+of the output engine. A GPT-Live workflow can use any listener that accepts
+every language of the call: Deepgram Nova-3, Azure Realtime, Soniox STT-RT v6,
+or, in English only, OpenAI GPT-Live Transcribe. The latter is platform-managed, workflow-only, and provides no
+detected-language evidence. Timing belongs under **Tuning → Turn-taking**;
+workflow Publish shows the saved configuration and freezes it into a version.
+See [workflow voice setup](/docs/agent-workflows#voice-and-turn-taking).

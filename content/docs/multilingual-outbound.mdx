@@ -4,6 +4,8 @@ description: Understand opening language, fixed-language calls, controlled langu
 icon: ChatBubbleTranslate
 ---
 
+<Diagram name="call-languages.svg" alt="The call opens in its opening language. A Standard agent either keeps one language per call or follows the caller (on by default with two or more languages), switching only to a published language on a clear request or when the transcriber reports it twice in a row, and refusing an unpublished one. GPT-Live 1 and Gemini Live follow the caller inside the model, best effort, with no language lock." />
+
 ## Three different language choices
 
 The website language, the language that opens a call, and the languages an
@@ -16,12 +18,35 @@ agent can use during a conversation are separate choices.
 | Conversation language policy | Whether the call keeps one language or can change language during the conversation. Its behavior depends on the conversation engine. |
 
 The languages offered on the public homepage come from eligible published
-demo agents. Seeing six choices does not mean every agent is restricted to
-six languages, or that switching works only in English.
+demo agents. The number of choices does not restrict every agent to that
+set of languages, or mean that switching works only in English.
+
+## Website language and public demos
+
+The website and workspace are available in English, Estonian, German, French,
+Spanish, Russian and Italian. Use the language selector to choose **Italiano**,
+or open [the Italian homepage](https://skysay.ai/it) directly. An explicit
+homepage language URL takes precedence over a saved preference; otherwise,
+your saved choice takes precedence over the browser’s preferred supported
+language. Italian customer notification emails use the account’s saved locale.
+
+On the homepage, the browser demo initially selects the page’s language when
+an eligible demo agent is available in it. You can choose another offered demo
+language independently. This initial selection rule applies to every website
+language. Starting a call keeps its selected agent and language; a later change
+of page locale in a retained page does not retarget that call. Changing the demo
+language or agent deliberately ends the current call before another starts.
+Reloading or leaving the page disconnects its browser call.
+
+Italian offers the same three public examples: **Receptionist IA**,
+**Assistenza clienti**, and **Promemoria di pagamento**. These are independent
+demo agents, not translations applied to your own agent configuration. Payment
+reminders use fictional accounts and do not collect money. Browser demos are
+subject to availability and usage limits; choosing Italian does not provision
+an Italian phone number. The canonical legal documents and this documentation
+remain in English.
 
 ## How a call chooses its response language
-
-<img src="/diagrams/call-languages.svg" alt="Call language flow: after the opening, Standard agents either keep one language or switch within their published set; GPT Live and Gemini Live follow the caller inside the model on a best-effort basis. Unclear speech can be misrecognized on either path." />
 
 For **Standard** agents, speech-to-text (STT), the language model, and
 text-to-speech (TTS) are separate components. The editor offers **Single
@@ -33,6 +58,16 @@ Adding several languages is not, by itself, a promise that the agent will
 automatically detect a change. Some transcribers supply stable language
 evidence for automatic switching; others support switching only after the
 caller clearly asks. Check the capability shown for the chosen configuration.
+
+Deepgram Nova-3 now supplies that evidence: it reports the language of each
+final result, so an Auto multilingual agent on Deepgram switches when the
+caller is heard speaking another published language, after two agreeing
+results, as well as on request. This applies to agents that are already
+published from their next call; you do not need to republish. Follow the caller
+is on by default for an agent with more than one language, and an agent that is
+already published picks the default up when you next publish it. A
+language the caller speaks that is not one of the agent's published languages
+never switches the reply language.
 
 The call surface also matters: **Standard anonymous homepage demos currently
 support explicit-request switching, but do not connect provider language
@@ -102,6 +137,46 @@ Neither mode accepts arbitrary stack changes from `call_context`, extraction
 results, or a model instruction. A language request cannot add a new voice,
 provider, or language to an active call.
 
+### Hearing the other party in any language
+
+The language of the person or the phone menu that answers an outbound call, or
+of the person who calls you, is not yours to choose. So a call **listens** in
+any language, whatever the AI agent speaks: when the agent's transcriber can
+hear several languages at once without a list of candidates (Deepgram Nova-3), a
+Standard call uses that mode for the whole call — outbound, inbound, a browser
+test or a Simulations Lab room alike. An English-only agent that reaches, or is
+called by, a Polish speaker then understands what they say; before, the
+transcriber heard nothing of it.
+
+What the agent **says** does not change: it still speaks its own published
+languages, and it does not switch to a language it is not set up for. Two kinds
+of call keep listening in the agent's own language:
+
+- a call that follows the caller, whose own published setting already decides
+  how it listens;
+- a call that holds a keypad value for a phone menu, because a value read back
+  on the line is hidden only in a language Skysay recognises numbers in.
+
+A browser test that tries an unpublished transcriber, model or voice from the
+editor also listens in the agent's language.
+
+Listening in many languages at once can be slightly less accurate in the agent's
+own language than a transcriber set to that language alone (Skysay measured
+about one more word in a hundred on English phone-menu recordings).
+
+#### Locking listening to the agent's language
+
+If accuracy in the agent's own language matters more than hearing other
+languages, open the AI agent's **Languages** section and choose **Listening →
+The AI agent's language only**. Through the API, send
+`"listening": {"mode": "agent_language"}` to
+`PATCH /v1/agents/{agent_id}/voice-stack` (MCP tool `set_agent_voice_stack`);
+`"open"` restores the default. The setting is frozen in the published
+configuration, so changing it republishes the agent's languages, and it applies
+to every call from then on. It changes nothing for a transcriber without a
+multi-language mode, and an engine without a language axis (GPT-Live, Gemini
+Live) refuses it.
+
 ## Configure languages on one agent
 
 ### When you create the AI agent
@@ -140,7 +215,16 @@ transcriber or voice to make a larger set work.
 
 Some transcribers require a candidate list. If all compatible languages exceed
 that provider's simultaneous limit, choose a subset or another compatible
-transcriber. Skysay does not silently select a smaller list for you.
+transcriber. Skysay does not silently select a smaller list for you. An AI
+agent can have up to 256 languages, so a transcriber with no candidate list,
+such as Deepgram Nova-3's
+multilingual mode, can follow the caller across every language the rest of the
+configuration speaks. If **All supported languages** would ever come to more
+than 256, it is refused with both numbers and you choose a subset; it is never
+shortened. The same limit applies to an AI agent that runs a workflow and to
+its workflow's voice input. The agent catalog returns it as
+`max_call_languages`, and the voice-stack response as
+`language_profiles.max_languages`.
 
 The opening language determines how the AI agent starts before the caller
 speaks. Publish the configuration to freeze its accepted languages for future
@@ -228,27 +312,26 @@ first one that can run a call in every selected language. English plus German,
 for example, shares Gemini `gemini-3.1-flash-tts-preview`. ElevenLabs
 `eleven_v3` is shared only into languages where it is already the default, so
 it never becomes English's voice unless you choose it.
-It costs about twice as much per character as the English-only
+It costs about twice as much per character as
 `eleven_flash_v2_5`, and it is synthesized in chunks over HTTP rather than on
 Flash's realtime connection; we have not measured how its response time
 compares with Flash. You can still choose `eleven_v3` as the agent's voice, and
 then English and Estonian share it. Each voice in `GET /v1/agent-catalog` lists
 the languages it runs in `languages` and the languages it is picked for
 automatically in `default_languages`; for `eleven_v3` that is Estonian only.
-ElevenLabs `eleven_v4_turbo` can be chosen for English, Spanish, French,
-German, Italian, Portuguese, Dutch, Russian, Swedish, and Estonian. It is the
-default for none of them, so an unsaved agent never lands on it, and an agent
-that already has a voice keeps that voice. It is cascade text-to-speech, not a
-voice-to-voice engine. It costs $0.050 per 1,000 characters: the provider's
-list price of $0.04 per 1,000 characters plus 25%. The promotional $0.011 per
-1,000 characters through 12 October 2026 is not the pinned rate. On a phone
+ElevenLabs `eleven_v4_turbo` can be chosen for every call language that
+ElevenLabs lists for the model (see
+[ElevenLabs voices](/docs/language-qualification#elevenlabs-voices-speak-the-languages-elevenlabs-lists)).
+It is the default for none of them, so an unsaved agent never lands on it, and
+an agent that already has a voice keeps that voice. It is Standard-engine text-to-speech, not a
+voice-to-voice engine. It costs $0.050 per 1,000 characters. On a phone
 call it uses ElevenLabs' dialogue connection, because the Flash connection
 rejects this model. The end of a reply decays naturally, so Skysay does not
 buffer it into sentences the way it does for `eleven_v3`.
 
 When no default is shared, the opening language's default is shown. English
 plus Estonian shows English's `eleven_flash_v2_5`, and German plus Estonian
-shows German's Gemini voice; neither speaks Estonian. In the agent editor, each
+shows German's Gemini voice. In the agent editor, each
 language the shown voice cannot serve then gets that language's own recommended
 voice as an override (`eleven_v3` for Estonian), which you see and publish with
 the rest.
@@ -273,7 +356,9 @@ Read `language_profiles.revision` from the voice-stack response and send it as
 `language_profile_revision` when saving `languages` or `language_profiles` to
 detect a stale editor instead of overwriting a newer edit. Omitting the revision
 skips this check for compatibility; it does not protect a stale client from
-overwriting newer settings. The selected language set must contain 1–32 entries.
+overwriting newer settings. The selected language set must contain at least one
+entry and at most 256 (`language_profiles.max_languages`); a larger set is
+refused, never shortened.
 To remove a language, supply the remaining selected languages and omit any
 override for the removed language from the replacement profiles array. Keep at
 least one language, including the opening language; an empty set is invalid.
@@ -369,17 +454,18 @@ Keep **Single language per call** when each call should stay in its selected
 language. The opening language determines how the agent starts; it does not
 force the caller to stay in that language.
 
-Whether **Follow the caller** starts on depends on where the agent came from:
+**Follow the caller** is on by default for an AI agent with two or more
+languages. Unless you choose otherwise, the agent answers each caller in
+whichever of its selected languages they speak, wherever its transcriber can
+listen for all of them at once. Where the transcriber cannot, the agent keeps
+single-language behaviour and nothing is blocked. An AI agent that is already
+published changes only when you next publish it.
 
-- **Agents that already exist, and any change you make in the editor.** Off
-  until you enable and publish it yourself. Adding a second language in the
-  editor's **Languages** section does not switch it on.
-- **Agents created through the new-agent flow.** On, but only when both are
-  true at the moment you create it: you chose two or more languages, *and* the
-  transcriber you chose declares that it can listen for all of them at once. If
-  either is not true it is off, and nothing about the agent is blocked -- you
-  simply get single-language behaviour until you change the transcriber and
-  publish.
+A choice you make is kept: turning it off stays off when you later add
+languages or change the transcriber, and turning it on is refused where the
+transcriber cannot follow. While Follow the caller is published, a **Current
+draft** test of an unpublished voice change runs in the test's selected
+language only, without following the caller; published calls still follow.
 
 An agent created through the API with Follow the caller for all languages
 (`"follow_caller": {"enabled": true, "scope": "all"}`) is published at
@@ -388,7 +474,7 @@ save would publish it. If that publication is refused, the agent keeps the
 languages it was created with and stays unpublished, with the reason in its
 `metadata.publication`.
 
-To turn it off on a newly created agent, open the AI agent editor, go to
+To turn it off, open the AI agent editor, go to
 **Languages**, choose **Single language per call**, and publish. The
 [voice-stack API](#optional-follow-the-caller) does the same thing with
 `{"follow_caller": {"enabled": false}}`.
@@ -579,7 +665,7 @@ and extraction events as the evidence path. Verify every signed delivery,
 deduplicate by event ID, and retain only what your policy permits. See
 [Post-call results](/docs/post-call-results) for verification and retrieval.
 
-Skysay does not impose a 90-second hard cap for this flow. The outbound
-worker defaults to a 1,800-second maximum and a deployment can set a value from
-30 through 14,400 seconds. A language retry is still a separate future call,
-never an automatic in-call mutation.
+Skysay does not impose a 90-second hard cap for this flow. A call lasts at
+most 29 minutes (1,740 seconds); an AI agent can shorten that with
+`turn_taking.max_call_seconds`, from 60 to 1,740 seconds. A language retry is
+still a separate future call, never an automatic in-call mutation.

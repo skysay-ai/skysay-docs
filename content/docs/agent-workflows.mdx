@@ -8,14 +8,135 @@ An agent workflow turns an open-ended voice agent into a governed conversation:
 a graph of typed steps with named routes, hard limits, and evidence for every
 turn. You build the graph visually — or describe it in plain language and let
 AI draft it — while Skysay continuously compiles it into a versioned,
-server-validated runtime contract. The model phrases nothing on its own
+server-validated runtime contract. The model decides nothing on its own
 authority: it chooses between the routes you declared, and the server applies
-the transition.
+the transition. On the Standard engine the workflow supplies the text sent to the selected
+text-to-speech voice; on GPT-Live 1 the model says each line in its own words (see
+[Spoken workflow calls](#spoken-workflow-calls)).
+
+## Voice and turn-taking
+
+Choose the caller's speech recognizer under **Voice → Transcriber**. Choose
+interruption sensitivity under **Tuning → Turn-taking**. Expand **Advanced
+overrides** only when you need explicit silence or interruption durations;
+clearing a value restores the preset.
+
+For an agent with a workflow, **Voice** also shows the published ordinary-call
+input per language. Calls without a bound workflow keep that published input;
+a workflow-only listener is never presented as the ordinary Standard input.
+**Save settings** stages the workflow input, then workflow **Publish** applies it.
+
+These are the agent's shared editable settings. A workflow's **Publish** view
+shows the saved listener, its languages, credential source, and resolved timing,
+with links to those controls. Save pending Voice/Tuning edits before publishing
+the workflow. Publishing freezes a copy: changing the shared settings later does
+not change an existing workflow version or an in-progress call. Restoring a
+workflow version restores its graph; it keeps the agent's saved Voice/Tuning
+settings for the next publication.
+
+A text-only workflow can have voice input turned off. A spoken workflow needs a
+listener that accepts every language required by the workflow and agent: a
+model is accepted for every language Skysay lists for it, and its **Caller
+languages** picker offers those languages. See
+[Which voices and listeners a spoken workflow accepts](#which-voices-and-listeners-a-spoken-workflow-accepts).
+
+| Listener | Accepted for spoken workflows | Tested by Skysay | Credentials |
+| --- | --- | --- | --- |
+| Deepgram Nova-3 | Every call language | English, Tamil | Skysay or your supported credential |
+| Azure Realtime | Every call language Skysay has an Azure regional tag for | English, Sinhala | Skysay only |
+| Soniox STT-RT v6 | Every call language | English | Skysay or your supported credential |
+| OpenAI GPT-Live Transcribe | Every call language | English | Skysay only |
+
+GPT-Live Transcribe is a finite **workflow listener**. It is not offered as a
+transcriber for an ordinary Standard conversation. It uses OpenAI's transcription
+connection directly, and bills provider-reported audio seconds, including the
+provider's rounding. It does not provide detected-language evidence for
+**Follow the caller**. It accepts every call language, Skysay has tested
+English only, and it makes no claim about automatic language switching.
+
+Soniox STT-RT v6 writes amounts and codes the way the caller says them. A
+caller who says "fifteen dollars and twenty cents" is written as "15 dollars
+and 20 cents", not "$15.20", and a code is written without hyphens the caller
+did not say ("NP38BX"). Soniox STT-RT v5 is no longer available: Skysay moved
+every agent on it to v6, with nothing for you to change. Calls that used v5
+keep their call details and charges. A test run made on v5 stays readable but
+cannot be rerun, so start a new run from the suite instead.
+
+For ordinary GPT-Live or Gemini Live conversations, the live engine handles
+listening and turn-taking. A GPT-Live spoken workflow instead uses the listener
+under **Voice → Transcriber** to hear the caller and the live session to speak.
+GPT-Live's workflow output is accepted in every language, with English marked
+**Tested by Skysay**; the model speaks in its own wording. Standard workflow
+outputs use the agent's selected voice. See
+[conversation engines](/docs/conversation-engines).
+
+Workflow presets use voice activity detection, rather than a semantic turn
+model. Silence holds accept 300–3000 ms and minimum interruption speech accepts
+0–1000 ms. Ordinary Standard overrides retain their existing 100–2000 ms and
+80–2000 ms bounds. The settings express the same intent across modes; their
+underlying turn detectors differ.
+
+A spoken workflow starts deciding while the caller finishes. After the caller
+stops speaking, the listener keeps hearing the line through the silence hold,
+for up to 950 ms (the whole hold when it is shorter), so the listener can
+finalize the caller's words before the hold ends. The workflow then decides the
+caller's turn ahead of time, and uses that decision only if the words the turn
+ends with are exactly the same. If the caller keeps talking and the words
+grow, it decides ahead again on the longer words, up to three times in one
+turn. If the turn ends with words none of these decisions saw, it decides again
+from the final words. On a Standard workflow, it may also decide ahead on the
+listener's words that are not yet final, once they have stayed the same for a
+quarter of a second, up to two more times in one turn; those decisions follow the
+same rule and are used only if the turn's final words are exactly the same. This
+helps most on noisy lines, where the listener finalizes late. A GPT-Live workflow
+decides only on finalized words, as before. The turn still ends when the hold
+ends; before then nothing is said or disclosed and the workflow does not move to
+another step. The extra listening is billed as listener audio: up to 0.95
+seconds more per caller turn. GPT-Live Transcribe finalizes only when the turn
+ends, so with it the workflow decides after the hold, as before.
+
+### Configure shared input through the API
+
+Read `GET /v1/agents/{agent_id}/voice-stack` and retain
+`voice_setup.revision`. Once the agent has a workflow, stage an English listener:
+
+```json
+{
+  "expected_voice_setup_revision": 0,
+  "voice_setup": {
+    "listener": {
+      "registry_name": "openai_transcribe",
+      "model": "gpt-live-transcribe",
+      "languages": ["en"],
+      "credential_source": "platform_managed"
+    },
+    "turn_taking": {
+      "interruption_sensitivity": "balanced"
+    }
+  }
+}
+```
+
+Send this to `PATCH /v1/agents/{agent_id}/voice-stack`, replacing `0` with the
+revision you read. A stale revision returns 409; reload and review the other
+edit before trying again. Do not combine `voice_setup` with `transcriber` or
+the overlapping `turn_taking` fields in one request. Existing component and
+tuning commands update the same owner and retain ordinary agent publication
+behavior.
+
+Read the workflow draft before publishing. Send its `revision` as
+`base_revision` and its `voice_setup_revision` as
+`expected_voice_setup_revision` to
+`POST /v1/agents/{agent_id}/workflow/publish`. A voice change while publication
+is preparing returns 409. The workflow read contains a derived `voice_input`
+for inspection; omit that field from graph PATCH requests. Writing it is
+refused with instructions to use the shared voice-stack command.
 
 ## The canvas
 
 Open any agent and choose **Workflow**. If the agent has no workflow yet you
-can start from a template (Payment reminder, Customer support, Receptionist),
+can start from a template (Payment reminder, Customer support, Receptionist,
+Appointment booking),
 a blank canvas, or a natural-language brief that AI turns into an editable
 first draft. Creating a workflow creates only a private draft — no number is
 attached, no tool authorized, no call placed, nothing published.
@@ -26,11 +147,10 @@ Each step is one governed unit:
 | --- | --- |
 | **Ask** | Speaks a question and waits for the caller. |
 | **Tell / Say** | Speaks approved information; may continue silently or end the turn. |
-| **Read tool** | Checks, silently inside a turn, that the call carries the data the next lines need, and takes its error route when it does not. |
+| **Read tool** | Runs, silently inside a turn, one of the AI agent's own tools (see [Tools on a workflow call](#tools-on-a-workflow-call)), or checks that the call carries the data the next lines need. Takes its error route when it cannot. |
 | **Branch** | Chooses exactly one named route from the caller's answer. Cannot invent routes. |
 | **Outcome** | Records a structured result or review candidate. |
-| **Transfer** | Hands the live call to a configured destination, with a declared fallback. |
-| **Send SMS** | Sends an authored text message to the number on the call, then continues. |
+| **Action** | Prepares one configured write, asks for confirmation, and follows its success, declined, change, error or unknown route. SMS and call transfer use this step. |
 | **End** | Speaks the farewell and closes the session. |
 
 Routes carry the labels you write ("Can pay", "Dispute"), and those labels are
@@ -45,16 +165,100 @@ rail. They can preempt any ordinary step, and when a caller's utterance
 matches more than one, the server picks the highest-precedence interrupt from
 a fixed order; the model never decides precedence.
 
-**A reply to a spoken line that leads straight to a branch** is decided once,
-against that branch's routes and the global interrupts together. The dispute,
-hardship, callback and human-request interrupts are weighed against your routes
-as one choice: a route you wrote for the reply ("Already paid", "Has a
-question", "Wants to leave a message") is taken when it fits what the caller
-said better, so the branch you laid out answers them, and when none of your
-routes fits, the interrupt applies as before. Wrong party, cease contact and
-language change are always checked on their own and still preempt any route.
-When a read tool or Send SMS step sits between the line and the branch, the
+**The callback interrupt reads the time.** When a reply takes the `callback`
+interrupt, the turn also reads when the caller asked to be called back ("in
+two minutes", "tomorrow at three"), on the call's own local clock, and records
+it on the call as [`call.workflow_callback_time`](/docs/read-call-evidence#callworkflow_callback_time).
+On a campaign call the campaign places the [call-back](/docs/campaigns#call-backs)
+at that time. Only the interrupt records a call-back request: an authored route
+to the same step records none, including in workflows published before this
+reading existed. New payment-reminder drafts no longer add such a route.
+
+**What counts as a request for a person.** The human-request interrupt means an
+explicit request to speak to a person instead of the AI agent ("Can I talk to
+someone at reception?", "Put me through to a real person"). Asking a question,
+asking about an order or a delivery, asking to be called back later, or simply
+answering the agent's question is not one: a caller who is asked "May I have
+your name and what you would like me to pass on?" and gives their name and a
+booking request is answering, and the step continues on its own route. The
+definition has no setting; to send particular replies somewhere of their own,
+give the step a route for them.
+
+**A reply to an Ask step's question, or to a spoken line that leads straight
+to a branch,** is decided once, against that step's or branch's routes and the
+global interrupts together. The dispute, hardship, callback and human-request
+interrupts are weighed against your routes as one choice: a route you wrote for
+the reply ("Already paid", "Has a question", "Wants to leave a message") is
+taken when it fits what the caller said better, so the step you laid out
+answers them, and when none of your routes fits, the interrupt applies as
+before. Wrong party and cease contact are always checked on their own and still
+preempt any route. When a read tool sits between the line and the branch, the
 branch decides after that step, separately, as before.
+
+**Language change on an agent that follows the caller.** When the caller
+speaks, or asks for, another language the agent publishes, the call switches to
+that language and the same reply is still decided against your routes: a
+question asked in Spanish takes your "Has a question" route and is answered in
+Spanish, in the same turn. Only a reply that is about the language alone ("Can
+you help me in Spanish?") speaks the current step again, in the new language. A
+language the agent does not publish takes the language-change interrupt's own
+route, as before. This holds for a reply that ends the call too: a caller who
+says goodbye in Spanish, or says in Spanish that they are not the person you
+called, hears the farewell in Spanish. Once the call is ending, nothing switches
+its language again.
+
+On an Ask step the caller still gets what they ask for alongside an answer:
+"Yes, it's me, but I want to speak to a person" takes the human-request
+interrupt rather than confirming the caller,
+and a request that comes with "sorry, can you repeat that?" is not dropped for
+a repeat. When a reply expresses several of these interrupts, such as a dispute
+and a hardship, all of them are reported and the fixed order above decides
+which one applies. This applies to an Ask step that chooses one of its routes.
+It does not apply to an Ask step that checks the caller's answer against a
+protected value, or to speech that starts before the question has been fully
+spoken; there the interrupts are checked on their own, as before, unless you
+marked a route for it (below).
+
+### Statements the caller makes over a line
+
+A caller sometimes says something on their own while a line is still playing,
+such as "I already paid" over the balance explanation. Those words are not an
+answer to a question they have not heard, so by default only the global
+interrupts are checked, and a payment claim can land on the dispute interrupt.
+
+To give such a statement a step of its own, mark the route that should take it:
+in the editor, tick **The caller may say this while the line is still playing**
+on the route, or set `"while_speaking": true` on it through the API. Words over the line are then also decided against
+the marked routes, as one choice with the dispute, hardship, callback and
+human-request interrupts. A marked route is taken only when the caller's words
+themselves state what its label says. A bare "yes", a plan to pay or "let me
+check" takes none, and the line goes on (Standard) or is spoken again
+(GPT-Live 1), as for any words over a line (see
+[How the lines are spoken](#how-the-lines-are-spoken)).
+
+```json
+{ "id": "already_paid", "label": "Says this balance is already paid",
+  "target": "ask_payment_date", "while_speaking": true }
+```
+
+The rules, which validation enforces:
+
+- Only routes on an **Ask** step, or on a **Branch** that a waiting spoken line
+  leads to directly, can be marked. Unmarked routes are never offered over a
+  line.
+- A marked route can't be one of the step's `verified_routes`, and can't be on
+  a step that checks a protected value. A statement over a line never confirms
+  who the caller is.
+- A marked route may lead only to a spoken line, a Branch, a Read tool step, or
+  an Ask step that does not verify identity. It may not lead straight to an
+  action (a write, a transfer or an SMS), an outcome or an end; reach those
+  through a line or a question.
+- Wrong party, cease contact and language change still preempt a marked route,
+  and a dispute or another want the caller states still wins over it. The
+  call's opening is never decided against marked routes.
+
+The turn's evidence records the route with the policy reason `while_speaking`,
+and the line the caller spoke over is not repeated.
 
 Every semantic edit is also available from the form/list editor without
 drag-and-drop, and edits autosave to the draft only. If someone else edits the
@@ -97,10 +301,15 @@ question the line asked — "Have you already paid it?" — is an answer, not a
 denial of identity. Only that one line is added: the workflow's other steps,
 the caller's earlier replies and any variable the line does not state never
 reach the decision model. The values are included only when the model that
-judges replies runs on the same provider as the agent's own model, so your
-data reaches no provider the call was not already using. For any other
-provider the line goes as you wrote it if it names no variable, and is left
-out if it does.
+judges replies runs on the same provider as the model the call was started
+on, so your data reaches no provider the call was not already using. That is
+the model the call was started with, not the agent as it is now: changing the
+agent's model during a call does not change where that call's values go. With
+[Follow the caller](/docs/multilingual-outbound), every language the call may
+switch to must use that same provider. When the agent's model runs on your
+own provider key, the judging model (which runs on Skysay's) counts as
+another provider. For any other provider the line goes as you wrote it if it
+names no variable, and is left out if it does.
 
 Because the two mean different things, a workflow may not point both
 interrupts at one outcome step, and validation refuses a draft that does. Both
@@ -138,6 +347,52 @@ Template updates do not rewrite existing drafts, custom workflows, or immutable
 published versions. To adopt the clarification steps on an existing agent,
 explicitly update its draft, test the new routes, and publish a new version.
 
+### Ask one question over several steps
+
+A question can take several steps to ask: the identity question above is one
+question and two clarifications. Each step is spoken again when the caller talks
+over it (see [How the lines are spoken](#how-the-lines-are-spoken)), so a caller
+who keeps talking over three steps can hear the question up to nine times. A
+**question group** gives those steps one shared limit.
+
+```json
+"question_groups": [
+  {
+    "id": "identity",
+    "steps": ["verify_person", "clarify_identity", "clarify_identity_final"],
+    "max_presentations": 3,
+    "on_exhausted": "identity_unconfirmed"
+  }
+]
+```
+
+- `steps` are **Ask** steps, or **Tell / Say** steps that wait for the caller.
+  A step belongs to at most one group.
+- `max_presentations` is 1 to 20. One is spent each time a line of one of the
+  steps starts playing to the caller, whether it plays to the end or the caller
+  talks over it. A line that never started playing is not counted, and a retried
+  or repeated request does not count it twice.
+- Once the limit is spent, the workflow goes to `on_exhausted` instead of
+  asking any of the steps again, and the call's workflow path shows the route
+  `question_group_exhausted` with the reason
+  `question_group_exhausted:<id>:<spent>/<max_presentations>`. `on_exhausted`
+  may not be a step of any group, and may not lead back into its own group.
+- A caller who answers on the last allowed presentation is still heard: a
+  confirmation then takes its route as usual. A stop request, a wrong-person
+  reply and the other global interrupts are decided first, so a spent group
+  never holds them back.
+- A presentation the caller talked over still counts toward the limit, but it
+  never confirms anyone. Only an answer to a question the caller heard in full
+  can.
+- Protected values follow the same rule as everywhere else: `on_exhausted` and
+  the steps after it may not say one the group's steps have not released.
+
+Groups are optional. A workflow without them keeps every limit described on this
+page exactly as before, and the starter templates declare none. Set them with
+`PATCH /v1/agents/{id}/workflow` (the `question_groups` field of `workflow`);
+the canvas keeps them when you edit the draft there, and validation reports a
+group that does not fit the rules above.
+
 ## Validation, then testing, then publishing
 
 ### Reconcile before an edit or publish
@@ -149,7 +404,7 @@ draft/revision, validation, safe canvas layout, active published-version
 metadata, and a bounded newest-first version summary so the client can compare
 what it intended to change. The draft comes back whole -- its `variables`
 (normalized; if any declaration cannot be read, the whole `variables` block is
-left out, and the draft's `validation` says why), each identity step's `matches` and every Send SMS step
+left out, and the draft's `validation` says why), each identity step's `matches` and every Action step
 -- so a client that reads, edits and writes the draft back keeps them. It is a pure read: no AI or provider call, compile,
 repair, lazy creation, or other mutation occurs.
 
@@ -164,8 +419,63 @@ outcome step, tool or language incompatibilities, blank spoken text, missing
 transfer destinations, a line that names a variable the workflow does not
 declare, and a line or SMS that could say a
 [protected variable](#protected-values) before the caller is confirmed
-(`PROTECTED_BEFORE_CONFIRMATION`, naming the step). Warnings are separate and must
-be explicitly acknowledged before publishing.
+(`PROTECTED_BEFORE_CONFIRMATION`, naming the step). An incomplete or invalid
+listener in the agent's voice setup (`INVALID_VOICE_INPUT`) blocks publishing
+too; see
+[Choose how the workflow hears callers](#choose-how-the-workflow-hears-callers).
+Warnings are separate and must be explicitly acknowledged before publishing.
+
+### A step this AI agent can't run
+
+An **Action** step runs one of the AI agent's own tools. When the AI agent does
+not have that tool in a form the step can use, the step can't run on a call,
+and the workflow tells you before you publish. The warning is
+`AGENT_TOOL_NOT_CONFIGURED`, one per step, and it names the step, the tool,
+where callers go instead and how to fix it:
+
+| Reason (`details.reason`) | What it means |
+| --- | --- |
+| `tool_missing` | The AI agent has no tool with the step's name. |
+| `tool_not_write` | The tool exists, but it only looks things up; an Action needs a tool set up as an action that changes something. |
+| `integration_action_unavailable` | The Integration action saved on the AI agent no longer matches an action of its integration in this project (it was removed, renamed or moved). |
+| `transfer_number_missing` | The step transfers the caller, and the AI agent's Transfer to a human tool has no phone number. |
+| `transfer_number_invalid` | The Transfer to a human tool's phone number can't be dialled. Enter it in international format, starting with `+` and the country code. |
+
+On a call such a step takes its `on_error` route. In the Receptionist starter,
+for example, a caller who asks for a person on an agent with no transfer number
+goes to the step's error route instead of being connected.
+
+The warning never blocks publishing. It appears in the draft's validation (the
+editor's **Validation** view and the publish panel, and `validation.warnings`
+over the API) and in the publish response's `warnings`. Unlike other warnings it
+is never acknowledged: you don't send it in `acknowledged_warning_codes`, and
+the editor's publish panel lists each step without asking you to tick it. Health that can change after publishing, such as a
+calendar or integration that is switched off later, is not part of this
+warning; the step's `on_error` route handles it on the call.
+
+**Removing a tool a published workflow uses.** Saving the agent's tools with
+`PATCH /v1/agents/{id}` or `PATCH /v1/agents/{id}/voice-stack` still succeeds
+when it takes away a tool, or clears a transfer number, that a step of the
+published workflow needs. The response then carries `workflow_warnings`: one
+entry per step this save left unable to run, with the agent, the workflow and
+its published `version`, the step and the reason, in the same shape as the
+warning above. The editor says so when you save and lists each step under the
+agent's problems, and the workflow's publish panel shows the live version's
+steps that can't run, until the tool is back. Calls take each step's error
+route meanwhile. You don't need to publish again: restoring the tool is enough,
+because a call looks up the agent's tools when it reaches the step.
+
+**Knowledge search after unlinking its sources.** Unlinking an AI agent’s
+knowledge sources does not remove steps from its workflow. If the workflow's
+validation reports `AGENT_TOOL_NEEDS_SOURCE` for `search_knowledge_base`,
+open that step. To keep knowledge search, choose the AI agent’s knowledge-search
+tool: its declaration uses `source: "agent"` and an empty `projection`, and its
+fixed result is `knowledge_answer`.
+
+If you do not want knowledge search, remove its step and unused tool declaration,
+reconnect the surrounding routes and remove references to its answer. Check
+validation again before testing. Repairing a tool declaration makes it valid;
+it does not remove the tool or change the workflow’s starting step.
 
 Four test modes run against the exact draft — its voice stack, knowledge,
 tools, and workflow:
@@ -183,9 +493,17 @@ tools, and workflow:
   turn.
 - **Phone** — a controlled test call on an attached, eligible number. You arm
   a short-lived pin for one declared caller number and one attached number;
-  while it is armed, calls from that caller run the pinned draft, and every
-  other caller continues to reach the published workflow. Pins expire on a
-  timer and after a bounded number of matches.
+  while it is armed, calls from that caller run the pinned workflow, and every
+  other caller continues to reach the published workflow (or the AI agent's
+  instructions, when no workflow is published). A draft pin takes the
+  draft as it is when the matching call arrives, not as it was when you armed
+  it; if the draft changes while that call is being prepared, the call is not
+  bound to it. Pins expire on a timer and after a bounded number of matches.
+
+Talk and Phone are spoken calls, so they pass the same checks as a real call:
+funds, and a voice and listener that a spoken workflow accepts (see
+[Spoken workflow calls](#spoken-workflow-calls)). Chat and Simulations use no
+voice or listener.
 
 Draft tests can never execute unapproved mutation tools and never publish
 anything implicitly. Runs record the exact pinned contract, each step, the
@@ -196,6 +514,329 @@ Publishing creates an immutable version. Ordinary callers move to it only when
 you publish; drafts never affect live traffic. Restoring an old version copies
 it into a new draft — history is never rewritten — and version history shows
 what changed between versions.
+
+## Spoken workflow calls
+
+A phone call, a Phone test or a Talk test that runs a workflow needs two
+things the workflow itself does not provide: a **listener** that turns the
+caller's speech into text, and a **voice** that speaks the lines. Both belong
+to the AI agent's voice setup, not to the workflow: you choose the listener
+under **Voice → Transcriber** and the voice with the agent's other voice
+settings. Skysay starts a spoken workflow call only when both accept every
+language the call can speak or hear (see
+[which languages count](#which-voices-and-listeners-a-spoken-workflow-accepts)).
+
+### Choose how the workflow hears callers
+
+The listener that hears callers is part of the AI agent's voice setup. It is
+configured once, under **Voice → Transcriber**, with its timing under
+**Tuning → Turn-taking**, and it is shared: the same saved setup serves the
+agent's ordinary calls and its workflow. A workflow does not have a listener of
+its own to edit, and nothing on the canvas or in the graph sets one.
+
+| Setting | Where | What it does |
+| --- | --- | --- |
+| **Receive caller speech** | **Voice → Transcriber** | Turns on the listener for the agent's spoken workflows. Turned off, the publish view shows **No voice input (text only)**: the workflow runs in Chat and Simulations but cannot make spoken calls. |
+| **Speech recognition model** | **Voice → Transcriber** | The listener, a model from the table in [Voice and turn-taking](#voice-and-turn-taking). |
+| **Caller languages** | **Voice → Transcriber** | Every language the workflow speaks, and every language the agent is set up to speak, must be in this list, and the model must accept each of them. The list offers every language Skysay lists for the model; the ones Skysay has tested with that model carry a **Tested by Skysay** badge. |
+| **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
+| **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
+| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off. On the Standard engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
+
+A published workflow keeps hearing callers through that setup. Publishing
+freezes a copy of the saved listener and timing into the version, so each
+version and each call in progress keeps the listener it was published with.
+Changing the setting later does not alter either; it takes effect for the next
+version you publish. To change how a workflow hears callers:
+
+1. Change **Voice → Transcriber** or **Tuning → Turn-taking** and choose
+   **Save settings**.
+2. Open the workflow's **Publish** view, which shows the saved listener, its
+   languages, credential source and timing, and publish a new version.
+
+Publishing is blocked while the Voice or Tuning edits are unsaved, or if the
+setup changed elsewhere since you loaded the agent; reload the agent and review
+the change first. A listener that is incomplete or invalid for the workflow
+(`INVALID_VOICE_INPUT`) blocks publishing until you fix it in **Voice**. Restoring
+an older version restores its graph only; the agent's saved voice setup stays as
+it is.
+
+AI never chooses the listener for you. Generating a workflow from a brief
+does not touch the voice setup, and an AI edit keeps the listener you chose.
+
+Through the API, read and change the listener with the agent's voice-stack
+route, as described in
+[Configure shared input through the API](#configure-shared-input-through-the-api).
+The workflow draft returns a read-only `voice_input` that shows what a publish
+would freeze; a workflow request that includes it is refused. The publish
+operation describes the complete shape (`WorkflowVoiceInput`) in the
+[API reference](/docs/api-reference).
+
+Publishing checks that the listener covers every language. Whether the
+listener and the voice accept the call's languages is checked again when a
+call starts, as described next.
+
+### Which voices and listeners a spoken workflow accepts
+
+A listener or voice on this list is **accepted** for every language Skysay
+lists for that model: the languages its provider supports that Skysay runs
+calls in, shown in the **Caller languages** picker for a listener and in the AI
+agent's language settings for a voice. GPT-Live 1
+publishes no per-language list, so it is accepted in every language Skysay
+runs calls in. Nothing else has to happen first: no test by Skysay, no review,
+no release. Any other provider or model, or a language the model does not
+support, is refused when the call starts.
+
+Separately, **Tested by Skysay** marks the languages we have run end to end on
+a real workflow call with that listener or voice. It is shown beside those
+languages in the workspace and returned as `tested_languages` by
+`GET /v1/agent-catalog`. It is information, not a requirement: an untested
+language is accepted all the same, and the quality in it is the provider's.
+Test your own languages before you launch.
+
+| Used as | Provider and model | Accepted | Tested by Skysay |
+| --- | --- | --- | --- |
+| Listener | Deepgram Nova-3 (`nova-3`) | Every call language | English, Tamil |
+| Listener | Azure AI Speech real-time transcription | Every call language Skysay has an Azure regional tag for | English, Sinhala |
+| Listener | Soniox Real-time v6 (`stt-rt-v6`) | Every call language | English |
+| Listener | OpenAI GPT-Live Transcribe (`gpt-live-transcribe`) | Every call language | English |
+| Voice (Standard) | ElevenLabs Flash v2.5 (`eleven_flash_v2_5`) | The languages ElevenLabs lists for the model | English |
+| Voice (Standard) | Azure AI Speech neural voices | All the languages it lists | Sinhala, English |
+| Voice (Standard) | Gemini 3.1 Flash TTS (`gemini-3.1-flash-tts-preview`), such as Kore | All the languages it lists | — |
+| Voice (Standard) | [Fish Audio S2.1-Pro](/docs/voice-library#fish-audio-s21-pro) (`s2.1-pro`) | Languages listed for the model in the agent catalog | — |
+| Voice (Standard) | Fish Audio S2 Pro (`s2-pro`) | English, Tamil | Tamil |
+| Voice (Standard) | Soniox (`tts-rt-v2`) | All the languages it lists | English |
+| Engine | GPT-Live 1, any of its voices | Every language | English |
+
+So one listener can cover a workflow in several languages: Azure real-time
+transcription accepts English, Sinhala and Tamil, so an English, Sinhala and
+Tamil payment reminder can use it alone, spoken by an Azure voice on Standard or
+by GPT-Live 1. A Tamil workflow can use Deepgram Nova-3 with Fish Audio, and a
+GPT-Live workflow in any language can use a listener that accepts that
+language.
+
+Azure, as listener or voice, Gemini 3.1 Flash TTS, and GPT-Live run on
+Skysay-managed credentials only. A workflow using one of these sources with a workspace provider key is
+refused before funds are reserved
+(`source_credential_platform_only`, see
+[When a spoken workflow call is refused](#when-a-spoken-workflow-call-is-refused)).
+Choose Gemini 3.1 Flash TTS on the **Standard** engine to speak authored
+workflow lines with a voice such as Kore. Publish the voice selection and a
+listener that accepts the workflow’s languages before starting calls. This is
+text-to-speech output; **Gemini Live** cannot run a spoken workflow. Other
+Gemini TTS models, Cartesia and other unlisted sources are not accepted for
+spoken workflows. They remain available on ordinary agents where supported.
+
+Which languages count:
+
+- **The listener** must accept every language in its **Caller languages**,
+  which include every language the workflow speaks and the call's language.
+- **The voice**, on an AI agent with a single voice, must accept the call's
+  language, every language the workflow is published in, and every language
+  the AI agent is set up to speak.
+- With
+  [Follow the caller](/docs/language-qualification#follow-mode-on-an-agent-that-runs-a-workflow),
+  each language has its own voice, and each voice must accept its own
+  language only. English on ElevenLabs Flash v2.5 with Sinhala on an Azure
+  voice is accepted, for example. The listener must accept every followed
+  language.
+
+### How the lines are spoken
+
+- **Standard** sends your authored line to the selected text-to-speech voice.
+  Test the spoken audio in your language; exact spoken wording is not guaranteed.
+  A line is split only at spaces, into at most 128 pieces of up to 160 bytes
+  of UTF-8 text each. A single word, or a run of text with no spaces, longer
+  than that is refused rather than cut short; this matters for languages
+  written without spaces.
+- **GPT-Live 1** speaks each line through the call's live session, in GPT's
+  own voice and its own wording. The meaning follows your line, but the words
+  are not guaranteed to match it. Standard gives the voice your authored wording,
+  but you must verify the audio before relying on a required spoken disclosure.
+  A line counts as spoken only once GPT-Live has played it to the caller in
+  full, its ending included. If the model pauses partway through a line,
+  Skysay waits up to 3 seconds for the rest and plays it. The call's
+  transcript shows what GPT-Live said, in its own words, with the audio it
+  played, rather than the line as you wrote it. A line the caller
+  cut off is shown as far as it was played and marked as interrupted. A line
+  before the end of the workflow that GPT-Live does not finish ends the call
+  as a workflow failure, with `ended_reason` `workflow_line_undelivered`,
+  rather than moving on to a step the caller never heard asked. If the closing
+  line is not finished, the call still ends as `agent_completed` with the
+  outcome the workflow recorded, and the transcript shows only the part of it
+  that was played. On a GPT-Live workflow call the listener
+  saved under **Voice → Transcriber** hears the caller, not GPT-Live, so a
+  listener is required there too. GPT-Live does not navigate phone menus, so a GPT-Live
+  workflow call runs without
+  [phone menu navigation](/docs/phone-menu-navigation).
+
+On both engines the workflow decides the route; GPT-Live's wording never
+changes which step comes next.
+
+On both engines, words the caller says before a step's line has been heard in
+full are never an answer to it.
+
+On **Standard**, a line pauses as soon as the caller makes a sound over it. A
+cough or line noise lets it go on. When the caller's words take one of the
+workflow's global interrupts, a language switch or a route you marked for
+statements over a line (see
+[Statements the caller makes over a line](#statements-the-caller-makes-over-a-line)),
+the line stops and the call goes there. Any other words, such as "mm-hmm",
+"okay, go on" or a question the workflow has no interrupt or marked route for,
+change nothing: the same line goes on from where it paused, and the caller can
+answer or ask again once it ends. They are kept in the call's transcript but
+are not a turn, and they do not count toward the repeat limit below. If
+Skysay cannot tell within 3 seconds, or the caller speaks again meanwhile, the
+line stops as described next.
+
+On **GPT-Live 1**, and on Standard whenever the words stop the line without
+taking an interrupt or a marked route, the step is spoken again. It is spoken again at
+most twice after the caller's words: if the caller speaks over it a third time,
+the call ends with `ended_reason` `workflow_line_undelivered` (see
+[When a workflow line is not delivered](/docs/post-call-results#when-a-workflow-line-is-not-delivered)).
+A stop request, a wrong-person reply and the workflow's other global interrupts
+still apply on each of those turns. Background noise that cuts a line is not
+counted, and neither are words said before a repeat began playing: only a
+repeat the caller could hear start counts toward the three. A step in a
+[question group](#ask-one-question-over-several-steps) whose limit is spent is
+not spoken again at all: the workflow goes to the group's `on_exhausted` step
+instead of ending the call this way.
+
+On the Standard engine, a sound with no words in it does not cut a line. The
+line pauses while the caller's sound is recognized and then continues from
+where it paused, so it is heard in full once and is not spoken again. The
+caller can answer as soon as it ends. Recognized words still cut the line off,
+as above. On GPT-Live, any caller sound long enough to interrupt still cuts the
+line off.
+
+### When the caller isn't understood
+
+Sometimes the caller answers a question, but the workflow's listener recognises
+no words in what they said. They may be speaking a language the listener does
+not hear, or the line may be too noisy. This applies only after the step's line
+has been heard in full. Then:
+
+- **The agent asks the same question again, after a short apology.** The
+  apology is *"Sorry, I didn't catch that."*, said in the call's language. Like
+  the workflow's own lines, it is rendered into each published language when you
+  publish. A version published before the apology existed asks the question
+  again without it until you publish it again.
+- **It asks again at most twice in a row for one question.** The third time,
+  the workflow run fails with `fail_reason` `NO_WORDS_EXHAUSTED`. The agent says
+  the workflow's goodbye line (see
+  [When a workflow run fails](#when-a-workflow-run-fails)), and the call ends with
+  `ended_reason` `caller_unresponsive` and `reason_detail` `not_understood`.
+- **Any reply with recognised words resets the count.** The question then has
+  its two repeats again.
+- **A short sound changes nothing.** A cough, a breath or a click (less than
+  about a second of speech) is not treated as an answer. The question is not
+  asked again, and the agent keeps waiting.
+
+A question asked again counts as one of the workflow's turns (`max_turns`), but
+not as another visit to the step (`max_visits_per_step`). Other limits can end
+the call sooner: a [question group](#ask-one-question-over-several-steps)
+whose limit is spent goes to its `on_exhausted` step, and `max_turns` or the
+call's maximum length still apply. While an action is being carried out, a
+sound with no words changes nothing and is not counted.
+
+The limit of two is the same for every workflow and has no setting.
+
+**Silence after a question** is handled by the same rule, but only after the
+caller has spoken at least once on the call. A caller who never speaks is
+covered by the call's no-speech ending instead. If the line stays quiet for 30
+seconds after a question, the question will be asked again, and for 15 seconds
+after each repeat. When the third attempt also gets no reply, the call ends with
+`reason_detail` `silent`. This part is rolling out: for now Skysay only records
+what it would have done and does not change the call, so `silent` does not yet
+appear.
+
+### When a workflow run fails
+
+A workflow run can stop before its end. A step can be spoken over too many
+times, the caller may never be understood, or a limit may run out. When that
+happens, the run's `workflow.status` is `failed` and its `fail_reason` names
+the cause, for example `UNHEARD_REPEATS_EXHAUSTED`, `NO_WORDS_EXHAUSTED`,
+`MAX_VISITS_EXHAUSTED`, `MAX_TURNS_EXHAUSTED` or `TURN_TIMEOUT`.
+
+The agent then says the workflow's goodbye line once, in the call's language,
+and ends the call. The line is *"Sorry, I'm having trouble continuing this
+call. Goodbye."*. It is rendered into each published language when you publish,
+like the apology above, and it is the only thing said after the failure: a line
+the failed turn would otherwise have said is not spoken. A run stopped by a
+problem outside the workflow (for example the decision model being unavailable)
+can still end the call without it.
+
+### When a spoken workflow call is refused
+
+These checks run before Skysay reserves funds for the call. An outbound call,
+campaign call or Talk test that fails one is not started, and a request that
+starts it gets `400` with the message below, or `409` with one of the codes in
+the second table.
+
+An incoming call to an AI agent with a published workflow runs that workflow
+too, and passes the same checks. When the published workflow cannot run on the
+call, the call is refused: it appears in the call list as a failed incoming
+call with the admission code `workflow_binding_failed`, nothing is charged,
+and the AI agent's readiness shows the same reason before anyone calls. The
+call is never answered free-form instead. On a **Phone** test, an incoming
+call whose pinned workflow fails these checks is not refused by the pin: the
+pin is skipped and the call is answered as if no pin were armed, which means
+by the published workflow when there is one.
+
+| Message | What to change |
+| --- | --- |
+| Select a listener for this workflow and publish a new version. | The published version has no listener. Choose a transcriber under **Voice**, save, and publish the workflow again. |
+| The selected workflow sources are not qualified for spoken calls. | The listener or the voice is not in the table above, or does not accept one of the call's languages. |
+| This voice engine has no qualified workflow source adapter. | The AI agent's engine cannot speak workflow lines. |
+| Gemini Live is unavailable for workflow-bound calls | Gemini Live cannot run workflow calls. Switch the AI agent to Standard or GPT-Live 1. |
+| The workflow listener configuration changed. Publish a new version. | The listener frozen into the published version is no longer valid. Check the transcriber under **Voice**, save, and publish again. |
+| This workflow has no spoken lines for *language*. Publish it again before calling. | The call's language has no rendered lines. |
+| The workflow voice configuration is invalid. | The AI agent's engine and voice settings disagree. Check them and publish the AI agent again. |
+
+When the call is priced, a few more checks answer `409` with a code as the
+error `message`. They also run before any funds are reserved:
+
+| Code | What to change |
+| --- | --- |
+| `source_adapter_unqualified` | With Follow the caller, one followed language's voice is not in the table above or does not accept that language. |
+| `source_credential_platform_only` | The listener or voice is Azure, or the engine is GPT-Live, and the call would use a workspace provider key. These run on Skysay-managed credentials only. |
+| `source_output_profiles_invalid` | The AI agent's Follow the caller language profiles do not match what the call was checked against, or one is incomplete. Check them, publish the AI agent again and retry. |
+
+### Billing
+
+When a spoken workflow call starts, Skysay places a hold that prices each
+source in its provider's own unit: the listener in audio seconds (Soniox in
+tokens), the voice in characters (Fish Audio in UTF-8 bytes, Gemini 3.1 Flash
+TTS and Soniox in tokens),
+and on GPT-Live the session in seconds, with no backend model line and no
+text-to-speech line (see [Billing](/docs/conversation-engines#billing)). When
+the call ends, it settles to the usage of each source, and any difference from
+the hold is released straight away. The platform and carrier lines apply as on
+any call.
+
+Some sources never report their own usage. For these, Skysay charges the
+seconds it measured itself:
+
+| Source | What is measured |
+| --- | --- |
+| Listener: Deepgram Nova-3, Azure, Soniox | The caller audio Skysay sent to the listener while it was open. |
+| Soniox voice | The audio the voice returned for each line. |
+| GPT-Live 1 workflow line | The seconds of each line the caller heard. |
+
+A measured source is charged whether the line or caller turn finished, was
+interrupted, or failed, because the provider received that audio. Audio that
+was never sent, or a line nobody heard, is not charged. Soniox bills in tokens,
+so the measured seconds are converted at Soniox's published usage per minute:
+500 audio tokens and 250 text tokens per minute for the listener, 250 text
+tokens and 500 audio tokens per minute for the voice, rounded down. The other
+voices (ElevenLabs, Azure, Fish Audio) keep charging the text that was sent.
+
+In the call's cost breakdown, a line charged this way is marked **Measured by
+Skysay**. When every source measured nothing (for example, the listener could
+not connect and no line was spoken), an answered call still pays its platform
+and carrier lines for the time the line was open, with each source line at
+zero. A call that was never answered, did not complete, or was a browser test
+is not charged, and its whole hold is released when it ends.
 
 ## Call variables
 
@@ -256,7 +897,10 @@ is not spoken, not given to any model, not sent by SMS, and not sent to any
 tool. The workflow is checked when you publish it: a line or SMS the caller
 could reach before being confirmed that names a protected variable is refused
 as `PROTECTED_BEFORE_CONFIRMATION`, naming the step, whichever way the call
-reaches it — from the entry step, an interrupt or the fallback step.
+reaches it — from the entry step, an interrupt or the fallback step. This holds
+on GPT-Live as on Standard: the GPT-Live session that speaks the workflow is
+given each line only as the workflow releases it, so it is given no protected
+value before the confirming step either.
 
 A protected variable's `requires` says what releases it (`confirmation` by
 default):
@@ -316,6 +960,10 @@ case-unavailable outcome in the Payment reminder templates), so a line is
 never spoken with part of the data missing. The run's step evidence records
 the reason (`case_snapshot_missing`), never a value.
 
+A **Read tool** step can also run one of the AI agent's own tools, such as its
+knowledge base search or its calendar; see
+[Tools on a workflow call](#tools-on-a-workflow-call).
+
 ### Several obligations on one account
 
 A variable may be a **list** — one account, several loans — declared with its
@@ -347,32 +995,58 @@ endpoint.
 
 ### Send SMS steps
 
-A **Send SMS** step sends its authored `text` to the number on the call — the
-caller on an inbound call, the person called on an outbound one — then
-continues to `next`. The text uses the call's variables like any line, and is
-refused rather than sent with a gap. It must fit 6 segments with the values it
-is sent with: that is checked when it is sent, and a message over it is not
-sent -- the step records **SMS failed** (`OUTPUT_BUDGET_EXCEEDED`) and the call
-continues. It may name a
-protected variable only where the caller has been confirmed, which publishing
-checks as for spoken lines. The message is sent after the turn that reached
-the step is stored, once each time the step is reached. Talk and Chat record
-the message and send nothing.
+Use an **Action** with the AI agent's `send_sms` tool. Set its arguments to
+`{"body": "Your appointment is tomorrow."}` or a published template invocation.
+Authored arguments can use call-variable templates; protected values require
+their identity gate first. Connect all five Action routes.
 
-The call's **Identity checks and SMS steps** list shows each message's status:
-**SMS sent**, **SMS failed**, or **SMS delivery unknown** when the SMS provider
-may have accepted the message without confirming it. A message whose delivery
-is unknown is never sent again, so the person cannot receive it twice. The
-workflow does not wait for the result: a later line in the same turn should not
-say the message has arrived.
+<Diagram name="workflow-action-step.svg" alt="An Action step prepares one write (an SMS, a transfer or a booking), reads it back, and waits for the caller's answer. A yes does it and follows next, on_error or on_unknown from its result, except that an answered transfer ends the workflow as transferred; a no takes on_declined and nothing is done; a change takes on_change for a new read-back; an unclear answer is asked once more. Nothing is written before an explicit yes, so connect all five routes." />
 
-### Tools on a workflow call
+The caller hears the proposed message and recipient before being asked to
+confirm. Only a later explicit yes queues the send, after that turn commits.
+The call waits for its receipt. A provider timeout takes `on_unknown` and is
+never automatically resent. An accepted send does not prove delivery to the
+recipient's handset. See [Confirming business actions](/docs/business-actions).
 
-A workflow runs only its own read tools. The agent's other tools — actions,
-webhooks, the model's own `send_sms` — are refused on any call bound to a
-workflow, and on any call that carries protected values
-(`"tools are not available on this call"`). An agent that needs a tool during
-the call is a free-form agent, without a workflow.
+### Transfer steps
+
+Use an **Action** with the AI agent's
+[Transfer to a human](/docs/transfer-to-a-human) tool. Its read-back is one
+short line in the call's language: “I'll connect you to *name*. Shall I go
+ahead?” The name comes from the step's own name: a step called “Transfer to
+reception” says “I'll connect you to reception”. If the step's name does not
+name a person, team or place, the agent says “someone from our team”. The
+read-back never says the destination number or the caller's own number. A
+later explicit yes permits one dial attempt; a no or changed request does not.
+The workspace's outbound policy and the tool's destination restrictions still apply.
+
+After the dial is accepted, the workflow waits for its actual outcome. An
+answered call connects the caller and person, ending the workflow with status
+`transferred`. A busy line, no answer, rejection or failure takes `on_error`;
+an uncertain execution takes `on_unknown`. The call's transfer state in the
+Calls drawer records the dial outcome. While ringing, caller speech does not
+answer another workflow question.
+
+A transfer says nothing of its own beyond its read-back, so put a **Tell /
+Say** step before it ("One moment, I'll put you through.") if the caller should
+hear one after the yes. While the person's phone rings the caller hears it
+ringing: silence for about the first five seconds, then a ring every five
+seconds, until the person answers or the ring time ends. The workflow says
+nothing over the ringing. A call with a person on it dials from your number the caller reached
+(inbound) or the number the call was placed from (outbound). Transfer Actions
+run on Standard and GPT-Live workflows alike.
+
+The run's trace records how the step went: `tool_status` `success` when the
+person answered, otherwise `error` with a `policy_reason` such as
+`transfer:busy`, `transfer:no_answer`, `transfer:rejected`, `transfer:failed`
+or `transfer:caller_hangup`, or `write_not_configured` when the AI agent has no
+Transfer to a human tool. The workflow warns about a missing tool or transfer
+number before you publish; see [A step this AI agent can't run](#a-step-this-ai-agent-cant-run).
+
+A browser **Talk** test has no phone number on the line and cannot dial a
+person. **Chat** and scripted simulations use recorded-only outcomes after
+confirmation. Use a **Phone** test to try a transfer. See
+[Confirming business actions](/docs/business-actions).
 
 ### Testing with values
 
@@ -380,9 +1054,9 @@ the call is a free-form agent, without a workflow.
 (`test_values`), exactly as a call admits them, and run identity steps too: a
 comparison checks the caller's answer against the test value, and a missing
 test value counts as a mismatch. Protected values are shown only after the
-confirming step. An SMS step's message is recorded, not sent. In a scripted
-simulation, taking the step's verified route counts as a match, and anything
-else as a mismatch.
+confirming step. Chat and scripted simulations record Action outcomes without
+performing external writes. In a scripted simulation, taking the identity
+step's verified route counts as a match, and anything else as a mismatch.
 
 ### Versions from before call variables
 
@@ -414,6 +1088,168 @@ version instead."), or saying the version predates call variables and was not
 moved. To take calls on the current workflow, publish the draft, which
 declares its variables.
 
+## Tools on a workflow call
+
+On a workflow call the AI agent's model is offered no tool of its own: the
+workflow decides every turn, and its **Read tool** steps run the AI agent's
+tools for it. A step can run one of these:
+
+| Tool | What the step does | What a later line can say |
+| --- | --- | --- |
+| **Search the knowledge base** | Searches the knowledge bases attached to the AI agent for the caller's question and quotes the documents' own sentences that answer it. | `{{tool.knowledge_answer}}`: whole sentences of the documents, exactly as written and in the documents' language |
+| **Check calendar availability** | Asks the AI agent's calendar for free times in the range the caller asked about. | `{{tool.available_times}}`: up to three offered times with their dates, said in the call's language with the calendar's time zone |
+| **Book an appointment** | An Action books one offered time after its built-in read-back and confirmation. | Five outcome routes; the read-back says what, when and for whom in about eight seconds. |
+| **Integration or webhook tool** | Read tools use **Read tool**; write tools use **Action** and require confirmation. | Reads expose the declared `{{tool.<key>}}` result values. Writes follow receipt outcome routes. |
+
+A tool runs only if the AI agent has it. Nothing is attached for you: the
+knowledge search is there once you attach a knowledge base to the AI agent
+([Knowledge Bases](/docs/knowledge-bases)), the calendar tools once you select
+it on a calendar connection and choose **Enable booking**
+([Calendar booking](/docs/calendar-booking)), and an Integration action once
+you add it to the AI agent's tools. If the AI agent does not have the tool when the call runs, or the
+tool fails, finds nothing or runs out of time, the step takes its error route.
+
+### Choose a tool for a step
+
+Select a **Read tool** step and open its **Tool** list. The tools the AI agent
+has are grouped under **This AI agent's tools**; if there are none, the
+inspector says what to attach first. For an Integration action, enter its
+**Result keys**: one to eight top-level keys of the action's result, separated
+by commas. A line says each one as `{{tool.<key>}}`; a value that is not text
+or a number, or is missing, fails the step.
+
+Read-tool arguments are collected from the caller. An Action also accepts authored JSON arguments with call-variable templates. The platform works them out from what
+the caller said: the question to search for, the time range to check, and, for
+a booking, the chosen time, the caller's name, and the email address and any
+answers the calendar's event type needs. If something is still missing, the
+step takes its error route, and what the caller already gave is kept for the
+next time the step runs.
+
+Place a tool step where the caller has just answered, before the line that
+speaks its result: after an **Ask**, or after a **Branch** that follows one. A
+tool step reached after a spoken line of the same turn does not run and takes
+its error route, because every line of a turn is said with one set of values;
+validation warns about it (`AGENT_TOOL_AFTER_SPOKEN_LINE`).
+
+### Speak a result
+
+A step's results are values in the `tool.` namespace that later lines of the
+workflow can say. They are optional, so a line says one inside its own section,
+as with any optional [call variable](#call-variables):
+
+```text
+{{#tool.knowledge_answer}}{{tool.knowledge_answer}}{{/tool.knowledge_answer}} Is there anything else I can help with?
+```
+
+```text
+{{#tool.available_times}}I have {{tool.available_times}}.{{/tool.available_times}} Which time would you like, and what name should I book it under?
+```
+
+With a calendar in `Europe/Tallinn`, the second line is said as "I have
+Tuesday, November 3, 2026, 10:00 AM or 11:30 AM or Wednesday, November 4, 2026,
+2:00 PM (Eastern European Time)." In another language the dates, times and
+time zone follow that language's own conventions.
+
+- A result is never a call variable. A contact, `call_context` or a campaign
+  cannot supply it, and you do not declare it on the **Variables** tab.
+- Only the workflow's spoken lines can say a result. Action arguments, the
+  greeting and the instructions cannot name one; validation refuses a draft
+  that does.
+- A step that fails clears its earlier results, so a later line never says a
+  previous answer as if it were this one.
+- A knowledge answer is never text a model wrote. A model only picks which
+  sentences of the retrieved passages answer the question; the platform checks
+  that they are the document's exact words and says each whole sentence they
+  come from. When nothing in the documents answers, the step takes its error
+  route.
+- A result is never cut short. A knowledge answer or a list of times over 300
+  characters, an Integration value over 200 characters (600 for one action's
+  values together), or a line that would grow past its limit with the result
+  in it fails the step instead.
+
+### Book an appointment
+
+Choose `calendar_book_appointment` in an **Action** step after checking
+availability. Its confirmation is built in, as for every other write. Connect
+`next`, `on_declined`, `on_change`, `on_error` and `on_unknown`. The last route is
+for an uncertain provider result and must not claim the booking succeeded.
+
+The platform freezes the selected offer, caller details and calendar
+configuration, reads the entire booking back, and asks one yes/no question. A
+later unconditional yes authorizes those details. An unclear answer gets one
+clarification; changes need a new read-back and yes. There is no timing-based
+shortcut or model-supplied confirmation flag.
+
+```json
+{
+  "id": "book_appointment",
+  "type": "action",
+  "name": "Book appointment",
+  "tool": "calendar_book_appointment",
+  "next": "booked",
+  "on_declined": "declined",
+  "on_change": "collect_details",
+  "on_error": "booking_error",
+  "on_unknown": "check_booking"
+}
+```
+
+Declare the tool with `source: "agent"`, `kind: "write"` and an empty
+`projection`. Each route names a real step. Arguments omitted from the Action
+are collected from the caller. Calendar offer expiry, resource conflicts,
+provider rules and browser-test restrictions still apply. Read the full
+[business-action contract](/docs/business-actions) before wiring recovery.
+
+### Starter templates with tools
+
+- **Customer support** searches the AI agent's knowledge base and says the
+  answer, or escalates when nothing is found.
+- **Receptionist** answers a question from the AI agent's knowledge base and
+  takes a message when nothing is found. When a transfer can't connect, it
+  apologises and offers to take a message instead of ending the call.
+- **Appointment booking** answers questions from the knowledge base, offers
+  free times from the attached calendar, and books one after the read-back and
+  a yes, with one clarification for an unclear answer and a new read-back for
+  any change.
+
+Each tool step in them runs only once the AI agent has that tool; until then
+it takes its error route. A template does not change a draft you already have.
+
+### Engines and tests
+
+- **Standard** sends each line, with its results filled in, to the selected
+  text-to-speech voice; verify its spoken output. **GPT-Live
+  1** is given each line, results filled in, to read exactly, and says it in
+  its own voice; its words are not guaranteed to match. Gemini Live cannot run
+  workflow calls.
+- **Bookings follow the same rule on every engine**, GPT-Live included, as
+  for an AI agent without a workflow: the engine speaks the platform's
+  read-back line, the caller's explicit answer is taken as a yes, a no, a
+  change or unclear (with the one clarification), and only a yes books exactly
+  the details read back. The calendar's own checks are unchanged.
+- Outbound calls, incoming calls, and the **Talk** test run tool steps the
+  same way, with the AI agent's real tools. Talk is a browser test, so its booking writes only to a calendar
+  connection set up for test bookings; see
+  [Calendar booking](/docs/calendar-booking#test-without-accidental-appointments).
+- **Chat** calls no real tool. A step whose tool the AI agent has not
+  configured fails as it would on a call (`tool_not_configured`): no knowledge
+  base with a ready document is attached, or the tool is not in the AI agent's
+  tools. Every other tool step succeeds with clearly synthetic values
+  (`test-knowledge_answer`, `test-available_times`), and an Action goes
+  through confirmation with a recorded-only synthetic receipt. Scripted
+  simulations use their authored tool and transfer outcomes after confirmation.
+
+### Which tools a step may run
+
+The step can use only a tool configured on its own AI agent, with its actual
+read/write kind. A declaration cannot turn a write into a read. Reads run without
+business confirmation; writes use Action. Ending a call and language switching
+remain conversation controls. Protected values keep their existing disclosure
+and tool restrictions; adding an Action never bypasses them.
+
+A workflow's tool results are kept with the call's transcript and deleted with
+it, when the call's recording is deleted.
+
 ## Runtime guarantees
 
 The compiled contract enforces, server-side, on every turn:
@@ -421,12 +1257,13 @@ The compiled contract enforces, server-side, on every turn:
 - only the active step, its allowed routes, and approved context reach the
   model;
 - the model's structured decision is validated before anything executes;
-- only the declared read-only tool for that step may run, and no other tool
-  runs on a workflow call;
+- only the tool the active step declares may run, and the AI agent's model is
+  offered none; every business write runs only after the
+  caller's later explicit yes to its read-back;
 - a protected value leaves the server only after the caller's confirmation is
   stored, and only in the lines after it;
-- per-step visit counts, a total turn budget, and a per-turn timeout are hard
-  limits;
+- per-step visit counts, a total turn budget, a per-turn timeout and each
+  question group's presentation limit are hard limits;
 - unknown routes, malformed decisions, missing capabilities, and exhausted
   budgets fail closed with a spoken, localized farewell rather than an open
   line.

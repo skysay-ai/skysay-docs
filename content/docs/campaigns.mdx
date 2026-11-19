@@ -13,6 +13,8 @@ Use a campaign when your list is ready to be called and you want Skysay to
 own the scheduling. Use a [customer application](/docs/customer-applications)
 when your own system owns the cadence and must decide each call.
 
+<Diagram name="campaign-lifecycle.svg" alt="A campaign starts as a draft (edit anything, one test call at a time). Launch runs one check on your workspace: allowed campaigns run now or are scheduled for their start time, others need review (fix and launch again) or are blocked. A running campaign can be paused to change hours and retries, then resumed; it completes when every contact is done or its end date passes, and can be cancelled while scheduled, running or paused." />
+
 ## Who you may call
 
 Campaigns are self-serve for two consent bases, declared per campaign:
@@ -22,12 +24,11 @@ Campaigns are self-serve for two consent bases, declared per campaign:
 | `existing_customer` | People with an active relationship with your business |
 | `explicit_consent` | People who agreed in writing to be called by you |
 
-Cold sales, telemarketing, lead generation and purchased, scraped or listed
-contacts stay blocked platform-wide; a campaign with such a purpose is refused
-when it is created and again at launch. Campaigns are open to every active
+A campaign's purpose is a free-form label, shown on the campaign and recorded
+on every call it places; no purpose is refused. Campaigns are open to every
 workspace -- there is no per-profile campaign switch -- and launch runs one
 authorization against your workspace capabilities: a sanctioned destination
-blocks it, a suspended or not-yet-active workspace or a record without voice
+blocks it, a suspended workspace blocks it, a record without voice
 holds it, a destination outside your allowlist holds it for the usual
 new-country review, a missing consent basis blocks it, and on the custom
 implementation-services profile every launch goes to an operator
@@ -209,6 +210,28 @@ live-call gate (a direct
 `POST /v1/calls` request that reuses the campaign id as its
 `external_group_reference` is not touched).
 
+### Test call on a draft
+
+`POST /v1/campaigns/{campaign_id}/test-call` with `{"contact_id": "contact_123"}`
+places one real, billed call to one contact of a draft's list before you
+launch. It uses the campaign's AI agent, the caller ID its first attempt would
+use, and that contact's own values, so the call says what the campaign's call
+would say.
+
+- It is an ordinary outbound call with every check `POST /v1/calls` makes: the
+  do-not-call register (403), your workspace's policy and caps, and the balance.
+- The campaign's calling hours are checked first, in the contact's zone. Outside
+  them the answer is 409 with `reason: "outside_calling_window"` and
+  `next_window_at`.
+- The campaign stays a draft. There is no run and nothing is counted, and the
+  contact is not marked done, so launching calls them again unless you remove
+  them from the list.
+- Only a draft can do this (409 `campaign_not_draft`). A draft has one test
+  call at a time: while one is unfinished, another, to any contact, is refused
+  (409 `test_call_in_progress`).
+- The call carries the campaign id as its `external_group_reference`, so the
+  **Calls** page's campaign filter finds it.
+
 ### Calling hours
 
 `calling_windows` is `{weekday: [{start, end}]}` in `HH:MM`, at most four
@@ -216,7 +239,9 @@ windows a day, never spanning midnight. With `time_zone_mode: "contact"` each
 contact's own zone applies and `time_zone` is the fallback; with `"fixed"` the
 one zone applies to everyone. A contact outside its window is deferred to the
 next open window, never dropped. Defaults follow the destination country
-(Ghana: 08:00–19:00 Monday to Saturday).
+when the whole list is in one (Ghana: 08:00–19:00 Monday to Saturday; Sri
+Lanka: 09:00–17:00 Monday to Friday and 09:00–13:00 on Saturday); anywhere
+else, 09:00–18:00 Monday to Saturday.
 
 ### Retries
 
@@ -234,13 +259,271 @@ Presets: `sales` (no answer ×4 over three days, busy ×3, voicemail ×2),
 `collections` (more persistent on no answer), `single_attempt`. A completed
 conversation, a wrong party, a refusal, an invalid number or a do-not-call
 request is never redialed by any policy; a requested callback dials at the
-requested time.
+requested time, up to the campaign's [call-back limit](#call-backs).
+
+<Diagram name="campaign-contact-journey.svg" alt="Each contact waits for its calling hours, is called, and the call ends with one outcome. Your retry policy decides whether it is called again after the policy's gap (possible for no answer, busy, voicemail, technical failure or carrier rejected); otherwise it ends completed or failed. Waiting while paused, outside hours or for a free line uses no attempt, and a contact on your do-not-call register or in a language the agent can't use is never dialled." />
+
+### Call-backs
+
+A person who asks to be called back is called at the time they named, whatever
+the retry policy says. The agent records the request with
+`set_call_disposition` (`connected_callback_requested` with `callback_at`) as
+soon as the person asks, with no read-back: like a request to speak to someone,
+the person's own request is the confirmation. A workflow's Action step that
+sets it still confirms it.
+
+On a [conversation workflow](/docs/agent-workflows), taking the workflow's
+`callback` global interrupt schedules the call-back at the time the person
+named, under the same rules and campaign limits below. The turn that takes the
+interrupt reads the time from what the caller said, and the call's event log
+records it as [`call.workflow_callback_time`](/docs/read-call-evidence#callworkflow_callback_time),
+with the reason when there is no time to schedule. An authored route to the
+interrupt's target step schedules nothing: only the interrupt records a
+call-back request.
+
+- A `callback_at` without a UTC offset is read in the call's local time zone,
+  the one the agent's `call.local_time` is given in (the contact's time zone,
+  else the campaign's, else the one for the person's number, else UTC). When
+  the call's zone is not known, such a time is refused (`callback_at_offset_required`) and the agent is asked
+  to send it with its offset.
+- A time more than a minute in the past, or more than 30 days ahead, is
+  refused (`callback_at_in_past`, `callback_at_too_far_ahead`) and nothing is
+  recorded. The agent is told the current local time so it can ask again. On a
+  workflow, the refusal is the event's `reason` and the contact is finished
+  with `connected_callback_requested`, as when no time was named.
+- A time at or after the campaign's `ends_at` is recorded, but the campaign
+  ends first, so it is not placed: the result carries `callback_scheduled`
+  `false`, as below.
+
+`max_callbacks` sets how many call-backs one contact may
+be granted in a campaign: 0 to 10, default 2. In the workspace it is
+**Call-back requests per contact** on the **Schedule & retries** step.
+
+- Only call-backs the campaign actually scheduled count. A retry after a busy
+  line or no answer is not a call-back, and asking twice on one call is one
+  request.
+- One request more than the limit ends that person's calls in the campaign:
+  the contact finishes as `completed` with disposition
+  `connected_callback_requested` and `skip_reason` `callback_limit_reached`
+  (**No call-backs left** on the campaign page). With `max_callbacks` 0, the
+  first request does this.
+- The AI agent is told in the same turn. On a campaign call the result of
+  `set_call_disposition` for `connected_callback_requested` carries
+  `callback_scheduled`. When it is `false`, no call-back will be placed and
+  `callback_at` is empty, so the agent does not promise one. The field is
+  absent on calls outside a campaign.
+- You can change `max_callbacks` on a draft and on a scheduled or paused
+  campaign. The value in force when a call settles is the one that applies.
+  Campaigns created before this setting existed have the default.
+
+#### A call-back a mailbox asked for
+
+Some voicemail greetings say "call me back later". An agent that hears one
+may record a call-back as if a person had asked. Skysay checks for this when
+the attempt settles. It looks at what the call's voicemail detection heard
+from the other end:
+
+- one voicemail greeting that ended in a record beep;
+- nothing else before that greeting or after the beep;
+- and the whole call heard.
+
+When all of these hold, a `connected_callback_requested` attempt settles as
+`voicemail`. This applies whether the agent declared the call-back or a
+workflow took its `callback` interrupt. The requested time is dropped. Your
+voicemail retry policy applies, and the call-back does not count against
+`max_callbacks`. The call keeps its own record of what was said: the agent's
+declaration and the workflow's interrupts are unchanged.
+
+Anything a person could have said keeps the call-back. That includes speech
+before the greeting, any sound after the beep, or a stretch of the call that
+was not heard. For example, Dana's mailbox answers a campaign call: "Hi, it's
+Dana, I can't take your call, please call me back later", then the beep. The
+agent records a call-back. Nothing is heard after the beep, so the attempt
+settles as `voicemail` and your voicemail retry policy decides when Dana is
+called again, instead of the campaign calling her mailbox back at the time
+the agent recorded. Limits:
+
+- The check needs voicemail detection. An AI agent whose
+  [voicemail setting](/docs/voicemail-detection#the-four-settings) is `off`
+  hears nothing, so every call-back it records stands. `shadow`, `hang_up`
+  and `leave_message` all watch.
+- A greeting with no record beep is never treated this way, so a call-back it
+  "asked for" stands.
+- Speech within about 12 seconds before the beep is taken to be the greeting.
+- Faint sound after the beep, even line noise, keeps the call-back. Some
+  mailbox call-backs therefore still stand.
+- The check reads the voice worker's own end-of-call report. If the attempt
+  settled before that report arrived, it keeps its outcome.
+
+The terminal [`call.ended`](/docs/webhooks) event's `details` carries
+`recording_evidence: true` on such calls, as described in
+[Post-call results](/docs/post-call-results#a-recording-that-asked-for-a-call-back).
+
+### Follow-up calls
+
+A retry or a call-back does not have to start from nothing. Every campaign
+call carries the built-in call variable `campaign.call_kind`, which says why
+the contact is being called now:
+
+| `campaign.call_kind` | The call is |
+| --- | --- |
+| `first_contact` | the first call to this contact in the campaign |
+| `retry` | another try after a call that did not reach the person |
+| `callback` | the call-back the person asked for |
+| `reopened` | a call to a contact you put back in the queue from the review inbox |
+
+Set `followup_context` to `summary` and a follow-up call is also told what was
+said the last time the campaign reached this person. In the workspace it is
+**Tell follow-up calls what was said last time** on the **Schedule & retries** step. The
+default is `none`.
+
+| Built-in | Value |
+| --- | --- |
+| `campaign.previous_summary_status` | whether there is a summary; see below |
+| `campaign.previous_summary` | the [call summary](/docs/call-summaries) of that conversation |
+| `campaign.previous_follow_up` | the follow-up that summary named, if it named one |
+
+- "Last time" is the last call that reached the person, not the last dial. A
+  busy line or an unanswered call after a real conversation does not erase it.
+- The call is never held back or refused for a summary.
+  `campaign.previous_summary_status` says what the call was given:
+
+  | Status | Meaning |
+  | --- | --- |
+  | `available` | the summary is in `campaign.previous_summary` |
+  | `no_previous_conversation` | the campaign has not reached this person before |
+  | `pending` | the summary of the last conversation is still being written |
+  | `unavailable` | that conversation has no summary: call summaries are off for the AI agent, the summary failed, or the call left no transcript |
+  | `withheld` | this AI agent is not given what was said last time: it enters a value on a phone keypad, or it does not protect the summary itself and the earlier call kept a value back until it had confirmed the person (or entered one on a keypad), or Skysay cannot tell what that call kept back |
+  | `omitted_too_large` | the contact's own values already fill the call's data, or a line that says the summary would be too long with it; if the data is still too large without the summary, this status and `campaign.call_kind` are left out too |
+
+- Each text is at most 512 characters; a longer one is cut at a word and ends
+  with an ellipsis. For the conversation's own words, see
+  [the previous transcript](#the-previous-transcript).
+- On a [workflow that protects a value](/docs/call-variables#protected-variables),
+  the summary and the follow-up are protected too, because they can repeat
+  anything the last call said. The workflow may say them only after its
+  confirming step, and after the strongest check any of its protected values
+  needs: if one value needs a `knowledge_match`, so does the summary. A
+  workflow with a line, or a read step, that could reach them earlier cannot
+  be published, and the workflow's greeting and instructions cannot name them.
+  Before that step the status already reads `available`; the summary itself
+  stays out of the call until the check is passed.
+- Your AI agent reads these like any other call variable. To open differently
+  on a follow-up call, write both openings into the first message:
+
+  ```text
+  {{#campaign.previous_summary}}Hi again, this is Acme calling you back as agreed.{{/campaign.previous_summary}}{{^campaign.previous_summary}}Hi, this is Acme calling about your delivery.{{/campaign.previous_summary}}
+  ```
+
+- You can change `followup_context` on a draft and on a scheduled or paused
+  campaign. Campaigns created before this setting existed have `none`.
+
+#### The previous transcript
+
+Set `followup_transcript` to `true` and a follow-up call of a free-form AI
+agent is also given the transcript of the last conversation with the person.
+In the workspace it is **Give follow-up calls the last transcript** on the
+schedule step. The default is `false`, and it does not depend on
+`followup_context`: a campaign can give the summary, the transcript, both or
+neither.
+
+- The transcript is added to the AI agent's instructions after the call's
+  variables, as quoted text it is told never to take as instructions;
+  Skysay's own tool instructions come after it. Each line is one turn, labelled
+  `Agent:` or `Person:`, with the words in the language spoken. It is never
+  read as template syntax, so `{{name}}` in what someone said stays as it was
+  said.
+- It holds at most 4,000 characters. When the conversation was longer, the
+  newest turns are kept and the transcript starts with
+  `[earlier turns left out]`. When the newest turn alone is longer than that,
+  it is cut, at a word where it can be, and ends with an ellipsis.
+- The transcript makes the AI agent's instructions longer, so every follow-up
+  call that has it uses more input tokens: about 3,800 more per call on the
+  Standard engine in our measurement. Reply time did not change measurably.
+- "Last time" is the same conversation the summary uses: the last call that
+  reached the person.
+- The AI agent may repeat details from the last conversation to whoever
+  answers the follow-up call, even before they ask: in our test calls it
+  named the delivery slot in its first reply. Tell it in its instructions what
+  it may bring up on its own. Anything that may only be said once the person
+  has been confirmed belongs in a
+  [protected variable](/docs/call-variables#protected-variables), which needs a
+  workflow agent; a call that kept such a value back gives no transcript to the
+  next call (`withheld` below).
+- When the call is placed, the campaign records only whether the call may have
+  the transcript. The Calls drawer shows it under **Previous transcript
+  (eligibility at admission)**:
+
+  | Eligibility | Meaning |
+  | --- | --- |
+  | `eligible` | the call is given the transcript of that conversation |
+  | `no_previous_conversation` | the campaign has not reached this person before |
+  | `withheld` | this AI agent enters a value on a phone keypad, or the earlier call kept a value back until it had confirmed the person (or entered one on a keypad) |
+  | `not_supported` | the AI agent runs a workflow, or uses Eleven Realtime, whose instructions have a size limit |
+
+- The words are read each time the call's configuration is fetched, never
+  copied into the call. A call-back placed before the earlier call's
+  transcript was ready gets it if it is ready when the call starts. A
+  transcript deleted in the meantime is not given, and a call is never held
+  back or refused because of the transcript.
+- `GET /v1/calls/{call_id}/realtime-config` includes it only for Skysay's own
+  voice worker, the gateway that placed the call, or an API key holding
+  `recordings:read`. Any other key gets the same configuration without it. A
+  self-hosted worker that reads configurations with an API key needs
+  `recordings:read` on that key to give the transcript to its calls.
+- You can change `followup_transcript` on a draft and on a scheduled or paused
+  campaign. Campaigns created before this setting existed have `false`.
 
 ### Concurrency
 
 `max_concurrency` caps the campaign's simultaneous calls and never exceeds your
-plan's concurrent-call allowance; `reserved_concurrency` keeps lines free for
-inbound and other calls.
+workspace's concurrent-call limit: your plan's allowance, or the limit Skysay
+has set for your workspace when that differs. `reserved_concurrency` keeps lines
+free for inbound and other calls and is at most one less than that limit. The
+campaign wizard shows the limit that applies.
+
+If the limit is lowered below a campaign's saved `max_concurrency` or
+`reserved_concurrency`, the campaign keeps them. Editing its other settings
+still works, and a value you change must fit the new limit. The campaign never
+starts a call that would take the workspace past the limit. A duplicate fits
+the limit in force: the copy's `max_concurrency` is at most the limit and its
+`reserved_concurrency` at most one less. Any setting lowered to fit is listed in
+the response's `clamped` (empty when the copy matches the original), and the
+dashboard says so too.
+
+### Add contacts to a running campaign
+
+A campaign's audience is copied from its contact list when you launch it. To
+add people afterwards, enroll them:
+`POST /v1/campaigns/{campaign_id}/contacts` (MCP: `enroll_campaign_contacts`),
+with the same rows as a contact-list import, at most 10,000 a request.
+
+```json
+{ "contacts": [{ "phone_e164": "+14155550123", "name": "Dana Reyes" }] }
+```
+
+- The rows join the campaign's own contact list and its queue in one step.
+  They are called inside their calling hours, like the contacts the campaign
+  launched with.
+- The campaign must be scheduled, running or paused. A draft takes its
+  contacts from its list at launch; a completed or cancelled campaign answers
+  `409`, so duplicate it to call more people.
+- Enrolling is safe to repeat. A contact already in the campaign is not added
+  twice, and the response says so in `already_enrolled`. A number already in
+  the list but not yet in the campaign is enrolled.
+- A number on your do-not-call register is enrolled marked `do_not_call` and
+  is never dialled.
+- The campaign is checked as at launch with the new contacts in it. If the
+  check would not allow them, for example a destination country that needs a
+  review, the request answers `409` and nothing is added.
+- A campaign does not complete for running out of contacts while an enrolled
+  contact is still to be called. It still ends at its end date, and contacts
+  not yet called are then skipped.
+
+The response is the list import's report (`accepted`, `rejected`,
+`skipped_duplicates`, `rejections`) plus `campaign_id`, `run_id`, `enrolled`,
+`already_enrolled` and `do_not_call`.
 
 ## Dispositions
 
@@ -252,7 +535,8 @@ structured termination cause and the agent's own signal:
 `carrier_rejected`, `do_not_call`, `cancelled`, `failed_technical`.
 
 A hosted agent declares the connected outcomes with the `set_call_disposition`
-builtin tool (a callback requires `callback_at`). Telephony outcomes come from
+builtin tool (a callback requires `callback_at`, and on a campaign call the
+result says whether the [call-back was scheduled](#call-backs)). Telephony outcomes come from
 the SIP result and are never model-supplied.
 
 A [conversation workflow](/docs/agent-workflows) also decides a disposition,
@@ -262,11 +546,14 @@ another outcome: the contact is closed and not dialed again by this campaign,
 and nothing is added to the register. When it
 is `wrong_party` or `callback`, the attempt is `connected_wrong_party` or
 `connected_callback_requested` unless the agent declared an outcome. A
-workflow callback carries no time, so the contact is finished with that
-disposition rather than dialed again; only an agent's declared callback with
-`callback_at` schedules a call. The last request wins: a caller who asked not
-to be contacted and then asked to be called back is recorded as a callback
-request, not `do_not_call`. Every interrupt the call took stays on its
+workflow callback is dialed again at the time the person named, as a
+[call-back](#call-backs); when no time was named or the time was refused, the
+contact is finished with that disposition. The last request wins: a caller who
+asked not to be contacted and then asked to be called back is recorded as a
+callback request, not `do_not_call`, and called back at the time they named. A
+call-back recorded on a call that only reached a voicemail greeting with a beep
+settles as `voicemail` (see
+[A call-back a mailbox asked for](#a-call-back-a-mailbox-asked-for)). Every interrupt the call took stays on its
 [`workflow.interrupts`](/docs/read-call-evidence#where-a-calls-workflow-ended)
 if you want a stop request to win. Only interrupts the workflow runner took
 count: a route you named like an interrupt decides nothing, and a run is read
@@ -283,10 +570,88 @@ only from your own workspace.
   opens the ordinary [call evidence](/docs/read-call-evidence);
   `GET /v1/campaigns/{campaign_id}/results` adds each contact's last-call
   [business outcome](#business-outcomes).
+- `GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts` returns one
+  contact's [history](#contact-history): every attempt in order, its result
+  and what the campaign decided next.
 - Webhooks: `campaign.launched`, `campaign.contact.completed`,
   `campaign.completed`. Per-call events are unchanged and carry
   `external_reference` (the contact's reference) and
   `external_group_reference` (the campaign id).
+
+### On the campaign page
+
+The workspace campaign page shows the same run. Before launch, a draft counts
+the contacts in its list, the number the wizard's review step showed; once
+launched it counts the run's contacts.
+
+The contacts table has four tabs, each with its count:
+
+| Tab | Contact statuses |
+| --- | --- |
+| All | every contact |
+| To call | `pending`, `scheduled`, `dispatched` |
+| Done | `completed` |
+| Not called | `failed`, `skipped`, `pre_dial_failed`, `do_not_call` |
+
+Every row shows its status and, when there is one, the reason
+(`skip_reason`), for example that the number is on your do-not-call register,
+that no calling hours were left, or that the AI agent does not publish the
+contact's language.
+
+The **Result** column shows the AI agent's
+[result fields](/docs/post-call-results#optional-post-call-extraction) that
+have a closed set of answers, read from the contact's last call: a field with
+`enum` choices, or a yes/no (`boolean`) field. Required fields come first, up
+to three; the export carries every field. A field the AI agent left empty
+shows **not stated**, never "no". A call whose result is still being written
+shows **Result pending**, and a call made before a field existed shows a dash.
+
+Click a call outcome or a result answer to show only the contacts with it;
+click it again, or the chip above the table, to clear it. Filters combine
+with the tab. **Export CSV** then downloads exactly the rows the table shows,
+in the same order, and its label gives the count.
+
+### Contact history
+
+Every contact has a history: each attempt the campaign made, in order, with
+its result and what the campaign decided next. On the campaign page, click the
+number in a contact's **Attempts** column to open it under the row. **Open this
+person in Contacts** shows the same number on the
+[Contacts](/docs/contacts#all-contacts) page, with its lists and its most
+recent calls and SMS conversations.
+
+A history opened from **Contacts**, or from a link someone shared, opens above
+the table when the contact's row is not on the page of the table you are
+looking at. The page address keeps the open history, so reloading the page or
+sharing the link shows it again.
+
+| Column | Value |
+| --- | --- |
+| Kind | why the contact was called: **First call**, **Retry**, **Call-back**, or **Called again after review** |
+| Result | the attempt's [disposition](#dispositions), or a dash when there is none: the call is in progress, or the attempt was postponed |
+| Next step | **Retry scheduled for** a time, **Call-back scheduled for** a time, **Postponed to** a time (the attempt was not made, for example because no line was free), or **No further calls**, with the reason when the campaign named one |
+| Open | the call's [evidence](/docs/read-call-evidence) |
+
+The API and MCP return the same history:
+`GET /v1/campaigns/{campaign_id}/contacts/{contact_id}/attempts` and the MCP
+tool `list_campaign_contact_attempts`. `contact_id` is the `id` of a row of
+`GET /v1/campaigns/{campaign_id}/contacts`.
+
+| Field | Value |
+| --- | --- |
+| `attempt_no` | 1 for the first attempt |
+| `kind` | `first_contact`, `retry`, `callback` or `reopened` |
+| `started_at`, `settled_at` | when the attempt was made and when its result was recorded; `settled_at` is `null` while the call is in progress |
+| `disposition`, `termination_cause` | how the attempt ended |
+| `call_id` | the call, when one was placed |
+| `decision` | `retry`, `callback`, `deferred` or `finished` |
+| `next_at` | when the next attempt was scheduled for |
+| `finished_reason` | on the attempt that finished the contact, the reason when the campaign named one, for example `callback_limit_reached` |
+
+Attempts are returned oldest first, 50 a page (`limit` up to 200, `offset`,
+`has_more`). A value the campaign did not record is `null`: attempts made
+before contact history existed have no `kind` and no `decision`, and the
+campaign page shows them as not recorded.
 
 ## Edit a campaign
 
@@ -300,8 +665,8 @@ audience). While a campaign is `scheduled` or `paused` you can still change:
 - `calling_windows`, `time_zone_mode` and `time_zone`. Contacts that were
   waiting for the old window are re-evaluated on the next dispatcher tick;
   retries waiting on a backoff keep their time;
-- `retry_policy` or `retry_policy_preset`, `max_concurrency` and
-  `reserved_concurrency`;
+- `retry_policy` or `retry_policy_preset`, `max_concurrency`,
+  `reserved_concurrency` and `max_callbacks`;
 - `ends_at`, and `scheduled_start_at` while the run has not started.
 
 A draft may also receive a new audience in the same request: send `contacts`
@@ -316,6 +681,38 @@ current status answers `409`, as does a status change that raced the edit
 (pause, resume, cancel or launch): reload and try again. In the workspace,
 **Edit** on a campaign opens the same wizard with the locked steps disabled;
 **Duplicate** opens the copy in the wizard before it is launched.
+
+## Delete a campaign
+
+`DELETE /v1/campaigns/{campaign_id}` deletes a campaign that can no longer
+place calls: a `draft`, `needs_review`, `blocked`, `completed` or `cancelled`
+one. It answers `200` with `{"id": "...", "deleted": true}` and the campaign
+leaves every campaign listing and read.
+
+- **What stays.** Its calls, recordings, transcripts, billing records and
+  call evidence stay in Calls and Billing, and a call it placed still opens.
+  Contact lists, contacts and your [do-not-call register](#do-not-call-register)
+  are not changed. Calls already in progress finish normally.
+- **What goes.** The campaign, its per-contact results and its review inbox
+  are no longer shown or returned: `GET`, the contact page, `/results`,
+  `/reviews`, `/export`, `PATCH`, `launch` and `duplicate` answer `404`
+  afterwards. Export the CSV first if you need it.
+- **Opt-outs.** A caller who asked not to be contacted is recorded as a
+  `do_not_call` outcome, never added to the register automatically. Check
+  those numbers are on your register before you delete the campaign.
+- **A campaign that can still dial is refused.** A `launching`, `scheduled`,
+  `running` or `paused` campaign answers `409` with
+  `"reason": "campaign_active"` and its `status`. Cancel it first
+  (`POST /v1/campaigns/{campaign_id}/cancel`), then delete it.
+- **A repeat is a `404`**, the same answer as an id that never existed or
+  belongs to another workspace. Scope: `calls:write`.
+
+A deleted campaign's id is never reused as an ordinary call-group label: a
+direct call that names it as its `campaign_id` is refused.
+
+In the workspace, **Delete** sits next to **Duplicate** on the campaign. It
+lists what stays and asks you to confirm; on a campaign that can still place
+calls it explains that you cancel it first.
 
 ## Export results
 
@@ -333,6 +730,32 @@ spreadsheet so the leading plus survives. The export is bound to the credential'
 workspace (a caller-selected `organization_id` is ignored). Uploaded variables are not echoed back, and free-text cells that
 start with a formula character are prefixed so a spreadsheet does not execute
 them. The workspace offers the same file as **Export CSV** on the campaign.
+
+The export takes the same filter as the campaign page's contacts table, so a
+file holds exactly the rows the table showed, in the same order and under the
+same cap. Every parameter is optional and they combine:
+
+- `status` (one contact status) or `group` (`to_call`, `done`,
+  `not_called`), not both;
+- `disposition`: the contact's latest call outcome;
+- `result_field`: one of the AI agent's result fields with a closed set of
+  answers (`enum` choices, or a `boolean`), named with ASCII letters, digits
+  and underscores. Give it `result_value` (a choice, or `true` / `false`) for
+  the contacts whose last call's result is ready and states that answer, or
+  `result_not_stated=true` for those whose result is ready and leaves the
+  field empty. A field that was not stated never matches `false`.
+
+An unknown value, a field without a closed set of answers, or a
+`result_value` outside the field's choices answers `400`.
+
+```bash
+curl -G https://api.skysay.ai/v1/campaigns/camp_123/export \
+  -H "Authorization: Bearer $SKYSAY_TOKEN" \
+  --data-urlencode "group=done" \
+  --data-urlencode "result_field=payment_outcome" \
+  --data-urlencode "result_value=promised" \
+  -o promised.csv
+```
 
 ### Business outcomes
 
@@ -457,9 +880,15 @@ language, plays the recording, links the transcript, shows the extracted
 fields, and resolves each item with a note. The inbox covers the campaign's
 latest run.
 
+An item also offers **Add to do-not-call**. It adds that contact's number to
+your [do-not-call register](#do-not-call-register), the same as adding it on
+the Contacts page, and the item then shows **On do-not-call list**. It is a
+person's decision: no outcome, review or call adds a number on its own.
+Resolving an item and adding its number are separate steps.
+
 The same operations are available over MCP as `create_contact_list`,
 `add_contacts`, `add_do_not_call`, `create_campaign`, `update_campaign`,
-`launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`,
+`launch_campaign`, `pause_campaign`, `resume_campaign`, `cancel_campaign`, `delete_campaign`,
 `list_campaigns` and `get_campaign`, and contact lists are readable with
 `list_contact_lists`, `get_contact_list` and `list_contacts` (`calls:read`). The CSV exports, the results page and
 the review inbox are REST-only.

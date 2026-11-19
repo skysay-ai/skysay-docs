@@ -10,6 +10,8 @@ the moment the call is answered and speaks once the person has finished, so its
 opening does not land on top of their greeting and they do not have to say
 hello twice.
 
+<Diagram name="who-speaks-first.svg" alt="While the call rings the agent hears nothing. Once it is answered Skysay listens: if the person speaks, the agent replies after they finish (a pause of about 0.6 seconds); after 2 seconds of silence (settable from 1 to 5) it says its first message; after 6 seconds of music or a tone with no voice it says its first message once." />
+
 ## Configure the opening
 
 Open **AI agents → your AI agent → Identity**. Beside **First message**, choose:
@@ -58,7 +60,9 @@ them.
   replies. There is no time limit on a person: a long greeting such as "Good
   afternoon, Harbour Street Pharmacy, Sam speaking, how can I help?" is heard
   to the end. A short pause between sentences does not end their turn; a pause
-  of about 0.6 seconds or more starts the response decision. The agent also
+  of about 0.6 seconds or more (0.8 seconds in a language without a turn
+  model; see [Turn detection by language](/docs/turn-detection-by-language))
+  starts the response decision. The agent also
   allows a brief window for the person to resume before releasing a reply.
 - **Nobody speaks.** If the line stays silent for your configured wait after the call is
   answered (two seconds by default), the agent requests its opening.
@@ -79,7 +83,18 @@ them.
 - If they said something else, such as "wrong number", "who is calling?",
   "can you call me back later?" or another question, the agent answers that first and then carries on
   toward the purpose of the call. It does not read its opening over what it has
-  just heard.
+  just heard. On Standard, that reply can use the agent's tools like any later
+  one: a call-back request made on picking up is recorded with
+  `set_call_disposition` as it is answered. This works in Danish, Dutch,
+  English, Estonian, Finnish, French, German, Italian, Norwegian, Polish,
+  Portuguese, Russian, Spanish, Swedish and Ukrainian; in other languages a
+  greeting cannot be told from a request, so the reply to a pickup uses no
+  tools. If that reply has to be asked for a second time, the second try uses
+  no tools either. On GPT-Live 1 and Gemini Live, the
+  reply Skysay asks for in place of the model's own uses no tools yet, so a
+  request made only on picking up is not always recorded; the same request
+  made later in the call is. An opening said before the person speaks, and the
+  reply to a greeting alone, use no tools.
 - If your agent's opening is generated rather than a fixed line, it is written
   with what the person said in view.
 
@@ -97,6 +112,40 @@ count the missing audio as silence.
 
 The opening is an ordinary reply. The person can interrupt it, and the agent
 stops and listens, as it would at any other point in the call.
+
+### Say who is calling and why
+
+An agent that places calls should say who is calling and why, both in its
+**System prompt** and in its **First message**. An agent written to answer
+calls, with a first message such as "How can I help you today?", is set up to
+hear a person who called it. Reused to place calls, it can take a business's
+greeting as a sign that it dialled the wrong number, apologise, and may end
+the call. We have seen this in our own tests on Gemini Live.
+
+An agent written to answer calls, placing one:
+
+> **Person:** "Good morning, Mill Street Bakery, this is Dana, how can I help?"
+>
+> **Agent:** "I'm sorry, I think I've dialled the wrong number. Goodbye."
+
+The bakery was the number the agent was meant to call, and the call ends
+before it has said why it called.
+
+The same call, with a system prompt that says the agent calls customers for
+Northwind Deliveries to confirm tomorrow's delivery, and the first message
+"Hi, this is Maya from Northwind Deliveries. I'm calling to confirm tomorrow's
+delivery.":
+
+> **Person:** "Good morning, Mill Street Bakery, this is Dana, how can I help?"
+>
+> **Agent:** "Hi, this is Maya from Northwind Deliveries. I'm calling to confirm
+> tomorrow's delivery. Will someone be there to receive it?"
+
+If one agent both answers and places calls, its system prompt should describe
+both kinds of call, including who it calls for and why. Give the calls it
+places their own opening as well: `POST /v1/calls` accepts a per-call
+`first_message` (not for an agent that runs a workflow), as described in
+[Call variables](/docs/call-variables#write-them-into-lines).
 
 ## Which calls this applies to
 

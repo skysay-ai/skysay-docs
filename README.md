@@ -64,14 +64,30 @@ use `icon`; they additionally support `date`, `author`, and `tag`.
 
 The components available in MDX are the stock
 [Fumadocs](https://fumadocs.dev) set — `Steps` / `Step`, `Tabs` / `Tab`,
-`Callout`, `Card` / `Cards` — and they are registered globally, so a page never
-imports anything. Add a new page by dropping a `.mdx` file into
+`Callout`, `Card` / `Cards` — plus `Walkthrough`, and they are registered
+globally, so a page never imports anything. `Callout` is our wrapper around the
+Fumadocs one: callouts have no coloured side bar, so use the registered
+component and never import Fumadocs' callout directly.
+
+`<Walkthrough id="import-a-number" />` embeds a click-through setup guide (tabs,
+steps, a mock of the screen and a side panel). Its content is plain data in
+`src/walkthroughs/<id>.js`, listed in `src/walkthroughs/index.js`; the same data
+becomes the page's text in its `.md` URL and `/llms-full.txt`. An unknown id
+fails the build. Run `npm run walkthroughs:test` after changing one.
+
+Add a new page by dropping a `.mdx` file into
 `content/docs/` and listing its slug in `content/docs/meta.json`; blog posts are
 picked up automatically and sorted by `date`.
 
 Adding a page automatically adds it to the sidebar, the search index,
 `/llms.txt`, `/llms-full.txt`, its own `.md` URL, and the sitemap. There is no
 second place to register it.
+
+The long import guide also exposes its carrier sections as children of one
+collapsible sidebar group. `GUIDE_SECTIONS` in `src/lib/docs-tree.js` points
+to the existing headings, preserving bookmarked URLs. When a new carrier's
+guide is available, add its heading anchor there; do not add a placeholder
+for a provider whose import is not yet supported.
 
 ## Running locally
 
@@ -156,8 +172,27 @@ Before merging, run what the build and the reviewers rely on:
 npm ci && npm run build
 python3 -m unittest discover -s tests
 python3 scripts/scan_secrets.py
-python3 scripts/generate_openapi_reference.py --check   # against api/openapi.json; refresh it with scripts/refresh_openapi_snapshot.py
+python3 scripts/generate_openapi_reference.py --check   # the page matches api/openapi.json
 ```
+
+`api/openapi.json`, `api/customer-api-coverage.json` and the generated
+`content/docs/api-reference.mdx` are written together by one command, never by
+hand and never one without the others. In the application checkout of the
+commit the documentation describes:
+
+```bash
+PYTHONPATH=src:packages/skysay-common:packages/skysay-gateway \
+  .venv/bin/python scripts/export_openapi.py \
+  | python3 <docs>/scripts/refresh_openapi_snapshot.py --from - \
+      --coverage docs/public-api-coverage.json
+```
+
+After resolving a merge conflict in `api/openapi.json`, rerun that command, or
+run `python3 scripts/generate_openapi_reference.py` to rebuild the page from the
+merged snapshot.
+
+The export is exactly what `GET /openapi.json` serves: only the operations a
+`sky_` key can call.
 
 The `X-Skysay-Docs-Revision` header is emitted only when the image was built
 with a `DOCS_REVISION` build argument; source builds omit it, and the deployed
@@ -199,6 +234,15 @@ step 3). Every entry uses the same shape, decided by the founder on
 - No prose paragraphs, tables, nested bullets, or bold at the start of every
   bullet. One blank line between the heading and the list and one after it.
 
+A feature pull request does not edit `content/docs/changelog.mdx`. It puts its
+proposed entry in the pull request description under the heading
+`Release log entry`, in the same `###` heading and bullet format, without the
+date heading; the release agent copies it into the release-log pull request at
+release. CI (`tests/test_release_log_scope.py`) refuses a pull request that
+changes the release log together with any file other than `release-state.json`
+and the generated API reference (`api/openapi.json`,
+`api/customer-api-coverage.json`, `content/docs/api-reference.mdx`).
+
 Example:
 
 ```mdx
@@ -207,7 +251,7 @@ Example:
 - Upload a contact list, set calling windows and a retry policy, and launch an agent at your own customers or consented contacts, without an operator.
 - The four-step wizard checks column mapping, calling hours and the cost estimate before launch.
 - Every campaign call clears the do-not-call register when placed and again when the agent starts talking.
-- Cold sales and telemarketing still go through operator review.
+- A destination outside your workspace's country list still goes through operator review.
 - [Read Campaigns](/docs/campaigns) · [Build your do-not-call register](/docs/campaigns#do-not-call-register)
 ```
 

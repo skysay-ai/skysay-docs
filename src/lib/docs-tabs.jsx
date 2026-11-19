@@ -5,8 +5,8 @@ import { resolveDocsIcon } from "./docs-icons.jsx";
 
 // The section tab row above the docs page tree (tabMode: "navbar" in
 // src/app/docs/layout.jsx). One tab per content/docs/meta.json separator —
-// Get started, Tutorials, Guides, Customer applications, MCP tools, API
-// reference, Concepts, Agent surface — built from meta.json at module load
+// Get started, Release log, Tutorials, Guides, Customer applications, MCP
+// tools, API reference, Concepts, Agent surface — built from meta.json at module load
 // instead of a hand-typed URL list, so a page added to (or moved within)
 // meta.json cannot silently fall outside every tab's `urls` set.
 //
@@ -18,8 +18,8 @@ import { resolveDocsIcon } from "./docs-icons.jsx";
 //
 // `icon` reuses docs-icons.jsx's `resolveDocsIcon` — the same fail-closed
 // resolver the sidebar page tree uses, and the exact icon names meta.json's
-// separators already declare (Rocket, GraduationCap, Compass, AppWindow,
-// Puzzle, CodeBrackets, LightBulb, Cpu). An unresolvable or missing icon name
+// separators already declare (Rocket, ClockRotateRight, GraduationCap,
+// Compass, AppWindow, Puzzle, CodeBrackets, LightBulb, Cpu). An unresolvable or missing icon name
 // throws at build time here exactly as it does for the sidebar; this module
 // does not weaken that contract.
 //

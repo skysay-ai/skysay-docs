@@ -19,6 +19,8 @@ ended (the caller hung up, the AI agent finished, a safety rule ended it); see
 reads that reason, the line's own result and the call's evidence, and says
 whether anything went wrong.
 
+<Diagram name="failure-labels.svg" alt="Three questions in order decide a failed call's single label: did the call become a conversation (no: Telephony, you check the list, calling times or number), did Skysay's voice pipeline hold up (no: Audio and media, Skysay acts), did the agent and your systems work (no: AI agent behaviour, you check the prompt, webhook, tool or transfer number). Three yeses mean no failure was observed, which is not proof the call went well." />
+
 ## Three places a call can fail
 
 | Layer | What happened | Who acts |
@@ -44,6 +46,9 @@ other problems observed stay visible in the call's drawer.
 | Line busy | The line was busy. |
 | No answer | Nobody answered before the ring timed out. |
 | Answered by a machine | The line was answered, but only by a machine, music or tones, never a person. |
+| Hold limit reached | The call reached a hold queue and nobody picked up within the max hold time, or the call reached its maximum length while it waited. See [Phone menu navigation](/docs/phone-menu-navigation). |
+| Menu had no matching option | The phone menu had no option that fits the call's task, or asked for a number the call did not carry. |
+| Time limit in phone menus reached | The agent used the time allowed for menus without reaching a queue or a person. |
 | Telephony technical failure | The call failed before it could connect, for a technical reason on the line. |
 
 ### Audio and media

@@ -1,11 +1,11 @@
 ---
 title: Tool reference
-description: Every Skysay MCP tool with its required scope, generated from the server's TOOL_SCOPES.
+description: Every Skysay MCP tool with its required scope, generated from the server's tool-scope table.
 icon: Wrench
 ---
 
 Every tool the agent can call, with the scope it requires. Scopes are
-authoritative on the server (`TOOL_SCOPES` in `src/telephony_ai/mcp.py`) — treat
+authoritative on the server's tool-scope table — treat
 the live `tools/list` on your instance as canonical. Required scopes are published
 under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 `_meta["ai.skysay/alternative_required_scopes"]`. Read tool responses from
@@ -18,6 +18,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | --- | --- | --- |
 | `account_overview` | `account:read` | Bounded workspace summary: wallet, usage totals with up to 10 line items, and for agents, numbers, number requests, calls and SMS conversations a `total` with up to 5 newest previews and the `list_tool` that pages them. Never includes SMS message content. See [Bounded results and paging](/docs/mcp#bounded-results-and-paging). |
 | `list_audio_environments` | `account:read` | Read the immutable versioned ambience catalogue (including Off). It has the same result and scope as `GET /v1/audio-environments`; it never contacts a provider or changes a selection. |
+| `create_wallet_topup` | `wallet:write` | Initiate an explicitly owner-approved purchased-wallet top-up for the authenticated workspace: return a direct Stripe Checkout URL, or use a compatible wallet’s approved shared payment token. Permission alone approves no payment; see [funding paths and limits](/docs/billing#adding-funds-through-mcp). Absent from the read-only connector. |
 
 ## Coverage & catalog
 
@@ -37,11 +38,25 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | `create_agent` | `agents:write` | Create a first-class agent in `external_audio`, `external_text`, or `hosted` mode. |
 | `connect_external_agent` | `agents:write` | Shortcut for an `external_audio` agent with webhook + audio-stream URLs. |
 | `update_agent` | `agents:write` | Apply the generic mutable-agent PATCH fields and REST validation. |
+| `get_agent_public_link` | `agents:read` | Read an AI agent's public link, including its two conversation limits, its live switch and, with `recordings:read`, its shared conversations, and optionally check a proposed address. |
+| `set_agent_public_link` | `agents:write` | Publish, turn off, or rename a public link, change its two conversation limits, turn live conversations on or off, or replace its shared conversations (`recordings` also needs `recordings:read`). When enabled with live conversations on, visitors can start conversations billed to the workspace. |
+| `list_agent_public_link_recording_candidates` | `agents:read`, `recordings:read` | List one page of an AI agent's calls that can be shared as recorded conversations on its public link, and why a call cannot be shared yet. |
 | `get_agent_voice_stack` | `agents:read` | Read the selected stack and sparse language profiles. |
 | `set_agent_voice_stack` | `agents:write` | Set transcriber/model/voice, first message, system prompt, language, and optional `voice_frontend` (`cascade` or `gpt_live`). |
 | `preview_voice` | `agents:write` | Explicit bounded, rate-limited provider/BYOK Listen action; may have provider and safe state effects, so it is not read-only. |
 | `get_agent_variables` | `agents:read` | Read an AI agent's [call variables](/docs/call-variables) config with its `revision` and `schema_hash`; the same answer as `GET /v1/agents/{agent_id}/variables`. |
 | `set_agent_variables` | `agents:write` | Replace an AI agent's whole call variables config, checked and republished at once. Send `base_revision` to be refused rather than overwrite a newer write. A refused config returns `error.body.issues`. |
+
+## PBX connection keys
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_pbx_keys` | `agents:read` | List an AI agent's named PBX keys with bounded pagination; never returns passwords. |
+| `create_pbx_key` | `agents:write` | Create a named key and reveal its password once. |
+| `rotate_pbx_key` | `agents:write` | Reveal a new password for the same logical key, with up to 24 hours of grace for the immediately previous password. |
+| `revoke_pbx_key` | `agents:write` | Revoke every password version for one key; independently named keys keep working. |
+
+See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 
 ## Offline trial fixtures
 
@@ -69,6 +84,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | `get_call` | `calls:read` | Get call status, recording state, and where its conversation workflow ended (outcome, interrupts taken, settled). |
 | `get_call_recording` | `recordings:read` | Get recording metadata and disclosure state. |
 | `get_call_transcript` | `recordings:read` | Get transcript turns. |
+| `get_call_summary` | `recordings:read` | Get the call's [AI summary](/docs/call-summaries): summary, follow-up, goal met and sentiment, each an AI estimate. |
 | `create_outbound_call` | `calls:write` | Place a policy-gated outbound call. |
 
 ## Contacts

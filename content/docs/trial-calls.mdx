@@ -4,16 +4,80 @@ description: Use a metered browser session before moving to purchased-funds phon
 icon: Headset
 ---
 
+<Diagram name="test-an-agent.svg" alt="Three ways to test an agent: chat in text (no audio, not metered, no call record, and SMS, transfer, webhook and integration tools are held), a browser test (your microphone, no number, browser credit or purchased funds, up to 180 seconds), and a real phone call (your number and carrier route, purchased funds only, the usual policy checks). Browser tests and phone calls are reviewed in Calls or with the call-evidence tools; only a phone call proves your number and carrier route." />
+
 ## Hear your agent in the browser
 
 Open **Agents**, select your agent, configure its supported STT, LLM, and TTS
 components, then start a browser test. Allow microphone access and end the
 session when you finish. Each session is capped at 180 seconds.
 
+Your browser asks for the microphone once the test has connected. An AI agent
+greets you straight away and hears you from the moment your microphone is on,
+including an agent whose business tools ask you to confirm before they act. An
+agent that runs a workflow waits for your microphone before it speaks its first
+line. The silence limit (20 seconds by default) counts from the start of the
+test, so allow the microphone before it runs out: if nobody has spoken by then,
+the test ends the way a call ends when nobody speaks, with the reason
+`no_caller_speech_after_answer` in **Calls**.
+
 Authenticated browser tests use [welcome browser credit](/docs/billing) or
 purchased funds at the selected components' metered prices. You do not need a
 phone number for a browser test. This does not qualify the carrier route or
 prove that a real phone call will work.
+
+## While the test runs
+
+Once the test is live, the panel shows your microphone and the AI agent's
+audio side by side:
+
+- **Microphone on / Muted** stops and restarts sending your microphone without
+  ending the test. The bars inside the button are your microphone's input
+  level, so you can see the browser is picking you up before the AI agent
+  answers. If you have not spoken yet, a long silence still ends the test, as
+  it would on a real call.
+- The arrow beside it lets you choose the **microphone**, and the **speaker**
+  where your browser can send audio to a chosen output. Listing the devices
+  never asks for permission again. If a device cannot be selected, the panel
+  says so and keeps using the one it was on.
+- The **AI agent** level shows its audio arriving in your browser.
+- A live timeline draws the AI agent's speech above yours, the pause before it
+  answers, and moments when you both speak. It is measured in your browser
+  from speaking signals, so the times are approximate and include the network.
+  The exact stage timings of every call are in **Calls** → **Performance**.
+- If your browser pauses the AI agent's audio or the levels, **Enable audio**
+  turns them back on.
+
+## If the AI agent does not start speaking
+
+If the requested opening fails before the worker observes agent audio, the
+browser test ends and explains that the AI agent did not start speaking. Start
+another test to retry with the same selected configuration. Each retry creates
+a new call and passes the usual balance and admission checks; it does not
+retry automatically.
+
+If every voice line is in use when the test starts, the test does not start
+and the panel says the voice lines are busy. That test is listed in **Calls**
+as canceled and is not charged. Wait a few minutes and start another.
+
+If a connection ends before its outcome can be confirmed, the panel says so.
+This message does not mean your configuration is wrong or confirm a refund.
+Microphone resources are closed before you retry. Ending the test yourself
+keeps the normal end-of-test behavior.
+
+A confirmed zero-output startup failure can release an unused hold when that
+decision is processed before native usage is accepted. If usage arrived first,
+normal settlement applies. Missing or incomplete evidence keeps the
+pending-usage hold until usage arrives or the 24-hour recovery returns it;
+silence alone is not a billing decision. See
+[Billing](/docs/billing#a-call-has-ended-but-funds-are-still-reserved).
+
+For integrations, `GET /v1/calls/{call_id}` may expose `browser_outcome` while
+the call is still active: `browser_startup_failed`, `worker_ended`, or an empty
+string when no outcome is known. `worker_ended` confirms teardown, not billing
+success. The transport still completes through its normal lifecycle. A failed
+opening has `ended_reason: browser_startup_failed` after completion. These
+fields do not certify a refund.
 
 ## Chat with your agent in text
 
@@ -78,6 +142,11 @@ demo slot, and starting a phone call is not a substitute for retrying the demo.
 Maintenance can pause new demo sessions while existing sessions finish. Demo
 availability does not establish how many simultaneous phone calls your workspace
 can make.
+
+The demo asks for your microphone before it starts a session. If the browser
+blocks the microphone or finds none, the demo says so and asks you to allow it;
+no session starts and no call is recorded. Allow microphone access for the site
+in your browser, then try again.
 
 ## Review the result
 

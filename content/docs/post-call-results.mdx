@@ -9,6 +9,8 @@ evidence endpoints when you need the recording, transcript, or artifact itself.
 An optional post-call extraction is a convenience summary derived after a call;
 it is never the authoritative billing, policy, or customer-system record.
 
+<Diagram name="after-the-call.svg" alt="When a call ends Skysay records its platform facts (status, ending reason, duration), then stores the recording and transcript; a failed call stops at its facts. From the transcript it writes a free AI summary, which has no webhook, and your result fields if you set them. Your webhook endpoint gets the events you subscribe to (call.completed, call.failed, call.recording.ready, call.transcript.ready, call.extraction.ready), signed, at least once and in any order." />
+
 ## Configure an event endpoint
 
 In the Workspace, configure the agent/webhook endpoint and use **Send test
@@ -145,12 +147,14 @@ your workspace's settings; see
 [Maintenance windows](/docs/errors#maintenance-windows).
 
 `inbound_capacity_reached` (stage `inbound_admission`) means an incoming call
-arrived while every agent line on the platform's phone host was already in a
+arrived while every Skysay phone line for AI calls was already in a
 call. Skysay does not answer that call: the caller hears a busy signal straight
 away, instead of ringing with nobody to pick up, and the call is recorded
 failed, once, with nothing charged. `sip_status_code` is null on this reason.
-A number's rule `fallback` is not applied to these calls yet, so the call is
-not forwarded anywhere.
+The call is not forwarded anywhere, unless the number has
+[phone backup](/docs/phone-backup) authorized on an enabled connection. With
+backup, Skysay connects the caller to the team number saved with that
+authorization and records a phone backup call instead of this failure.
 
 An outgoing call never gets a busy for this: when every agent line is in a call
 as an outgoing call is about to be dialled, Skysay does not dial it. The call
@@ -164,9 +168,9 @@ ten minutes, the call ends `outbound_capacity_unavailable` (stage
 
 ### When the configuration could not be run
 
-Five reasons share the stage `component_configuration`. They mean the call was
+Six reasons share the stage `component_configuration`. They mean the call was
 admitted and then refused before any audio existed, because the agent's
-resolved configuration could not build a conversation. Four of them name the
+resolved configuration could not build a conversation. Five of them name the
 missing piece:
 
 | Value | Meaning |
@@ -175,13 +179,14 @@ missing piece:
 | `tts_model_missing` | no speech model is chosen, so replies cannot become audio |
 | `llm_model_missing` | no language model is chosen, so the agent has nothing to think with |
 | `system_prompt_missing` | no instructions are written, so the agent does not know what the call is for |
+| `external_audio_stream_unreachable` | an agent hosted outside Skysay could not be reached at its [audio stream](/docs/audio-stream-protocol) |
 
-The fifth, `component_configuration_rejected`, is the general case: the
+The sixth, `component_configuration_rejected`, is the general case: the
 configuration was refused for a reason outside that list — an unavailable
 provider or model for the call's language, a voice that is not in the approved
 inventory, or a language the agent is not published to answer in.
 
-What the four name is the *field*, never its contents: `system_prompt_missing`
+What the five name is the *field*, never its contents: `system_prompt_missing`
 tells you instructions are missing and never quotes them. As with every
 pre-media refusal, Skysay hangs up the phone leg, closes the room, records one
 `call.failed` result and releases the wallet reservation, so nothing is charged.
@@ -193,6 +198,10 @@ workspace reports the same missing pieces before you place a call, and a
 browser test against an agent in this state is refused rather than connected.
 Calls that failed this way before this release carry no reason at all; they are
 not backfilled.
+
+A number with [phone backup](/docs/phone-backup) authorized on an enabled
+connection connects the caller to its team number when the agent's
+configuration cannot run, instead of refusing the call.
 
 
 ## Read evidence and optional extraction
@@ -208,6 +217,10 @@ After the relevant ready event, use the generated reference routes for:
 
 Each read remains scoped to your organization and API key. Store only the
 evidence your policy and retention rules permit.
+
+In the workspace, the fields a post-call extraction pulls out are set on each
+AI agent, in its **After the call** section, beside the free AI call summary;
+see [After the call](/docs/after-the-call).
 
 ### When a recording arrives late, or not at all
 
@@ -287,15 +300,18 @@ A completed call carries `ended_reason` on the call resource and in its terminal
 | --- | --- |
 | `remote_party_disconnected` | the other party hung up |
 | `hangup_requested` | someone ended the call from your workspace or through the hangup endpoint |
-| `max_call_duration_reached` | the call reached its configured maximum length |
+| `max_call_duration_reached` | the call reached its configured maximum length, or a browser test from the AI agent's test panel reached its 3 minute limit |
 | `funding_exhausted` | the current credit reservation could not be extended before its funded deadline — see [Funding a running call](/docs/billing#funding-a-call-while-it-is-running) |
-| `no_caller_speech_after_answer` | the call was answered but nobody ever spoke |
+| `no_caller_speech_after_answer` | the call was answered but nobody ever spoke; in a browser test, also when the microphone was never allowed |
 | `agent_completed` | the agent finished the conversation and ended the call |
 | `media_session_lost` | the media session went away while the call was still live |
-| `no_human_after_answer` | the call was answered but only music or tones were ever heard |
-| `model_session_lost` | the conversation engine behind the call failed and could not be recovered |
+| `no_human_after_answer` | the call was answered but no person was there: only music or tones, a recording repeating the same cycle, or (with `reason_detail` `recorded_message_only`) a recording and nothing else |
+| `model_session_lost` | the conversation engine behind the call failed and could not be recovered; with `reason_detail` `transcriber_refused_request`, the call's transcriber refused the request it was opened with — see [When the transcriber refuses the request](#when-the-transcriber-refuses-the-request) |
 | `agent_unresponsive` | the other party spoke and the agent produced nothing for the whole of its bound — see [When the agent stops answering](#when-the-agent-stops-answering) — or, with an empty `reason_detail`, the agent's opening could not be produced and never reached the caller ([details](/docs/voice-behavior#when-the-opening-never-reaches-the-caller)) |
 | `caller_unresponsive` | both sides fell silent after the agent spoke, the agent asked whether the caller was still there, and nobody answered — see [How a call ends](/docs/how-calls-end#when-both-sides-go-quiet) |
+| `ivr_timeout` | an outbound call that was in a phone menu or a hold queue ended there: a limit ran out, the menu had no way to a person, or it asked for a value the call did not carry; `reason_detail` says which. [Phone menu navigation](/docs/phone-menu-navigation#how-these-calls-end) is on by default, so any call your AI agent places can end this way |
+| `listener_unavailable` | a workflow agent's speech listener (its speech-to-text provider) failed while the caller was on the line, so the agent could no longer hear them — see [When a workflow's listener fails](#when-a-workflows-listener-fails) |
+| `workflow_line_undelivered` | a workflow agent could not deliver one of its lines before the end of the workflow, so the workflow could not go on — see [When a workflow line is not delivered](#when-a-workflow-line-is-not-delivered) |
 
 The workspace Calls detail explains funding-related endings. Read the full
 ending-reason vocabulary from the call resource or the `call.completed` webhook.
@@ -317,11 +333,51 @@ and it qualifies one of the two, which you can tell from its value:
 | `model_unresponsive` | `ended_reason` `agent_unresponsive` | the agent stopped answering: see below |
 | `insufficient_balance` | `ended_reason` `funding_exhausted` | the latest renewal confirmed insufficient eligible credit |
 | `renewal_unavailable` | `ended_reason` `funding_exhausted` | additional funded time was not confirmed by the deadline |
+| `hold_limit`, `navigation_limit`, `deadline`, `menu_no_path`, `data_not_authorised`, `keys_not_accepted` | `ended_reason` `ivr_timeout` | the time allowed on hold, the time allowed in menus, or the call's overall maximum length ran out while the call was waiting; or the menu offered no way to a person; or it asked for a value the call did not supply; or it never acted on the call's key presses. See [How these calls end](/docs/phone-menu-navigation#how-these-calls-end) |
+| `during_hold` | `ended_reason` `remote_party_disconnected` | the other party hung up while the call was waiting in a menu or on hold |
+| `recorded_message_only` | `ended_reason` `no_human_after_answer` | a recording and nothing else answered: no menu, no person |
+| `navigation_detector_lost` | `ended_reason` `media_session_lost` | the listening a waiting call depends on stopped delivering |
+| `not_understood` | `ended_reason` `caller_unresponsive` | on a workflow call, the caller was heard after a question three times in a row but no words were recognised. See [When the caller isn't understood](/docs/agent-workflows#when-the-caller-isnt-understood) |
+| `silent` | `ended_reason` `caller_unresponsive` | on a workflow call, nothing was heard after a question three times in a row. This is rolling out and does not yet appear |
 
-It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` is the
-ending that goes with the `non_human_audio` classification, and only an agent set to `end_call`
-ends a call that way. See [Answer detection](/docs/answer-detection) for the whole set, for the
-two situations that end a call, and for the per-agent setting.
+It is empty when neither needs qualifying, which is most calls. `no_human_after_answer` goes
+with the `non_human_audio` classification on a call an agent set to `end_call` ended; a voicemail
+hang-up (`recorded_message_only`) is a separate path to the same reason. See
+[Answer detection](/docs/answer-detection) for the whole set, for the three situations in which
+`end_call` ends a call (one is a recording that repeats the same cycle), and for the per-agent
+setting.
+
+### A wait that ran out after a conversation
+
+The call resource also carries `person_reached`: `true` when a person was reached earlier in the
+call, `false` when nobody was, and `null` when the call did not report it (a call that completed
+before the field shipped, an agent that does not handle phone menus, and any ending the platform
+did not decide). It matters for the three endings that mean "the call waited and nobody came":
+`ivr_timeout` with `hold_limit` or `deadline`, and `remote_party_disconnected` with `during_hold`.
+
+| `person_reached` | campaign disposition | pick-up and talk time |
+| --- | --- | --- |
+| `false` | `no_answer`: the contact is dialled again | the call is not a pick-up and its recording is not talk time |
+| `true` | `connected_completed`: terminal, the contact is not dialled again | the call is a pick-up and its recording is talk time |
+| `null` | `connected_completed`: missing information never starts a redial | excluded, as it was before the field existed |
+
+A conversation followed by a transfer into a queue that ran out of time has reached its contact, so
+it is neither redialled nor discounted. `ivr_timeout` with `navigation_limit`, `menu_no_path`,
+`data_not_authorised` or `keys_not_accepted` is terminal whatever `person_reached` says, and `no_human_after_answer` is never
+a pick-up. The same field is in the `call.completed` webhook, and the terminal `call.ended` event's `details` carries it as a boolean when the platform reported one.
+
+### A recording that asked for a call-back
+
+The terminal `call.ended` event's `details` carries `recording_evidence: true` in one case. The
+call's voicemail detection heard one voicemail greeting that ended in a record beep, nothing else
+from the other end, and the whole call. The key is absent otherwise; it is never `false`. It is not
+on the call resource or in `call.completed`. A campaign uses it to settle a call-back that such a
+greeting "asked for" as `voicemail` (see
+[Campaigns](/docs/campaigns#a-call-back-a-mailbox-asked-for)).
+
+The key is on `call.ended` when the voice worker's own end-of-call report is the event that creates
+it. A call whose `call.ended` came from another report, for example when the platform closed a call
+whose worker stopped answering, has no key.
 
 ### When the media session is lost
 
@@ -359,6 +415,83 @@ Before this release such a call stayed open until its maximum length or until
 the fault check below settled it, and carried no reason. As with
 `media_session_lost`, a hangup request that was in flight is answered
 separately, and the call is not reported as `hangup_requested`.
+
+### When the transcriber refuses the request
+
+A call that ends as `model_session_lost` with `reason_detail`
+`transcriber_refused_request` lost its conversation engine because the call's
+transcriber (its speech-to-text provider) refused the request Skysay opened it
+with. The usual cause is a language or language code that provider does not
+take. Skysay does not keep its own list of the languages each provider runs, so
+a language a provider does not run shows up here, on the call, rather than being
+hidden behind a list. Skysay ends the call rather than leave the line open with
+nobody able to hear the other party.
+
+If you see this detail, choose another transcriber for that language, or
+remove the language from the AI agent. A campaign contact whose call ended this
+way is treated like any other completed call and is not retried automatically:
+a retry would be refused the same way.
+
+### When a workflow's listener fails
+
+An agent that runs a workflow hears the caller through its speech listener,
+the speech-to-text provider the workflow is set to use.
+
+If the listener's connection fails (it never connects, or its stream closes or
+fails), Skysay reconnects it once per call. The new connection is sent
+everything the caller said in their current turn, from its first word, so
+nothing is lost, and the call carries on as normal. The reconnect has about
+3 seconds after the caller stops speaking to deliver their words.
+
+Skysay ends the call with `ended_reason` `listener_unavailable` when the agent
+can no longer hear the caller:
+
+- the reconnect also fails, or does not deliver the caller's words in time;
+- the listener fails a second time on the same call (only one reconnect is
+  made per call);
+- the listener fails for a reason a new connection cannot fix, such as a
+  rejected configuration or a stream that reached its time limit;
+- the caller's current turn is more than about 26 seconds long when the
+  connection fails, because only the last 26 seconds of audio can be resent.
+
+Audio resent on a reconnect can be counted again in the call's speech-to-text
+usage: at most the part of one turn the failed connection had already
+received, at most 26 seconds, once per call. If the first connection never
+opened, nothing was sent to it and nothing is counted twice.
+
+When a call ends this way, nobody hung up, no limit was reached and the
+workflow did not finish. Such a
+call used to carry no reason, and its workflow read as if the caller had hung
+up. The call's `workflow.status` is still `incomplete`, because the workflow
+stopped before it finished; it did not fail on its own.
+
+Anything the caller said that the listener did not deliver is not in the
+transcript, and that includes a request to stop calling. Before you dial a
+contact again after this ending, check the call's recording.
+
+### When a workflow line is not delivered
+
+A spoken workflow only moves on from a step once the caller has heard its line.
+Skysay ends the call with `ended_reason` `workflow_line_undelivered` when a line
+before the end of the workflow could not be delivered:
+
+- On GPT-Live 1, the line was played but GPT-Live did not say it in full (see
+  [how GPT-Live speaks a workflow](/docs/agent-workflows)). The workflow run's
+  `fail_reason` is `LINE_NOT_SPOKEN`.
+- On any engine, the caller spoke over the same step three times while its line
+  had still not been heard in full. Words said over a line that was not heard
+  are never taken as an answer to it, so the step is spoken again, at most
+  twice; the third time the workflow stops. Only a line that had begun
+  playing counts: words said before a repeat started playing do not. The
+  run's `fail_reason` is
+  `UNHEARD_REPEATS_EXHAUSTED`. A stop request, a wrong-person reply and your
+  workflow's other global interrupts are still recognised on every one of
+  those turns, exactly as before.
+
+Nobody hung up and no limit you set was reached. The call's `workflow.status`
+is `failed`: the workflow could not go on. Such a call used to carry no reason,
+and its workflow read as if the caller had hung up. Check the recording for
+what the caller heard and said before you contact them again.
 
 ### When the agent stops answering
 
@@ -446,9 +579,18 @@ routes report `remote_party_disconnected`, because they are the same ending;
 by the backstop the call ends within about 30 seconds of the line going empty.
 
 **The call reached its maximum length.** A call ends after **29 minutes** by
-default and reports `max_call_duration_reached`. The limit sits just under the 30 minute
-ceiling of the underlying media session, so the call ends with a stated reason
-rather than being cut off without one.
+default and reports `max_call_duration_reached`. The worker reports this reason before the configured 30-minute native SIP
+backstop. The backstop applies to configured managed trunks; existing or
+imported trunks need it configured separately. Changing a trunk limit affects
+new calls, not a call already in progress. The 29-minute AI worker limit is
+unchanged.
+
+**A browser test reached its limit.** A browser test you start from the AI
+agent's test panel lasts at most **3 minutes** of conversation; in its last 30
+seconds the panel counts down. It then ends and reports
+`max_call_duration_reached`, the same reason as any other call that reached
+its maximum length. Earlier browser tests that ended at
+this limit were reported as `media_session_lost`.
 
 **Nobody spoke after the call was answered.** If no speech is heard from the
 other party for **20 seconds** after the call is answered, by default, the call
@@ -541,10 +683,8 @@ API accepted is the setting your call runs. An agent that sets neither uses the
 defaults above, and existing agents are unaffected.
 
 Each range has a reason worth knowing before you pick a value. `max_call_seconds`
-cannot exceed its default, so this setting can only make a call end sooner: the
-media session behind a call is dropped at 30 minutes, and a limit above the
-ceiling could never fire, which would leave the call ending with no reason
-attached. `no_caller_speech_seconds` has a floor because the platform listens
+cannot exceed its default, so this setting can only make a call end sooner: it leaves time to close the call and report its reason before a configured
+native SIP backstop. `no_caller_speech_seconds` has a floor because the platform listens
 for voice activity rather than for meaning, so somebody who is merely listening
 looks the same as somebody who is not there; a shorter window would end the
 call partway through the agent's own opening line.
@@ -653,6 +793,29 @@ string enums, and no additional properties.
   }
 }
 ```
+
+Each scalar property can restrict its evidence with `"x-skysay-source": "caller"`.
+The default, `"conversation"`, uses both speakers. Caller fields receive only
+captioned caller speech, so an agent's recap or an unspoken form value cannot
+supply the answer. A bare “yes” cannot establish a value mentioned only in an
+omitted agent question; that value remains unknown. Choose caller fields for
+contact preferences and facts the caller actually states. A caller-only summary
+is deliberately one-sided and may omit context from the agent's questions.
+
+```json
+{
+  "lender": { "type": "string", "x-skysay-source": "caller" },
+  "call_outcome": { "type": "string", "x-skysay-source": "conversation" }
+}
+```
+
+The annotation belongs on individual scalar properties, not the root schema
+or nested objects. Other source values are rejected. Skysay uses one bounded
+transcript read and at most two model requests per worker attempt, one per nonempty
+source group. Normal worker retries repeat these requests. With no captioned caller words, caller fields return `null` without
+a model request. If either model request fails, the extraction follows the
+normal retry/failure process; a partially successful result is never published.
+The result remains an AI estimate, not verified caller identity or consent.
 
 Every configuration edit creates an immutable version for future calls. After a
 completed call has a transcript, a separate worker may produce a result. Read

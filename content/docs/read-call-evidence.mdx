@@ -1,6 +1,6 @@
 ---
 title: Read call evidence
-description: Recordings, waveform peaks, transcript turns, summaries, and retention/disclosure state for every call.
+description: Recordings, waveform peaks, transcript turns, summaries, and disclosure state for every call.
 icon: DocMagnifyingGlass
 ---
 
@@ -8,6 +8,19 @@ Real browser and phone calls can attach evidence to the session. An agent
 reads available evidence with the call and recording tools. Failed calls and
 offline synthetic fixtures need not have real audio; check recording state
 rather than assuming every call has a recording.
+
+<Diagram name="call-evidence.svg" alt="A call (phone call, browser test or homepage demo) has a call record with its status, recording state and where its workflow ended, and an event log, both read with calls:read. Its recording (listening mix, waveform peaks, disclosure state), transcript turns and AI summary need recordings:read; in the workspace, Calls plays the recording and shows the transcript with each tool call and language switch. A completed call can have no recording or transcript, so check its recording state first." />
+
+## A completed call with no recording
+
+A completed call can have no recording and no transcript because no audio was
+captured on the line. Most often the person on the other end hung up before
+the greeting finished. The Calls page says so on that call: "The caller hung
+up before the greeting finished" on an inbound call, "The called person hung
+up…" on an outbound call, "The tester left before the greeting finished" on a
+browser test, and "No audio was captured on this call" when nothing was
+captured for another reason. A completed call with no recorded reason shows
+"No recording for this call." The call's ending and billing are unaffected.
 
 ## The evidence tools
 
@@ -17,6 +30,7 @@ rather than assuming every call has a recording.
 → get_call_recording(call_id="cl_...")   # recordings:read — metadata + disclosure
 → GET recording.download_url              # recordings:read — playable audio bytes
 → get_call_transcript(call_id="cl_...")  # recordings:read — transcript turns
+→ get_call_summary(call_id="cl_...")     # recordings:read — AI summary (see Call summaries)
 ```
 
 `list_calls` returns one newest-first page of call records (without the
@@ -122,6 +136,21 @@ rejected before provider processing and are never silently translated only
 partway. A partial original transcript can have a translation of all available
 text; its missing-caption markers remain visible.
 
+## When a turn clip is unavailable
+
+If Skysay detects delayed audio arriving in a backlog, it cannot reliably
+locate individual transcript turns in that recording. The Calls transcript
+keeps the original words and explains that clip timing is uncertain. Listen
+to the full recording instead. Both speakers' turn clips are withheld for
+that call; normal clip playback remains available for unaffected calls.
+
+For these turns, transcript `metadata.timing_quality` is `ambiguous`,
+`metadata.timing_reason` is `delivery_backlog`, and `audio_artifact_id` is
+null. New recordings without detected backlog use `heuristic` timing with
+reason `callback_timing`: absence of detected backlog is not a guarantee of
+sample-accurate timing. This detection does not repair the recording's timing
+or reconstruct missing captions. It does not change saved historical calls.
+
 ## What a recording contains
 
 The transcript does not have to alternate between caller and AI agent. On the
@@ -129,9 +158,11 @@ standard STT/LLM/TTS pipeline, consecutive recorded agent replies remain separat
 entries even when the caller has not spoken between them. For example, a short
 acknowledgement followed by the answer should show both replies. An interrupted
 reply can contain text that was not heard in full; check its playback evidence
-and the recording. Text prepared for speech that never played is not proof the
-caller heard it. This applies to newly recorded calls, not a repair of old
-transcripts.
+and the recording. On a workflow call spoken in its configured voice, a line
+the caller cut off is shown as written, marked as interrupted, with the audio
+that played; a line cut before any of it played is not shown. Text prepared
+for speech that never played is not proof the caller heard it. This applies
+to newly recorded calls, not a repair of old transcripts.
 
 A `recording` is the call's audio metadata plus:
 
@@ -139,8 +170,8 @@ A `recording` is the call's audio metadata plus:
   rendering a scrubbable waveform. Recordings saved before 26 September 2026
   are recomputed to the same detail.
 - **Transcript turns** — speaker-attributed turns of the conversation.
-- **Retention / disclosure state** — how long the audio is kept and whether the
-  required call disclosure was made.
+- **Disclosure state** — whether the required call disclosure was made, plus
+  the retention value stored with the recording, which is not applied yet.
 
 `get_call` returns the call status, recording state and [where its workflow ended](#where-a-calls-workflow-ended); `get_call_recording`
 returns recording metadata, disclosure state, and a relative `download_url`;
@@ -163,10 +194,34 @@ require the `recordings:read` scope, which is distinct from `calls:read` so you
 can grant transcript access without call metadata, or vice versa.
 
 <Callout type="info" title="Retention">
-  Recording retention runs on the Skysay side (dry-run or execute). The
-  disclosure state on each recording tells you whether the call was announced as
-  recorded — surface it when you summarize a call back to a human.
+  Recordings and transcripts are kept until you delete them; nothing deletes
+  them automatically today. `DELETE /v1/calls/{call_id}/recording` deletes a
+  call's recording together with its transcript, summary and extracted results.
+  The disclosure state on each recording tells you whether the call was
+  announced as recorded — surface it when you summarize a call back to a human.
 </Callout>
+
+## Homepage demo calls
+
+When one of your AI agents is offered in the live demo on the Skysay homepage,
+each conversation a visitor has with it is a call in your workspace, with
+`direction: "homepage_demo"`. **Calls** lists it as **Homepage demo**, with
+**homepage visitor** where a phone call shows a number: the visitor is
+anonymous, and no number, name or network address is attached to the call.
+
+A homepage demo call is recorded like any other call: the mixed recording, the
+caller and AI agent tracks, the transcript, and the tool calls and knowledge
+searches the AI agent made. The call is never billed to your wallet; the
+homepage demo has its own budget.
+
+The AI agent runs with the same configured tools and attached knowledge bases
+it uses on the phone. Because the visitor is anonymous and on a web page,
+tools that act on a phone caller (texting the caller, transferring, saving a
+callback, setting the call's outcome) answer that they are not available in a
+browser. Calendar tools still work: attaching a calendar to the AI agent lets
+any of its callers, a homepage visitor included, book in it. Tool calls and
+knowledge searches are limited to 10 per session and 30 per visitor per day
+(UTC); ending the call is never limited.
 
 ## The call event log
 
@@ -175,6 +230,27 @@ event rows, oldest first, each with its raw payload. It is the platform's
 internal bookkeeping log rather than a webhook replay, so it contains types
 that are never delivered to any webhook endpoint. Reading it needs
 `calls:read`.
+
+### `call.workflow_callback_time`
+
+Written by a [workflow](/docs/agent-workflows) turn that took the `callback`
+global interrupt: the time the caller asked to be called back, as the turn read
+it from what they said. It is written in the same commit as the turn and never
+delivered to a webhook endpoint. Any call whose workflow takes the interrupt
+gets one, campaign call or not; only a [campaign](/docs/campaigns#call-backs)
+schedules a call from it.
+
+| Field | Meaning |
+| --- | --- |
+| `callback_at` | The time, in UTC (`...Z`), or empty when there is none to schedule. |
+| `reason` | `read` when there is a time; `no_time` when the caller named none; `time_unavailable` when the time could not be read within the turn (a timeout or a provider error); or the refusal `callback_at_in_past`, `callback_at_too_far_ahead`, `callback_at_offset_required` or `invalid_callback_at`. |
+| `run_id` | The workflow run the turn belongs to. |
+| `interrupt_seq` | The sequence number of the run step that took the interrupt. |
+| `requested_at` | When the time was read. |
+
+A campaign uses the time only when the event belongs to the last interrupt the
+call's workflow took; a later stop request, wrong-party reply or declared
+outcome decides as before.
 
 ### `call.wrong_party_signals`
 
@@ -211,46 +287,49 @@ read it alongside the rest of a call's evidence.
 
 ## Play a recording in Calls
 
-The recording player at the top of a call in **Calls** is one waveform you can
+The recording player in a call in **Calls** has play and pause, a speed button
+that switches between 1×, 1.5× and 2×, and **Download**, under one strip you can
 click, drag or tap anywhere to jump to that moment, even before the audio has
-started. With the waveform focused, the arrow keys move 5 seconds, Page Up and
+started. With the strip focused, the arrow keys move 5 seconds, Page Up and
 Page Down move 15 seconds, Home and End jump to the start and the end, and
-Space plays or pauses. A speed button switches between 1×, 1.5× and 2×.
+Space plays or pauses. When the AI side and the other side were recorded
+separately, the strip is the [call timeline](#the-call-timeline); otherwise it
+is one waveform.
 
-The bars are coloured by who is speaking: the AI agent in one colour and the
-other person in another. The other person is named the same way in the legend,
-in the hover and on every transcript line:
+The single waveform shows **audio from the AI side in teal** and **audio received from
+the other side in purple**. Its colors come from verified recorded audio channels,
+independently of transcript text and caption timing. This includes Gemini Live:
+missing or late captions do not by themselves remove the person's audio color.
 
-- a number saved in your contacts shows the contact's name, with the number
-  beside it in the legend;
-- another number shows the number itself in the legend and the hover, and the
-  transcript says **Called person** on an outbound call or **Caller** on an
-  inbound one;
-- a browser test call shows **Tester**.
+A split bar and the two thin lanes above the waveform show audio from both sides
+within that displayed time window. On a long call, one window can contain two
+successive turns, so this is not proof that both people spoke simultaneously.
+Channel colors also include background sounds, echo or generated audio from that
+side. They do not confirm speech, words, or the person's identity. Very quiet
+stretches appear as dots.
 
-Hovering over the waveform shows the time, the speaker and the first words of
-that turn. The colours come only from turns whose start and end were measured
-on the recording itself. Louder sound that no measured turn covers is grey and
-listed as **Other sound**; hovering it says **Not matched to a speaker**. That
-can be a hang-up click or line noise, and it can also be speech that was
-transcribed without a measured start and end, so grey never means "nobody
-spoke". Quiet stretches show as dots. Older recordings without measured turns
-show the waveform without speaker colours.
+The legend shows a saved contact name when available. Otherwise, it shows
+**Called person** and the number on outbound calls, **Caller** and the number on
+inbound calls, or **Tester** for browser tests. A saved name identifies your
+contact record; it does not prove who answered. Hovering shows the time and
+audio source for that window.
 
-On GPT-Live calls, the other person's turn is matched to their speech from the
-moment the engine first transcribed it, so most of their turns are coloured and
-have their own clip. A turn stays grey rather than borrowing a clip whenever
-its speech cannot be matched to one stretch of the recording, for example the
-second half of a sentence the engine split into two turns. Gemini Live sends
-its transcript only after the person stops talking, which cannot be matched
-safely yet, so the other person's turns on Gemini Live calls stay grey.
+When source tracks cannot be linked reliably to the played recording, the
+waveform stays neutral with **Audio source colors are unavailable for this
+recording**. This does not mean nobody spoke. Skysay can recover eligible
+retained recordings from their original tracks without another call or
+transcription.
+Recordings whose required tracks were deleted or never captured cannot gain
+verified source colors through this recovery.
 
-Calls recorded before this change keep the timing they had, with one
-exception: on some of them, the caller's turns had no measured start and end,
-and Skysay went back to those calls after they ended and located each turn's
-words on the caller's side of the recording. A turn whose words could be placed
-with high confidence now has a measured start and end, so it is coloured and
-sits at the moment it was spoken; a turn that could not be placed stays grey.
+Waveform colors are separate from transcript-turn clips. A turn gets a play
+button only when its text can be matched safely to its own recorded audio.
+Gemini's late captions can therefore leave a turn without a clip even when the
+full-call waveform correctly shows purple person audio.
+
+On some older calls the caller's turns had no measured start and end. After
+those calls ended, Skysay located each turn's words on the caller's side of the
+recording. A turn placed with high confidence sits at the moment it was spoken.
 Where a turn's own clip turned out to hold other audio, that turn no longer
 offers turn-by-turn playback.
 
@@ -259,13 +338,48 @@ known before you press play. From the press until audio actually plays it shows
 a loading state, and if the recording cannot be loaded it says so and offers
 **Try again**.
 
-The same data is in the `GET /v1/dashboard/calls` response for the selected
-call: `waveform.speaker_segments` lists each attributed span (`turn_id`,
-`speaker`, `start_ms`, `end_ms`) on the recording's clock, and
-`waveform.speaker_segments_truncated` is `true` when the call has more turns
-than the response carries. `counterparty` carries the other person's
-`phone_e164` (empty for a browser test) and `contact_name`, the name that
-number is saved under in your contacts (the newest when several lists hold it).
+The Calls workspace receives bounded audio-source evidence with its existing
+call-detail read. The public waveform endpoint continues to return mixed-audio
+peaks; it does not expose the workspace's per-channel projection.
+
+## The call timeline
+
+When the two sides were recorded separately, the player's strip shows the
+call as two lanes: the AI agent's audio above and the other person's below,
+drawn from the verified audio channels. The pause before each AI agent reply is a dashed
+bracket, marked with a gear when a tool ran during it. A red line marks where a
+reply was cut off, and tool calls, language switches, phone-menu moments and
+the end of the call appear on the **Events** row. Click, drag, use the keys
+above, or tap to jump to a moment; the transcript turn being played is
+highlighted. Hovering shows the time under the pointer; hover or focus a bar, a
+pause or an event to see what it was.
+
+Above the player, five figures summarize the call. Hover or focus the **?** beside each one for
+a plain explanation:
+
+- **Turns**: how many times someone spoke.
+- **Median gap**: the typical pause between the caller finishing and the AI
+  agent starting to answer.
+- **Longest gap**: the longest such pause, with the tools that ran in it.
+- **Replies cut off**: how often the AI agent stopped mid-sentence, usually
+  because the caller started talking.
+- **Talk %**: how the speaking time split between the AI agent and the caller,
+  with how many turns it counts.
+
+**Times are estimates.** Skysay works out when each person starts and stops
+talking from the call audio, which can be off by a fraction of a second. Only
+turns whose start and end were measured this way count towards the figures;
+other turns appear as a tick and are left out. When only part of a long
+transcript is loaded, the figures say they cover the loaded turns. A call
+without a recording, without separately recorded channels, or whose recording
+is not on the transcript's clock shows the figures from the transcript, and
+its player keeps the single waveform.
+
+The transcript API, `GET /v1/calls/{call_id}/transcript`, carries the same
+per-turn evidence: each turn has `timing` (`measured`, `ambiguous`,
+`reconstructed`, `unmeasured` or `unknown`), and an AI agent turn has
+`output_cut_off` (`yes`, `no` or `unknown`) with `output_cut_off_at_ms` when
+the cut-off can be placed.
 
 ## Listen turn by turn in Calls
 
@@ -312,6 +426,27 @@ it. The button sends the same request as
 [Post-call results](/docs/post-call-results#why-a-call-ended) lists every
 ended reason.
 
+## Cancel a call that has not been dialed
+
+An outbound call that is still waiting (queued, held by the live-call gate, or
+held for review) shows **Cancel call** in its detail on the **Calls** page
+instead of **Hang up**. It needs a session that may place calls.
+
+- **Cancel call** asks you to confirm first. The call is then never placed,
+  and any amount held for it is released.
+- If a worker started dialing it in the meantime, the cancel is refused and
+  the call shows its live state: use **Hang up** then.
+
+The button sends the same request as `POST /v1/calls/{call_id}/cancel`.
+
+## Filter calls by campaign
+
+The **Calls** page has a campaign filter beside the failure filter. It lists
+the newest 100 campaigns that have calls, and narrows the list, its count and
+**Load more** to the calls placed for that campaign. A link to
+`/calls?campaign_id=<id>` opens the page already filtered; a campaign that is
+not in your workspace shows every call and says so.
+
 ## Tool calls and language switches in the transcript
 
 Between the transcript turns, the Calls workspace shows each tool the agent
@@ -319,11 +454,79 @@ finished and each language switch it made, in the order they happened on the
 call. The caller's own turns always stay in the order they were spoken, even on
 a call where only some of them have a measured start.
 
-A tool row shows the tool's name, whether it succeeded or failed, how long it
-took, and its offset into the call. A language switch shows the language the
+A tool row shows the tool's name when Skysay can identify it, whether it
+succeeded or failed, how long it took, and its offset into the call. Phone-menu
+actions show their names: `press_digits`, `wait_on_hold` and
+`abandon_navigation`. When the recording evidence cannot identify the tool,
+the row uses a generic label. Calls recorded before the 18 November 2026
+release keep the generic label for these phone-menu actions. Shared recordings
+on an AI agent's public `/talk/` page use the same names on the waveform. A language switch shows the language the
 agent moved to and why. Both sit inline with the turns, so you can see that the
 agent looked something up before it answered, or that it changed language after
 the caller did.
+
+### Closing requests are not disconnections
+
+For `end_call`, a successful tool row means the handler ran successfully. It
+can request a close that is still revocable. It does **not** mean the other
+person was disconnected, and the tool's duration is not hangup latency.
+
+Calls shows separate closing receipts when the worker captured them:
+
+- **Closing request accepted**: the existing close owner accepted a pending
+  proposal. Another invocation can join that proposal; both requests remain
+  visible.
+- **Request canceled — caller speech detected**: the owner observed caller
+  speech and withdrew that proposal. This does not certify what the person
+  meant or that the model understood a new question.
+- **Closing committed — disconnect requested**: the owner passed its
+  non-reclaimable boundary. This is still distinct from media disconnection.
+- **Provider close command submitted**: the native adapter handed a close
+  command to its socket writer. Submission alone does not prove delivery or
+  an ended call.
+- **Call ended**: an independent canonical call-lifecycle ending. It is not
+  linked to a prior request unless that relationship was recorded. The actual
+  ending reason remains separate, including a remote hangup or platform limit.
+
+Expand **Closing details** for the safe reason, source and call-scoped request
+and proposal IDs. A shared tool reference identifies the tool definition;
+it does not identify one execution. Repeated requests are kept, not collapsed
+by tool name.
+
+Older recordings without owner receipts say **Tool succeeded — closing outcome
+not recorded** or **Tool returned error — reason not recorded**. The latter
+cannot distinguish a refusal from a runtime error. Skysay does not reconstruct
+cancellation, acceptance or a reason from nearby speech or a model farewell.
+
+This evidence arrives **after the call**, through recording import. A known
+queued or running import reads **Closing details processing**. Missing import
+state stays unavailable. A request without a retained disposition reads
+**Closing outcome not recorded**, rather than remaining pending forever.
+
+The dedicated closing section is bounded separately from verbose worker logs:
+at most 200 displayed receipt moments and 64 KiB at import, keeping a bounded
+head and tail plus a fixed final-commit/terminal summary. Source-observed counts
+can exceed the retained list; partial detail and drops stay explicit. Import
+retries replace the validated source summary rather than adding its counters.
+Deleting the recording deletes its closing receipts. An independently retained
+canonical call ending can remain.
+
+Offsets use the recording clock only when known. Missing clocks read **Time
+unavailable** after timed items; they are not invented from wall time. A receipt
+outside the recording retains its offset and is labeled accordingly, without a
+seek control. No latency is calculated across different clocks.
+
+`GET /v1/calls/{call_id}/observability` returns the same bounded
+`closing_evidence`: `completeness`, `reason`, `capture_finished`, `counts`,
+`dropped`, `items`, `returned`, `limit`, `ending_reason`, and `final_state`.
+Each item carries its stage, safe source/owner/reason, request/proposal identity,
+and nullable recording offset. The Calls aggregate interleaves those receipts
+with its existing transcript timeline. The paginated transcript endpoint keeps
+its existing turn/uncaptioned-speech stream; it does not acquire closing rows
+or a new cursor format. There is no separate closing endpoint or live stream.
+
+These receipts describe existing voice closing decisions. They add no hangup
+policy, payment rule or setting, and do not give SMS a call-closing behavior.
 
 ### What is recorded, and what is not
 
@@ -383,8 +586,8 @@ Ordering is by offset on the recording clock. A tool row marks when the call
 finished, not which turn caused it, so a row sits between turns rather than
 being attributed to one of them.
 
-Deleting a recording, a retention expiry, or re-importing a corrected recording
-removes these rows along with it.
+Deleting a recording or re-importing a corrected recording removes these rows
+along with it.
 
 ### When the other party spoke but has no transcript
 
@@ -425,6 +628,49 @@ without it does not mean the other party was silent.** A call whose captions
 were all missing can have a transcript made only of the agent's turns. That
 transcript counts as available, like any transcript that has turns.
 
+### When the AI agent's opening has no transcript
+
+On a GPT-Live or Gemini Live call, the engine can speak the agent's opening
+without sending a transcript of it. The caller hears the greeting, but the
+transcript then starts with the caller, as if the AI agent never greeted:
+
+- AI agent: "Namaste, this is Priya from Acme. How can I help?" The caller
+  hears it in full.
+- Caller: "I'd like to change my booking."
+- Without the note, the transcript's first line would be the caller's
+  question.
+
+So the transcript shows a note where the opening would be, under **AI agent**:
+**"The AI agent spoke here. No transcript is available for this speech."**,
+with when it started and stopped. It carries no words of what was said.
+
+When the agent's first message is a fixed line, the note also shows that line
+under **"First message as configured, not a transcript"**. It is what the agent
+was set up to say, not a record of what was said: the engine may have said it
+differently. A generated opening has no fixed line, so it shows only the note.
+
+The note appears only when the opening was heard and the transcript has no text
+for any of it. If any part of the opening has a transcript, the transcript
+shows that text and there is no note. Speech later in the call that has no
+transcript does not get a note. As before, the transcript then counts as
+partial.
+
+Three cases show no note:
+
+- **The opening is first heard late.** Skysay stops holding the caller back
+  when the opening has made no sound for 12 seconds, or, on a phone call, when
+  the caller has kept talking for more than about a second (see
+  [Calls where the agent speaks first](/docs/conversation-engines#calls-where-the-agent-speaks-first)).
+  If the opening only becomes audible after that, there is no note, and the
+  transcript starts with the caller as before.
+- **The call has no transcript at all.** For example, the agent greets
+  without a transcript and the caller hangs up without a word. The call
+  shows no transcript, and no note.
+- **Workflow calls** never show the note.
+
+Live captions during a test call or on the website demo do not show the note.
+Only the transcript of the finished call does.
+
 ### What reaches the API and post-call analysis
 
 Tool rows and language switches are shown in the Calls workspace only. The
@@ -437,11 +683,18 @@ was. They are added to the transcript API beside the turns, never among them:
   adds an `events` list with one entry per moment:
   `{"type": "caller_spoke_no_transcript", "speaker": "caller", "start_ms": ...}`.
   There is no text, because none exists.
+- The AI agent's opening note is one more `events` entry,
+  `{"type": "agent_opening_no_transcript", "speaker": "agent", "start_ms": ...}`,
+  at most one per call. Its `timeline` entry also has `end_ms` and
+  `configured_text`: the agent's fixed first message, or `""` for a generated
+  opening. `configured_text` is configuration, not a transcript, and is never
+  part of `text`.
 - The transcript stream places the same entries between the turns, in reading
   order, under their own `type`, beside the existing `turn` entries. A client
   that reads stream entries should check `type` before reading turn fields
   such as `data.text`: a `caller_spoke_no_transcript` entry's `data` holds only
-  `speaker` and `start_ms`.
+  `speaker` and `start_ms`, and an `agent_opening_no_transcript` entry's `data`
+  holds `speaker`, `start_ms`, `end_ms` and `configured_text`.
 - Post-call extraction reads a `[spoke, no transcript]` line for the caller at
   that point, and is told the line carries no content. It can then see that
   the person answered without inventing what they said.
@@ -484,8 +737,7 @@ lookup, a test) and its state.
 A call that ran a [conversation workflow](/docs/agent-workflows) says where the
 workflow ended in `workflow`, on `GET /v1/calls/{call_id}`, MCP `get_call`, and
 the `call.completed` and `call.failed` webhooks. The field is always present,
-and `null` for a call that ran no workflow (a GPT-Live or Gemini Live call runs
-none). The `GET /v1/calls` list and the call's other reads do not include it.
+and `null` for a call that ran no workflow (a Gemini Live call runs none). The `GET /v1/calls` list and the call's other reads do not include it.
 
 ```json
 "workflow": {
