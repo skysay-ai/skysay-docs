@@ -365,6 +365,9 @@ What to know before you rely on it:
   first, or was waiting in a queue), the agent waits until the menu has been
   quiet for about two and a half seconds, answers once, and answers again only
   if the menu asks again.
+- **Only in a language the agent's own speech recognition is set for.** The
+  model answers from the words it heard. A request in a language its
+  recognition is not set for is handled as before and is not answered aloud.
 - **It applies to** outbound calls of AI agents on the Standard engine that do
   not run a conversation workflow. Conversation workflows, Gemini Live and
   GPT-Live are unchanged: there, a menu that asks for a number the call does not
@@ -390,6 +393,17 @@ What can still go wrong:
   > Menu: "…please stay on the line."
   >
   > AI agent: (stops mid-number and waits)
+
+- **A keypad menu later in the call may not be taken as a menu at once.** After
+  such a request the call is a conversation. A keypad menu that follows in the
+  first 30 seconds of the call, before anything on the line has sounded like a
+  person, starts menu navigation as usual. Later in the call, a menu read in a
+  single sentence does not: the agent cannot press its key until the line says
+  one more menu or queue sentence.
+
+  > Menu, a minute into the call: "Thanks. For deliveries press 1, for returns press 2."
+  >
+  > AI agent: (answers in words; a key press is refused until the menu goes on)
 
 - **A hold that follows is met as in any conversation.** After such a request
   the call is a conversation. Once something on the line has sounded like a
