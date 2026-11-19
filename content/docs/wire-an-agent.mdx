@@ -261,9 +261,10 @@ the instructions say "open weekdays 9 to 5" and you never wrote that, change
 it before you create the AI agent.
 
 Each workspace can write instructions 10 times a minute and 50 times a day,
-one request at a time, counted together for the workspace, API keys and
-MCP. A request counts once it starts, also when it fails. Past a limit the
-answer is `429` with `identity_generation_busy`,
+counted together for the workspace, API keys and MCP, and two writer calls
+for one workspace never overlap. A request counts once it starts, also when
+it fails. Past a limit, or while another request is writing, the answer is
+`429` with `identity_generation_busy`,
 `identity_generation_rate_limited` or `identity_generation_daily_limit` and a
 `Retry-After`. If the instructions cannot be written, the answer is `502`
 `identity_generation_failed`; nothing was created, and you can try again.
