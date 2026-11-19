@@ -760,6 +760,10 @@
                 "example": "/talk/front-desk",
                 "type": "string"
               },
+              "phone_number_id": {
+                "description": "Selected inbound number ID, if set and readable with numbers:read. A selected number may be hidden if its route is no longer eligible.",
+                "type": "string"
+              },
               "slug": {
                 "type": "string"
               }
@@ -9924,7 +9928,7 @@
         ]
       },
       "patch": {
-        "description": "Requires agents:write, and recordings:read to send recordings; the response includes the shared conversations only with recordings:read. Send any of slug, enabled, live_enabled, daily_conversations_per_visitor, concurrent_conversations and recordings. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
+        "description": "Requires agents:write, and recordings:read to send recordings; the response includes the shared conversations only with recordings:read. Send any of slug, enabled, live_enabled, daily_conversations_per_visitor, concurrent_conversations, phone_number_id and recordings. Unspecified settings are preserved. Publishing for the first time requires a slug. A rename releases the old address, which stops opening this AI agent. Turning an unset link off succeeds without reserving an address. While enabled, anonymous visitors can start browser calls billed to the workspace.",
         "operationId": "updateAgentPublicLink",
         "parameters": [
           {
@@ -9977,6 +9981,14 @@
                   "live_enabled": {
                     "description": "False keeps the page and its recordings up but lets no visitor start a conversation.",
                     "type": "boolean"
+                  },
+                  "phone_number_id": {
+                    "description": "Select an eligible inbound number already routed to this AI agent, or null to hide it. A non-null selection also requires numbers:read. Omitting it leaves the selection unchanged.",
+                    "pattern": "^[A-Za-z0-9_]{1,80}$",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "recordings": {
                     "description": "Replaces the whole list of shared conversations shown on the page, in this order: at most 5, each a finished call with this AI agent whose recording is 15 s to 10 min long. Any refused entry refuses the whole request with 422 and a code per entry. Recordings stay while they are on the page.",
