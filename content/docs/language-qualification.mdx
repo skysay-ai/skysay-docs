@@ -430,8 +430,8 @@ For automatic switching, Skysay uses the language the transcriber reports
 with the caller’s final transcript. One clearly identified utterance can
 switch the reply to another published language, including one the caller used
 earlier in the conversation. Short questions may need another utterance in
-the same language to confirm the change. Repeating a single word, such as a name,
-is insufficient.
+the same language to confirm the change. Repeating a person’s name alone
+gives too little evidence to change the reply language.
 
 When a caller mixes languages in one sentence, the transcriber may identify
 only one of them. Deepgram Nova-3 reports the dominant language for each
@@ -448,10 +448,15 @@ both transports matter to your deployment.
 
 ### What the caller hears when the language changes
 
-When a caller asks for a published language, the agent confirms the change in
-that language and continues from what the caller last said. When the caller
-simply asks a question in another published language, the agent can answer
-the question in that language using its configured voice.
+On a free-form Standard call, a caller who names a published language can
+switch to it immediately. The agent confirms the change in that language and
+continues from what the caller last said. A caller can also ask a full
+question in another published language and hear the answer in that language.
+
+If the caller says “switch back” just after moving from German to English,
+the agent can ask once whether they mean German. On their next turn, the
+caller can say “Deutsch” or ask a full question in German to switch back.
+A bare “yes,” “no,” or silence leaves the agent speaking English.
 
 When a caller asks for a language that is **not** one of the published ones,
 the agent says so and names the languages it can speak on this call, then
