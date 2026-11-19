@@ -14,7 +14,8 @@
 //
 // It counts only if it answers 200 with a text/plain body whose second line is
 // exactly PAGES_SOURCE_LINE, within the timeout, and its English section has
-// at least one page line. Anything else falls through, and /llms.txt then
+// at least one page line and only well-formed ones (see isPageLine). Anything
+// else falls through, and /llms.txt then
 // prints the two bundled lines it has always had, so it always renders.
 //
 // No framework or content imports, so scripts/llms-pages.test.mjs can run it
@@ -38,20 +39,32 @@ export function pagesFileUrls(env = process.env) {
   return urls;
 }
 
+// One page line as the web app writes it: a title without brackets, the
+// markdown URL of a page on this site, and a description, with no control
+// character anywhere. The fetched text is printed in /llms.txt under Skysay's
+// name, so a line that links anywhere else, or carries anything that could
+// start a new line or section, is not a page line.
+const PAGE_LINE = /^- \[[^\[\]]+\]\(https:\/\/skysay\.ai\/[a-z0-9]+(?:[/-][a-z0-9]+)*\.md\): \S.*$/;
+const CONTROL_CHARACTER = /[\x00-\x1f\x7f\x85\u2028\u2029]/;
+
+export function isPageLine(line) {
+  return !CONTROL_CHARACTER.test(line) && PAGE_LINE.test(line);
+}
+
 // The page lines of the English section: the `- [` lines between the English
-// heading and the next heading. "" when the file has no such section.
+// heading and the next heading. "" when the file has no such section, or when
+// any of those lines is not a page line: a file that is wrong in one place is
+// not trusted in the others.
 export function parseEnglishPages(text) {
   const lines = text.split("\n");
-  const start = lines.findIndex((line) => line.trimEnd() === ENGLISH_HEADING);
+  const start = lines.findIndex((line) => line === ENGLISH_HEADING);
   if (start < 0) {
     return "";
   }
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((line) => line.startsWith("## "));
-  return (end < 0 ? rest : rest.slice(0, end))
-    .filter((line) => line.startsWith("- ["))
-    .map((line) => line.trimEnd())
-    .join("\n");
+  const entries = (end < 0 ? rest : rest.slice(0, end)).filter((line) => line.startsWith("- ["));
+  return entries.every(isPageLine) ? entries.join("\n") : "";
 }
 
 // { marker, lines } for the /llms.txt Product section. `bundledLines` is the
