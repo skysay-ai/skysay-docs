@@ -262,8 +262,10 @@ it before you create the AI agent.
 
 Each workspace can write instructions 10 times a minute and 50 times a day,
 counted together for the workspace, API keys and MCP, and two writer calls
-for one workspace never overlap. A request counts once it starts, also when
-it fails. Past a limit, or while another request is writing, the answer is
+for one workspace never overlap. A request counts once it is admitted, also
+when it then fails; a request refused before that (a wrong field, a file of
+another project, a limit, or a fault on Skysay's side found before writing
+starts) does not count. Past a limit, or while another request is writing, the answer is
 `429` with `identity_generation_busy`,
 `identity_generation_rate_limited` or `identity_generation_daily_limit` and a
 `Retry-After`. If the instructions cannot be written, the answer is `502`
