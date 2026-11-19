@@ -261,14 +261,15 @@ the instructions say "open weekdays 9 to 5" and you never wrote that, change
 it before you create the AI agent.
 
 Each workspace can write instructions 10 times a minute and 50 times a day,
-counted together for the workspace, API keys and MCP, and two writer calls
-for one workspace never overlap. A request counts once it is admitted, also
+counted together for the workspace, API keys and MCP. A request counts once it is admitted, also
 when it then fails; a request refused before that (a wrong field, a file of
 another project, a limit, or a fault on Skysay's side found before writing
-starts) does not count. Past a limit, or while another request is writing, the answer is
-`429` with `identity_generation_busy`,
+starts) does not count. Past a limit the answer is `429` with
 `identity_generation_rate_limited` or `identity_generation_daily_limit` and a
-`Retry-After`. If the instructions cannot be written, the answer is `502`
+`Retry-After`. The writer is stopped 20 seconds after the request to it
+starts; connecting and setting up a secure connection come before that and
+are limited separately, so a request can take a little longer than 20
+seconds in total. If the instructions cannot be written, the answer is `502`
 `identity_generation_failed`; nothing was created, and you can try again.
 
 ### Changing an agent later
