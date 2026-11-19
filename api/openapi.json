@@ -1762,7 +1762,7 @@
             "$ref": "#/components/schemas/AgentFollowCaller"
           },
           "follow_caller_where_supported": {
-            "description": "Apply the language rule to this save: follow the other person in every language the saved setup supports where it can, otherwise answer in the opening language only, switching back on when a later save with the rule can follow. Omit follow_caller, languages, language_profiles and voice_setup beside it.",
+            "description": "Apply the language rule to this save: follow the other person in every language the saved setup supports where it can, otherwise answer in the opening language only, switching back on when a later save with the rule can follow. When another save changed the setup so that this decision no longer holds (following the other person, or the opening language only), the save is refused with 409 (reason voice_setup_changed): send it again. A change that leaves the decision as it was does not refuse the save. Omit follow_caller, languages, language_profiles and voice_setup beside it.",
             "enum": [
               true
             ],
@@ -8879,13 +8879,14 @@
         "operationId": "createAgent",
         "parameters": [
           {
-            "description": "Names this creation attempt for its workspace and project. The same attempt from the same caller with the same body returns the AI agent the first request created (200, replayed true) after the creation's checks run again; a refused creation leaves no attempt, so it can be sent again corrected.",
+            "description": "1 to 200 ASCII characters. Names this creation attempt for its workspace and project. The same attempt from the same caller with the same body returns the AI agent the first request created (200, replayed true) after the creation's checks run again; a refused creation leaves no attempt, so it can be sent again corrected.",
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
             "schema": {
               "maxLength": 200,
               "minLength": 1,
+              "pattern": "^[\\x00-\\x7F]+$",
               "type": "string"
             }
           }

@@ -262,12 +262,15 @@ result fields set:
   a voice with fewer than two languages), it answers in the opening language
   only. Send it again with each `set_agent_voice_stack` save and the rule is
   decided again for the new setup, switching following back on when it can.
+  If another save (from another tab, say) changes the setup so that this
+  decision no longer holds, the save is refused with `409`
+  `voice_setup_changed`; send it again.
   GPT-Live and Gemini Live always answer in the language they hear, so the
   rule stores nothing for them. Do not send `follow_caller`, `languages` or
   `language_profiles` beside it.
 
-Send an `Idempotency-Key` header (MCP: `request_key`) to make the request safe
-to repeat. If the answer is lost and you send the same request with the same
+Send an `Idempotency-Key` header (MCP: `request_key`), 1 to 200 ASCII
+characters, to make the request safe to repeat. If the answer is lost and you send the same request with the same
 key again, you get the agent the first request created (`200`,
 `"replayed": true`) rather than a second one. The same key with a different
 body, or from a different API key or user, is refused with `409`
