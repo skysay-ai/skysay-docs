@@ -219,6 +219,73 @@ you › connect my audio agent at wss://my-agent.example/stream
 stack). `connect_external_agent` is the shortcut for an `external_audio` agent
 with webhook and audio-stream URLs.
 
+### Create a published agent in one request
+
+A hosted agent can be created ready to take calls in one request
+(`POST /v1/agents` or `create_agent`), with its knowledge attached and its
+result fields set:
+
+```json
+{
+  "project_id": "proj_example",
+  "name": "Riverside Dental",
+  "mode": "hosted",
+  "language": "en",
+  "system_prompt": "You answer calls for Riverside Dental ...",
+  "first_message": "Hello, Riverside Dental, how can I help?",
+  "transcriber": {"provider": "deepgram", "model": "nova-3"},
+  "model": {"provider": "gemini", "model": "gemini-3.5-flash-lite"},
+  "voice": {"provider": "elevenlabs", "model": "eleven_v4_turbo", "voice_id": "your-voice-id"},
+  "require_published": true,
+  "knowledge_base_ids": ["kb_example"],
+  "post_call_extraction": {"schema": {"type": "object", "properties": {"caller_name": {"type": "string"}}}},
+  "follow_caller_where_supported": true
+}
+```
+
+- **`require_published: true`** makes the request all or nothing. If any part
+  is refused, including the publication itself, no agent is created: no
+  attachment, no result fields, nothing to clean up. The answer names the
+  reason (`reason`, `where`, `issue`, as in `metadata.publication` below).
+  Documents you uploaded to the knowledge base stay where they are. Without
+  it, an agent whose setup cannot be published yet is kept unpublished, as
+  before.
+- **`knowledge_base_ids`** attaches knowledge bases of the same project. It
+  needs `knowledge:write` as well as `agents:write`, as
+  `PATCH /v1/agents/{agent_id}/knowledge-bases` does.
+- **`post_call_extraction`** sets the [result fields](/docs/post-call-results)
+  written down after each call.
+- **`follow_caller_where_supported: true`** sets the language rule: the agent
+  answers in the language the other person speaks, for every language its
+  setup supports, starting in the opening language. Where the setup cannot
+  follow (a transcriber that cannot listen for several languages at once, or
+  a voice with fewer than two languages), it answers in the opening language
+  only. Send it again with each `set_agent_voice_stack` save and the rule is
+  decided again for the new setup, switching following back on when it can.
+  GPT-Live and Gemini Live always answer in the language they hear, so the
+  rule stores nothing for them. Do not send `follow_caller`, `languages` or
+  `language_profiles` beside it.
+
+Send an `Idempotency-Key` header (MCP: `request_key`) to make the request safe
+to repeat. If the answer is lost and you send the same request with the same
+key again, you get the agent the first request created (`200`,
+`"replayed": true`) rather than a second one. The same key with a different
+body, or from a different API key or user, is refused with `409`
+`creation_request_conflict`, and `agent_id` names the agent that exists. A
+refused creation keeps no record of the key, so you can correct the request
+and send it again with the same key.
+
+### Test exactly the version you saved
+
+Every `set_agent_voice_stack` save answers with `publication_version` and
+`published_voice`: the version the save published and its voice, taken inside
+the save itself. Pass that number as `expected_publication_version` when you
+start a browser test with `POST /v1/agents/{agent_id}/browser-sessions`. If
+the agent was saved again since (from another tab, say), the test is refused
+with `409` `publication_version_conflict` before anything is charged or
+reserved, so a test never plays a voice other than the one you chose.
+`set_agent_voice_stack` takes `expected_publication_version` too.
+
 ### Changing an agent later
 
 An edit through `update_agent` (`PATCH /v1/agents/{agent_id}`) takes effect on

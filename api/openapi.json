@@ -20,6 +20,21 @@
             ],
             "description": "Answer each caller in whichever selected language they speak. On by default for an agent with two or more languages whose transcriber can listen for them all (see AgentFollowCaller); send it only to record an explicit choice. Accepted at creation so a multilingual agent can be created in one request; enabling it explicitly requires at least two languages and is refused with 400 otherwise. Creation stores the choice only -- the first PATCH /v1/agents/{agent_id}/voice-stack publication is what proves one shared transcriber can listen for the selected set: an explicit enabled true is refused there when none can, and an agent that never chose publishes in its opening language instead. Changing it afterwards is a voice-stack save, not an agent update. An engine without a language axis (see voice_frontend) REFUSES this field with 400 rather than accepting and dropping it."
           },
+          "follow_caller_where_supported": {
+            "description": "Hosted agents. Follow the other person's language for every language this setup supports where it can (Follow the caller: all, with one opening language); where it cannot (no simultaneous-listening transcriber, or fewer than two languages it supports) answer in the opening language only. Omit follow_caller, languages and language_profiles beside it. An engine without a language axis stores nothing, as today.",
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "knowledge_base_ids": {
+            "description": "Hosted agents. Knowledge bases to attach in the same request, each active in this workspace and project. Naming any needs knowledge:write beside agents:write, as PATCH /v1/agents/{agent_id}/knowledge-bases does.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
           "language": {
             "type": "string"
           },
@@ -64,6 +79,19 @@
           "organization_id": {
             "type": "string"
           },
+          "post_call_extraction": {
+            "additionalProperties": false,
+            "description": "Hosted agents. The result fields written down after each call, validated as PATCH /v1/agents/{agent_id}/post-call-extraction validates its schema.",
+            "properties": {
+              "schema": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "schema"
+            ],
+            "type": "object"
+          },
           "project_id": {
             "type": "string"
           },
@@ -73,6 +101,11 @@
             "type": "string"
           },
           "recording_enabled": {
+            "type": "boolean"
+          },
+          "require_published": {
+            "default": false,
+            "description": "Hosted agents. End with a published AI agent or with nothing: a refusal anywhere in this request, publication included, creates no agent, attachment or result fields. Without it a hosted agent whose setup cannot be published yet is kept unpublished with the reason in publication.",
             "type": "boolean"
           },
           "system_prompt": {
@@ -115,6 +148,13 @@
                 "type": "object"
               }
             ]
+          },
+          "voice_confirmation": {
+            "description": "Hosted agents. Marks the voice as not yet confirmed (metadata.voice_confirmation pending) until a voice-stack save confirms it.",
+            "enum": [
+              "pending"
+            ],
+            "type": "string"
           },
           "webhook_url": {
             "type": "string"
@@ -1577,6 +1617,29 @@
           "project_id": {
             "type": "string"
           },
+          "publication_version": {
+            "description": "Returned by a save: the AI agent's publication version, read inside the save itself, so another save landing just after it never lends it its version. 0 when unpublished. Pass it as expected_publication_version to test or confirm exactly this setup.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "published_voice": {
+            "description": "Returned by a save: the opening language's voice in that publication (voice_frontend, provider, model, voice_id).",
+            "properties": {
+              "model": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "voice_frontend": {
+                "type": "string"
+              },
+              "voice_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
           "selectable": {
             "type": "boolean"
           },
@@ -1671,6 +1734,11 @@
             "description": "Optional stt/llm/tts map to existing hosted-AI credential IDs (or null to use platform-managed selection). References are validated; secret upload is a separate write-only API.",
             "type": "object"
           },
+          "expected_publication_version": {
+            "description": "The publication version on screen. The save is refused with 409 (reason publication_version_conflict) when the AI agent was published again since.",
+            "minimum": 0,
+            "type": "integer"
+          },
           "expected_system_prompt": {
             "description": "Optional previously read prompt. When system_prompt is supplied, a mismatch returns 409 prompt_publication_conflict without publishing or writing any configuration.",
             "type": "string"
@@ -1692,6 +1760,13 @@
           },
           "follow_caller": {
             "$ref": "#/components/schemas/AgentFollowCaller"
+          },
+          "follow_caller_where_supported": {
+            "description": "Apply the language rule to this save: follow the other person in every language the saved setup supports where it can, otherwise answer in the opening language only, switching back on when a later save with the rule can follow. Omit follow_caller, languages, language_profiles and voice_setup beside it.",
+            "enum": [
+              true
+            ],
+            "type": "boolean"
           },
           "language": {
             "type": "string"
@@ -1757,6 +1832,13 @@
                 "type": "string"
               }
             ]
+          },
+          "voice_confirmation": {
+            "description": "Confirm the voice: clears metadata.voice_confirmation in the same save. Needs expected_publication_version.",
+            "enum": [
+              "confirmed"
+            ],
+            "type": "string"
           },
           "voice_frontend": {
             "description": "Optional conversation engine. Omitted or cascade is STT/LLM/TTS. gpt_live selects GPT-Live-1. GET still returns transcriber, model, and voice as an OpenAI compatibility projection. Each engine declares whether it has a language axis; a voice-to-voice engine does not, and this route then refuses languages, language_profiles and follow_caller with a 400 naming the field and the engine. Read has_language_axis from the agent-catalog conversation_engines block rather than assuming it from the id.",
@@ -8795,6 +8877,19 @@
       },
       "post": {
         "operationId": "createAgent",
+        "parameters": [
+          {
+            "description": "Names this creation attempt for its workspace and project. The same attempt from the same caller with the same body returns the AI agent the first request created (200, replayed true) after the creation's checks run again; a refused creation leaves no attempt, so it can be sent again corrected.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -8806,11 +8901,20 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "Agent: the one this Idempotency-Key created, with replayed true. The signing secret is shown again only within ten minutes of the creation."
+          },
           "201": {
             "description": "Agent. agent_endpoint.webhook_secret carries the plaintext secret that signs every event and tool call sent to this agent's webhook (X-Agent-Telco-Signature), revealed once in this response only; every later read returns [REDACTED]. Save it immediately."
           },
           "400": {
-            "description": "organization_id or project_id is missing or blank; an unrecognized mode; a tools value that is neither empty nor a list; a metadata value that is neither empty nor an object; an external_audio or external_text agent missing its webhook_url/audio_stream_url; or a project_id this organization does not own. On create (unlike PATCH) a falsy tools or metadata -- null, false, 0, \"\" -- is read as no selection rather than refused: empty metadata, and for a hosted agent the default tools (end_call)"
+            "description": "organization_id or project_id is missing or blank; an unrecognized mode; a tools value that is neither empty nor a list; a metadata value that is neither empty nor an object; an external_audio or external_text agent missing its webhook_url/audio_stream_url; or a project_id this organization does not own. On create (unlike PATCH) a falsy tools or metadata -- null, false, 0, \"\" -- is read as no selection rather than refused: empty metadata, and for a hosted agent the default tools (end_call). With require_published, a hosted agent whose setup cannot be published is not created: {error, message, reason, where, issue} names the publication refusal. A knowledge base outside this workspace and project, or result fields post_call_extraction refuses, creates nothing."
+          },
+          "403": {
+            "description": "The key may not create agents, or names knowledge_base_ids without knowledge:write, or names another workspace."
+          },
+          "409": {
+            "description": "{error: 'ConflictError', reason, agent_id}: reason creation_request_conflict when this Idempotency-Key was used with another body or by another caller, creation_request_unavailable when the AI agent it created was deleted. agent_id names that agent."
           }
         },
         "summary": "Create an external or hosted agent",
@@ -8995,6 +9099,11 @@
                     },
                     "type": "object"
                   },
+                  "expected_publication_version": {
+                    "description": "Test exactly this publication version (a voice-stack save returns it). Refused with 409, reason publication_version_conflict, before any session or reservation is created when the AI agent was published again since. Needs snapshot published.",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
                   "organization_id": {
                     "type": "string"
                   },
@@ -9029,6 +9138,9 @@
           },
           "400": {
             "description": "Either a plain {error, message} (an invalid draft overlay selection, unchanged from before) or, when the resolved config passes overlay validation but is still not runnable: {error: 'realtime_config_not_runnable', reason: <code>, blockers: [{code, scope, detail}]}. Codes reuse the same admission vocabulary already returned by the Agents/Numbers dashboard reads (e.g. voice_id_missing, system_prompt_missing, first_message_missing, language_not_runnable, llm_model_missing, delivery_profile_invalid). No room or reservation is created either way."
+          },
+          "409": {
+            "description": "{error: 'ConflictError', reason: 'publication_version_conflict', publication_version}: the AI agent was published again since expected_publication_version; nothing was reserved."
           }
         },
         "summary": "Create an authenticated LiveKit browser-test session for one hosted agent",
