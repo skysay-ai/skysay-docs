@@ -401,6 +401,183 @@
         ],
         "type": "object"
       },
+      "AgentIdentity": {
+        "properties": {
+          "files": {
+            "properties": {
+              "left_out": {
+                "items": {
+                  "properties": {
+                    "filename": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "enum": [
+                        "processing",
+                        "retryable",
+                        "unreadable",
+                        "deleting",
+                        "unavailable",
+                        "text_limit"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "filename",
+                    "reason"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "used": {
+                "items": {
+                  "properties": {
+                    "characters": {
+                      "type": "integer"
+                    },
+                    "filename": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "filename",
+                    "characters",
+                    "truncated"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "used",
+              "left_out"
+            ],
+            "type": "object"
+          },
+          "first_message": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "framework_revision": {
+            "type": "integer"
+          },
+          "language": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "object": {
+            "enum": [
+              "agent_identity"
+            ],
+            "type": "string"
+          },
+          "post_call_extraction": {
+            "properties": {
+              "schema": {
+                "description": "Result fields: the template's own, plus any the notes asked for; accepted by POST /v1/agents and PATCH /v1/agents/{agent_id}/post-call-extraction.",
+                "type": "object"
+              }
+            },
+            "required": [
+              "schema"
+            ],
+            "type": "object"
+          },
+          "system_prompt": {
+            "description": "The instructions, in four headed parts, at most 64 KB.",
+            "type": "string"
+          },
+          "template": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "object",
+          "name",
+          "language",
+          "system_prompt",
+          "first_message",
+          "post_call_extraction",
+          "template",
+          "framework_revision",
+          "files"
+        ],
+        "type": "object"
+      },
+      "AgentIdentityRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "knowledge_document_ids": {
+            "description": "Knowledge documents of this workspace and project to read; needs knowledge:read.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "language": {
+            "description": "The opening language, a language code such as en or pt-BR. Everything is written in it.",
+            "type": "string"
+          },
+          "name": {
+            "description": "The AI agent's name.",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "notes": {
+            "description": "The owner's notes about the business and how calls should go.",
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "Optional consistency hint; if supplied, it must match the bearer workspace.",
+            "type": "string"
+          },
+          "project_id": {
+            "description": "Must belong to the bearer workspace.",
+            "type": "string"
+          },
+          "template_id": {
+            "description": "An active template id; omitted or empty means blank (no template).",
+            "maxLength": 40,
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "name",
+          "language"
+        ],
+        "type": "object"
+      },
       "AgentLanguageProfileOverride": {
         "additionalProperties": false,
         "properties": {
@@ -8654,6 +8831,52 @@
         "summary": "Dispatch a signed test event through the real delivery pipeline",
         "tags": [
           "Agents"
+        ]
+      }
+    },
+    "/v1/agent-identities": {
+      "post": {
+        "description": "Generate identity. Skysay's writer drafts the instructions of a new AI agent in four parts (mode settings, global rules, call flows, reference and context), its first message and its result fields, from a template's playbook, Skysay's shared rules, the agent name, the owner's notes, the opening language and the text of ready knowledge documents. Nothing is saved: pass system_prompt, first_message and post_call_extraction on to POST /v1/agents. The writer uses only facts the notes and files state, writes in the opening language, and never promises an action the AI agent has no tool for; a new AI agent can only end a call. The notes and the file text are material for the writer, never instructions to it. Documents are read earliest first, at most 60,000 bytes of text in total; a document cut short is marked truncated, and documents left out (still converting, unreadable, over the limit) are named with their reason. Skysay pays for each request, so a workspace has 10 requests a minute and 50 a day, one at a time, counted together for the workspace, API keys and MCP; a request counts once it is admitted, including when it then fails. Refusals before that (invalid fields, an unknown or inactive template, a document of another workspace or project, missing scopes) are not counted. Naming knowledge_document_ids also needs knowledge:read.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentIdentityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentIdentity"
+                }
+              }
+            },
+            "description": "The written identity"
+          },
+          "400": {
+            "description": "Invalid field, unknown or inactive template, or a project of another workspace"
+          },
+          "403": {
+            "description": "Missing agents:write, or knowledge:read when documents are named, or organization_id of another workspace"
+          },
+          "404": {
+            "description": "A named knowledge document is not in this workspace and project"
+          },
+          "429": {
+            "description": "identity_generation_busy (another request of this workspace is running), identity_generation_rate_limited (10 a minute) or identity_generation_daily_limit (50 a day); Retry-After says when to try again"
+          },
+          "502": {
+            "description": "identity_generation_failed: the instructions could not be written, or failed a check (empty, over 64 KB, a placeholder left in, invalid result fields). One fixed sentence; the request counted"
+          }
+        },
+        "summary": "Write an AI agent's instructions, first message and result fields",
+        "x-required-scopes": [
+          "agents:write"
         ]
       }
     },
