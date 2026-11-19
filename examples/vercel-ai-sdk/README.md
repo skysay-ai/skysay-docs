@@ -1,7 +1,7 @@
 # Skysay with Vercel AI SDK
 
 Node 22 or newer. Run `npm ci` in this directory; the lockfile pins the
-example's dependencies, including @ai-sdk/mcp 2.0.77 and ai 7.0.142.
+example's dependencies, including @ai-sdk/mcp 2.0.101 and ai 7.0.177.
 
 Set SKYSAY_API_KEY securely in the launching environment. The key needs
 account:read. Then run:
