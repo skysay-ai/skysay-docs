@@ -109,8 +109,8 @@ on. Existing links have it on.
 
 | Action | REST | MCP | Scope |
 | --- | --- | --- | --- |
-| Read the current link or check a proposed address | `GET /v1/agents/{agent_id}/public-link` | `get_agent_public_link` | `agents:read`, and `recordings:read` to see the shared conversations or `numbers:read` to see a selected phone number ID |
-| Publish, turn off, or rename the link, change its limits, turn live conversations on or off, select an inbound number, or replace the shared conversations | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write`, and `recordings:read` to send or see `recordings`, or `numbers:read` to select a number |
+| Read the current link or check a proposed address | `GET /v1/agents/{agent_id}/public-link` | `get_agent_public_link` | `agents:read`, and `recordings:read` to see the shared conversations or `numbers:read` to see the selected phone number IDs |
+| Publish, turn off, or rename the link, change its limits, turn live conversations on or off, select inbound numbers, or replace the shared conversations | `PATCH /v1/agents/{agent_id}/public-link` | `set_agent_public_link` | `agents:write`, and `recordings:read` to send or see `recordings`, or `numbers:read` to select numbers |
 | List this AI agent's calls to choose conversations to share from | `GET /v1/agents/{agent_id}/public-link/recording-candidates` | `list_agent_public_link_recording_candidates` | `agents:read` and `recordings:read` |
 
 Use a credential for the AI agent's workspace. MCP takes `agent_id` in
@@ -133,7 +133,10 @@ Use the same fields in the PATCH body or MCP write arguments:
   needs an address before its limits can be set.
 
 - To turn live conversations off and keep the page, send `{"live_enabled":false}`.
-- To show a number, send `{"phone_number_id":"num_…"}` with the ID of an eligible line. Send `{"phone_number_id":null}` to hide it. Omitting the field keeps the existing selection.
+- To show phone numbers, send the whole list in the order to show them:
+  `{"phone_number_ids":["num_…","num_…"]}`, with the IDs of up to 50 eligible
+  lines. Send `{"phone_number_ids":[]}` to hide them all. Omitting the field
+  keeps the existing selection.
 - To set the shared conversations, send the whole list in page order:
   `{"recordings":[{"recording_id":"rec_…","title":"Booking a consultation"}],"consent_confirmed":true,"recordings_etag":"…"}`.
   Take `recording_id` from the candidates list. `consent_confirmed` is required when a
