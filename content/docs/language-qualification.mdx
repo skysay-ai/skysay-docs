@@ -426,19 +426,18 @@ speech against its candidates and can select one even when the caller spoke
 another language. Neither mechanism guarantees that unsupported speech will
 be identified as unsupported.
 
-Where automatic switching is available it takes **two consecutive final results
-that agree** on the same language. That is deliberately conservative. A
-transcriber typically needs a moment to notice a language change, so the first
-moments after a caller switches are often still transcribed as the previous
-language; requiring two agreeing results means a single such result cannot
-move the call. The delay depends on when the recognizer returns those results;
-it is not a fixed number of milliseconds or sentences. A single final result
-in another language is insufficient. Ask for the language directly to use the
-explicit-request path, which does not wait for two detection results.
+For automatic switching, Skysay uses the language the transcriber reports
+with the caller’s final transcript. One clearly identified utterance can
+switch the reply to another published language, including one the caller used
+earlier in the conversation. Short questions may need another utterance in
+the same language to confirm the change. Repeating a person’s name alone
+gives too little evidence to change the reply language.
 
-Automatic switching happens between sentences, never inside one. A caller who
-drops single foreign words into an otherwise Estonian sentence stays on
-Estonian, which is the intended behavior.
+When a caller mixes languages in one sentence, the transcriber may identify
+only one of them. Deepgram Nova-3 reports the dominant language for each
+final result, so a mixed sentence can be treated as speech in that language.
+A caller who wants a particular reply language can ask for it directly, for
+example “Please speak German.”
 
 Authenticated browser tests use the same production conversation runtime as
 phone calls, including supported provider language evidence. Publish the
@@ -449,11 +448,15 @@ both transports matter to your deployment.
 
 ### What the caller hears when the language changes
 
-A switch is never silent. When a caller asks for one of the published
-languages, the agent confirms the change out loud in the new language and
-carries on from what the caller last said — the reply the agent was giving
-when the request arrived is replaced, not resumed, because the transcriber
-and voice are exchanged at that boundary.
+On a free-form Standard call, a caller who names a published language can
+switch to it immediately. The agent confirms the change in that language and
+continues from what the caller last said. A caller can also ask a full
+question in another published language and hear the answer in that language.
+
+If the caller says “switch back” just after moving from German to English,
+the agent can ask once whether they mean German. On their next turn, the
+caller can say “Deutsch” or ask a full question in German to switch back.
+A bare “yes,” “no,” or silence leaves the agent speaking English.
 
 When a caller asks for a language that is **not** one of the published ones,
 the agent says so and names the languages it can speak on this call, then

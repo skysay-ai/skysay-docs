@@ -161,8 +161,11 @@ reply can contain text that was not heard in full; check its playback evidence
 and the recording. On a workflow call spoken in its configured voice, a line
 the caller cut off is shown as written, marked as interrupted, with the audio
 that played; a line cut before any of it played is not shown. Text prepared
-for speech that never played is not proof the caller heard it. This applies
-to newly recorded calls, not a repair of old transcripts.
+for speech that never played is not proof the caller heard it. A reply the AI
+agent prepared that was never played on the call is left out of the
+transcript, with a note where it would have been: see
+[When the AI agent prepared a reply that was not played](#when-the-ai-agent-prepared-a-reply-that-was-not-played).
+This applies to newly recorded calls, not a repair of old transcripts.
 
 A `recording` is the call's audio metadata plus:
 
@@ -362,7 +365,10 @@ a plain explanation:
   agent starting to answer.
 - **Longest gap**: the longest such pause, with the tools that ran in it.
 - **Replies cut off**: how often the AI agent stopped mid-sentence, usually
-  because the caller started talking.
+  because the caller started talking. A reply counts as cut off when its
+  playback was stopped before its end. Where Skysay has the audio output's own
+  record of a reply, a sound from the other person while the reply played to
+  its end does not make it cut off.
 - **Talk %**: how the speaking time split between the AI agent and the caller,
   with how many turns it counts.
 
@@ -379,7 +385,31 @@ The transcript API, `GET /v1/calls/{call_id}/transcript`, carries the same
 per-turn evidence: each turn has `timing` (`measured`, `ambiguous`,
 `reconstructed`, `unmeasured` or `unknown`), and an AI agent turn has
 `output_cut_off` (`yes`, `no` or `unknown`) with `output_cut_off_at_ms` when
-the cut-off can be placed.
+the cut-off can be placed. Where the audio output recorded what it did with a
+reply, `output_cut_off` follows that record: `yes` when playback of the reply
+was stopped, `no` when it played to its end, even if the other person made a
+sound meanwhile. The closing line Skysay itself speaks at the end of a call
+is the one exception: it is `yes` whenever Skysay recorded that line as not
+completed.
+
+An AI agent turn's `metadata.actually_spoken` says two more things.
+`playout_completed` is whether the reply played to its end.
+`verbatim_text_confirmed` is whether Skysay can also confirm it word for word:
+the reply played to its end and was never paused on the way. When the other
+person makes a sound, the AI agent can pause for a moment and then carry on;
+a fraction of a word can be lost where it paused. Where the audio output
+recorded what it did with such a reply, the reply has `playout_completed: true`
+and `verbatim_text_confirmed: false`. It is not cut off, and Calls shows it as
+an ordinary reply:
+
+- Dana: "Hi."
+- AI agent: starts a 21-second reply. Dana coughs two seconds in; the agent
+  pauses for a moment, then speaks to the end.
+- Calls: the whole reply, not cut off. In the API, `output_cut_off` is `no`,
+  `playout_completed` is `true` and `verbatim_text_confirmed` is `false`.
+
+Where the audio output has no record of the reply, and on workflow calls, a
+reply that paused this way can still be shown as cut off, as before.
 
 ## Listen turn by turn in Calls
 
@@ -671,6 +701,48 @@ Three cases show no note:
 Live captions during a test call or on the website demo do not show the note.
 Only the transcript of the finished call does.
 
+### When the AI agent prepared a reply that was not played
+
+The AI agent's voice is sometimes held back on purpose: while a phone menu is
+being answered on the keypad, while Skysay checks whether a person or a
+voicemail picked up, or before the other party has answered. If the agent
+prepares a spoken reply in that moment, nothing of it is played. The
+transcript used to show such a reply as if it had been said:
+
+- Phone menu: "Please enter your order number using your keypad."
+- AI agent: prepares "K0481207" as a spoken answer. Nothing is played; the
+  menu hears silence.
+- Before: the transcript showed the AI agent saying "K0481207".
+
+Now the reply's words are left out, and a note stands where the reply would
+have been, under **AI agent**: **"The AI agent prepared a reply here. It was
+not played on the call."**, with the time. The note carries no words of the
+reply, and they are not in the transcript's turns or text, in Calls or in the
+API.
+
+The note appears only when Skysay can establish that nothing of the reply was
+played: the audio output recorded no playback for it, and the call recording
+is silent on the AI agent's side at that moment. When that cannot be
+established, the transcript shows the reply as before. So a missing note does
+not prove a reply was heard; listen to the recording when it matters.
+
+A reply that was played in part is different: its words stay in the
+transcript, marked as cut off. So is the closing line Skysay itself speaks at
+the end of a call: when it was not played, it stays in the transcript as the
+line that was prepared, not marked as heard, and gets no note.
+
+Three cases show no note:
+
+- **Workflow calls** never show the note.
+- **The call has no transcript at all**, for example when no reply was played
+  and the other party said nothing that was transcribed.
+- **A shared recording page** shows the transcript's turns, tool calls and
+  language switches only. The unplayed reply's words are absent there too, and
+  no note stands in.
+
+Live captions during a test call do not show the note. Only the transcript of
+the finished call does.
+
 ### What reaches the API and post-call analysis
 
 Tool rows and language switches are shown in the Calls workspace only. The
@@ -689,12 +761,16 @@ was. They are added to the transcript API beside the turns, never among them:
   `configured_text`: the agent's fixed first message, or `""` for a generated
   opening. `configured_text` is configuration, not a transcript, and is never
   part of `text`.
+- A reply the AI agent prepared that was not played is one `events` entry per
+  reply, `{"type": "agent_reply_not_played", "speaker": "agent", "start_ms": ...}`.
+  It has no text: the reply's words are in no turn and not in `text`.
 - The transcript stream places the same entries between the turns, in reading
   order, under their own `type`, beside the existing `turn` entries. A client
   that reads stream entries should check `type` before reading turn fields
   such as `data.text`: a `caller_spoke_no_transcript` entry's `data` holds only
-  `speaker` and `start_ms`, and an `agent_opening_no_transcript` entry's `data`
-  holds `speaker`, `start_ms`, `end_ms` and `configured_text`.
+  `speaker` and `start_ms`, an `agent_opening_no_transcript` entry's `data`
+  holds `speaker`, `start_ms`, `end_ms` and `configured_text`, and an
+  `agent_reply_not_played` entry's `data` holds only `speaker` and `start_ms`.
 - Post-call extraction reads a `[spoke, no transcript]` line for the caller at
   that point, and is told the line carries no content. It can then see that
   the person answered without inventing what they said.
@@ -707,7 +783,8 @@ the call can therefore come before the agent reply it was answered with, so
 `turns` is not always in `sequence` order. Sort by `sequence` if you need the
 order the turns were stored in.
 
-An integration that reads only `turns` sees no new entries. The `call.completed`,
+An integration that reads only `turns` sees no new entries; it no longer sees
+a turn for a reply that was not played. The `call.completed`,
 `call.transcript.ready` and `call.recording.ready` webhooks carry a pointer to
 the transcript rather than its turns, so they are unchanged. Turn counts, and
 campaign and call-group readiness, count transcript turns only.

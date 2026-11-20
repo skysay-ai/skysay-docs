@@ -275,8 +275,9 @@ It has four jobs, and nothing else changes while it is in a menu or a queue:
   speech gets no spoken decline: the callback is never taken, and the call stays
   in the queue.
 - **Giving up on a menu.** When no option fits the call's task, the menu asks
-  for something the call does not carry, or the key presses change nothing, it
-  ends the call instead of guessing. The call ends as **Menu had no matching
+  for a keypad value the call does not carry (see
+  [Numbers the menu asks for](#numbers-the-menu-asks-for)), or the key presses
+  change nothing, it ends the call instead of guessing. The call ends as **Menu had no matching
   option** and is not redialled.
 
 **Hold music and answer detection.** While a call is in a menu or on hold, the
@@ -308,12 +309,18 @@ the agent still answers the menu it actually hears.
 ## Numbers the menu asks for
 
 A menu often asks for a number: a card number, a PIN, a government ID, a date of
-birth, an account or booking reference. These come **only from the call's own
-data**, as a [keypad variable](/docs/call-variables): you declare the variable
-with `keypad` and a class (`card`, `pin`, `government_id`, `date_of_birth`,
-`reference` or `other`) and send its value with the call. The agent never
-makes one up, and a menu that asks for a number the call does not carry gets
-nothing.
+birth, an account or booking reference. What happens depends on one thing:
+whether the call carries a keypad value.
+
+| The call | A menu asks for a number |
+| --- | --- |
+| carries at least one [keypad variable](/docs/call-variables#keypad-variables) value | The platform enters or speaks the value itself. The model never sees it, never says a number to a menu, and a menu that asks for a number the call does not carry gets nothing. |
+| carries no keypad value, on a Standard AI agent without a conversation workflow | The AI agent answers a **spoken** request in its own voice, from its instructions. See [When the call carries no keypad value](#when-the-call-carries-no-keypad-value). |
+
+With a keypad value, numbers come **only from the call's own data**: you declare
+the variable with `keypad` and a class (`card`, `pin`, `government_id`,
+`date_of_birth`, `reference` or `other`) and send its value with the call. The
+agent never makes one up.
 
 - **The model never sees the value.** It is not in the prompt, the
   conversation, a tool request or a webhook. The agent can ask for the field to
@@ -323,6 +330,117 @@ nothing.
   timeline and logs.
 - **The value is deleted at the end of the call.** It is not kept in the call
   record afterwards, so a retry needs the value sent again with the new call.
+
+### When the call carries no keypad value
+
+Many calls have a number the menu will ask for, such as an order number, written
+straight into the AI agent's instructions and no keypad variable at all. On such
+a call, when a menu asks **aloud** for a number, the AI agent answers it in its
+own voice:
+
+> Menu: "Please say your order number."
+>
+> AI agent, a few seconds after the menu stops: "K, zero, four, eight, one, two, zero, seven."
+
+What to know before you rely on it:
+
+- **It answers any number a menu asks for aloud, not only order numbers.** That
+  includes a PIN, a card number, a government ID or a date of birth. Skysay does
+  not check the question's words and does not check the answer.
+- **The answer comes from the model.** It says a number its instructions hold,
+  says it does not have one, or gets it wrong. If your instructions hold several
+  numbers, it can pick the wrong one.
+- **To keep a number away from the model, send it as a keypad variable.** A
+  number you write into the instructions is text the model reads and may say. A
+  [keypad variable](/docs/call-variables#keypad-variables) is never shown to the
+  model, and as soon as a call carries one, the model's voice answers no number
+  request on that call: every number is entered or spoken by the platform.
+- **Asked in the conversation, it is answered in the conversation.** When the
+  request comes while the call is still a conversation (the menu has named no
+  keys yet, or the agent has just answered its first question), it does not
+  start menu navigation: the agent answers the line as it answers any question,
+  a few seconds after the line stops. The Calls page shows no menu for that
+  request and counts no menu time for it.
+- **Asked while the agent is already in a menu or on hold, it is not answered.**
+  Once the agent has pressed a key or is waiting in a queue, a spoken request
+  for a number gets nothing, as before.
+- **Only in a language the agent's own speech recognition is set for.** The
+  model answers from the words it heard. A request in a language its
+  recognition is not set for, or one whose language could not be identified, is
+  handled as before and is not answered aloud.
+- **It applies to** outbound calls of AI agents on the Standard engine that do
+  not run a conversation workflow. Conversation workflows, Gemini Live and
+  GPT-Live are unchanged: there, a menu that asks for a number the call does not
+  carry gets nothing.
+
+Not answered aloud, on any call:
+
+- a request that takes the keypad only ("enter your account number");
+- a request that also offers a key ("say your order number, or press 1 if you do
+  not have it"): the agent may press the key the menu names, as before;
+- a request that offers a callback.
+
+What can still go wrong:
+
+- **The menu's next sentence can cut the answer.** Early in a call, before
+  anything on the line has sounded like a person, a sentence that sounds like a
+  queue announcement puts the agent on hold, and on hold it stops talking:
+
+  > Menu: "Please give me your web order number."
+  >
+  > AI agent: "K, zero, four…"
+  >
+  > Menu: "…please stay on the line."
+  >
+  > AI agent: (stops mid-number and waits)
+
+- **A menu that then asks for the keypad cuts the answer too.** Early in a
+  call, when the menu goes on to say the number must be keyed in, the agent
+  enters menu navigation at once and stops talking. The call carries no keypad
+  value, so nothing is entered:
+
+  > Menu: "Please give me your web order number."
+  >
+  > AI agent: "K, zero, four…"
+  >
+  > Menu: "…enter it on the keypad."
+  >
+  > AI agent: (stops mid-number; no key is pressed)
+
+- **A keypad menu later in the call may not be taken as a menu at once.** After
+  such a request the call is a conversation. A keypad menu that follows in the
+  first 30 seconds of the call, before anything on the line has sounded like a
+  person, starts menu navigation as usual. Later in the call, a menu read in a
+  single sentence does not: the agent cannot press its key until the line says
+  one more menu or queue sentence.
+
+  > Menu, a minute into the call: "Thanks. For deliveries press 1, for returns press 2."
+  >
+  > AI agent: (answers in words; a key press is refused until the menu goes on)
+
+- **A hold that follows is met as in any conversation.** After such a request
+  the call is a conversation. Once something on the line has sounded like a
+  person, hold music or a single "please hold" does not make the agent go
+  quiet, and it may talk into the music:
+
+  > Menu: "Thanks. Please hold while I get someone to help with your order."
+  >
+  > (hold music)
+  >
+  > AI agent, during the music: "Hello, I am calling to check the delivery status of order K0481207."
+
+- **Inside a menu the request is not answered.** When the agent is already in
+  a menu or on hold, the request is treated as before and the menu hears
+  nothing:
+
+  > Menu: "For orders, press 1. For anything else, press 2." (the agent presses 1)
+  >
+  > Menu: "Now, please tell me your order number."
+  >
+  > AI agent: (says nothing)
+
+A call whose AI agent declares a keypad variable but that was sent no value for
+it counts as carrying none.
 
 ### Typed and spoken values
 
