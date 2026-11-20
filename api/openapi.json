@@ -977,9 +977,13 @@
                 "example": "/talk/front-desk",
                 "type": "string"
               },
-              "phone_number_id": {
-                "description": "Selected inbound number ID, if set and readable with numbers:read. A selected number may be hidden if its route is no longer eligible.",
-                "type": "string"
+              "phone_number_ids": {
+                "description": "Selected inbound number IDs, if set and readable with numbers:read. The Talk page hides any number whose route is no longer eligible.",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
               },
               "slug": {
                 "type": "string"
@@ -4173,6 +4177,26 @@
                     },
                     "type": {
                       "const": "agent_opening_no_transcript"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "speaker",
+                    "start_ms"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "properties": {
+                    "speaker": {
+                      "const": "agent",
+                      "type": "string"
+                    },
+                    "start_ms": {
+                      "type": "integer"
+                    },
+                    "type": {
+                      "const": "agent_reply_not_played"
                     }
                   },
                   "required": [
@@ -7459,6 +7483,35 @@
               },
               "type": {
                 "const": "agent_opening_no_transcript"
+              }
+            },
+            "required": [
+              "type",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "data": {
+                "description": "The AI agent prepared a reply and no audio of it was played on the call. It carries the time the reply would have begun and no text: the reply's words are in no turn and not in the transcript's text.",
+                "properties": {
+                  "speaker": {
+                    "const": "agent",
+                    "type": "string"
+                  },
+                  "start_ms": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "speaker",
+                  "start_ms"
+                ],
+                "type": "object"
+              },
+              "type": {
+                "const": "agent_reply_not_played"
               }
             },
             "required": [
