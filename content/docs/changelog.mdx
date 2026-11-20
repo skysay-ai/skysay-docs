@@ -4,6 +4,76 @@ description: Major Skysay releases, with links to the features and guides you ca
 icon: Journal
 ---
 
+## 20 November 2026
+
+### Outbound calls keep going when the person speaks just as the opening is requested
+
+- On GPT-Live 1 and Gemini Live, an outbound call no longer ends when the person starts talking just as the agent's opening is requested; the agent answers what they said.
+- Limit: if the other side's sound never pauses, such as a recording on a loop, the call no longer ends on its own 8 to 13 seconds after the answer.
+- Such a call stays connected and billed until someone hangs up, voicemail detection or phone-menu navigation takes over, the silence check-in ends it where active, or it reaches the maximum call length, 29 minutes unless you set a shorter one.
+- [Who speaks first](/docs/who-speaks-first#what-the-agent-says-first) · [When the opening never reaches the caller](/docs/voice-behavior#when-the-opening-never-reaches-the-caller)
+
+### The agent answers a menu that asks aloud for a number
+
+- On an outbound call with no keypad value, a Standard AI agent now answers a phone menu's spoken request for a number from its instructions, instead of staying silent.
+- It answers any number the menu asks for aloud, a PIN or card number included, and it can get the number wrong. To keep a number away from the model, send it as a keypad variable.
+- Calls that carry a keypad value, conversation workflows, Gemini Live and GPT-Live are unchanged.
+- [When the call carries no keypad value](/docs/phone-menu-navigation#when-the-call-carries-no-keypad-value)
+
+### The Calls transcript shows what was actually played
+
+- A reply the AI agent prepared while its voice was held back, for example while a phone menu was answered on the keypad, is no longer shown as said.
+- Calls shows a note in its place, "The AI agent prepared a reply here. It was not played on the call.", with no words of the reply.
+- A reply that played to its end is no longer marked cut off because the other person made a sound while it played.
+- `GET /v1/calls/{call_id}/transcript` lists each such reply as an `agent_reply_not_played` entry in `events`; `turns` and `text` do not carry it.
+- [When the AI agent prepared a reply that was not played](/docs/read-call-evidence#when-the-ai-agent-prepared-a-reply-that-was-not-played) · [The call timeline](/docs/read-call-evidence#the-call-timeline)
+
+### Follow the caller on the first clear change of language
+
+- A Standard AI agent with automatic language switching can answer the first clearly recognized question in another published language. Callers can switch back the same way.
+- Short questions may need more speech, and a transcriber can report one dominant language for a mixed sentence.
+- Callers can name a published language to switch immediately. If they just say “switch back,” the agent can ask once which language they mean.
+- [Configure Follow the caller](/docs/multilingual-outbound#optional-follow-the-caller) · [Check transcriber support](/docs/language-qualification#automatic-switching-availability-by-language)
+
+### Phone numbers on a public Talk link
+
+- In **Share**, turn on **Show phone number** to show an inbound number that routes to the AI agent beside **Talk in browser**; several numbers each get their own switch.
+- Visitors pick a number under **Call by phone** and it opens their dialer. Calls use the number's existing routing, policies and billing.
+- Through the API, send `phone_number_ids` to `PATCH /v1/agents/{agent_id}/public-link`, up to 50 numbers; it needs `numbers:read`.
+- [Offer a phone call](/docs/public-link#offer-a-phone-call)
+
+### Create an AI agent ready to take calls in one request
+
+- `POST /v1/agents` with `require_published` creates a published AI agent or nothing, with knowledge bases attached and result fields set in the same request.
+- An `Idempotency-Key` makes the creation safe to repeat; the same request returns the agent it created.
+- `follow_caller_where_supported` answers in the caller's language wherever the setup can, otherwise in the opening language.
+- A browser test can name the version you saved, so it never plays another tab's voice.
+- [Create the agent](/docs/wire-an-agent#create-a-published-agent-in-one-request) · [Test the saved version](/docs/wire-an-agent#test-exactly-the-version-you-saved)
+
+### Write an AI agent's instructions from your notes and files
+
+- `POST /v1/agent-identities` (MCP `generate_agent_identity`) writes the instructions, first message and result fields of a new AI agent, and saves nothing.
+- It uses only the facts you give and does not promise actions the AI agent cannot take.
+- Each workspace can make 10 requests a minute and 50 a day.
+- [Generate identity](/docs/wire-an-agent#write-the-instructions-with-generate-identity)
+
+### Start a campaign from selected contacts
+
+- On **Contacts**, select up to 100 people and choose **Create campaign from selected contacts**; saving the draft creates a separate audience list with their details.
+- **Outbound campaigns** and **Simulations Lab** are under **Agent tools** in the workspace sidebar, and each also opens from an AI agent's editor.
+- [Contacts](/docs/contacts) · [Launch a campaign](/docs/launch-a-campaign) · [Simulations Lab](/docs/simulations-lab)
+
+### Knowledge file names in any language
+
+- A knowledge file can now be named in any language or script, such as `клиника.txt` or `价格表.docx`; before, such a name was refused as an unsupported format.
+- Skysay shows the name as you gave it. Invisible characters are removed, except joiners between letters (as in Persian and Hindi); control characters and other symbols become a dash.
+- [Knowledge bases](/docs/knowledge-bases)
+
+### Eleven Realtime on the pricing estimate
+
+- The pricing page's estimate and `GET /v1/pricing/catalog` list Eleven Realtime as a conversational model, at $0.15 per connected minute plus the platform runtime.
+- [Billing](/docs/billing#the-prices-behind-the-estimate) · [Eleven Realtime](/docs/conversation-engines#eleven-realtime)
+
 ## 18 November 2026
 
 ### A phrase when a knowledge search starts
