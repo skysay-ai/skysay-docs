@@ -36,7 +36,9 @@ export function blogFileUrls(file, env = process.env) {
   return urls;
 }
 
-async function fetchContractText(url, fetchImpl, timeoutMs) {
+// Exported for src/lib/llms-pages.js, which reads the web app's file under the
+// same contract with its own source line.
+export async function fetchContractText(url, fetchImpl, timeoutMs, sourceLine = BLOG_SOURCE_LINE) {
   try {
     const response = await fetchImpl(url, {
       headers: { accept: "text/plain" },
@@ -51,7 +53,7 @@ async function fetchContractText(url, fetchImpl, timeoutMs) {
       return null;
     }
     const text = await response.text();
-    if (text.split("\n")[1] !== BLOG_SOURCE_LINE) {
+    if (text.split("\n")[1] !== sourceLine) {
       return null;
     }
     return text;
