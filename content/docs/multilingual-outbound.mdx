@@ -4,7 +4,7 @@ description: Understand opening language, fixed-language calls, controlled langu
 icon: ChatBubbleTranslate
 ---
 
-<Diagram name="call-languages.svg" alt="The call opens in its opening language. A Standard agent either keeps one language per call or follows the caller (on by default with two or more languages), switching only to a published language on a clear request or when the transcriber reports it twice in a row, and refusing an unpublished one. GPT-Live 1 and Gemini Live follow the caller inside the model, best effort, with no language lock." />
+<Diagram name="call-languages.svg" alt="The call opens in its opening language. A Standard agent either keeps one language per call or follows the caller (on by default with two or more languages), switching between published languages when the caller asks or the transcriber clearly identifies a change. GPT-Live 1 and Gemini Live follow the caller inside the model, best effort, with no language lock." />
 
 ## Three different language choices
 
@@ -59,15 +59,12 @@ automatically detect a change. Some transcribers supply stable language
 evidence for automatic switching; others support switching only after the
 caller clearly asks. Check the capability shown for the chosen configuration.
 
-Deepgram Nova-3 now supplies that evidence: it reports the language of each
-final result, so an Auto multilingual agent on Deepgram switches when the
-caller is heard speaking another published language, after two agreeing
-results, as well as on request. This applies to agents that are already
-published from their next call; you do not need to republish. Follow the caller
-is on by default for an agent with more than one language, and an agent that is
-already published picks the default up when you next publish it. A
-language the caller speaks that is not one of the agent's published languages
-never switches the reply language.
+Deepgram Nova-3 reports the language it heard with each final transcript.
+On a Standard agent published with **Follow the caller**, one clearly
+identified question in another published language can be enough to answer
+that question in it. Existing agents with Follow enabled use this behavior
+on their next call. If you change the agent’s language settings, publish
+them for future calls.
 
 The call surface also matters: **Standard anonymous homepage demos currently
 support explicit-request switching, but do not connect provider language
@@ -79,7 +76,7 @@ engines follow language separately inside the model.
 | Caller starts in English, then uses German | Expected behavior |
 | --- | --- |
 | Standard, single language per call, English selected | The agent is instructed to continue in English. There is no controlled profile switch. |
-| Standard phone call or authenticated workspace browser test, Auto multilingual, German published, automatic detection supported | Supported stable recognition evidence can trigger a switch to German. |
+| Standard phone call or authenticated workspace browser test, Auto multilingual, German published, automatic detection supported | The first clearly identified German question can receive a German reply. |
 | Standard anonymous homepage demo, Auto multilingual, German published | A clear request can trigger switching; provider-evidence automatic detection is not wired on this path. |
 | Standard, Auto multilingual, German published, explicit requests only | Ask clearly, for example “Please speak German.” German speech alone does not enable automatic switching. |
 | Standard, Auto multilingual, German excluded | An understood request is refused; the agent should explain the available languages in its current response language. |
@@ -528,19 +525,19 @@ coverage of an AI agent. A null candidate limit does not promise support for
 every human language. Check the full selected configuration and the published
 language set. Provider constructor options are not part of this customer API.
 
-A caller can request a configured language directly—for example, “Please speak
-German” while speaking English. The agent can request a switch only to an
-admitted language. Automatic switching additionally requires provider language
+A caller who names a published language can switch to it immediately, for
+example by saying “Please speak German” while speaking English. Automatic switching additionally requires provider language
 metadata supported by the adapter, and which transcriber you choose decides
 whether you get it. See
 [Automatic switching availability by language](/docs/language-qualification#automatic-switching-availability-by-language)
 for the current per-transcriber table.
 
-Where automatic switching is available, it takes **two consecutive final
-results that agree** on the same language within the selected set. Conflicting
-or unrecognized signals reset that sequence. Skysay does not guess the
-language from individual transcript words. Provider detection can still be
-wrong, so test your actual conversation.
+With automatic switching, a caller can move between published languages
+without asking. For example, a caller who starts in Hindi can ask a question
+in English and hear the answer in English. If they later ask another question
+in Hindi, the agent can switch back on that question. A short English question
+such as “Are you open?” can be transcribed correctly and still receive a
+Hindi reply. The agent may need to hear more English before it switches.
 
 This release supports Follow mode for authenticated browser tests and inbound
 and outbound phone calls, including calls whose replies come from an agent

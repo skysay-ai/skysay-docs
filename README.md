@@ -117,6 +117,7 @@ npm run parity -- --no-live          # every URL resolves, corpora complete
 npm run anchor-check                 # every in-site #anchor resolves
 npm run sidebar-icons:test           # every sidebar node has a real, unique icon
 npm run llms-blog:test               # Blog part of the root llms files (fetch, contract, fallback)
+npm run llms-pages:test              # Product part of /llms.txt: the web app's page index (fetch, contract, fallback)
 ```
 
 `scripts/anchor-check.mjs` resolves every in-site `#fragment` link against the
