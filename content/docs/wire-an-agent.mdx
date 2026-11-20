@@ -15,7 +15,8 @@ is heard, thought about, and spoken. There are three modes:
 
 - `external_audio` — your own audio agent, connected over a webhook + audio
   stream URL. Use `connect_external_agent` for the common case.
-- `external_text` — your own text agent; Skysay handles STT/TTS around it.
+- `external_text` — your own text agent; Skysay handles STT/TTS around it. It
+  can't take phone calls yet.
 - `hosted` — Skysay runs the conversation for you. The default engine is
   Standard speech-to-text, a model, then text-to-speech. You can instead choose
   [GPT-Live 1](/docs/conversation-engines), which listens and speaks at once.
@@ -1072,9 +1073,11 @@ agent prevents those keys from authenticating.
 ## Bring your own agent
 
 Two of the three modes let your own application do the thinking. Both are
-created in the workspace from **Agents → [Bring your own
-agent](https://skysay.ai/agents/new/developer)**, or over the API with
-`POST /v1/agents`.
+created in the workspace on the
+**[Developer setup](https://skysay.ai/agents/new/developer)** screen, or over
+the API with `POST /v1/agents`. To open that screen, press **New AI Agent** on
+the **Agents** page and choose **Connect your own voice system** under
+**Advanced**.
 
 <Callout title="Only an audio agent takes phone calls">
   A realtime audio agent (`external_audio`) answers and places calls on a
@@ -1088,6 +1091,10 @@ agent](https://skysay.ai/agents/new/developer)**, or over the API with
 </Callout>
 
 ### Webhook agent (`external_text`)
+
+A webhook agent can't take phone calls yet (see the note above). You can create
+one and it receives call events; this section describes the exchange it is
+built for.
 
 Skysay runs speech-to-text and text-to-speech around your app, so the app
 only deals in text.
