@@ -118,16 +118,37 @@ the agent can reply once they stop. If it never does, the call ends as
 described in
 [When the opening never reaches the caller](/docs/voice-behavior#when-the-opening-never-reaches-the-caller).
 
-If the other side's sound never pauses, for example hold music or a recording
-on a loop, the call continues like any conversation in which that happens: it
-ends when the agent ends it, the other side hangs up, voicemail detection or
-phone-menu navigation takes over, or the maximum call length is reached.
-
 > **Person**, starting just as the opening is requested: "Hello? Yes, sorry,
 > I'm just getting out of the car, give me a second… okay, who is this?"
 >
 > **Agent**, once they stop: "Hi, this is Leo from Brightside Dental, calling
 > to confirm your appointment."
+
+**Limit: sound that never pauses.** The agent gets its turn when the other
+side pauses. If the sound there never pauses, for example a recording that
+plays on a loop, the agent may get no turn to speak in, or to end the call in.
+Before, such a call ended on its own 8 to 13 seconds after it was answered,
+depending on the engine, because the opening could not be produced. Now it
+stays connected, and is billed like any call, until one of these ends it:
+
+- the other side hangs up, or you
+  [end the call yourself](/docs/post-call-results#end-a-call-that-is-still-running);
+- [voicemail detection](/docs/voicemail-detection) ends it or
+  [phone-menu navigation](/docs/phone-menu-navigation) takes over, where your
+  AI agent's settings allow it;
+- the [silence check-in](/docs/how-calls-end#when-both-sides-go-quiet), where
+  it is active, if the sound has no words in it, such as music;
+- the maximum call length: 29 minutes, unless you set a shorter one with
+  `turn_taking.max_call_seconds`.
+
+> **Recording**, starting just as the opening is requested: "You have reached
+> Northgate Tyres. We are open Monday to Friday, eight to five. You have
+> reached Northgate Tyres. We are open Monday to Friday…"
+>
+> **Agent**: says nothing, because the recording never stops.
+>
+> The call stays connected until one of the endings above. If none of the
+> others applies, that is the maximum call length.
 
 The opening is an ordinary reply. The person can interrupt it, and the agent
 stops and listens, as it would at any other point in the call.
