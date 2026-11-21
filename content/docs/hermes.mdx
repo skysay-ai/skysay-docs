@@ -1,0 +1,133 @@
+---
+title: Connect Hermes to Skysay
+description: Install the Skysay plugin from the Hermes Marketplace, add the sign-in entry, choose what Hermes may do, and disconnect it from Connected apps.
+icon: Flash
+---
+
+Hermes Agent can work in your Skysay workspace: read your calls, set up AI
+agents and, when you allow it, place calls and send SMS. Skysay is published in
+the Hermes Marketplace. You install the plugin, add one entry to your Hermes
+configuration and sign in to Skysay. You do not create or paste an API key.
+
+Hermes operates Skysay for you. It is not the voice on the call: the person on
+the phone hears your AI agent. To make a system you run the voice on calls, see
+[Wire an agent to a number](/docs/wire-an-agent).
+
+The plugin needs Hermes 0.23.0 or later.
+
+## Install the plugin
+
+<Steps>
+<Step>
+
+**Install Skysay from the Hermes Marketplace.** Open
+[Skysay in the Hermes Marketplace](https://hermes-agent.nousresearch.com/marketplace/skysay)
+and enable it, or run:
+
+```bash
+hermes plugins install skysay
+```
+
+Installing adds the plugin. It does not sign you in and it runs no Skysay
+action.
+
+</Step>
+<Step>
+
+**Add the sign-in entry.** In the active Hermes profile's `config.yaml`, add
+this entry under `mcp_servers`, keeping your other servers:
+
+```yaml
+mcp_servers:
+  skysay:
+    url: https://api.skysay.ai/mcp
+    auth: oauth
+    enabled: true
+    trust: untrusted
+    oauth:
+      cimd: false
+```
+
+Keep `trust: untrusted`: it is what makes Hermes ask you before a tool that
+changes something. Do not run `hermes mcp add skysay` for a plugin install,
+because it can create an entry without that setting.
+
+</Step>
+<Step>
+
+**Sign in to Skysay.** Run:
+
+```bash
+hermes mcp login skysay
+```
+
+Hermes opens Skysay in your browser. Sign in with the account that belongs to
+the workspace you want to connect.
+
+</Step>
+<Step>
+
+**Choose what Hermes may do.** The consent screen names the app that is asking
+and the workspace, and lists each permission as a checkbox. Untick anything you
+do not want Hermes to do, then choose **Allow access**, or **Deny** to stop.
+
+</Step>
+<Step>
+
+**Pick the tools and start a new chat.** Run `hermes mcp configure skysay` to
+choose tools, check the connection with `hermes mcp test skysay`, then start a
+new chat.
+
+</Step>
+</Steps>
+
+## Check that it works
+
+Ask Hermes:
+
+```text
+Summarize my Skysay workspace and list its AI agents. Don't place calls, send messages or make changes.
+```
+
+A new workspace returns empty lists. Installing the plugin does not create an
+AI agent or a phone number.
+
+## What Hermes can do
+
+What is ticked when you choose **Allow access** is exactly what Hermes gets.
+Optional permissions may already be ticked, including the ones that change AI
+agents, place calls and send SMS, so check the list before you allow it.
+Reading transcripts, recordings and SMS text has its own permissions. See
+[Permissions, consent and reconnecting](/docs/mcp#permissions-consent-and-reconnecting)
+for the full list and [Scopes & permissions](/docs/scopes) for what each one
+allows.
+
+With `trust: untrusted`, Hermes asks you before each tool that can change
+something, such as a call, an SMS or a number request. Tools that only read do
+not ask.
+
+Signing in does not by itself approve payments, number purchases or billable
+calls: you approve each paid call, SMS or number. Read
+[Billing](/docs/billing) before you ask Hermes to do something that costs
+money.
+
+## Disconnect Hermes
+
+Open **Connected apps** on the [API keys](https://skysay.ai/api-keys) page in
+the Skysay workspace and revoke the connection. It stops working at once. Then
+run:
+
+```bash
+hermes mcp remove skysay
+```
+
+Uninstalling the plugin alone does not remove the entry you added or revoke
+the connection. API keys are separate and are revoked on their own.
+
+## If something goes wrong
+
+| What you see | What to do |
+| --- | --- |
+| `invalid_grant: unknown authorization code` | Close the old sign-in tabs, check that the entry has both `trust: untrusted` and `oauth.cimd: false`, then run `hermes mcp login skysay` again and use only the newest tab. |
+| The consent screen shows the wrong workspace | Choose **Deny**, sign out of Skysay in that browser, and run `hermes mcp login skysay` again with the right account. |
+| Hermes says a tool needs another permission | Run `hermes mcp login skysay` again and leave that permission ticked on the consent screen. |
