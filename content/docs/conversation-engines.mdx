@@ -25,6 +25,8 @@ engine: a GPT-Live 1 or Gemini Live voice brings its engine with it.
 - **GPT-Live 1** replaces those three rows with a GPT-Live voice and a backend
   model for tools. The live model owns barge-in, backchannels, and waiting
   speech, so acknowledgements and turn-taking stay off for that engine.
+  Skysay silences its voice while the caller speaks; see
+  [When the caller talks over a GPT-Live agent](#when-the-caller-talks-over-a-gpt-live-agent).
 - **Gemini Live**, when enabled, is a Google Gemini Live session that listens
   and speaks at once. It navigates phone menus, but it cannot run workflow
   calls yet.
@@ -37,6 +39,53 @@ Standard remains the default when you omit the field. Each row declares what
 the engine can do rather than leaving you to infer it from its name; today the
 properties include `has_language_axis`, `supports_manual_replies` and
 `supports_deferred_tool_replies`.
+
+## When the caller talks over a GPT-Live agent
+
+GPT-Live hears the caller while it speaks and decides for itself when to stop.
+So that a caller never has to talk over it, Skysay silences the agent's voice
+on the call as soon as the caller starts speaking, and lets it be heard again
+once the caller pauses. This is how every GPT-Live agent behaves on inbound and
+outbound phone calls and in **Talk**; there is nothing to switch on. The
+caller's speech keeps reaching the model the whole time, so the agent answers
+what they said.
+
+> **Agent:** "Hi, this is Maya from Acme. I'm calling to confirm tomorrow's…"
+> **Caller, over it:** "Sorry, is this about my parcel?"
+> *(the agent goes quiet the moment the caller starts)*
+> **Agent:** "Yes, it is. Will someone be home tomorrow morning?"
+
+A protected opening line is not silenced by a short "hello?" at pickup; see
+[Who speaks first](/docs/who-speaks-first). The homepage demo does not
+silence the agent this way.
+
+What callers and you may notice:
+
+- **Words the caller did not hear stay in the transcript.** While the agent
+  is silenced, the model may still be finishing its sentence. The recording has
+  silence there, but the call's transcript shows the agent's whole line, and
+  the model carries on as if the caller heard it.
+
+  > **Agent:** "Your appointment is on Tuesday at—"
+  > **Caller:** "Sorry, which day?"
+  > *(silenced: "…three o'clock, please bring your card")*
+  > **Agent:** "Tuesday."
+  >
+  > The caller never heard "three o'clock" or the card, but both are in the
+  > transcript, and the agent will not offer them again unless asked.
+
+- **A short "mm-hm" costs the caller a moment of the agent's speech.** The
+  agent is silent for as long as the caller makes the sound and a moment after,
+  then goes on with its sentence, so the caller can miss a few words.
+
+  > **Agent:** "Hi, this is Maya from Acme. I'm calling to confirm—"
+  > **Caller:** "Mm-hmm, okay, go on."
+  > **Agent:** "—will someone be there to receive it?"
+  >
+  > The caller missed "tomorrow's delivery".
+
+- **A pause in the middle of the caller's sentence** can let a moment of the
+  agent's voice through before it is silenced again.
 
 ## Engines and the language axis
 
