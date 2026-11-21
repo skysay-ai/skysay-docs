@@ -52,7 +52,7 @@ Where the goodbye comes from depends on the conversation engine:
 - **Standard** (speech-to-text, model, text-to-speech): the agent passes its
   goodbye as the tool's `message`, and Skysay speaks it in the agent's voice.
   The agent does not say a separate goodbye first.
-- **GPT-Live 1 and Gemini Live**: these engines speak for themselves, so there
+- **GPT-Live 1.1 and Gemini Live**: these engines speak for themselves, so there
   is no separate voice for Skysay to speak a text line with. The agent says its
   own short goodbye and then calls `end_call` in the same turn. Skysay lets that
   goodbye finish playing, then hangs up. The tool's `message` is not spoken on
@@ -65,8 +65,8 @@ about 15 seconds, the call is ended anyway.
 
 ### On live engines, the spoken goodbye ends the call
 
-A live voice model (GPT-Live 1, Gemini Live, or Eleven Realtime when enabled)
-says its goodbye in its own voice, and GPT-Live 1 often does not follow it
+A live voice model (GPT-Live 1.1, Gemini Live, or Eleven Realtime when enabled)
+says its goodbye in its own voice, and GPT-Live 1.1 often does not follow it
 with `end_call`. So on these engines Skysay does not wait for the tool: when an agent that has `end_call` enabled says its goodbye, Skysay hangs
 up for it.
 
@@ -86,7 +86,7 @@ browser test calls. It is paused while the agent is working through a phone
 menu or waiting on hold, and it is off for an agent without `end_call`.
 
 You do not need to instruct the agent to call `end_call` after its goodbye on
-these engines. On GPT-Live 1, instructions that forbid speaking, or repeat
+these engines. On GPT-Live 1.1, instructions that forbid speaking, or repeat
 "call end_call", do not make the ending more reliable. Tell the agent *when* the
 conversation is over; the goodbye does the rest.
 
@@ -100,7 +100,7 @@ agent end a line with a goodbye unless the conversation is over.
 A live voice model decides for itself when to call `end_call`, and it can call
 it at the wrong moment: in testing, a Gemini Live agent answered a caller's
 first sentence with "How can I help you today?" and called `end_call` in the
-same breath. So on GPT-Live 1, Gemini Live and Eleven Realtime, Skysay checks
+same breath. So on GPT-Live 1.1, Gemini Live and Eleven Realtime, Skysay checks
 the call before it hangs up.
 
 <Diagram name="end-call-goodbye-check.svg" alt="On live engines, when the agent calls end_call Skysay lets the line it is speaking finish and judges whether the agent's latest line was its goodbye. Yes: the hang-up goes ahead and the call ends with agent_completed unless the caller speaks first. No: the call stays open and the agent is told it has not ended. Could not be judged: the hang-up goes ahead as before." />
@@ -154,7 +154,7 @@ An agent's pending hang-up can be canceled when Skysay detects the caller
 speaking again. On Standard agents, this stops the pending goodbye and keeps
 caller input open so the agent can answer the new request. A later legitimate
 ending needs a fresh `end_call` request; the canceled one cannot disconnect
-the continued conversation. GPT-Live 1 and Gemini Live also protect the
+the continued conversation. GPT-Live 1.1 and Gemini Live also protect the
 caller's turn during a pending close.
 
 What counts as speaking again depends on the speech-to-text the call uses.
@@ -171,7 +171,7 @@ just before it hangs up after the goodbye, so a caller who starts saying
 "mm-hm" are not words. Intelligible background speech, such as a television or
 someone nearby talking, can still be heard as words and keep the call open.
 
-On every other speech-to-text, and on GPT-Live 1 and Gemini Live, this
+On every other speech-to-text, and on GPT-Live 1.1 and Gemini Live, this
 protection depends on speech detection, not on recognizing a particular
 word such as "no"; recognized words can also cancel a Standard agent's close
 when the acoustic detector misses them. Missed speech may not cancel a
@@ -220,7 +220,7 @@ Skysay, added after your own prompt on every call:
 > you cannot help with their request, and never while they are still telling
 > you something.
 
-On GPT-Live 1, Gemini Live and Eleven Realtime the wrong-person sentence asks
+On GPT-Live 1.1, Gemini Live and Eleven Realtime the wrong-person sentence asks
 for the goodbye in so many words: "... apologise once, share nothing about the
 matter, then give your one short goodbye and invoke end_call." On these engines
 the tool only ends the call after the agent's goodbye, and an apology alone is
@@ -263,7 +263,7 @@ conversation.
 
 The instruction also reaches every language profile a
 [language-following](/docs/language-following) agent can switch to. On
-GPT-Live 1 it also reaches the backend model that decides when to call tools.
+GPT-Live 1.1 it also reaches the backend model that decides when to call tools.
 
 ## The tool honesty instruction
 
@@ -274,7 +274,7 @@ only actions it can take, and tells it never to say it will check, try or do
 something unless it calls the tool for it, nor that an action happened unless
 the tool's result says so. The list is the tools the agent was really given on
 the call, so a tool that could not be set up for that call is left out. On
-GPT-Live 1 the backend model reads the same list, and the list stays the same
+GPT-Live 1.1 the backend model reads the same list, and the list stays the same
 when a language-following agent switches language. It cannot be switched off.
 On Eleven Realtime, which limits the size of an agent's instructions, it is
 left out when adding it would take the instructions over that limit.
@@ -302,7 +302,7 @@ note above), it works like this:
 - **After 30 seconds of mutual silence, the agent checks in once.** It asks one
   short question, in the language of the conversation, whether the caller is
   still there. On a Standard agent in English it is *"Are you still there?"*.
-  On GPT-Live 1 and Gemini Live the agent's own model says it.
+  On GPT-Live 1.1 and Gemini Live the agent's own model says it.
 - **If the caller answers, the conversation simply continues.** One word is
   enough, and "yes" counts. A later silence gets a new check-in.
 - **If nobody answers within 15 seconds after the check-in has played, the

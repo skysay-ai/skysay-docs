@@ -9,20 +9,20 @@ The default is **Standard**: speech-to-text, a model, then text-to-speech. You
 can instead choose an available live engine, which listens and speaks within
 one session. The catalog states which engines can currently be selected.
 
-Every engine uses the same Skysay numbers and call handling. GPT-Live 1 does
+Every engine uses the same Skysay numbers and call handling. GPT-Live 1.1 does
 not send the call to OpenAI SIP.
 
-<Diagram name="conversation-engines.svg" alt="Standard passes the caller's speech through three parts you choose: speech-to-text, a model that writes the reply, and text-to-speech, so interruptions, acknowledgements and tool-wait speech stay under your control. A live engine (GPT-Live 1, Gemini Live, or Eleven Realtime when enabled) hears and speaks in one session, so the live model handles barge-in and turn-taking itself; GPT-Live 1 also uses a backend model for tools." />
+<Diagram name="conversation-engines.svg" alt="Standard passes the caller's speech through three parts you choose: speech-to-text, a model that writes the reply, and text-to-speech, so interruptions, acknowledgements and tool-wait speech stay under your control. A live engine (GPT-Live 1.1, Gemini Live, or Eleven Realtime when enabled) hears and speaks in one session, so the live model handles barge-in and turn-taking itself; GPT-Live 1.1 also uses a backend model for tools." />
 
 ## Choose the engine
 
 In the workspace, open the AI agent and look at **Voice**. The first control is
 **Conversation engine**. In **New AI agent** the voice you choose decides the
-engine: a GPT-Live 1 or Gemini Live voice brings its engine with it.
+engine: a GPT-Live 1.1 or Gemini Live voice brings its engine with it.
 
 - **Standard** keeps separate transcriber, model, and voice rows. Interruptions,
   acknowledgements, and tool-wait speech stay under your control.
-- **GPT-Live 1** replaces those three rows with a GPT-Live voice and a backend
+- **GPT-Live 1.1** replaces those three rows with a GPT-Live voice and a backend
   model for tools. The live model owns barge-in, backchannels, and waiting
   speech, so acknowledgements and turn-taking stay off for that engine.
 - **Gemini Live**, when enabled, is a Google Gemini Live session that listens
@@ -45,7 +45,7 @@ engine that picks a transcriber and a voice per language: the accepted language
 set, the per-language overrides, and **Follow the caller**.
 
 - **Standard** has the axis. `has_language_axis` is `true`.
-- **GPT-Live 1** does not. It has no language parameter, no separate
+- **GPT-Live 1.1** does not. It has no language parameter, no separate
   transcriber, and one voice for the whole call, so `has_language_axis` is
   `false`.
 
@@ -57,9 +57,9 @@ rule, so a client that reads the flag needs no change when one is added.
 
 The test panel offers two targets. **Current draft** runs the engine, voice
 and backend as they stand on the page, before you publish -- switch a
-Standard agent to GPT-Live 1, pick a voice, and talk to it. **Published** runs
+Standard agent to GPT-Live 1.1, pick a voice, and talk to it. **Published** runs
 the last published snapshot. The panel names what each target will run: for
-GPT-Live 1 the voice and engine ("Marin · GPT-Live 1"), the backend for tools,
+GPT-Live 1.1 the voice and engine ("Marin · GPT-Live 1.1"), the backend for tools,
 and that speech-to-text is built into the engine.
 
 Two things to know:
@@ -129,7 +129,7 @@ request schema in the API reference.
   "voice_frontend": "gpt_live",
   "voice": {
     "provider": "openai",
-    "model": "gpt-live-1",
+    "model": "gpt-live-1.1",
     "voice_id": "marin"
   },
   "model": {
@@ -143,9 +143,13 @@ request schema in the API reference.
 field. So do MCP `create_agent` and `set_agent_voice_stack`.
 
 `GET /v1/agents/{agent_id}/voice-stack` always returns `transcriber`, `model`,
-and `voice`. For GPT-Live 1 those are an OpenAI compatibility projection:
+and `voice`. For GPT-Live 1.1 those are an OpenAI compatibility projection:
 native captions as the transcriber, the Responses backend as the model, and
-`gpt-live-1` with the selected voice id.
+`gpt-live-1.1` with the selected voice id. For integrations that include the
+voice model explicitly, send `gpt-live-1.1`. A request that still names
+`gpt-live-1` as the voice model is refused with 400: "GPT-Live 1 is retired in
+Skysay. Use gpt-live-1.1 for this voice." The `gpt_live` engine and existing
+voice IDs still identify the same choices.
 
 Patching a Standard transcriber onto a GPT-Live agent without switching the
 engine is refused. Switching back requires `voice_frontend: "cascade"` and a
@@ -153,12 +157,12 @@ full Standard stack.
 
 ## Voices, language, and opening
 
-GPT-Live 1 offers fourteen voices: Marin, Cedar, Gleam, Meridian, Willow,
-Stone, Vesper, Quartz, Ripple, Delta, Cinder, Beacon, Bossa and Tempo. Browse,
-compare and audition them in the [Voice Library](/docs/voice-library#openai-gpt-live-1-voices)
+GPT-Live 1.1 offers 23 voices. The nine additions are Nuri, Juni, Flitz, Brise,
+Sillage, Nira, Harema, Shida and Noeul. Browse,
+compare and audition them in the [Voice Library](/docs/voice-library#openai-gpt-live-11-voices)
 under the **OpenAI** provider, or pick one directly on the engine card in the
 agent editor. **Use in an AI agent** from the library switches the draft to
-GPT-Live 1 and tells you so; nothing is published until you publish.
+GPT-Live 1.1 and tells you so; nothing is published until you publish.
 
 GPT-Live voices are independent of spoken language. Do not filter them through
 Standard text-to-speech tables. The engine follows the caller's language
@@ -175,7 +179,7 @@ per-voice Language label, a description rather than a capability), `source`
 only; OpenAI does not document the other fields for them, and Skysay does
 not infer them.
 
-On outbound phone calls without a workflow, GPT-Live 1 and Gemini Live let
+On outbound phone calls without a workflow, GPT-Live 1.1 and Gemini Live let
 the person speak first. They hear the whole pickup before Skysay releases the
 first response. A request or correction in the pickup should be answered
 first; a simple hello is answered with the configured opening. If nobody
@@ -197,7 +201,7 @@ agent-editor setting.
 ### Calls where the agent speaks first
 
 Inbound phone calls, outbound calls set to have the agent speak first,
-browser tests and the homepage demo keep their agent-first opening. On GPT-Live 1 and Gemini Live,
+browser tests and the homepage demo keep their agent-first opening. On GPT-Live 1.1 and Gemini Live,
 the following input hold and quick-reply recovery apply to that opening path.
 Eleven Realtime does not use this input hold.
 
@@ -379,7 +383,7 @@ integration is enabled.
 
 ## Workflows
 
-A GPT-Live 1 agent can run a published [workflow](/docs/agent-workflows) in
+A GPT-Live 1.1 agent can run a published [workflow](/docs/agent-workflows) in
 any language. The live session speaks every workflow line in GPT's own voice
 and its own wording, not word for word; the workflow still decides which step
 comes next. The agent's **Voice → Transcriber** listener, shared with its
@@ -388,11 +392,11 @@ there like any spoken workflow, one that accepts every language of the call
 (Azure real-time transcription, for example, accepts English, Sinhala and
 Tamil). Phone menu navigation does not run on these calls.
 
-OpenAI publishes no per-language list for GPT-Live 1, so Skysay accepts it in
+OpenAI publishes no per-language list for GPT-Live 1.1, so Skysay accepts it in
 every language it runs calls in and blocks none up front. English is the
 language Skysay has tested on GPT-Live workflow calls, and it carries the
 **Tested by Skysay** badge; any other language is accepted untested. How well
-GPT-Live 1 holds a language varies (see
+GPT-Live 1.1 holds a language varies (see
 [What Skysay has tested](/docs/language-following#what-skysay-has-tested) for
 free-form calls), so test your own languages before you launch. See
 [Spoken workflow calls](/docs/agent-workflows#spoken-workflow-calls) for the
@@ -425,7 +429,7 @@ or response speed.
 
 ## Billing
 
-GPT-Live 1 is billed by call duration, from the moment the call is placed, at
+GPT-Live 1.1 is billed by call duration, from the moment the call is placed, at
 **$0.05 per minute**, including silence, plus tokens for the backend that
 handles tools. Standard speech-to-text is not charged on that path.
 

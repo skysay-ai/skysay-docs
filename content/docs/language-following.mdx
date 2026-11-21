@@ -1,24 +1,24 @@
 ---
 title: Which languages the voice agent follows, and how to test yours
-description: How GPT-Live 1 decides what language to answer in, which languages Skysay has tested, what "not tested" means, and how to test your own language before going live.
+description: How GPT-Live 1.1 decides what language to answer in, which languages Skysay has tested, what "not tested" means, and how to test your own language before going live.
 icon: Translate
 ---
 
-This page is about the **GPT-Live 1** conversation engine. For the distinction
+This page is about the **GPT-Live 1.1** conversation engine. For the distinction
 between opening language, Standard's fixed or controlled multilingual calls,
 and native live engines, start with
 [Languages and multilingual calls](/docs/multilingual-outbound).
 
-<Diagram name="gpt-live-language-following.svg" alt="On GPT-Live 1 the agent is told to say the opening exactly as written, in the language it is written in. After that the agent is told to switch when a person speaks a full sentence in another language or asks it to, and not to switch for music, a recording, an announcement, background voices or unclear speech. These are instructions to the model, best effort and not a lock, so test each language you need." />
+<Diagram name="gpt-live-language-following.svg" alt="On GPT-Live 1.1 the agent is told to say the opening exactly as written, in the language it is written in. After that the agent is told to switch when a person speaks a full sentence in another language or asks it to, and not to switch for music, a recording, an announcement, background voices or unclear speech. These are instructions to the model, best effort and not a lock, so test each language you need." />
 
 ## How language following works
 
-GPT-Live 1 has no language setting. No API parameter tells it which language
+GPT-Live 1.1 has no language setting. No API parameter tells it which language
 to speak, and none restricts it to one. The model listens to what the caller
 says and replies in the language it believes it heard.
 
 - **Voice and language are independent.** The voice you pick sets the timbre
-  of the reply, not the language. Any of the fourteen GPT-Live voices can
+  of the reply, not the language. Any of the 23 GPT-Live voices can
   answer in any language the model recognises. In our tests the same voice
   answered German callers in German and Tamil callers in Tamil.
 - **Language following is automatic and not enforceable.** You cannot pin an
@@ -42,14 +42,20 @@ to switch when they speak to it in another language in a full sentence, or
 ask it to, and never because of music, a recording, an announcement,
 background voices or speech it could not make out. When it is not sure, it is
 told to stay in the agent's language. This, too, is best effort and **not a
-lock**. In our tests an English hold announcement looping on a German call
+lock**. In our tests an English hold announcement looping on a German GPT-Live 1.0 call
 still drew English replies in about half the calls, down from every call
 before the instruction existed. If the line may play recordings (queues,
 hold music, IVR menus), expect some replies to follow them.
 
 ## What Skysay has tested
 
-We ran GPT-Live 1 through spoken test sessions in several languages, using
+In a matched browser-room and SIP loopback test, GPT-Live 1.1 switched from
+English to German and back to English. The replies were graded from the
+received audio. The earlier multi-session results below are for GPT-Live 1.0.
+
+### September results for GPT-Live 1.0
+
+We ran GPT-Live 1.0 through spoken test sessions in several languages, using
 synthetic callers speaking real, synthesised sentences. A session passed when
 the reply stayed in the caller's language, addressed the caller's actual
 question, and was coherent and on topic.
@@ -65,25 +71,23 @@ question, and was coherent and on topic.
 | Sinhala | Unreliable: 9 of 60 sessions usable | 60 |
 
 Tested 13 September 2026 against `gpt-live-1`. Results apply to that model
-version; we re-run the same sessions when OpenAI ships a new one.
+version.
 
-All fourteen GPT-Live voices remain available for every language. Skysay
+All 23 GPT-Live voices remain available for every language. Skysay
 does not restrict voice choice by language, because voice is a timbre choice
-and has no bearing on how GPT-Live 1 follows language. In the
-[Voice Library](/docs/voice-library#openai-gpt-live-1-voices) they appear
+and has no bearing on how GPT-Live 1.1 follows language. In the
+[Voice Library](/docs/voice-library#openai-gpt-live-11-voices) they appear
 under every language filter in a Multilingual group.
 
 ## What "not tested" means
 
-A language missing from the table is **not tested**, not unsupported. We have
-not run it through this process, so we have no result to report either way.
-If your business takes calls in a language that is not listed, test it
-yourself before relying on it.
+Each result applies to its tested model. If your business takes calls in
+another language, test your own agent before relying on it.
 
-## What a failure looks like
+## A failure observed with GPT-Live 1.0
 
-Sinhala is the one language where we found a real, repeatable problem, and it
-is a useful example of what "unreliable" means in practice.
+The September GPT-Live 1.0 test found a repeatable issue with Sinhala. The
+current GPT-Live 1.1 test did not include Sinhala.
 
 Speech recognition frequently misheard the caller's Sinhala sentence, and the
 reply did not just get the content wrong: it sometimes came back in a
@@ -112,7 +116,7 @@ same language-following behaviour a live call would produce.
 <Callout type="warn" title="Current limit">
 The synthetic caller can speak Sinhala and Tamil for any agent today. For
 other languages it needs a caller voice on the agent's own speech provider,
-which GPT-Live 1 agents do not have, so the caller stays silent. A caller
+which GPT-Live 1.1 agents do not have, so the caller stays silent. A caller
 voice for every language is planned; until then, test other languages with a
 real test call to your number.
 </Callout>
@@ -150,7 +154,7 @@ the transcript yourself; it will not surface as an error elsewhere in the run.
 ## If it fails
 
 If your tests come back unreliable for a language, there is no setting that
-fixes GPT-Live 1's language following. The alternative is the Standard
+fixes GPT-Live 1.1's language following. The alternative is the Standard
 engine: a dedicated speech-to-text provider and a separate text-to-speech
 provider, chosen and qualified per language, instead of one model handling
 both recognition and reply.
