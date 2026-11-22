@@ -1,8 +1,19 @@
 ---
 title: Connect Codex to Skysay MCP
-description: Connect Codex to hosted Skysay MCP with an environment-variable API key or OAuth and verify read-only access.
+description: Connect Codex to hosted Skysay MCP with full access through OAuth, or read-only with an environment-variable API key or OAuth.
 icon: Code
 ---
+
+Run in your terminal:
+
+```bash
+codex mcp add skysay --url https://api.skysay.ai/mcp
+codex mcp login skysay
+```
+
+Then approve in your browser and start a new Codex session. Skysay's consent
+screen lists what Codex may do; untick anything you do not want. To start
+read-only instead, see [Read-only alternative](#read-only-alternative).
 
 Use Codex's remote HTTP MCP connection to inspect your Skysay workspace before
 enabling phone actions. You need no private Skysay checkout or local bridge.
@@ -11,7 +22,13 @@ Codex configures and operates Skysay; on a call, the person hears your voice age
 
 <Diagram name="assistant-and-voice-agent.svg" alt="Your AI assistant (an MCP client such as Claude Code, Codex or Grok Bot, or your app's agent) configures and operates Skysay through Skysay MCP, which checks your key or OAuth scopes, and you approve each paid call, SMS or number. The person on the call hears your voice agent, hosted in Skysay or your own audio integration, never your assistant." />
 
-## API-key setup
+## Read-only alternative
+
+To inspect your workspace before you allow anything else, connect to the
+read-only address `https://api.skysay.ai/mcp/read-only` instead, with an API
+key or with OAuth. It refuses all writes.
+
+### API-key setup
 
 Create a workspace API key with only `account:read` on
 [API keys](https://skysay.ai/api-keys). Supply it through `SKYSAY_API_KEY` in
@@ -38,7 +55,7 @@ it automatically. The CLI recipe below uses that terminal environment. For an ap
 from Finder, use its supported OAuth connection flow instead of assuming it
 inherits a terminal export. A local process that can read your environment may read the key.
 
-## Verify the connection
+### Verify the connection
 
 Run `codex mcp list` to check configuration, then start a new Codex session
 and ask:
@@ -52,7 +69,7 @@ Require a successful tool result. A configured server or an answer from model
 knowledge does not prove an authenticated connection. Empty collections in a
 new workspace are normal.
 
-## OAuth alternative
+### OAuth alternative
 
 Use a `skysay` server entry without `bearer_token_env_var`:
 

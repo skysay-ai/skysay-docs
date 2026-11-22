@@ -1,8 +1,19 @@
 ---
 title: Connect Claude Code to Skysay MCP
-description: Connect Claude Code to Skysay over HTTP, verify a read-only tool, and choose when to enable calls and SMS.
+description: Connect Claude Code to Skysay over HTTP with full access, or read-only first, and choose when to enable calls and SMS.
 icon: Brain
 ---
+
+Run in your terminal:
+
+```bash
+claude mcp add --transport http skysay https://api.skysay.ai/mcp
+```
+
+Then start Claude Code, open `/mcp`, select Skysay and sign in. Skysay's
+consent screen lists what Claude Code may do; untick anything you do not
+want. To start read-only instead, see
+[Read-only alternative](#read-only-alternative).
 
 Claude Code connects directly to hosted Skysay MCP. No private repository,
 local bridge or downloaded skill is needed. Start by inspecting your workspace;
@@ -11,7 +22,13 @@ Claude Code configures and operates Skysay; on a call, the person hears your voi
 
 <Diagram name="assistant-and-voice-agent.svg" alt="Your AI assistant (an MCP client such as Claude Code, Codex or Grok Bot, or your app's agent) configures and operates Skysay through Skysay MCP, which checks your key or OAuth scopes, and you approve each paid call, SMS or number. The person on the call hears your voice agent, hosted in Skysay or your own audio integration, never your assistant." />
 
-## Prerequisites
+## Read-only alternative
+
+To inspect your workspace before you allow anything else, connect to the
+read-only address `https://api.skysay.ai/mcp/read-only` instead, with an API
+key or with OAuth. It refuses all writes.
+
+### Prerequisites
 
 - A current Claude Code installation and a Skysay workspace.
 - For API-key setup, a workspace key with `account:read`, supplied through
@@ -22,7 +39,7 @@ Claude Code configures and operates Skysay; on a call, the person hears your voi
 [Create the credential](/docs/quickstart#1-sign-in-and-choose-a-credential).
 Do not paste its value into a conversation or commit it.
 
-## API key: configure HTTP explicitly
+### API key: configure HTTP explicitly
 
 In the project where you run Claude Code, merge this server entry into
 `.mcp.json`. Preserve any other server entries:
@@ -57,7 +74,7 @@ Use Skysay account_overview and summarize the result.
 Do not perform writes, place calls or send SMS.
 ```
 
-## OAuth alternative
+### OAuth alternative
 
 Without the API-key entry above, run:
 
