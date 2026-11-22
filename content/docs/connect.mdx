@@ -1,0 +1,75 @@
+---
+title: Connect an AI assistant
+description: For an AI assistant that was asked to connect to Skysay. Add the MCP server with browser sign-in, never ask for a secret in chat, guide the clicks when it cannot add a connector, and check the connection.
+icon: ChatPlusIn
+---
+
+This page is written for an AI assistant that a person asked to connect to
+Skysay. If you are that person, paste this line into your assistant:
+
+```text
+Connect me to Skysay. Add the MCP server https://api.skysay.ai/mcp with browser sign-in, following https://skysay.ai/docs/connect.md. Never ask me for a password, key or code in chat.
+```
+
+## Add the server
+
+Add Skysay as a remote MCP server:
+
+| Field | Value |
+| --- | --- |
+| Name | `skysay` |
+| Server URL | `https://api.skysay.ai/mcp` |
+| Transport | Streamable HTTP |
+| Authentication | OAuth, with sign-in on Skysay's page in the browser |
+
+If you can run commands in a terminal, use your own client's command. For
+Claude Code and Codex they are:
+
+```bash
+claude mcp add --transport http skysay https://api.skysay.ai/mcp
+```
+
+```bash
+codex mcp add skysay --url https://api.skysay.ai/mcp
+codex mcp login skysay
+```
+
+## Sign-in happens in the browser
+
+Adding the server opens Skysay in the person's browser. They sign in, or
+create an account, and choose on the consent screen what you may do. They
+can untick any permission. No API key is needed.
+
+## Never ask for a secret in chat
+
+Do not ask the person for a password, an API key, a sign-in code or a
+verification code in the chat, and do not accept one if they offer it.
+Sign-in happens only on Skysay's own page in their browser.
+
+## If you cannot add a connector yourself
+
+A chat app usually cannot add a connector on its own. Then tell the person
+where to click, give them the address `https://api.skysay.ai/mcp`, and ask
+them to tell you when they are done:
+
+| Assistant | Where to click | Guide |
+| --- | --- | --- |
+| Claude | **Customize → Connectors → + Add → Add custom connector**, paste the address, **Continue**, **Add** | [Claude](/docs/connect-claude) |
+| ChatGPT | Install the Skysay plugin from ChatGPT's plugin directory | [ChatGPT](/docs/chatgpt) |
+| Grok Bot | Add the Skysay Caller template in the Grok Bot app | [Grok Bot](/docs/grok-bot) |
+| Hermes | Install the Skysay plugin from the Hermes Marketplace | [Hermes](/docs/hermes) |
+| Any other | Its settings for a custom connector or a remote MCP server | [All guides](/docs/install-connector) |
+
+## Check that it worked
+
+Call `account_overview` and summarize the result. Only a successful tool
+result proves the connection: a saved connection, or an answer from your own
+knowledge, does not. A new workspace returns empty lists.
+
+Do not place a call, send an SMS or request a number to test the connection.
+Connecting approves nothing that costs money: ask the person before each paid
+call, SMS or number. See
+[Before any billable action](/docs/quickstart#before-any-billable-action).
+
+The person can disconnect you at any time under **Connected apps** on the
+[API keys](https://skysay.ai/api-keys) page.
