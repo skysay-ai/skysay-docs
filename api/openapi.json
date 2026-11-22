@@ -16301,6 +16301,512 @@
         ]
       }
     },
+    "/v1/close/actions/contacts": {
+      "post": {
+        "description": "Use an existing administrator-connected Close CRM organization. Never invent contact, lead or phone IDs. List contacts (25 per page, newest first) before selecting an exact phone. start_close_call places one billed Skysay AI call only with the user's explicit authorization; reuse request_key after uncertain results. Finished calls are logged to Close with their true status, AI summary and authenticated Skysay recording/transcript link. log_close_call exports an existing finished inbound or outbound call whose phone matches the selected contact. This sends call information to Close. An unconfirmed delivery may already exist remotely and is never automatically replayed. No SMS synchronization or Close dialer replacement.",
+        "operationId": "listCloseContacts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "lead_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "offset": {
+                    "default": 0,
+                    "maximum": 15000,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "project_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                            "type": "string"
+                          },
+                          "lead_id": {
+                            "maxLength": 128,
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                            "type": "string"
+                          },
+                          "name": {
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "phones": {
+                            "items": {
+                              "maxLength": 16,
+                              "pattern": "^\\+[1-9][0-9]{6,14}$",
+                              "type": "string"
+                            },
+                            "maxItems": 100,
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "lead_id",
+                          "name",
+                          "phones"
+                        ],
+                        "type": "object"
+                      },
+                      "maxItems": 25,
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "has_more": {
+                          "type": "boolean"
+                        },
+                        "limit": {
+                          "const": 25,
+                          "type": "integer"
+                        },
+                        "next_offset": {
+                          "maximum": 15025,
+                          "minimum": 0,
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "returned": {
+                          "maximum": 25,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "has_more",
+                        "next_offset",
+                        "returned",
+                        "limit"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bounded Close contact page or original Skysay call and delivery state"
+          },
+          "400": {
+            "description": "Invalid action or contact changed"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or explicit call authorization"
+          },
+          "404": {
+            "description": "Bound account or call not found"
+          },
+          "409": {
+            "description": "Installation changed, request-key conflict or refresh in progress"
+          }
+        },
+        "summary": "List close contacts",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "agents:write"
+        ]
+      }
+    },
+    "/v1/close/actions/log": {
+      "post": {
+        "description": "Use an existing administrator-connected Close CRM organization. Never invent contact, lead or phone IDs. List contacts (25 per page, newest first) before selecting an exact phone. start_close_call places one billed Skysay AI call only with the user's explicit authorization; reuse request_key after uncertain results. Finished calls are logged to Close with their true status, AI summary and authenticated Skysay recording/transcript link. log_close_call exports an existing finished inbound or outbound call whose phone matches the selected contact. This sends call information to Close. An unconfirmed delivery may already exist remotely and is never automatically replayed. No SMS synchronization or Close dialer replacement.",
+        "operationId": "logCloseCall",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "call_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "lead_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id",
+                  "contact_id",
+                  "lead_id",
+                  "call_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "activity_id": {
+                      "maxLength": 128,
+                      "type": "string"
+                    },
+                    "call_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                      "type": "string"
+                    },
+                    "delivery_status": {
+                      "enum": [
+                        "waiting",
+                        "queued",
+                        "submitting",
+                        "delivered",
+                        "failed",
+                        "unconfirmed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "call_id",
+                    "status",
+                    "delivery_status",
+                    "activity_id"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bounded Close contact page or original Skysay call and delivery state"
+          },
+          "400": {
+            "description": "Invalid action or contact changed"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or explicit call authorization"
+          },
+          "404": {
+            "description": "Bound account or call not found"
+          },
+          "409": {
+            "description": "Installation changed, request-key conflict or refresh in progress"
+          }
+        },
+        "summary": "Log close call",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "agents:write",
+          "calls:write",
+          "recordings:read"
+        ]
+      }
+    },
+    "/v1/close/actions/outcome": {
+      "post": {
+        "description": "Use an existing administrator-connected Close CRM organization. Never invent contact, lead or phone IDs. List contacts (25 per page, newest first) before selecting an exact phone. start_close_call places one billed Skysay AI call only with the user's explicit authorization; reuse request_key after uncertain results. Finished calls are logged to Close with their true status, AI summary and authenticated Skysay recording/transcript link. log_close_call exports an existing finished inbound or outbound call whose phone matches the selected contact. This sends call information to Close. An unconfirmed delivery may already exist remotely and is never automatically replayed. No SMS synchronization or Close dialer replacement.",
+        "operationId": "getCloseCallOutcome",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "call_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id",
+                  "call_id"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "activity_id": {
+                      "maxLength": 128,
+                      "type": "string"
+                    },
+                    "call_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                      "type": "string"
+                    },
+                    "delivery_status": {
+                      "enum": [
+                        "waiting",
+                        "queued",
+                        "submitting",
+                        "delivered",
+                        "failed",
+                        "unconfirmed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "call_id",
+                    "status",
+                    "delivery_status",
+                    "activity_id"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bounded Close contact page or original Skysay call and delivery state"
+          },
+          "400": {
+            "description": "Invalid action or contact changed"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or explicit call authorization"
+          },
+          "404": {
+            "description": "Bound account or call not found"
+          },
+          "409": {
+            "description": "Installation changed, request-key conflict or refresh in progress"
+          }
+        },
+        "summary": "Get close call outcome",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "calls:read"
+        ]
+      }
+    },
+    "/v1/close/actions/start": {
+      "post": {
+        "description": "Use an existing administrator-connected Close CRM organization. Never invent contact, lead or phone IDs. List contacts (25 per page, newest first) before selecting an exact phone. start_close_call places one billed Skysay AI call only with the user's explicit authorization; reuse request_key after uncertain results. Finished calls are logged to Close with their true status, AI summary and authenticated Skysay recording/transcript link. log_close_call exports an existing finished inbound or outbound call whose phone matches the selected contact. This sends call information to Close. An unconfirmed delivery may already exist remotely and is never automatically replayed. No SMS synchronization or Close dialer replacement.",
+        "operationId": "startCloseCall",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "authorized": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "contact_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "lead_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "phone": {
+                    "maxLength": 16,
+                    "pattern": "^\\+[1-9][0-9]{6,14}$",
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  },
+                  "request_key": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id",
+                  "contact_id",
+                  "lead_id",
+                  "phone",
+                  "request_key",
+                  "authorized"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "activity_id": {
+                      "maxLength": 128,
+                      "type": "string"
+                    },
+                    "call_id": {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$",
+                      "type": "string"
+                    },
+                    "delivery_status": {
+                      "enum": [
+                        "waiting",
+                        "queued",
+                        "submitting",
+                        "delivered",
+                        "failed",
+                        "unconfirmed",
+                        "cancelled"
+                      ],
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "call_id",
+                    "status",
+                    "delivery_status",
+                    "activity_id"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bounded Close contact page or original Skysay call and delivery state"
+          },
+          "400": {
+            "description": "Invalid action or contact changed"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Missing scope or explicit call authorization"
+          },
+          "404": {
+            "description": "Bound account or call not found"
+          },
+          "409": {
+            "description": "Installation changed, request-key conflict or refresh in progress"
+          }
+        },
+        "summary": "Start close call",
+        "tags": [
+          "Integrations"
+        ],
+        "x-required-scopes": [
+          "agents:write",
+          "calls:write",
+          "recordings:read"
+        ]
+      }
+    },
     "/v1/contact-lists": {
       "get": {
         "operationId": "listContactLists",
@@ -22079,6 +22585,139 @@
         "x-required-scopes": [
           "agents:read",
           "sms:read"
+        ]
+      }
+    },
+    "/v1/text-to-speech": {
+      "post": {
+        "description": "Generate paid speech independently of calls and agents using a managed voice. Use an API key explicitly granted speech:write. Skysay reserves purchased wallet funds before synthesis, then charges for a complete result using the selected model's character rate, rounded to wallet minor units. No text or generated audio is stored by Skysay. Reusing an admitted key in the same workspace and project for 24 hours returns the attempt status, never a new synthesis or an audio replay. A lost response can still have been charged. Up to 16384 bytes of JSON and 4194304 bytes of audio. Up to 2 running and 12 admitted requests per workspace per minute, subject to service capacity.",
+        "parameters": [
+          {
+            "description": "A unique random value generated by your app, such as a UUID.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "delivery": {
+                    "enum": [
+                      "natural",
+                      "calm",
+                      "lively",
+                      "precise"
+                    ],
+                    "type": "string"
+                  },
+                  "language": {
+                    "description": "Language supported by the selected voice and model",
+                    "type": "string"
+                  },
+                  "model": {
+                    "enum": [
+                      "eleven_flash_v2_5"
+                    ],
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "enum": [
+                      "elevenlabs"
+                    ],
+                    "type": "string"
+                  },
+                  "text": {
+                    "maxLength": 1000,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "voice_id": {
+                    "description": "Exact managed voice ID",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "project_id",
+                  "provider",
+                  "model",
+                  "voice_id",
+                  "language",
+                  "text"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "audio/wav": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Complete mono 24 kHz 16-bit PCM WAV",
+            "headers": {
+              "X-Skysay-Charged-Currency": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Skysay-Charged-Minor": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Skysay-Synthesis-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request, project, model, voice or language"
+          },
+          "401": {
+            "description": "Missing or invalid API key"
+          },
+          "402": {
+            "description": "Insufficient purchased wallet funds"
+          },
+          "403": {
+            "description": "Credential lacks the explicit speech grant or the workspace is suspended"
+          },
+          "409": {
+            "description": "Existing synthesis attempt or incompatible voice selection"
+          },
+          "413": {
+            "description": "JSON body exceeds the request size limit"
+          },
+          "429": {
+            "description": "Workspace or service capacity temporarily exhausted"
+          },
+          "503": {
+            "description": "Synthesis is disabled or audio generation did not complete"
+          }
+        },
+        "summary": "Generate a complete WAV from text",
+        "x-required-scopes": [
+          "speech:write"
         ]
       }
     },

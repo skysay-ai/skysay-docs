@@ -96,14 +96,15 @@ curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
 
 | Bundle | Grants |
 | --- | --- |
-| `all` | Every customer-grantable scope, present and future. |
+| `all` | Customer-grantable scopes, except scopes that require an explicit grant. |
 | `all-read` | Every customer-grantable scope ending `:read`, present and future. |
-| `all-write` | Every customer-grantable write/send/arm scope (`:write`, `:send`, `:arm`), present and future. |
+| `all-write` | Customer-grantable write/send/arm scopes that do not require an explicit grant. |
 
 A bundle is not a wildcard. Scope clamping still applies — a key can only mint
 a bundle its own minting credential also holds the full expansion of — and no
 bundle, no matter who mints it, ever yields:
 
+- **Explicit spend grants** such as `speech:write` for [paid text-to-speech](/docs/text-to-speech). Select this scope directly when you create the key.
 - **Operator-only scopes**: the operator console, worker job queues, release
   gates, provider-mutation review and approval, usage writes, and the
   platform-media worker role.
