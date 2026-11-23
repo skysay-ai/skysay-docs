@@ -22590,7 +22590,7 @@
     },
     "/v1/text-to-speech": {
       "post": {
-        "description": "Generate paid speech independently of calls and agents using a managed voice. Use an API key explicitly granted speech:write. Skysay reserves purchased wallet funds before synthesis, then charges for a complete result using the selected model's character rate, rounded to wallet minor units. No text or generated audio is stored by Skysay. Reusing an admitted key in the same workspace and project for 24 hours returns the attempt status, never a new synthesis or an audio replay. A lost response can still have been charged. Up to 16384 bytes of JSON and 16777216 bytes of audio. Up to 2 running and 12 admitted requests per workspace per minute, subject to service capacity. New attempts pause after 3 failed requests admitted within the previous 10 minutes.",
+        "description": "Generate paid speech independently of calls and agents using a managed voice. Use an API key explicitly granted speech:write. Skysay reserves purchased wallet funds before synthesis, then charges for a complete result using the selected model's billable character or UTF-8 byte rate, rounded to wallet minor units. No text or generated audio is stored by Skysay. Reusing an admitted key in the same workspace and project for 24 hours returns the attempt status, never a new synthesis or an audio replay. A lost response can still have been charged. Up to 16384 bytes of JSON and 16777216 bytes of audio. Up to 2 running and 12 admitted requests per workspace per minute, subject to service capacity. New attempts pause after 3 failed requests admitted within the previous 10 minutes.",
         "operationId": "generateSpeech",
         "parameters": [
           {
@@ -22624,8 +22624,15 @@
                     "type": "string"
                   },
                   "model": {
+                    "description": "Allowed provider and model pairs: azure/neural, cartesia/sonic-3.6, elevenlabs/eleven_flash_v2_5, elevenlabs/eleven_v3, elevenlabs/eleven_v4_turbo, fishaudio/s2-pro, fishaudio/s2.1-pro",
                     "enum": [
-                      "eleven_flash_v2_5"
+                      "eleven_flash_v2_5",
+                      "eleven_v3",
+                      "eleven_v4_turbo",
+                      "neural",
+                      "s2-pro",
+                      "s2.1-pro",
+                      "sonic-3.6"
                     ],
                     "type": "string"
                   },
@@ -22634,7 +22641,10 @@
                   },
                   "provider": {
                     "enum": [
-                      "elevenlabs"
+                      "azure",
+                      "cartesia",
+                      "elevenlabs",
+                      "fishaudio"
                     ],
                     "type": "string"
                   },
