@@ -1,0 +1,74 @@
+---
+title: Generate speech from text
+description: Generate a complete WAV with a managed Skysay voice and pay from your workspace wallet.
+icon: TerminalTag
+---
+
+Send text to a managed voice and get a WAV in one HTTP response. You need a
+project, purchased wallet funds, and an [API key](/docs/authentication) with
+the explicit `speech:write` scope. Select the scope when creating the key.
+Grant bundles do not include it.
+
+## Generate a WAV
+
+Choose a managed voice that supports the model and language you want to use.
+The [Voice Library](/docs/voice-library) explains how to choose a voice.
+
+| Provider | Model IDs | Billing unit |
+| --- | --- | --- |
+| Azure | `neural` | Billable characters in the submitted speech text |
+| Cartesia | `sonic-3.6` | Characters |
+| ElevenLabs | `eleven_flash_v2_5`, `eleven_v3`, `eleven_v4_turbo` | Characters |
+| Fish Audio | `s2-pro`, `s2.1-pro` | UTF-8 bytes |
+
+The example uses an ElevenLabs Flash v2.5 voice. Set `SKYSAY_API_KEY`, `SKYSAY_PROJECT_ID`, and
+`SKYSAY_VOICE_ID` in your shell. Keep the key outside source control.
+
+```bash
+request_key=$(uuidgen)
+jq -n --arg project "$SKYSAY_PROJECT_ID" --arg voice "$SKYSAY_VOICE_ID" '{
+  project_id: $project,
+  provider: "elevenlabs",
+  model: "eleven_flash_v2_5",
+  voice_id: $voice,
+  language: "en",
+  text: "Your appointment is tomorrow at ten in the morning."
+}' | curl --fail-with-body --silent --show-error \
+  https://api.skysay.ai/v1/text-to-speech \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Idempotency-Key: $request_key" \
+  -H 'Content-Type: application/json' \
+  --data-binary @- --dump-header speech-headers.txt --output speech.wav
+```
+
+A successful response contains mono 24 kHz, 16-bit PCM audio. Its headers
+give the synthesis ID and the amount charged in your wallet currency’s minor
+units. Check the HTTP status before opening the saved file. An error body is
+JSON.
+
+## Charges and limits
+
+Skysay holds purchased funds before contacting the provider. It charges for
+the submitted text using the model’s billing unit when it has a complete
+result, with a minimum of one wallet minor unit per request. Fish Audio
+counts UTF-8 bytes, so some characters use more than one unit. The browser
+welcome credit is separate. Provider failure releases the hold.
+
+A request can contain up to 1,000 characters. The synchronous response is
+limited to 16 MiB. If you exceed the output or time limit, try a shorter
+request with a new key after checking the first attempt’s status. After
+three failed attempts within ten minutes, the API pauses new attempts and
+returns a retry hint.
+
+If the connection drops, repeat the same request with the same
+`Idempotency-Key` to check the admitted attempt. A `409` with
+`speech_request_exists` gives its ID and status. `succeeded` means your
+wallet was charged. `released` means the hold was returned. `reserved`
+means the attempt is still awaiting completion or recovery. The same key
+will avoid a second generation for at least 24 hours after the attempt
+ends. Save the original response if you need to keep the audio. Skysay
+does not retain a copy for retry.
+
+Use [Voice Library Listen](/docs/voice-library) for short auditions before
+generating a file. See the [generated API reference](/docs/api-reference) for
+every request field, response header and error status.
