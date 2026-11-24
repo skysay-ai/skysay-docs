@@ -35,13 +35,15 @@ paid numbers, not ten free numbers. Carrier-billed imports and zero-rental
 numbers do not consume the billed-number allowance. Owning more numbers does
 not multiply the concurrent-call allowance.
 
-For more than 10 billed numbers or 3 simultaneous calls, **[contact us](https://skysay.ai/contact)**
-about **Scale**. An Skysay operator can set a workspace's concurrent-call
-limit below or above the plan allowance. A value of `0` resets that control to
-the plan default; it does not disable calls. Choosing or changing a use-case
-profile does not change this concurrency control. Other workspace-specific
-risk limits or agreed overrides can change the effective allowance, and active historical subscriptions retain their
-recorded plan capacity. Available funds, carrier capacity, and other admission
+Every plan keeps this allowance. For more than 10 billed numbers or 3
+simultaneous calls, **[contact us](https://skysay.ai/contact)**. An Skysay
+operator can set a workspace's concurrent-call limit below or above the plan
+allowance. A value of `0` resets that control to the plan default; it does not
+disable calls. Choosing or changing a use-case profile does not change this
+concurrency control. Other workspace-specific risk limits or agreed overrides
+can change the effective allowance. When a limit is reached, the refusal names
+your workspace's plan, for example "the payg plan includes 3. Contact support
+to raise the limit." Available funds, carrier capacity, and other admission
 checks still apply. This allowance is not a guarantee of ten connected calls.
 
 Higher capacity must be agreed and validated for your workload; do not assume
@@ -97,13 +99,15 @@ The estimate is a planning figure, not a quote:
   whose number price is given on request leaves numbers out of the total.
 
 Pay as you go runs up to 3 calls at the same time. For more, [contact
-us](https://skysay.ai/contact) about Scale.
+us](https://skysay.ai/contact).
 
 ### The prices behind the estimate
 
 The calculator reads the same public catalogue an API client can read with
 `GET /v1/pricing/catalog`. It needs no key and carries retail prices only.
-Besides the price book (`public_price_book`) it has two blocks:
+A plan in the price book (`public_price_book`) has no `subscription_required`
+field: no plan is a Stripe subscription. Besides the price book it has two
+blocks:
 
 - `model_rates`: the platform runtime rate and, for every transcriber,
   language model, voice and conversational model you can pick now, the
@@ -512,13 +516,16 @@ number setup/rental and SMS use purchased funds. They retain normal funded
 runtime renewal, transfer and settlement behavior; there is no setup-call
 waiver of overrun charges or purchased-funds debt.
 
-## Existing subscription records
+## Retired subscriptions
 
-Developer, Launch, and Growth monthly/yearly subscriptions are no longer sold.
-If your account already has a subscription record, Billing retains its status
-and cancellation controls. Switching the public offer to PAYG does not itself
-cancel a Stripe subscription or refund an earlier payment. Check Billing before
-assuming an existing recurring charge has stopped.
+The Developer, Launch, and Growth monthly and yearly subscriptions are retired.
+Billing shows pay as you go for every workspace, with no subscription status or
+cancel control, and the three subscription routes (`GET /v1/billing/subscription`,
+`POST /v1/billing/stripe/subscription-sessions` and
+`POST /v1/billing/stripe/subscription/cancel`) are gone. Switching to pay as
+you go never cancelled a Stripe subscription or refunded an earlier payment;
+[contact us](https://skysay.ai/contact) about any recurring charge you still
+see.
 
 ## Call amounts on Overview
 
