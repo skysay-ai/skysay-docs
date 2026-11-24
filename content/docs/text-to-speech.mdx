@@ -20,6 +20,7 @@ The [Voice Library](/docs/voice-library) explains how to choose a voice.
 | Cartesia | `sonic-3.6` | Characters |
 | ElevenLabs | `eleven_flash_v2_5`, `eleven_v3`, `eleven_v4_turbo` | Characters |
 | Fish Audio | `s2-pro`, `s2.1-pro` | UTF-8 bytes |
+| Gemini | `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts` | Input text and output audio tokens |
 
 The example uses an ElevenLabs Flash v2.5 voice. Set `SKYSAY_API_KEY`, `SKYSAY_PROJECT_ID`, and
 `SKYSAY_VOICE_ID` in your shell. Keep the key outside source control.
@@ -48,11 +49,15 @@ JSON.
 
 ## Charges and limits
 
-Skysay holds purchased funds before contacting the provider. It charges for
-the submitted text using the model’s billing unit when it has a complete
-result, with a minimum of one wallet minor unit per request. Fish Audio
-counts UTF-8 bytes, so some characters use more than one unit. The browser
-welcome credit is separate. Provider failure releases the hold.
+Skysay holds purchased funds before contacting the provider. Once it has a
+complete result, it charges for the model’s billable usage, with a minimum of
+one wallet minor unit per request. Fish Audio counts UTF-8 bytes, so some
+characters use more than one unit. The browser welcome credit is separate.
+
+For Gemini, the reservation covers up to 4,096 input text tokens and 4,096
+output audio tokens. The final charge uses the provider’s measured counts.
+Skysay releases the unused reservation after a successful generation, and
+releases the full hold if the provider fails or produces incomplete audio.
 
 A request can contain up to 1,000 characters. The synchronous response is
 limited to 16 MiB. If you exceed the output or time limit, try a shorter
