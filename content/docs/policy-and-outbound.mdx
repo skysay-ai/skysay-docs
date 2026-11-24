@@ -20,9 +20,15 @@ places a live call.
 ## Your workspace capabilities
 
 Every workspace has one **capabilities** record from the moment it is created.
-It says what the workspace may do outbound: the use-case profiles, the channels
+It holds the workspace's outbound settings: the use-case profiles, the channels
 (voice, SMS), the destinations, the caps, and — for a customer application —
 the calling rules. `authorize_outbound` checks it on every attempt.
+
+A profile sets channels and default caps. It never limits who you call or why:
+the purpose and recipient type you send are recorded, never judged. Only the
+custom implementation-services profile sends campaign launches and batches to
+an operator for review; a profile never sends a one-to-one call to review. An SMS
+campaign goes to review under any profile for its carrier registration.
 
 Read and manage it on the **Capabilities** page in the workspace, or
 programmatically: `GET /v1/organizations/{organization_id}/capabilities`
@@ -43,7 +49,7 @@ below.
 
 | Status | Meaning |
 | --- | --- |
-| Active | Outbound calls and SMS are authorized within the profiles, channels, destinations and caps on the record. Every workspace starts here. |
+| Active | Outbound calls and SMS are authorized within the channels, destinations and caps on the record. Every workspace starts here. |
 | Pending review | A request needs an Skysay operator (the custom implementation-services profile). Nothing new is authorized yet; what was active stays active. |
 | Suspended | An operator paused outbound for this workspace. |
 | Not activated | The workspace's record is missing. Outbound is refused; contact support. |
