@@ -159,6 +159,8 @@ On a full connection (`/mcp`) that list is:
 | **Request capabilities** | `onboarding:write` | Change voice and SMS capabilities, including which countries you can reach, and accept the outbound policy |
 | **Create trial fixtures** | `trial_calls:write` | Create offline synthetic trial calls without dialing |
 | **Simulation verdicts** | `simulation_suites:read` | Read simulation pass/fail results, without conversation content |
+| **Knowledge base** | `knowledge:read` | See your knowledge bases, the text of their documents, and test answers from them |
+| **Change knowledge bases** | `knowledge:write` | Create and rename knowledge bases, add text documents, and choose which knowledge bases your AI agents search |
 | **Add purchased funds** | `wallet:write` | Request purchased Skysay calling credit with `create_wallet_topup` |
 
 **Add purchased funds** approves no payment. Each purchase still needs separate
@@ -203,6 +205,12 @@ Already-approved access is retained only for the same user, workspace, OAuth
 client and resource. A newly authorized connection can use its approved
 scopes; an older, narrower token does not gain permissions merely because
 another connection was authorized.
+
+Connections approved before the knowledge permissions were offered do not
+have them. The first knowledge tool call answers with the `403` challenge
+naming `knowledge:read` or `knowledge:write`. So does `create_agent` with
+`knowledge_base_ids`, and it creates nothing until the permission is approved.
+Reconnect and leave the permission ticked.
 
 The read-only connector below does not offer transcript or recording access.
 
@@ -566,6 +574,39 @@ What it looks like for a customer:
 
 Without that last step, a person returning a call to that number would not
 reach anyone.
+
+### Fill and test a knowledge base
+
+An assistant can manage your [knowledge bases](/docs/knowledge-bases) with the
+same operations as the REST API. The permissions are `knowledge:read`, plus
+`knowledge:write` for changes:
+
+1. `create_knowledge_base` in a project, with a name.
+2. `add_knowledge_document` with `filename` (ending in `.txt`, `.md` or
+   `.markdown`) and up to 80,000 characters of `text`. Longer text goes in as
+   several documents. Upload PDF, DOCX or larger files in the workspace or with
+   `POST /v1/knowledge-bases/{id}/documents`. Skysay processes the document in
+   the background: `list_knowledge_documents` shows it `processing`, then
+   `ready`.
+3. `set_agent_knowledge_bases` with the agent's id and the list of bases it
+   should search. The list replaces the agent's current one; `[]` removes them
+   all. Reading the list takes `get_agent_knowledge_bases`.
+4. `test_knowledge_base` with a question returns the answer an agent would
+   give from that base, with its sources. Nothing is saved.
+
+`list_knowledge_bases`, `get_knowledge_base`, `get_knowledge_document_text`
+and `update_knowledge_base` (rename) complete the set. Every knowledge tool
+takes `project_id`, as the REST routes do. Deleting, replacing and retrying
+documents stay in the workspace and the REST API.
+
+What it looks like for a customer:
+
+> Customer: "Add our new opening hours to the knowledge base, so the phone
+> agent knows them."
+> Assistant: calls `add_knowledge_document` with the text, waits until
+> `list_knowledge_documents` shows it ready, then asks `test_knowledge_base`
+> "When are you open on Saturdays?"
+> Assistant: "Done. The agent now answers: 10 to 18 on Saturdays."
 
 ### Content fields
 

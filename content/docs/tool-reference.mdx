@@ -112,6 +112,23 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 | `get_capabilities` | `onboarding:read` | Read the workspace capabilities (state, profiles, channels, destinations, caps, calling rules, usage). |
 | `request_capabilities` | `onboarding:write` | Request more capabilities (profiles, channels, destinations) and accept the outbound policy. The destination choice is required: `all_countries: true`, or `countries` naming at least one ISO 3166-1 alpha-2 code. |
 
+## Knowledge bases
+
+Every knowledge tool takes `project_id`. See [fill and test a knowledge base](/docs/mcp#fill-and-test-a-knowledge-base).
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_knowledge_bases` | `knowledge:read` | A page of a project's knowledge bases (`limit` 1–100, default 50; `offset`). |
+| `get_knowledge_base` | `knowledge:read` | One knowledge base and its document counts. |
+| `list_knowledge_documents` | `knowledge:read` | A page of a base's documents with each one's state (`processing`, `ready`, `failed`). |
+| `get_knowledge_document_text` | `knowledge:read` | A page of one document's extracted text (`limit` up to 50,000 characters). |
+| `test_knowledge_base` | `knowledge:read` | Ask a base one question; returns the grounded answer and its sources. Saves nothing. |
+| `get_agent_knowledge_bases` | `agents:read`, `knowledge:read` | Which bases an AI agent searches. |
+| `create_knowledge_base` | `knowledge:write` | Create an empty base in a project. |
+| `update_knowledge_base` | `knowledge:write` | Rename a base. |
+| `add_knowledge_document` | `knowledge:write` | Add up to 80,000 characters of text as one `.txt` or Markdown document; it becomes searchable when ready. Identical text returns the existing document. |
+| `set_agent_knowledge_bases` | `agents:write`, `knowledge:write` | Replace the list of bases an AI agent searches (at most 20; `[]` clears it). |
+
 ## Simulations Lab
 
 Scripted synthetic callers exercising one of your AI agents. See
