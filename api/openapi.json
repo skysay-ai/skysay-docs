@@ -2733,7 +2733,7 @@
             "type": "string"
           },
           "refusal": {
-            "description": "Why the call was refused before it dialled; null on every other call. A call refused before dialling has `status` `policy_blocked` or `needs_review`. `stage` is the gate that refused it: `outbound_authorization` (the workspace capabilities: destination, channel, use-case profile, review signals, caps) or `outbound_policy` (the per-call policy: suspensions, caller-number readiness, destination format). `message` is a sentence you can act on, e.g. that the caller number still needs its carrier registration. POST /v1/policies/authorize-outbound asks the same two questions before you call.",
+            "description": "Why the call was refused before it dialled; null on every other call. A call refused before dialling has `status` `policy_blocked` or `needs_review`. `stage` is the gate that refused it: `outbound_authorization` (the workspace capabilities: destination, channel, the custom profile's campaign and batch review, review signals, caps) or `outbound_policy` (the per-call policy: suspensions, caller-number readiness, destination format). `message` is a sentence you can act on, e.g. that the caller number still needs its carrier registration. POST /v1/policies/authorize-outbound asks the same two questions before you call.",
             "properties": {
               "decision": {
                 "enum": [
@@ -4840,20 +4840,8 @@
         "type": "object"
       },
       "CapabilitiesProfile": {
-        "description": "One selectable use-case profile and the caps it grants by default.",
+        "description": "One selectable use-case profile: its channels and the caps it grants by default. Profiles never limit who you call or why: purpose and recipient type are recorded, never judged, and one-to-one calls and texts to any number in an allowed destination country go ahead within the caps and the other pre-dial checks. A profile sets channels and default caps; only the custom implementation-services profile sends campaign launches and batches to review, apart from an SMS campaign, which goes to review under any profile for its carrier registration.",
         "properties": {
-          "allowed_purposes": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "allowed_recipient_types": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "channels": {
             "items": {
               "enum": [
@@ -20009,7 +19997,7 @@
     },
     "/v1/policies/authorize-outbound": {
       "post": {
-        "description": "Answers whether POST /v1/calls (or an SMS send) would be refused before dialling, without creating anything. For `channel` `outbound_voice` (the default) it asks both pre-dial questions a call meets, in the same order: first the workspace capabilities (destination country, channel, use-case profile, review signals, caps), then, only if those allow it, the per-call outbound policy (suspensions, caller-number readiness, the destination format). `stage` says which question answered: `outbound_authorization` or `outbound_policy`. When you send `from_number_id`, the caller number's own outgoing Number rules are asked first, as the call asks them: whether the number may be used as caller ID and whether its `allowed_countries` cover the destination (`stage` `outbound_number_rules`, `reason_code` `number_rules.caller_id_disabled` or `number_rules.country_not_allowed`, with the same sentence POST /v1/calls refuses with). Its `allowed_agents` are not checked, because this request names no agent, and neither is its `max_concurrent_calls`. For any other channel (`sms`) only the capabilities question is asked. This is a preflight of those gates, not a full admission: plan and number concurrency, maintenance windows and the wallet reservation are not evaluated; spend caps are checked only against the `amount_minor` you send, calling rules only when you send `project_id`, and caller-number readiness and Number rules only when you send `from_number_id` (the call itself always needs one).",
+        "description": "Answers whether POST /v1/calls (or an SMS send) would be refused before dialling, without creating anything. For `channel` `outbound_voice` (the default) it asks both pre-dial questions a call meets, in the same order: first the workspace capabilities (destination country, channel, the custom profile's campaign and batch review, review signals, caps), then, only if those allow it, the per-call outbound policy (suspensions, caller-number readiness, the destination format). `stage` says which question answered: `outbound_authorization` or `outbound_policy`. When you send `from_number_id`, the caller number's own outgoing Number rules are asked first, as the call asks them: whether the number may be used as caller ID and whether its `allowed_countries` cover the destination (`stage` `outbound_number_rules`, `reason_code` `number_rules.caller_id_disabled` or `number_rules.country_not_allowed`, with the same sentence POST /v1/calls refuses with). Its `allowed_agents` are not checked, because this request names no agent, and neither is its `max_concurrent_calls`. For any other channel (`sms`) only the capabilities question is asked. This is a preflight of those gates, not a full admission: plan and number concurrency, maintenance windows and the wallet reservation are not evaluated; spend caps are checked only against the `amount_minor` you send, calling rules only when you send `project_id`, and caller-number readiness and Number rules only when you send `from_number_id` (the call itself always needs one).",
         "operationId": "authorizeOutbound",
         "requestBody": {
           "content": {
