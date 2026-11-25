@@ -478,6 +478,11 @@ the normal customer configuration loop without switching to REST:
    may write safe preview-rate or voice-availability state. It is not a
    read-only or free preview.
 
+5. Make a number answer with the agent: call `update_number_rules` with the
+   number's id and `incoming: { when_called: "answer_with_skysay_agent",
+   agent_id: "<the agent's id>" }`. Creating an agent never changes who
+   answers a number. See [Choose who answers a number](#choose-who-answers-a-number).
+
 `list_agents` is deliberately a bounded MCP collection: it returns the same
 safe agent items as REST inside `{ agents, pagination }`, with up to 50 agents
 per page (the default and maximum), and fewer when the page reaches its
@@ -520,6 +525,47 @@ schema discovery only.
   scoped-key material now lives here and in
   [Authentication & keys](/docs/authentication).
 </Callout>
+
+### Choose who answers a number
+
+`update_number_rules` sets what happens when someone calls one of your
+numbers. It is the same as **Save routing** under "When someone calls this
+number" on the Numbers page. It needs `numbers:write`. `incoming.when_called`
+takes one of four choices:
+
+| `when_called` | What it needs | What a caller gets |
+| --- | --- | --- |
+| `answer_with_skysay_agent` | `agent_id`: an AI agent in the number's project | The agent answers |
+| `send_to_my_phone_server` | `phone_server_id`: a verified phone server | The call goes to your phone server |
+| `forward_to_phone_number` | `phone_number` in E.164 | The call is forwarded to that number |
+| `disabled` | nothing | The call is not answered |
+
+Fields you leave out keep their saved values. `get_number_rules` reads one
+number's rules. `list_numbers` shows each number's `when_called`. This is the
+routing you saved, not a check that a call connects.
+
+When `create_agent` makes an agent that can answer calls (hosted or outside
+audio), and the connection may read numbers (`numbers:read`), its result
+carries `numbers_not_answering`:
+
+- `items`: up to five of the project's numbers that answer nobody.
+- `more_not_answering`: there are more such numbers than those five.
+- `checked`: how many numbers were looked at, at most the newest 50.
+- `unchecked_numbers_remain`: older numbers were not looked at.
+
+`list_numbers` shows every number.
+
+What it looks like for a customer:
+
+> Customer: "Set up a receptionist agent and use it on our New York number."
+> Assistant: calls `create_agent`. The result names the New York number under
+> `numbers_not_answering`, so it calls `update_number_rules` with the new
+> agent's id.
+> Assistant: "Done. Calls to your New York number are now answered by the
+> receptionist."
+
+Without that last step, a person returning a call to that number would not
+reach anyone.
 
 ### Content fields
 

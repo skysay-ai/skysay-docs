@@ -35,7 +35,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | --- | --- | --- |
 | `list_agents` | `agents:read` | Bounded newest-first `{ agents, pagination }` page (at most `limit` agents and 25,000 characters) using the safe REST agent item projection. |
 | `get_agent` | `agents:read` | Read one safe agent configuration projection. |
-| `create_agent` | `agents:write` | Create a first-class agent in `external_audio`, `external_text`, or `hosted` mode. |
+| `create_agent` | `agents:write` | Create a first-class agent in `external_audio`, `external_text`, or `hosted` mode. With `numbers:read`, the result names the project's numbers that answer nobody (`numbers_not_answering`). |
 | `connect_external_agent` | `agents:write` | Shortcut for an `external_audio` agent with webhook + audio-stream URLs. |
 | `update_agent` | `agents:write` | Apply the generic mutable-agent PATCH fields and REST validation. |
 | `get_agent_public_link` | `agents:read` | Read an AI agent's public link, including its two conversation limits, its live switch and, with `recordings:read`, its shared conversations, and optionally check a proposed address. |
@@ -68,11 +68,11 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `list_numbers` | `numbers:read` | Bounded newest-first `{ numbers, pagination }` page of phone numbers with registration status (`limit` 1–50, default 10; at most 25,000 characters). |
-| `get_number_rules` | `numbers:read` | Get customer-facing number rules for one phone number. |
+| `list_numbers` | `numbers:read` | Bounded newest-first `{ numbers, pagination }` page of phone numbers with registration status and `when_called`, what each number does when called (`limit` 1–50, default 10; at most 25,000 characters). |
+| `get_number_rules` | `numbers:read` | Read who answers calls to one phone number (`incoming.when_called`) and its outgoing and recording rules. |
 | `list_phone_servers` | `numbers:read` | List customer phone servers for self-hosted media/calling. |
 | `request_number` | `numbers:write` | Create a managed number request (live ordering needs operator approval). |
-| `update_number_rules` | `numbers:write` | Update customer-facing number rules for one phone number. |
+| `update_number_rules` | `numbers:write` | Set who answers calls to one phone number: an AI agent, your phone server, a forward to a phone number, or no answer ([choose who answers a number](/docs/mcp#choose-who-answers-a-number)). Also its outgoing and recording rules. |
 | `create_phone_server` | `numbers:write` | Create a customer phone server (dry-run verify before assigning). |
 | `test_phone_server` | `numbers:write` | Dry-run verify a customer phone server before assigning a number. |
 
