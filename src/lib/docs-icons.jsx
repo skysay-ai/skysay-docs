@@ -26,6 +26,7 @@ import {
   ChatLines,
   ClockRotateRight,
   CloudSync,
+  Coins,
   CodeBrackets,
   CodeBracketsSquare,
   Compass,
@@ -149,6 +150,7 @@ const ICONS = {
   Sparks,
   Key,
   CreditCard,
+  Coins,
 
   // --- Release log ---
   Journal,
