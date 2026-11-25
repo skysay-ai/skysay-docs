@@ -1,6 +1,7 @@
 import {
   AppWindow,
   Calendar,
+  Cart,
   GraphUp,
   NetworkLeft,
   NetworkRight,
@@ -101,6 +102,7 @@ import {
 // the other ~1600 iconoir-react exports instead of shipping the whole set.
 const ICONS = {
   Calendar,
+  Cart,
   GraphUp,
   NetworkLeft,
   NetworkRight,
