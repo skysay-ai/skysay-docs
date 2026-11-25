@@ -1,0 +1,263 @@
+---
+title: Text to speech
+description: Turn up to 1,000 characters into a WAV with a managed Skysay voice, in the workspace or over the API, paid from your purchased balance.
+icon: VoiceSquare
+---
+
+Turn text into a WAV file with a managed Skysay voice, without an agent or a
+call. Use the **Text to speech** screen in your workspace, or send one request
+to `POST /v1/text-to-speech`. Both are paid from your workspace's
+**purchased** balance; the welcome credit cannot pay for them.
+
+## Generate in the workspace
+
+Every member of the workspace can open **Voices → Text to speech**. The screen
+lists only voices of the [models that support it](#models-and-languages).
+
+1. Find a voice and select **Generate audio**.
+2. Choose the **Language**. If the voice offers more than one, you can also
+   choose a **Speaking style** (see [Delivery profiles](/docs/delivery-profiles)).
+3. Type or paste up to 1,000 characters into **Text to speak**. The counter
+   below the box shows how many you have used.
+4. Select **Get price**. The button changes to **Generate for** and the exact
+   price for this text, voice, language and style. If you change any of them,
+   the price is cleared and you select **Get price** again.
+5. Select **Generate for …** to confirm. When the audio is ready you can play
+   it, select **Download WAV**, or select **Generate another**. The panel shows
+   what was charged, for example "Charged $0.02 to your purchased balance."
+
+For a Gemini voice the button reads **Generate for up to** a price, with
+"Maximum charge … You pay for actual usage." You are charged for what the
+provider actually used, never more than that maximum.
+
+A walk-through, with made-up details:
+
+> Sam manages the phone line of a small dental practice and wants a recorded
+> holiday message. On **Voices → Text to speech** Sam picks an ElevenLabs
+> Flash v2.5 voice, keeps English and pastes "Thank you for calling Northside
+> Dental. We are closed on Friday 12 December. For urgent help, please call
+> 0161 555 0142." The counter shows 120 of 1000 characters. **Get price**
+> turns the button into **Generate for $0.02**. Sam selects it, but the
+> workspace has only its welcome credit, so the panel says "Your purchased
+> balance is too low." with a link to **Billing**. Sam tops up on Billing,
+> comes back, picks the same voice and text and selects **Get price**. The
+> button reads **Check attempt**, because the refused attempt is still
+> remembered in this tab. Sam selects it, the button changes to
+> **Generate for $0.02**, and Sam selects that, plays the result and selects
+> **Download WAV**.
+
+If the connection drops after you confirm, the panel says "The outcome is
+uncertain. Check the same attempt before starting another." Select
+**Check attempt**: Skysay looks up that same generation and gives you its
+audio, tells you it failed and was not charged, or, if it is still running,
+asks you to check again. It never generates or charges twice for one
+confirmation. **Recover last WAV** fetches the most
+recent WAV you generated in this browser tab, for 24 hours, without a new
+charge.
+
+### Generated audio
+
+Open the **Generated audio** tab on the same screen, or select
+**View generated audio** after a generation. It lists the clips generated in
+the workspace for the current project, newest first, with the voice, provider,
+model, language, length, price and the time each one is available until.
+Select **Play** or **Download WAV**; neither is charged again. Skysay keeps
+the audio and these details, not the text you entered.
+
+Clips are kept for **24 hours** after they are generated and are then deleted.
+Download any clip you want to keep. Audio generated over the API is not stored
+and does not appear in this list.
+
+## What it costs
+
+You see the exact price before you confirm. It is worked out from your text
+and the model's rate:
+
+| Model | Billed by | Price (USD) |
+| --- | --- | --- |
+| Azure AI Speech Neural TTS | Billable character | $0.019 per 1,000 |
+| Cartesia Sonic 3.6 | Character | $0.082 per 1,000 |
+| ElevenLabs Flash v2.5 | Character | $0.104 per 1,000 |
+| ElevenLabs eleven_v3 | Character | $0.207 per 1,000 |
+| ElevenLabs v4 Turbo | Character | $0.050 per 1,000 |
+| Fish Audio S2-Pro | UTF-8 byte | $0.019 per 1,000 |
+| Fish Audio S2.1-Pro | UTF-8 byte | $0.019 per 1,000 |
+| Google Gemini TTS (Flash 3.8) | Input text and output audio tokens | $2 per million input tokens, $36 per million output tokens |
+| Google Gemini TTS (Flash-Lite 3.8) | Input text and output audio tokens | $2 per million input tokens, $24 per million output tokens |
+
+- The total is rounded **up** to a whole cent (or the smallest unit of your
+  wallet's currency), with a minimum of one cent per generation. A EUR wallet
+  is charged the converted amount at the day's rate.
+- Fish Audio counts UTF-8 bytes, so a letter outside basic Latin, such as
+  "ä" or "ж", counts as two or more. Azure counts each Chinese character
+  twice, `&` as five characters, and `<` and `>` as four each.
+- For a Gemini model, the price shown first is the maximum for 4,096 input
+  text tokens and 4,096 output audio tokens: $0.16 for Flash 3.8 and $0.11
+  for Flash-Lite 3.8 in a USD wallet. After the audio is made you pay for
+  the tokens the provider reports, and the rest is returned straight away.
+
+### How the charge works
+
+When you confirm, Skysay first holds the price from your purchased balance,
+then asks the provider for the audio:
+
+- **The audio is complete:** you are charged and any unused part of the hold
+  is returned.
+- **The provider fails, the audio is cut off or too large, or it takes too
+  long:** the whole hold is returned and nothing is charged. The panel says
+  "The render failed and was not charged. You can try again."
+
+A hold that is not settled within two minutes is returned automatically.
+
+### Purchased balance only
+
+Text to speech uses **purchased** funds only. The
+[welcome credit](/docs/billing#your-browser-testing-credit) cannot pay for it.
+
+The price check does not look at your balance. A workspace with only welcome
+credit, or too little purchased balance, gets a price and is refused when it
+confirms: the panel says "Your purchased balance is too low." with a link to
+**Billing**. Add funds on Billing, come back, get a new price and confirm
+again. A request your balance cannot hold is refused at once:
+[automatic recharge](/docs/billing#automatic-recharge) does not try your card
+for it, so top up first. For a Gemini voice, your balance must cover the
+maximum shown, not the lower amount you end up paying.
+
+## Limits
+
+- **Text:** 1 to 1,000 characters per generation. Text with only spaces, or
+  with control characters other than line breaks and tabs, is refused.
+- **Running at once:** 2 generations per workspace, and up to 12 started per
+  minute. Every member and every API key in the workspace shares these
+  limits. When Skysay itself is busy, a generation can also be refused for a
+  few seconds. The panel says "The service is busy. Try again shortly."
+- **After failures:** when 3 generations have failed within 10 minutes, new
+  ones are paused for up to 10 minutes.
+- **Audio:** a WAV of up to 16 MiB, about five and a half minutes of audio.
+- **Workspace:** a suspended workspace cannot generate.
+
+## Models and languages
+
+| Provider | Model ID | Languages |
+| --- | --- | --- |
+| Azure | `neural` | 16 |
+| Cartesia | `sonic-3.6` | 12 |
+| ElevenLabs | `eleven_flash_v2_5`, `eleven_v3`, `eleven_v4_turbo` | 68 each |
+| Fish Audio | `s2-pro` | 2 (English and Tamil) |
+| Fish Audio | `s2.1-pro` | 45 |
+| Gemini | `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts` | 68 each |
+
+A voice speaks only some of its model's languages. On the screen, the
+**Language** menu lists the languages the chosen voice speaks. Over the API, a
+language the voice or model does not speak is refused. Use the
+[Voice Library](/docs/voice-library) to find a voice and listen to it first.
+
+## Generate over the API
+
+`POST /v1/text-to-speech` returns the finished WAV in the response. There is
+no separate price step: one request holds the funds, generates the audio and
+charges for it.
+
+### Get a key with `speech:write`
+
+The request needs an [API key](/docs/authentication) that was explicitly
+granted `speech:write`. Create it on the workspace **API keys** page: select
+`speech:write` under **Scopes**.
+
+No [grant bundle](/docs/authentication#grant-bundles) includes `speech:write`,
+not even `all` or `all-write`, so existing keys do not gain it. A key can
+create another key with `speech:write` (`POST /v1/api-keys` with
+`"scopes": ["speech:write"]`) only if it holds `speech:write` itself, so
+in most workspaces the first such key comes from the **API keys** page.
+
+### Send the request
+
+Set `SKYSAY_API_KEY`, `SKYSAY_PROJECT_ID` and `SKYSAY_VOICE_ID` in your shell
+and keep the key out of source control. This example uses an ElevenLabs
+Flash v2.5 voice:
+
+```bash
+request_key=$(uuidgen)
+jq -n --arg project "$SKYSAY_PROJECT_ID" --arg voice "$SKYSAY_VOICE_ID" '{
+  project_id: $project,
+  provider: "elevenlabs",
+  model: "eleven_flash_v2_5",
+  voice_id: $voice,
+  language: "en",
+  text: "Thank you for calling Northside Dental. We are closed on Friday 12 December."
+}' | curl --fail-with-body --silent --show-error \
+  https://api.skysay.ai/v1/text-to-speech \
+  -H "Authorization: Bearer $SKYSAY_API_KEY" \
+  -H "Idempotency-Key: $request_key" \
+  -H 'Content-Type: application/json' \
+  --data-binary @- --dump-header speech-headers.txt --output speech.wav
+```
+
+| Field | Required | Value |
+| --- | --- | --- |
+| `project_id` | Yes | A project in the key's workspace. |
+| `provider` | Yes | `azure`, `cartesia`, `elevenlabs`, `fishaudio` or `gemini`. |
+| `model` | Yes | A model ID from [Models and languages](#models-and-languages) for that provider. |
+| `voice_id` | Yes | The exact ID of a managed voice of that model. |
+| `language` | Yes | A language code the voice and model speak, such as `en`. |
+| `text` | Yes | 1 to 1,000 characters. |
+| `delivery` | No | `natural`, `calm`, `lively` or `precise`. |
+
+The JSON body can be up to 16 KB. The `Idempotency-Key` header is required:
+16 to 128 letters, digits, periods, underscores, colons or hyphens. Use a new
+random value, such as a UUID, for each new generation.
+
+A `200` response is a mono 24 kHz 16-bit PCM WAV. Its headers carry:
+
+- `X-Skysay-Synthesis-Id`: the generation's ID.
+- `X-Skysay-Charged-Minor` and `X-Skysay-Charged-Currency`: what you were
+  charged, in the smallest unit of your wallet's currency. For Gemini this is
+  the actual charge, not the maximum held.
+
+Check the HTTP status before you open the saved file: an error body is JSON,
+not audio.
+
+### Repeat a request safely
+
+Skysay does not keep audio generated over the API. Save the response; it
+cannot be fetched again.
+
+If the connection drops before you have the WAV, send the same request with the
+same `Idempotency-Key`. Skysay does not generate again. It answers `409` and
+tells you what happened to the first attempt:
+
+```json
+{
+  "error": "ConflictError",
+  "message": "This synthesis attempt already exists.",
+  "reason": "speech_request_exists",
+  "request_id": "tts_8KQ2m4Tz",
+  "status": "succeeded"
+}
+```
+
+- `succeeded`: you were charged. The audio cannot be replayed; to get it
+  again, send a new request with a new key, which is charged again.
+- `released`: the hold was returned and nothing was charged.
+- `reserved`: the attempt is still running. Ask again shortly; a hold that is
+  not settled within two minutes is returned.
+
+A key stays tied to its attempt, in the same project, for 24 hours after the
+attempt ends.
+
+### Errors
+
+| Status | When |
+| --- | --- |
+| `400` | A field is missing or invalid, the project is not in your workspace, the model is not available for text to speech, the language is not available for that model, or the `Idempotency-Key` is missing or malformed. |
+| `401` | The API key is missing or invalid. |
+| `402` | Your purchased balance cannot cover the price: "Insufficient purchased wallet balance for synthesis." Add funds on **Billing**. |
+| `403` | The key was not granted `speech:write`. |
+| `409` | The `Idempotency-Key` was already used (see above), the voice does not speak that language, or the voice is no longer available (`speech_voice_unavailable`). |
+| `413` | The JSON body is larger than 16 KB. |
+| `423` | The workspace is suspended. |
+| `429` | A workspace or service limit, or the pause after failures, was reached. Wait for the seconds in the `Retry-After` header before trying again. |
+| `503` | The audio could not be made (`speech_render_failed`) or did not finish in time (`speech_expired`); nothing was charged. Also returned when text to speech is unavailable. |
+
+The [generated API reference](/docs/api-reference) lists every field, header
+and status.

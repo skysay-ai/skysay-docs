@@ -88,6 +88,7 @@ import {
   VoiceXmark,
   Voice,
   VoiceScan,
+  VoiceSquare,
   WarningTriangle,
   Wrench,
 } from "iconoir-react";
@@ -220,6 +221,7 @@ const ICONS = {
   // --- Agent surface ---
   Podcast,
   SoundHigh,
+  VoiceSquare,
   List,
   BookStack,
 };
