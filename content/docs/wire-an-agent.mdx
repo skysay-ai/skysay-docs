@@ -943,8 +943,8 @@ call is requested. Refresh the page after correcting a prerequisite.
 
 Open a hosted AI agent and choose **PBX**. This connects calls from your own
 PBX to that agent without ordering a Skysay phone number. The Asterisk adapter
-uses `chan_websocket`; Asterisk 22.10 is the version qualified in the local
-integration lab. FreeSWITCH and 3CX adapters are planned. For a PBX that only
+uses `chan_websocket` and needs **Asterisk 22.8 or later**; we test it with
+22.10 and 22.12. FreeSWITCH and 3CX adapters are planned. For a PBX that only
 speaks SIP, connect it as a
 [SIP trunk](/docs/bring-your-own-sip-trunk) instead.
 
@@ -969,6 +969,48 @@ option in the generated `Dial(WebSocket/...)` line is required: Skysay checks
 the published configuration, funds, capacity and worker readiness before
 instructing Asterisk to answer. A refused attempt does not answer the call.
 Do not remove that option or add an earlier `Answer()`.
+
+The generated block also sets `connection_timeout=3000`. Asterisk 22.11 and
+later give the WebSocket connection only twice this value to complete (1 second
+at Asterisk's default of 500), and a slower connection then fails the call
+before it is answered. Keep the setting. Connect Asterisk directly to the
+address on the PBX page, with no proxy in between.
+
+### What the media channel must support
+
+Skysay plays the agent's speech in short pieces and waits for your PBX to
+confirm that each piece has played before it sends more. With the generated
+configuration, Asterisk does this by itself. If you change it, or open the
+media channel from your own application (for example an ARI `externalMedia`
+channel with `transport=websocket`), these must hold:
+
+- **Every playback mark is answered.** Skysay sends `MARK_MEDIA` with its audio
+  and waits for the matching `MEDIA_MARK_PROCESSED`, and for `QUEUE_DRAINED`
+  after `REPORT_QUEUE_DRAINED`. A client that ignores them leaves the caller in
+  silence after the first half-second, and the call ends.
+- **Media goes both ways and is paced by Asterisk.** Do not use passthrough
+  (`p`), receive-only media (`d(in)`, or ARI `direction=in`) or unbuffered
+  mode (`u`). With passthrough or receive-only media, Asterisk refuses
+  Skysay's playback commands or discards the agent's audio. With unbuffered
+  mode on Asterisk 22.12 and later, the agent's audio reaches the caller faster
+  than real time.
+- **Audio is μ-law at 8 kHz in 20 ms frames**, which is what `c(ulaw)` gives.
+
+### When the caller hears half a second, then silence
+
+The PBX answered the call but did not confirm that the agent's audio played.
+Check, in this order:
+
+1. `asterisk -rx "core show version"` reports 22.8 or later.
+2. The `Dial(WebSocket/...)` line is the generated one, without `p`, `d(in)`
+   or `u`. An ARI application leaves `direction` at its default.
+3. Your own client, if you use one, answers `MARK_MEDIA` and
+   `REPORT_QUEUE_DRAINED`.
+4. If calls do not connect at all on Asterisk 22.11 or later, the
+   `websocket_client.conf` block includes `connection_timeout=3000`.
+
+To see what Asterisk sent and received, run `core set debug 4 chan_websocket.so`
+and place a test call.
 
 The setup includes an inbound dialplan context and an outbound AMI Originate
 example. For outbound calls, Asterisk calls your destination first, then joins
