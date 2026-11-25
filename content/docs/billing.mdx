@@ -142,6 +142,42 @@ Country and number prices update within about 10 minutes of a price change.
 The operation's description in the [OpenAPI document](/docs/openapi) describes
 the fields.
 
+### Call prices in the coverage answer
+
+The same per-minute prices are on each country row of
+`GET /v1/coverage-matrix` and of the MCP tool `get_coverage`, so an assistant
+can tell you what a call costs before you place it:
+
+- `call_rates.outbound`: the price range for a voice call to that country.
+- `call_rates.inbound`: the price range for a voice call received on a new
+  Skysay number there.
+- Both are in micro-USD per minute (50,000 is $0.05).
+- `call_rates_terms` gives the unit and billing increment.
+- `call_rates_terms.truncated: true` means a range or a country may be
+  incomplete.
+
+`call_rates` is `null` for a country without a price. If the prices cannot be
+read, every row has `null` and `call_rates_available` is `false`, while the
+coverage itself still answers.
+
+These are the phone-line part of a call, as a range for the country, not a
+quote for one exact number. They do not price SMS, or minutes on your own SIP
+trunk, which your carrier bills. A hosted AI agent's call also costs its AI
+part: `get_agent_catalog` and `model_rates` above list it.
+
+For example, a hosted agent calls a US number for 5 minutes:
+
+- Phone line: 5 × $0.05 = $0.25, from `call_rates.outbound`.
+- AI part: the agent's runtime and models for the same 5 minutes.
+- The phone line is billed per started minute (`60/60`).
+
+What the customer sees when they ask their assistant:
+
+> Customer: "What will a five-minute call to a German mobile cost me?"
+> Assistant (reads `get_coverage` for Germany): "The phone line is $0.05 a
+> minute, so $0.25. Your agent's AI part adds its own per-minute price, which
+> I read from the agent catalog."
+
 ## Billed-number allowance
 
 Open **[Phone numbers](https://skysay.ai/numbers)** or
