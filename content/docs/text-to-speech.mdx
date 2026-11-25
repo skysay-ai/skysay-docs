@@ -90,7 +90,7 @@ and the model's rate:
   is charged the converted amount at the day's rate.
 - Fish Audio counts UTF-8 bytes, so a letter outside basic Latin, such as
   "ä" or "ж", counts as two or more. Azure counts each Chinese character
-  twice, and each of the symbols `&`, `<`, `>`, `'` and `"` as several.
+  twice, `&` as five characters, and `<` and `>` as four each.
 - For a Gemini model, the price shown first is the maximum for 4,096 input
   text tokens and 4,096 output audio tokens: $0.16 for Flash 3.8 and $0.11
   for Flash-Lite 3.8 in a USD wallet. After the audio is made you pay for
@@ -161,20 +161,14 @@ charges for it.
 ### Get a key with `speech:write`
 
 The request needs an [API key](/docs/authentication) that was explicitly
-granted `speech:write`. On the workspace **API keys** page, create a key and
-select `speech:write` under **Scopes**. Over the API, list it by name in
-`scopes` when you create a key:
-
-```bash
-curl -s -X POST "$SKYSAY_BASE_URL/v1/api-keys" \
-  -H "Authorization: Bearer $SKYSAY_ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Holiday messages","scopes":["speech:write"]}'
-```
+granted `speech:write`. Create it on the workspace **API keys** page: select
+`speech:write` under **Scopes**.
 
 No [grant bundle](/docs/authentication#grant-bundles) includes `speech:write`,
-not even `all` or `all-write`, so existing keys do not gain it. A key can only
-pass `speech:write` to a new key if it holds `speech:write` itself.
+not even `all` or `all-write`, so existing keys do not gain it. A key can
+create another key with `speech:write` (`POST /v1/api-keys` with
+`"scopes": ["speech:write"]`) only if it holds `speech:write` itself, so
+in most workspaces the first such key comes from the **API keys** page.
 
 ### Send the request
 
