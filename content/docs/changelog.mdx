@@ -4,6 +4,52 @@ description: Major Skysay releases, with links to the features and guides you ca
 icon: Journal
 ---
 
+## 25 November 2026
+
+### What a Starter, Professional or Scale plan covers
+
+- A workspace on a plan has a monthly allowance: minutes on Starter, calls on Professional and Scale. Each answered call counts once against the month it started in, on the terms the plan had when the call started.
+- Inside the allowance, the AI agent's side of the call costs nothing; the outgoing carrier leg of an outbound call is always charged at the pay-as-you-go price.
+- Beyond the allowance, Starter charges the pay-as-you-go price for the part of a call beyond it; Professional and Scale charge $2.00 and $1.50 per extra call, plus any outgoing carrier leg.
+- Phone numbers and SMS are charged as on pay as you go, and every call still needs a funded balance for its hold.
+- [What a plan covers](/docs/billing#what-a-plan-covers)
+
+### See your plan on Billing and on each call
+
+- **Billing → Plan & limits** shows your plan's name (**Pay as you go** without one), the allowance used this month and when it resets, and the extras paid this period, for the whole workspace.
+- Open a call in **Calls** to see what the plan decided for it: **Covered by your plan**, the part beyond the allowance and its charge, or **Outbound carrier leg, not covered by plans**; it shows **pending** until the call's usage is final.
+- Changing or ending a plan later does not change how an earlier call is explained.
+- [Where you see your plan](/docs/billing#where-you-see-your-plan)
+
+### Developer, Launch and Growth subscriptions are retired
+
+- Billing no longer shows these subscriptions' status, price or cancel control.
+- `GET /v1/billing/subscription`, `POST /v1/billing/stripe/subscription-sessions` and `POST /v1/billing/stripe/subscription/cancel` are gone; `wallet:read` no longer covers a plan subscription, and a plan in `GET /v1/pricing/catalog` has no `subscription_required` field.
+- Every plan keeps the standard allowance of 10 billed numbers and 3 simultaneous calls, and a refusal at a limit names your workspace's plan; for more, [contact us](https://skysay.ai/contact).
+- Switching to pay as you go never cancelled a Stripe subscription or refunded an earlier payment; contact us about any recurring charge you still see.
+- [Retired subscriptions](/docs/billing#retired-subscriptions)
+
+### Malformed API requests get 400 or 404 instead of 500
+
+- `PATCH /v1/agents/{agent_id}`, its `voice-stack` and `post-call-extraction` routes, and the `POST` routes under `/v1/agents/{agent_id}/workflow` return `404` `NotFoundError` ("agent not found") for an agent that does not exist or belongs to another workspace; the two cases are indistinguishable.
+- On `POST /v1/agents` and `PATCH /v1/agents/{agent_id}`, a null or wrongly typed `name`, `system_prompt`, `begin_message`, `first_message`, `mode` or `voice` returns `400` instead of `500`; a wrongly typed `status`, `tools` or `metadata` also returns `400`.
+- `POST /v1/organizations` returns `400` unless `name`, and `project_name` when sent, is a non-empty string.
+- `POST /v1/gateway-deployments` returns `400` when `deployment_model_id`, `mode`, `plan_id` or `carrier_account_id` is not a string, or when the deployment model, mode, plan and carrier account it names cannot be used together.
+- [What each status means](/docs/errors#what-each-status-means)
+
+### Homepage demos answer in the visitor's language from the first reply
+
+- On the homepage demo, a Standard AI agent offered as **Multilingual** now replies in another of its published languages from the first reply when the visitor speaks it, as on a phone call, if its transcriber supports automatic detection.
+- Before, it changed language only when the AI agent switched on an explicit request; that switch could time out, and after a short request followed by a question the demo could stay silent.
+- GPT-Live and Gemini Live demos are unchanged: they follow the visitor inside the model.
+- [Public homepage demos](/docs/multilingual-outbound#public-homepage-demos)
+
+### The voice pages on the website load faster
+
+- The **AI Voice Library** and **Text to speech** pages, with their language and accent pages, build the voice list once, not five times, to count voices by language, accent and provider.
+- What the pages list and count is unchanged.
+- [AI Voice Library](https://skysay.ai/voice-library) · [Text to speech](https://skysay.ai/text-to-speech)
+
 ## 24 November 2026
 
 ### Capabilities profiles no longer list purposes or recipient types
