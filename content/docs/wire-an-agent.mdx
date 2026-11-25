@@ -996,27 +996,37 @@ lost at that point is not retried on its own: the next call starts fresh.
 
 ### What the media channel must support
 
-Skysay plays the agent's speech in short pieces and waits for your PBX to
-confirm that each piece has played before it sends more. With the generated
-configuration, Asterisk does this by itself. If you change it, or open the
-media channel from your own application (for example an ARI `externalMedia`
-channel with `transport=websocket`), these must hold:
+Skysay plays the agent's speech in short pieces and asks your PBX to confirm
+that each piece has played: it sends `MARK_MEDIA` with its audio and waits for
+the matching `MEDIA_MARK_PROCESSED`, and for `QUEUE_DRAINED` after
+`REPORT_QUEUE_DRAINED`. With the generated configuration, Asterisk does this
+by itself. If you change it, or open the media channel from your own
+application (for example an ARI `externalMedia` channel with
+`transport=websocket`), these must hold:
 
-- **Every playback mark is answered.** Skysay sends `MARK_MEDIA` with its audio
-  and waits for the matching `MEDIA_MARK_PROCESSED`, and for `QUEUE_DRAINED`
-  after `REPORT_QUEUE_DRAINED`. A client that ignores them leaves the caller in
-  silence after the first half-second, and the call ends.
-- **Media goes both ways and is paced by Asterisk.** Do not use passthrough
-  (`p`), receive-only media (`d(in)`, or ARI `direction=in`) or unbuffered
-  mode (`u`). With passthrough or receive-only media, Asterisk refuses
-  Skysay's playback commands or discards the agent's audio. With unbuffered
-  mode on Asterisk 22.12 and later, the agent's audio reaches the caller faster
-  than real time.
+- **Media goes both ways.** With receive-only media (`d(in)`, or ARI
+  `direction=in`), Asterisk discards the agent's audio and answers Skysay's
+  playback commands with an error; the call ends with `ended_reason`
+  `pbx_playback_refused`.
 - **Audio is μ-law at 8 kHz in 20 ms frames**, which is what `c(ulaw)` gives.
 
-### When the caller hears half a second, then silence
+Keep playback confirmation on: answer every playback mark, and do not use
+passthrough (`p`) or unbuffered mode (`u`). When your PBX does not confirm
+playback (passthrough, unbuffered on Asterisk 22.12 and later, or a client
+that ignores marks), Skysay times the agent's audio itself instead and the
+call goes on, with two differences the caller can notice:
 
-The PBX answered the call but did not confirm that the agent's audio played.
+- **A pause early in the call.** When marks go unanswered, Skysay waits up to
+  1 second for them before it switches, so the agent's first reply can pause
+  for up to about a second. With passthrough on Asterisk 22.8 to 22.11 the
+  switch happens at the first mark, and with `p` or `u` on 22.12 and later at
+  the start of the call.
+- **A slower stop when the caller talks over the agent.** With confirmation,
+  the agent stops at once. Timed by Skysay, it can go on for up to about 0.6
+  seconds, and longer while Asterisk pauses the stream (`MEDIA_XOFF`).
+
+### When the agent's audio pauses or is slow to stop
+
 Check, in this order:
 
 1. `asterisk -rx "core show version"` reports 22.8 or later.
