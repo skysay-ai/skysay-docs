@@ -1,0 +1,99 @@
+---
+title: Plans
+description: Pay as you go, Starter, Professional and Scale; what each costs, what a plan counts and covers, how to choose one and how to cancel.
+icon: Coins
+---
+
+Every workspace starts on **pay as you go**: no monthly fee, and each call is
+paid from your balance. When your calls become routine, a plan gives you a
+fixed monthly price with minutes or calls included. On **Starter** you set up
+your AI agent yourself; on **Professional** and **Scale** our team sets it up
+and looks after it.
+
+| Plan | Price | Included each month | Beyond that | How you get it |
+| --- | --- | --- | --- | --- |
+| Pay as you go | $0 a month | nothing: every call is paid from your balance | pay-as-you-go prices | [sign up](https://skysay.ai/start) |
+| Starter | $49 a month or $490 a year | 300 minutes, also when paid yearly | pay-as-you-go prices | [buy it on Billing](/docs/buy-a-plan) |
+| Professional | $399 a month; 20% off on a 12-month term | 150 calls, whatever their length | $2.00 for each extra call | [talk to us](https://skysay.ai/contact) |
+| Scale | from $1,000 a month | 600 calls, whatever their length | $1.50 for each extra call | [talk to us](https://skysay.ai/contact) |
+
+Every plan has every feature and every voice, takes **3 calls at the same
+time** and keeps the same [billed-number allowance](/docs/billing#billed-number-allowance)
+as pay as you go. Prices are in US dollars.
+
+## What a plan counts
+
+- Every answered call counts, short calls and spam calls too.
+- On Professional and Scale a call counts once, however long it lasts.
+  Starter counts each call in whole minutes: a call of 2 minutes 10 seconds
+  takes 3 minutes.
+- A call counts against the month it started in. The month starts on the day
+  and time your plan started, in UTC, and resets every month, also on a plan
+  paid yearly.
+- Minutes or calls you do not use do not carry over to the next month.
+
+## What a plan covers
+
+Inside the allowance, the AI agent's side of a call is covered (the platform
+runtime, listening, the language model, the voice and the tools it uses during
+the call), and so is the carrier's charge for incoming calls. Your balance
+still pays:
+
+- the phone network's charge for outgoing calls, at the pay-as-you-go price;
+- phone-number rental and number setup charges;
+- SMS.
+
+A plan needs money on your balance: each call holds an amount from it while it
+runs, inside the allowance too. The details, with examples of a call that goes
+past the allowance, are in [Billing: what a plan covers](/docs/billing#what-a-plan-covers).
+
+## Choosing a plan
+
+- **Pay as you go** to try Skysay, or when your calls come and go.
+- **Starter** when you want your phone answered every time at a price you know,
+  and you set up your AI agent yourself. Buy it on **Billing**, monthly or
+  yearly: [Buy a plan](/docs/buy-a-plan).
+- **Professional** when you want calls handled for you without doing the
+  setup. Our team agrees the plan with you; a 12-month term is 20% off.
+- **Scale** for high call volumes at the lowest price per call. The price
+  starts at $1,000 a month and is agreed with our team.
+
+From the [pricing page](https://skysay.ai/pricing), **Choose Starter** takes
+you through sign-in to **Billing**, where you choose monthly or yearly.
+**Talk to us** on Professional and Scale opens the contact form.
+
+## Cancelling a plan
+
+- **Starter:** cancel on **Billing** whenever you like. The plan runs to the
+  end of the period you paid for, then your workspace is back on pay as you
+  go. See [Buy a plan: cancel](/docs/buy-a-plan#cancel).
+- **Professional and Scale:** you agree the term with our team before you
+  start, and how it ends.
+
+## The pricing page's calculator
+
+The calculator on the pricing page estimates **pay as you go** only: it prices
+every call at pay-as-you-go rates, and a plan's included minutes or calls are
+not in it. The same goes for `POST /v1/pricing/estimate`, which refuses a plan
+id (`starter`, `professional`, `scale`) with `400`.
+
+## The plans in the public catalogue
+
+`GET /v1/pricing/catalog` needs no key. Its `public_price_book` lists pay as
+you go in `plans` and Starter, Professional and Scale in `paid_plans`, the same
+figures the pricing page shows. Each entry in `paid_plans` has:
+
+- `prices`: the fee for each billing `interval` (`month`, and `year` for
+  Starter), in US cents (`fee_minor`); `price_from` is `true` when the fee is a
+  starting price (Scale);
+- `allowance_unit` (`minute` or `call`) and `allowance_per_month`;
+- `overage`: `pay_as_you_go` (beyond the allowance a call is charged at
+  pay-as-you-go prices) or `per_call`, with its price in
+  `overage_unit_price_minor`;
+- `purchase`: `workspace` (bought on Billing) or `talk_to_us`;
+- `term_discount`: the percent off for a longer agreed term
+  (`commitment_months`, `percent_off`), or `null`;
+- `included_concurrent_calls`: the calls a workspace on the plan takes at the
+  same time.
+
+The [OpenAPI document](/docs/openapi) describes the operation.
