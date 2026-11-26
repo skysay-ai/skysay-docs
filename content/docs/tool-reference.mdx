@@ -25,7 +25,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | Tool | Scope | Description |
 | --- | --- | --- |
 | `get_coverage` | `coverage:read` | Supported countries with voice, SMS, registration, and onboarding speed, and each country's per-minute phone-line price range for a voice call (`call_rates`: `outbound` to the country, `inbound` on a new Skysay number there). See [call prices in the coverage answer](/docs/billing#call-prices-in-the-coverage-answer). |
-| `get_number_catalog` | `coverage:read` | Number SKUs with setup/monthly price, capabilities, and onboarding terms. |
+| `get_number_catalog` | `coverage:read` | The kinds of phone number that can be ordered (offerings by country, number type and area, not exact numbers) with setup/monthly price, capabilities, and onboarding terms. `request_number` requests one. |
 | `get_agent_catalog` | `agents:read` **or** `coverage:read` | Selectable STT/LLM/TTS providers with cost, latency, languages, streaming, runnability, plus `conversation_engines`; optional `metered_only: boolean` defaults to `false`, and `true` returns only component-metered choices. |
 | `check_number_requirements` | `coverage:read` | Country and number-type onboarding requirements in plain terms. |
 
@@ -33,15 +33,15 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `list_agents` | `agents:read` | Bounded newest-first `{ agents, pagination }` page (at most `limit` agents and 25,000 characters) using the safe REST agent item projection. |
-| `get_agent` | `agents:read` | Read one safe agent configuration projection. |
-| `create_agent` | `agents:write` | Create a first-class agent in `external_audio`, `external_text`, or `hosted` mode. With `numbers:read`, the result names the project's numbers that answer nobody (`numbers_not_answering`). |
+| `list_agents` | `agents:read` | Bounded newest-first `{ agents, pagination }` page (at most `limit` agents and 25,000 characters) each item the customer-safe agent record the REST list returns. |
+| `get_agent` | `agents:read` | Read one AI agent: the customer-safe agent record `GET /v1/agents/{agent_id}` returns. |
+| `create_agent` | `agents:write` | Create an agent in `external_audio`, `external_text`, or `hosted` mode. With `numbers:read`, the result names the project's numbers that answer nobody (`numbers_not_answering`). |
 | `connect_external_agent` | `agents:write` | Shortcut for an `external_audio` agent with webhook + audio-stream URLs. |
-| `update_agent` | `agents:write` | Apply the generic mutable-agent PATCH fields and REST validation. |
+| `update_agent` | `agents:write` | Change an AI agent's settings: only the fields sent change, with the same validation as `PATCH /v1/agents/{agent_id}`. As on that route, a field that is not known is ignored, not refused. |
 | `get_agent_public_link` | `agents:read` | Read an AI agent's public link, including its two conversation limits, its live switch and, with `recordings:read`, its shared conversations, and optionally check a proposed address. |
 | `set_agent_public_link` | `agents:write` | Publish, turn off, or rename a public link, change its two conversation limits, turn live conversations on or off, or replace its shared conversations (`recordings` also needs `recordings:read`). When enabled with live conversations on, visitors can start conversations billed to the workspace. |
 | `list_agent_public_link_recording_candidates` | `agents:read`, `recordings:read` | List one page of an AI agent's calls that can be shared as recorded conversations on its public link, and why a call cannot be shared yet. |
-| `get_agent_voice_stack` | `agents:read` | Read the selected stack and sparse language profiles. |
+| `get_agent_voice_stack` | `agents:read` | Read the selected voice stack and the language profiles of the languages that have their own settings. |
 | `set_agent_voice_stack` | `agents:write` | Set transcriber/model/voice, first message, system prompt, language, and optional `voice_frontend` (`cascade` or `gpt_live`). |
 | `preview_voice` | `agents:write` | Explicit bounded, rate-limited provider/BYOK Listen action; may have provider and safe state effects, so it is not read-only. |
 | `get_agent_variables` | `agents:read` | Read an AI agent's [call variables](/docs/call-variables) config with its `revision` and `schema_hash`; the same answer as `GET /v1/agents/{agent_id}/variables`. |
@@ -70,11 +70,50 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 | --- | --- | --- |
 | `list_numbers` | `numbers:read` | Bounded newest-first `{ numbers, pagination }` page of phone numbers with registration status and `when_called`, what each number does when called (`limit` 1–50, default 10; at most 25,000 characters). |
 | `get_number_rules` | `numbers:read` | Read who answers calls to one phone number (`incoming.when_called`) and its outgoing and recording rules. |
-| `list_phone_servers` | `numbers:read` | List customer phone servers for self-hosted media/calling. |
+| `list_phone_servers` | `numbers:read` | List the workspace's phone servers: your own PBX or media servers that a number's calls can be sent to. |
 | `request_number` | `numbers:write` | Create a managed number request (live ordering can need operator approval). Like an order placed through `POST /v1/number-requests`, it is marked as needing verification where the number's market requires it, and it records the connected credential as its requester. |
 | `update_number_rules` | `numbers:write` | Set who answers calls to one phone number: an AI agent, your phone server, a forward to a phone number, or no answer ([choose who answers a number](/docs/mcp#choose-who-answers-a-number)). Also its outgoing and recording rules. The change is recorded under the connected credential, whatever `actor_type` or `actor_id` the arguments carry. |
-| `create_phone_server` | `numbers:write` | Create a customer phone server (dry-run verify before assigning). |
-| `test_phone_server` | `numbers:write` | Dry-run verify a customer phone server before assigning a number. |
+| `create_phone_server` | `numbers:write` | Add a phone server: your own PBX or media server that a number's calls can be sent to. `test_phone_server` verifies it. |
+| `test_phone_server` | `numbers:write` | Check a phone server and record whether it is verified; `update_number_rules` sends a number's calls only to a verified one. When the probe cannot confirm that the server answers, `last_test_result` carries a challenge. |
+
+## Call forwarding
+
+[Keep your number](/docs/keep-your-number): your own phone provider forwards calls from your existing business number to a Skysay number that an AI agent answers. No tool changes carrier settings, buys a number or places a phone call, and a forwarding condition is verified only by linked call evidence. `project_id` is optional and defaults to the workspace's first project.
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_forwarding_setups` | `numbers:read` | List a project's call forwarding setups, newest first, 100 per page; `offset` continues the list. |
+| `create_forwarding_setup` | `numbers:write` | Create a setup; the same `idempotency_key` returns the same setup. A draft can be unfinished: `source_number` is your existing business number, `conditions` say when calls are forwarded (busy and unanswered unless chosen), `number_id` and `agent_id` are the Skysay number and the AI agent that answer them. |
+| `get_forwarding_setup` | `numbers:read` | Read one setup and its `revision`, which a change, a report and the start of a test take as `base_revision`. |
+| `update_forwarding_setup` | `numbers:write` | Change a setup; `base_revision` must be its current revision. Changing a number, the AI agent, the line type, the provider or the conditions cancels a watching test. After the instructions were recorded, the two phone numbers cannot be changed until `record_forwarding_stop`. |
+| `get_forwarding_instructions` | `numbers:read`, `agents:read` | Whether the setup is ready and, once it is, what to ask your phone provider for: the Skysay number to forward to and the conditions, with example codes your provider has to confirm. `instructions` is `null` until then. |
+| `record_forwarding_instructions` | `numbers:write` | Record that you report having set forwarding with your phone provider. Refused until the setup is ready. It is your report, not a verification. |
+| `record_forwarding_stop` | `numbers:write` | Record that you report having stopped forwarding with your phone provider. It cancels a watching test. |
+| `start_forwarding_test` | `numbers:write` | Start a three-minute watch for a test of one of the setup's conditions. Skysay places no call: from another phone you call your existing business number and, when the AI agent answers, enter the six-digit `challenge` from this answer on the keypad. Refused until the instructions were recorded for the current setup, and while another test of the setup is watching. For an unchanged setup the same `idempotency_key` returns the same test. |
+| `get_forwarding_test` | `numbers:read`, `calls:read` | Read one test: `status` is `watching`, `received_unconfirmed` (the call arrived and the code matched, which alone does not verify the condition), `verified`, `cancelled` or `expired`. It does not repeat the challenge; `start_forwarding_test` does, for the same `idempotency_key`, while the test is watching. |
+| `cancel_forwarding_test` | `numbers:write` | Stop a test that is still watching. |
+
+## SIP connections
+
+[Bring your own SIP trunk](/docs/bring-your-own-sip-trunk). These tools are for numbers on your own carrier SIP trunk; who answers any number is set with `update_number_rules`. No tool changes carrier settings. Passwords are write-only and never returned. `project_id` is optional and defaults to the workspace's first project.
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `list_sip_connections` | `numbers:read` | List a project's SIP connections, newest first, 20 per page; `offset` continues the list. |
+| `create_sip_connection` | `numbers:write` | Save your carrier trunk with one generic form. Saving admits the inbound source networks to the Skysay SIP edge automatically once a number is attached for incoming calls. |
+| `get_sip_connection` | `numbers:read` | Read one connection: its settings and checks, and its attached numbers, 50 per page, each with its latest ownership check and test call; `offset` continues the numbers. |
+| `update_sip_connection` | `numbers:write` | Replace the connection's settings. Send `expected_revision`. Omit a password to keep the stored one; changing a username needs its password again. Changing the source networks or the carrier host requires every number's ownership to be confirmed again. |
+| `disable_sip_connection` | `numbers:write` | Disable the connection for good: its numbers are detached, and it cannot be changed or enabled again. This is not the pause for unusual call volume, which `resume_sip_connection` ends. |
+| `resume_sip_connection` | `numbers:write` | End a pause for unusual call volume early. Up to three times a day per connection. If the connection trips again within a day, it pauses for the next, longer window (10, then 30, then 60 minutes). |
+| `attach_sip_connection_number` | `numbers:write` | Attach a number you hold at your carrier. Attaching it for incoming calls places one Skysay verification call to the number that plays a one-time code (rate limited per number and per workspace); ownership is confirmed when the code is heard on that call arriving on this connection. Outbound calls with this number as caller ID are refused until then. A number can be attached to one connection in all of Skysay. |
+| `detach_sip_connection_number` | `numbers:write` | Detach the number. It stays in your workspace, not connected, and can be attached again. |
+| `check_sip_connection_number_ownership` | `numbers:write` | Place one more verification call to the number. Rate limited per number and per workspace. Outbound calls with the number are refused until its ownership is confirmed. A number attached for outbound only cannot be confirmed by a call; contact support. |
+| `get_sip_connection_ownership_check` | `numbers:read` | Read one ownership check of a number: one verification call and its result. |
+| `check_sip_connection_reachability` | `numbers:write` | Ask Skysay's SIP host to send one SIP OPTIONS to your carrier's server. The answer shows on the connection under `checks.reachability` within about a minute. It shows whether the server answers, not that calls work. Rate limited per connection. |
+| `start_sip_connection_test_call` | `calls:write`, `numbers:read` | Place one ordinary call from this number to a phone you own: admitted and billed like any call. Optionally tries another dialled-number format for this one call; save the one that was answered with `save_sip_connection_dial_format`. One test call at a time, at most three an hour per number. Refused until the number's ownership is confirmed. |
+| `get_sip_connection_test_call` | `numbers:read` | A test call's status: `calling`, `answered` or `failed`, with the SIP status your carrier returned when there is one. |
+| `save_sip_connection_dial_format` | `numbers:write` | Save the dialled-number format of an answered test call as the connection's format. |
+| `arm_sip_connection_inbound_test` | `numbers:write` | Arm a three-minute window: call the number from any phone, and the call is noted on the number (the caller's last four digits only). The call itself is answered exactly as any other. |
 
 ## Calls & recordings
 
@@ -82,10 +121,10 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 | --- | --- | --- |
 | `list_calls` | `calls:read` | Bounded newest-first `{ calls, pagination }` page of call records without `runtime_config` (`limit` 1–50, default 10; at most 25,000 characters). `get_call` returns the full record. |
 | `get_call` | `calls:read` | Get call status, recording state, and where its conversation workflow ended (outcome, interrupts taken, settled). |
-| `get_call_recording` | `recordings:read` | Get recording metadata and disclosure state. |
+| `get_call_recording` | `recordings:read` | Get the record of a call's recording (metadata, never the audio) and the call's recording disclosure state. |
 | `get_call_transcript` | `recordings:read` | Get transcript turns. |
 | `get_call_summary` | `recordings:read` | Get the call's [AI summary](/docs/call-summaries): summary, follow-up, goal met and sentiment, each an AI estimate. |
-| `create_outbound_call` | `calls:write` | Place a policy-gated outbound call. |
+| `create_outbound_call` | `calls:write` | Request a policy-gated phone call from one of the workspace's numbers. The answer is the call record with its current status; it does not wait for the call to end. |
 
 ## Contacts
 
@@ -99,7 +138,7 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `list_conversations` | `sms:read` | List SMS conversations for a workspace. |
+| `list_conversations` | `sms:read` | List the workspace's SMS conversations, most recent first, each with all of its messages, a message count and the last message. The answer is not paged, so it can be large. |
 | `send_sms` | `sms:send` | Send a policy-gated SMS message. |
 | `send_agent_template_message` | `sms:send` **and** `agents:read` | Send one of an AI agent's published [SMS templates](/docs/call-variables), filled with your variables and slots, from a number in the agent's own project. |
 
