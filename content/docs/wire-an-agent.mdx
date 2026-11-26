@@ -1066,6 +1066,13 @@ shows **PBX call · Asterisk**; call details show the original PBX call ID and
 native channel ID when available. These are live calls, separate from browser
 tests and simulations. The duration follows the native AI media leg.
 
+If your phone system refuses the AI agent's audio, the call ends with
+`ended_reason` `pbx_playback_refused`, and call details and **Recent
+connections** say what to change. This happens when Asterisk opens the media
+channel with receive-only media (`d(in)`, or ARI `direction=in`): it then
+answers Skysay's playback commands with an error, and the AI agent's audio
+cannot reach the caller. Remove the option and place a new test call.
+
 PBX calls consume live-call capacity and use the selected engine's AI billing
 components. They do not add a Skysay carrier leg. Billing reserves an estimate
 before admission, then settles from the engine's actual usage. **Awaiting
