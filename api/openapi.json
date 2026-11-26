@@ -5343,9 +5343,15 @@
       "CreateOrganization": {
         "properties": {
           "name": {
+            "description": "No control characters.",
+            "maxLength": 200,
+            "minLength": 1,
             "type": "string"
           },
           "project_name": {
+            "description": "No control characters. Defaults to Default.",
+            "maxLength": 100,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -6513,6 +6519,72 @@
           "call_id",
           "status"
         ],
+        "type": "object"
+      },
+      "PricingEstimateRequest": {
+        "description": "Every field is optional. For public_plan_id, plan_id, deployment_mode, deployment_model_id, number_countries and hosted_ai_tier, null means the same as leaving the field out. monthly_minutes and concurrent_calls must be a number or left out; null is refused with 400.",
+        "properties": {
+          "concurrent_calls": {
+            "description": "A JSON number. Defaults to the plan's included calls; more than that, a string or a negative value is refused with 400.",
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "deployment_mode": {
+            "description": "Defaults to fully_managed_cloud.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deployment_model_id": {
+            "description": "Alias of deployment_mode.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hosted_ai_tier": {
+            "description": "Defaults to standard.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "monthly_minutes": {
+            "default": 0,
+            "description": "A JSON number; a string or a negative value is refused with 400.",
+            "maximum": 10000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "number_countries": {
+            "description": "One entry per number: a two-letter country code, or a key of public_price_book.numbers.monthly_minor in GET /v1/pricing/catalog. An empty list or null prices one US number.",
+            "items": {
+              "pattern": "^[A-Za-z]{2,16}$",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "plan_id": {
+            "description": "Alias of public_plan_id.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "public_plan_id": {
+            "description": "Defaults to payg; a paid plan is refused with 400.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "RetryRule": {
@@ -20215,10 +20287,24 @@
     },
     "/v1/pricing/estimate": {
       "post": {
+        "description": "Every field is optional. A value of the wrong type or outside its range is refused with 400 and a message naming the field; nothing is rounded or clamped.",
         "operationId": "estimatePricing",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingEstimateRequest"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "200": {
             "description": "Estimate"
+          },
+          "400": {
+            "description": "A field has the wrong type or is out of range, or the plan is a paid plan"
           }
         },
         "security": [],
