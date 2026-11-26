@@ -50,7 +50,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | `set_agent_variables` | `agents:write` | Replace an AI agent's whole call variables config, checked and republished at once. Send `base_revision` to be refused rather than overwrite a newer write. A refused config returns `error.body.issues`. |
 | `get_agent_post_call_extraction` | `agents:read` | Read an AI agent's [result fields](/docs/post-call-results): the schema of what is written down after each of its calls, and whether it is on. |
 | `set_agent_post_call_extraction` | `agents:write` | Set or switch off an AI agent's result fields, the same as `PATCH /v1/agents/{agent_id}/post-call-extraction`: 1 to 24 scalar fields, a new schema version for later calls; the active schema sent again changes nothing. |
-| `send_agent_chat_turn` | `agents:write` | Send one text message to a hosted AI agent and read its reply, as the workspace's chat test does: the agent as a call would run it, without audio. Each turn runs the agent's model at Skysay's cost and is meant for a few test messages. Nothing is saved and no call is made; tools other than knowledge search and `end_call` are held, not performed. |
+| `send_agent_chat_turn` | `agents:write` | Send one text message to a hosted AI agent and read its reply, as the workspace's chat test does: the agent as a call would run it, without audio. Each turn runs the agent's model at Skysay's cost and is meant for a few test messages: a workspace can send 20 turns a minute and 200 a day. Nothing is saved and no call is made; tools other than knowledge search and `end_call` are held, not performed. |
 
 ## PBX connection keys
 
@@ -170,7 +170,7 @@ Every knowledge tool takes `project_id`. See [fill and test a knowledge base](/d
 | `get_knowledge_base` | `knowledge:read` | One knowledge base. |
 | `list_knowledge_documents` | `knowledge:read` | A page of a base's documents with each one's state (`processing`, `ready`, `failed`). |
 | `get_knowledge_document_text` | `knowledge:read` | A page of one document's extracted text (`limit` up to 50,000 characters). |
-| `test_knowledge_base` | `knowledge:read` | Ask a base one question; returns the grounded answer and its sources. Saves nothing. |
+| `test_knowledge_base` | `knowledge:read` | Ask a base one question; returns the grounded answer and its sources. Saves nothing. A workspace can run 20 tests a minute and 200 a day. |
 | `get_agent_knowledge_bases` | `agents:read`, `knowledge:read` | Which bases an AI agent searches. |
 | `create_knowledge_base` | `knowledge:write` | Create an empty base in a project. |
 | `update_knowledge_base` | `knowledge:write` | Rename a base. |
@@ -178,7 +178,7 @@ Every knowledge tool takes `project_id`. See [fill and test a knowledge base](/d
 | `set_agent_knowledge_bases` | `agents:write`, `knowledge:write` | Replace the list of bases an AI agent searches (at most 20; `[]` clears it). |
 | `delete_knowledge_base` | `knowledge:write` | Delete a base and its documents: detached from every AI agent and no longer searchable at once, its files removed in the background. Cannot be undone. |
 | `delete_knowledge_document` | `knowledge:write` | Delete one document: no longer searchable at once, its file removed in the background. Cannot be undone. |
-| `retry_knowledge_document` | `knowledge:write` | Process a document again whose state is retryable (or a ready one whose extracted text was lost). An unreadable file is replaced in the workspace or over the REST API instead. |
+| `retry_knowledge_document` | `knowledge:write` | Process a document again whose state is retryable (or a ready one whose extracted text is missing or damaged). An unreadable file is replaced in the workspace or over the REST API instead. |
 
 ## Simulations Lab
 
