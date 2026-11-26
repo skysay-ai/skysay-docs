@@ -19,6 +19,7 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | `account_overview` | `account:read` | Bounded workspace summary: wallet, usage totals with up to 10 line items, and for agents, numbers, number requests, calls and SMS conversations a `total` with up to 5 newest previews and the `list_tool` that pages them. Never includes SMS message content. See [Bounded results and paging](/docs/mcp#bounded-results-and-paging). |
 | `list_audio_environments` | `account:read` | Read the immutable versioned ambience catalogue (including Off). It has the same result and scope as `GET /v1/audio-environments`; it never contacts a provider or changes a selection. |
 | `create_wallet_topup` | `wallet:write` | Initiate an explicitly owner-approved purchased-wallet top-up for the authenticated workspace: return a direct Stripe Checkout URL, or use a compatible wallet’s approved shared payment token. Permission alone approves no payment; see [funding paths and limits](/docs/billing#adding-funds-through-mcp). Absent from the read-only connector. |
+| `create_topup_checkout` | `wallet:write` | Open a Stripe checkout page for the workspace owner and return its URL; this tool moves no money. Nothing is charged until a person pays on that page, and only Stripe's signed confirmation then adds amount_minor (the wallet currency's minor units, within the server's top-up bounds) to the wallet as credit. With number_request_id (needs numbers:read too), the page is for a number order waiting for payment and returns to that order; once the wallet covers the order's first charge, fulfilment starts, and get_number_request shows it. success_url, cancel_url and idempotency_key are then not used. Without idempotency_key, an unpaid page for the same amount opened in the last 15 minutes is returned again. | Absent from the OpenAI connector, like `create_wallet_topup`.
 
 ## Coverage & catalog
 
@@ -75,6 +76,13 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 | `update_number_rules` | `numbers:write` | Set who answers calls to one phone number: an AI agent, your phone server, a forward to a phone number, or no answer ([choose who answers a number](/docs/mcp#choose-who-answers-a-number)). Also its outgoing and recording rules. The change is recorded under the connected credential, whatever `actor_type` or `actor_id` the arguments carry. |
 | `create_phone_server` | `numbers:write` | Add a phone server: your own PBX or media server that a number's calls can be sent to. `test_phone_server` verifies it. |
 | `test_phone_server` | `numbers:write` | Check a phone server and record whether it is verified; `update_number_rules` sends a number's calls only to a verified one. When the probe cannot confirm that the server answers, `last_test_result` carries a challenge. |
+| `list_available_numbers` | `numbers:read` | List the exact numbers loaded for purchase, at most limit (default 100, at most 250), with each one's customer price and has_more. A row is a snapshot, not a reservation: availability and price are checked again with the carrier when the number is ordered. When nothing is loaded for a market, load it with search_available_numbers; order one with request_number. |
+| `search_available_numbers` | `numbers:write` | Load exact numbers from the carrier for one country and number type (default local), optionally narrowed by area code or region, and return at most limit of them (default 10, at most 20). Nothing is reserved, ordered or charged. A recent identical search is answered from the loaded numbers instead of asking the carrier again. Refused while the workspace's numbers are suspended. |
+| `get_number` | `numbers:read` | Read one phone number of the workspace, as list_numbers shows it. |
+| `get_number_activation` | `numbers:read` | Read whether a number is active, and if not, what blocks it (for example verification still pending or information still needed) and what the customer can do. |
+| `list_number_requests` | `numbers:read` | List the workspace's number orders, newest first, a page of at most limit (default 50, at most 100), each with its status, the message and next step for the customer, and the number once one is assigned. Pass pagination.next_cursor as cursor for the next page. |
+| `get_number_request` | `numbers:read` | Read one number order: its status, the message and next step for the customer, and the number once one is assigned. |
+| `update_number_request` | `numbers:write` | Change the customer's own fields of a number order: customer_reference, preferred_phone_number (a wish shown with the order; it reserves nothing) and requested_capabilities. Fields that are sent replace the stored ones. Status, price and fulfilment are Skysay's and cannot be changed here. |
 
 ## Call forwarding
 
@@ -138,9 +146,37 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 
 | Tool | Scope | Description |
 | --- | --- | --- |
-| `list_conversations` | `sms:read` | List the workspace's SMS conversations, most recent first, each with all of its messages, a message count and the last message. The answer is not paged, so it can be large. |
+| `list_conversations` | `sms:read` | List the workspace's SMS conversations, newest first, a page of at most limit (default 50, at most 200). Each carries its message count and its last message, not its history: read that with list_messages. Pass pagination.next_cursor as cursor for the next page. |
+| `get_conversation` | `sms:read` | Read one SMS conversation with its message count and its last message. Its history is list_messages with this conversation_id. |
+| `list_messages` | `sms:read` | List the workspace's SMS messages, newest first, a page of at most limit (default 100, at most 500), each with its delivery status and any stored translation. With conversation_id, only that conversation's history. Pass pagination.next_cursor as cursor for the next page. |
+| `list_message_delivery_events` | `sms:read` | Read the carrier's delivery reports for one SMS, oldest first: whether and when it was sent, delivered or failed. |
+| `get_message_translations` | `sms:read` | Read cached machine translations for an SMS. No paid work is created. |
 | `send_sms` | `sms:send` | Send a policy-gated SMS message. |
 | `send_agent_template_message` | `sms:send` **and** `agents:read` | Send one of an AI agent's published [SMS templates](/docs/call-variables), filled with your variables and slots, from a number in the agent's own project. |
+
+## Campaigns
+
+See [campaigns](/docs/campaigns) for runs, retries, outcomes and the review inbox.
+
+| Tool | Scope | Description |
+| --- | --- | --- |
+| `create_campaign` | `calls:write` | Create a draft outbound campaign: agent, caller-id numbers, contact list, purpose, consent_basis (existing_customer \| explicit_consent), calling windows, retry policy (or a preset: sales, collections, single_attempt), concurrency and optional schedule. It starts only when launched with launch_campaign. |
+| `update_campaign` | `calls:write` | Edit a campaign's settings. A draft accepts every setting; a scheduled or paused campaign accepts name, from_number_ids, calling windows and zone, retry policy, concurrency, ends_at and language (and scheduled_start_at while scheduled). A running campaign accepts no edits until it is paused. Returns the campaign and the list of changed fields. |
+| `launch_campaign` | `calls:write` | Authorize and start a draft campaign. Existing-customer / consented lists on active workspace capabilities start immediately; the result carries the authorization decision. |
+| `enroll_campaign_contacts` | `calls:write` | Add contacts to a scheduled, running or paused campaign (at most 10,000 per call): they join the campaign's own contact list and its queue in one step and are called inside their calling hours. Idempotent: a contact already in the queue is not added again. Refused when the campaign is a draft, completed or cancelled, or when the audience with these contacts would need review (for example a new destination country). |
+| `pause_campaign` | `calls:write` | Pause a running campaign; no new attempts are placed until it is resumed. |
+| `resume_campaign` | `calls:write` | Resume a paused campaign. |
+| `cancel_campaign` | `calls:write` | Cancel a campaign: queued calls are cancelled, remaining contacts are skipped. |
+| `delete_campaign` | `calls:write` | Delete a draft, held, blocked, completed or cancelled campaign: it leaves the campaign listings; its calls, recordings, transcripts and billing records are kept. A launching, scheduled, running or paused campaign must be cancelled first (409 campaign_active); a repeat answers 404. Ask the user to confirm before calling. |
+| `duplicate_campaign` | `calls:write` | Copy a campaign's settings into a new draft, optionally with another name, contact list, start and end. The copy keeps the AI agent, caller IDs, calling hours and retries; its concurrency is lowered to today's limit when needed (clamped says so). Nothing is launched. |
+| `start_campaign_test_call` | `calls:write` | Place one real phone call, billed like any call, from a draft campaign to one contact of its contact list, with the campaign's AI agent, caller ID and that contact's values. The usual checks apply: do-not-call list, calling rules, balance, the campaign's calling hours, and one unfinished test call per draft. The campaign stays a draft and the contact is called again when it launches. Ask the user to confirm before calling. |
+| `list_campaigns` | `calls:read` | List campaigns in the workspace with their latest run and counters (bounded page). |
+| `get_campaign` | `calls:read` | Read one campaign with its latest run and contact counters. |
+| `list_campaign_contacts` | `calls:read` | List the contacts of a campaign's latest run in list order, a page of at most limit (default 100, at most 500) from offset, with has_more: each one's status, result, attempts so far and next attempt. Each row's id is the contact_id list_campaign_contact_attempts takes. |
+| `get_campaign_results` | `calls:read` | List the contacts of a campaign's latest run with what each one's last call came to: the outcome its conversation flow reached, the agent's Result fields and whether a recording and transcript exist. A page of at most limit (default 100, at most 500) from offset, with has_more. |
+| `list_campaign_contact_attempts` | `calls:read` | Read one contact's timeline in a campaign: every attempt in order with its kind (first_contact, retry, callback, reopened), result, call id and what the campaign decided next (retry, callback, deferred or finished, and when). Bounded page; contact_id is the id of a campaign contact row. Values the campaign did not record are null. |
+| `list_campaign_reviews` | `calls:read` | List a campaign's review inbox: the calls whose conversation flow ended on an outcome marked for review, open ones by default. A page of at most limit (default 50, at most 200) from offset, with has_more. Resolve one with resolve_campaign_review. |
+| `resolve_campaign_review` | `calls:write` | Mark one review of a campaign as resolved, with an optional note of at most 2,000 characters. With requeue_contact, the contact is put back in the campaign's queue and will be called again (billed), unless its number is on the do-not-call list or the run can no longer call; the answer says when that was refused. A review is resolved once; a second resolve is refused. |
 
 ## Policy & onboarding
 
