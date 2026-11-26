@@ -1916,7 +1916,7 @@
                 "null"
               ]
             },
-            "description": "Optional stt/llm/tts map to existing hosted-AI credential IDs (or null to use platform-managed selection). References are validated; secret upload is a separate write-only API.",
+            "description": "Optional stt/llm/tts map to existing hosted-AI credential IDs (or null to use platform-managed selection). A credential stored in any project of the agent's workspace can be bound; it must be the customer's own, active, and for the selected component and provider. References are validated; secret upload is a separate write-only API.",
             "type": "object"
           },
           "expected_publication_version": {
@@ -8460,7 +8460,7 @@
             ],
             "properties": {
               "credential_id": {
-                "description": "Required only for customer_byok. Must name an active, customer-owned STT credential for this workspace, project and selected provider.",
+                "description": "Required only for customer_byok. Must name an active, customer-owned STT credential of this workspace, stored in any of its projects, for the selected provider.",
                 "maxLength": 128,
                 "pattern": "^[A-Za-z0-9_-]{1,128}$",
                 "type": "string"
@@ -11584,7 +11584,7 @@
         ]
       },
       "patch": {
-        "description": "The target agent defines the authenticated workspace. Select platform-managed components by provider/model/voice fields, or bind a component to an already-created hosted-AI credential by its ID in component_credential_bindings. The binding is a reference only: upload a BYOK secret through the separate write-only hosted-ai-credentials API; this route never accepts or returns secret material. Supplying languages and optional sparse language_profiles is an explicit publication: all effective profiles are constructible and credential-owned before an immutable version is stored for admission. `audio_environment` is a separately version-pinned outgoing-only ambience track, shared across language profiles and independent of caller STT; its optional runtime failure never replaces the selected voice/language or prevents the core call. Draft profile edits never alter existing calls or published sessions.",
+        "description": "The target agent defines the authenticated workspace. Select platform-managed components by provider/model/voice fields, or bind a component to an already-created hosted-AI credential by its ID in component_credential_bindings; the credential may be stored in any project of the agent's workspace. The binding is a reference only: upload a BYOK secret through the separate write-only hosted-ai-credentials API; this route never accepts or returns secret material. Supplying languages and optional sparse language_profiles is an explicit publication: all effective profiles are constructible and credential-owned before an immutable version is stored for admission. `audio_environment` is a separately version-pinned outgoing-only ambience track, shared across language profiles and independent of caller STT; its optional runtime failure never replaces the selected voice/language or prevents the core call. Draft profile edits never alter existing calls or published sessions.",
         "operationId": "updateAgentVoiceStack",
         "parameters": [
           {
@@ -17668,13 +17668,14 @@
     },
     "/v1/hosted-ai-credentials": {
       "get": {
-        "description": "Returns credential metadata only. Plaintext, ciphertext, nonce, encryption-key identifiers, and secret fingerprints are never returned.",
+        "description": "Returns credential metadata only. Plaintext, ciphertext, nonce, encryption-key identifiers, and secret fingerprints are never returned. Without project_id, every credential of the workspace; with it, that project's only. Any AI agent of the workspace can bind a credential of any of its projects.",
         "operationId": "listHostedAiCredentials",
         "parameters": [
           {
+            "description": "Only this project's credentials; default: the whole workspace.",
             "in": "query",
             "name": "project_id",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -17772,7 +17773,7 @@
     },
     "/v1/hosted-ai-credentials/{credential_id}/revoke": {
       "post": {
-        "description": "Revoked credentials cannot be selected or leased for a call.",
+        "description": "Revoked credentials cannot be selected or leased for a call. Any credential of the workspace, whichever of its projects holds it.",
         "operationId": "revokeHostedAiCredential",
         "parameters": [
           {
@@ -17793,12 +17794,12 @@
                     "type": "string"
                   },
                   "project_id": {
+                    "description": "Optional. A project of this workspace; it need not be the one the credential is stored in.",
                     "type": "string"
                   }
                 },
                 "required": [
-                  "organization_id",
-                  "project_id"
+                  "organization_id"
                 ],
                 "type": "object"
               }
@@ -17822,7 +17823,7 @@
     },
     "/v1/hosted-ai-credentials/{credential_id}/validate": {
       "post": {
-        "description": "Only definitive credential rejection becomes invalid. Transient provider/network failure remains pending and cannot be selected for a call.",
+        "description": "Only definitive credential rejection becomes invalid. Transient provider/network failure remains pending and cannot be selected for a call. Any credential of the workspace, whichever of its projects holds it.",
         "operationId": "validateHostedAiCredential",
         "parameters": [
           {
@@ -17843,12 +17844,12 @@
                     "type": "string"
                   },
                   "project_id": {
+                    "description": "Optional. A project of this workspace; it need not be the one the credential is stored in.",
                     "type": "string"
                   }
                 },
                 "required": [
-                  "organization_id",
-                  "project_id"
+                  "organization_id"
                 ],
                 "type": "object"
               }

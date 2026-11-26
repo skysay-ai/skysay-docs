@@ -120,7 +120,12 @@ For a hosted agent, `GET /v1/agents/{id}/voice-stack` needs `agents:read` and
 STT, model, and TTS components by their catalog selectors. For BYOK, first
 create the credential through the separate write-only hosted-AI credential API,
 then supply only that existing credential reference in
-`component_credential_bindings`. Voice-stack reads never return a secret,
+`component_credential_bindings`. The credential can be stored in any project of
+the agent's workspace; it must be your own key (a key Skysay issued is refused),
+active, and for the selected component and provider. A credential of another
+workspace is answered exactly like one that does not exist. Listing, validating
+and revoking credentials also covers every project of the workspace:
+`GET /v1/hosted-ai-credentials` without `project_id` lists them all. Voice-stack reads never return a secret,
 ciphertext, credential-binding ID, or provider credential; unsupported
 component, language, and credential combinations are rejected on update.
 
