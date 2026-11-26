@@ -943,8 +943,8 @@ call is requested. Refresh the page after correcting a prerequisite.
 
 Open a hosted AI agent and choose **PBX**. This connects calls from your own
 PBX to that agent without ordering a Skysay phone number. The Asterisk adapter
-uses `chan_websocket`; Asterisk 22.10 is the version qualified in the local
-integration lab. FreeSWITCH and 3CX adapters are planned. For a PBX that only
+uses `chan_websocket` and needs **Asterisk 22.8 or later**; we test it with
+22.10 and 22.12. FreeSWITCH and 3CX adapters are planned. For a PBX that only
 speaks SIP, connect it as a
 [SIP trunk](/docs/bring-your-own-sip-trunk) instead.
 
@@ -969,6 +969,81 @@ option in the generated `Dial(WebSocket/...)` line is required: Skysay checks
 the published configuration, funds, capacity and worker readiness before
 instructing Asterisk to answer. A refused attempt does not answer the call.
 Do not remove that option or add an earlier `Answer()`.
+
+The generated block also sets `connection_timeout=3000`. Asterisk 22.11 and
+later give the WebSocket connection only twice this value to complete (1 second
+at Asterisk's default of 500), and a slower connection then fails the call
+before it is answered. Keep the setting. Connect Asterisk directly to the
+address on the PBX page, with no proxy in between.
+
+Skysay accepts the WebSocket connection first and then checks the call. If it
+refuses the call (for example for funds), it sends one message your Asterisk
+log shows as a warning, such as `WebSocket SKYSAY_REFUSED_INSUFFICIENT_FUNDS
+command unknown`, and closes the connection; the call is not answered.
+Asterisk does not retry a connection that was accepted, so a call refused or
+lost at that point is not retried on its own: the next call starts fresh.
+
+| Name in the Asterisk log | Why Skysay refused the call |
+| --- | --- |
+| `SKYSAY_REFUSED_INSUFFICIENT_FUNDS` | The workspace balance cannot fund the call |
+| `SKYSAY_REFUSED_CREDENTIALS` | The connection key's password is wrong or revoked |
+| `SKYSAY_REFUSED_NOT_ALLOWED` | The call is not allowed: check the agent's publication, permissions and capacity under **Recent connections** |
+| `SKYSAY_REFUSED_AGENT_NOT_RUNNABLE` | The AI agent's setup cannot run a call; review its validation results |
+| `SKYSAY_REFUSED_DUPLICATE_CALL` | The same PBX call ID was already used |
+| `SKYSAY_REFUSED_RATE_LIMITED` | Too many new calls on this key at once; retry shortly |
+| `SKYSAY_REFUSED_BAD_REQUEST` | The call data does not match the agent's call variables |
+| `SKYSAY_REFUSED_UNAVAILABLE` | Skysay could not take the call (maintenance or a temporary failure) |
+
+### What the media channel must support
+
+Skysay plays the agent's speech in short pieces and asks your PBX to confirm
+that each piece has played: it sends `MARK_MEDIA` with its audio and waits for
+the matching `MEDIA_MARK_PROCESSED`, and for `QUEUE_DRAINED` after
+`REPORT_QUEUE_DRAINED`. With the generated configuration, Asterisk does this
+by itself. If you change it, or open the media channel from your own
+application (for example an ARI `externalMedia` channel with
+`transport=websocket`), these must hold:
+
+- **Media goes both ways.** With receive-only media (`d(in)`, or ARI
+  `direction=in`), Asterisk discards the agent's audio and answers Skysay's
+  playback commands with an error; the call ends with `ended_reason`
+  `pbx_playback_refused`.
+- **Audio is μ-law at 8 kHz in 20 ms frames**, which is what `c(ulaw)` gives.
+- **One connection carries one call.** Your own client may leave
+  `channel_id` out of the events it sends, such as `MEDIA_MARK_PROCESSED`;
+  Skysay reads them as this call's. An event that names a different
+  `channel_id` than your `MEDIA_START` is ignored, so a mark it answers
+  counts as unanswered.
+
+Keep playback confirmation on: answer every playback mark, and do not use
+passthrough (`p`) or unbuffered mode (`u`). When your PBX does not confirm
+playback (passthrough, unbuffered on Asterisk 22.12 and later, or a client
+that ignores marks), Skysay times the agent's audio itself instead and the
+call goes on, with two differences the caller can notice:
+
+- **A pause early in the call.** When marks go unanswered, Skysay waits up to
+  1 second for them before it switches, so the agent's first reply can pause
+  for up to about a second. With passthrough on Asterisk 22.8 to 22.11 the
+  switch happens at the first mark, and with `p` or `u` on 22.12 and later at
+  the start of the call.
+- **A slower stop when the caller talks over the agent.** With confirmation,
+  the agent stops at once. Timed by Skysay, it can go on for up to about 0.6
+  seconds, and longer while Asterisk pauses the stream (`MEDIA_XOFF`).
+
+### When the agent's audio pauses or is slow to stop
+
+Check, in this order:
+
+1. `asterisk -rx "core show version"` reports 22.8 or later.
+2. The `Dial(WebSocket/...)` line is the generated one, without `p`, `d(in)`
+   or `u`. An ARI application leaves `direction` at its default.
+3. Your own client, if you use one, answers `MARK_MEDIA` and
+   `REPORT_QUEUE_DRAINED`.
+4. If calls do not connect at all on Asterisk 22.11 or later, the
+   `websocket_client.conf` block includes `connection_timeout=3000`.
+
+To see what Asterisk sent and received, run `core set debug 4 chan_websocket.so`
+and place a test call.
 
 The setup includes an inbound dialplan context and an outbound AMI Originate
 example. For outbound calls, Asterisk calls your destination first, then joins
@@ -995,6 +1070,13 @@ On **Calls**, choose the **PBX** transport filter to find these calls. A row
 shows **PBX call · Asterisk**; call details show the original PBX call ID and
 native channel ID when available. These are live calls, separate from browser
 tests and simulations. The duration follows the native AI media leg.
+
+If your phone system refuses the AI agent's audio, the call ends with
+`ended_reason` `pbx_playback_refused`, and call details and **Recent
+connections** say what to change. This happens when Asterisk opens the media
+channel with receive-only media (`d(in)`, or ARI `direction=in`): it then
+answers Skysay's playback commands with an error, and the AI agent's audio
+cannot reach the caller. Remove the option and place a new test call.
 
 PBX calls consume live-call capacity and use the selected engine's AI billing
 components. They do not add a Skysay carrier leg. Billing reserves an estimate
