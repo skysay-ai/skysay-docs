@@ -48,9 +48,10 @@ to test.
    it and type the code on the keypad.
 4. The workspace reads **Verified** as soon as the digits match.
 
-Skysay plays nothing into the call and only its own call can deliver the
-code: a code typed anywhere else does not count. Skysay hears keypad presses
-sent as signalling (RFC 2833) and as tones in the audio.
+Skysay plays nothing into the call. The code counts only when it arrives on
+the test call itself, as keypad presses sent as signalling (RFC 2833) or as
+tones in the audio; a code typed into the workspace or sent in a request does
+not count.
 
 > Lena adds pbx.acme.example, port 5060, UDP, login acme-in and its password,
 > and picks +49 30 1234 5678. She allows calls from Skysay's address on her
@@ -86,6 +87,15 @@ most three an hour.
 > and starts a test call. Acme's phone system does not know Max's number and
 > refuses the call. No phone of Max's rings, so he cannot type the code, and
 > his phone server stays **Not verified**.
+
+## What verified does and does not prove
+
+Verified means Skysay's test call reached your phone system and the code came
+back on that call. Skysay does not yet reject media sent to the test call from
+another address, so a test is not proof against someone who sends keypad
+tones to Skysay's side of the call from elsewhere. This is why a verified
+phone server unlocks nothing yet: Skysay does not send a number's calls to a
+phone server.
 
 ## When a server stops being verified
 
