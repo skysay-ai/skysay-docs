@@ -132,6 +132,21 @@ is preparing returns 409. The workflow read contains a derived `voice_input`
 for inspection; omit that field from graph PATCH requests. Writing it is
 refused with instructions to use the shared voice-stack command.
 
+### Style for spoken steps
+
+For a cascade workflow with one Gemini 3.8 Flash or Flash-Lite TTS voice and
+Follow Caller off, a step in the workflow draft can include
+`"speech_style": "brisk"` or `"speech_style": "calm"`. Use this on an
+`ask` or `say` step, or on an `end` step to style its farewell. Omit the
+field for the voice's usual delivery.
+
+Send the field in `workflow.steps` with
+`PATCH /v1/agents/{agent_id}/workflow`, then publish the workflow. The
+publication pins the selected style. It changes how Gemini speaks the line.
+The step still owns the words, and the workflow still controls routing and
+actions. A spoken workflow with a style needs a supported voice at
+publication and at call admission.
+
 ## The canvas
 
 Open any agent and choose **Workflow**. If the agent has no workflow yet you
