@@ -10,15 +10,31 @@ agent can follow a thread without ever being able to send.
 
 <Diagram name="sms-paths.svg" alt="Sending: your app or AI client confirms the recipient, sender and text with a person, then Skysay checks the send like a call (the number, suspensions, destination countries) and passes it to the carrier, then reports its status and delivery events. A voice-only number, or one on a carrier Skysay doesn't send SMS through, is refused with a 400 before anything is stored or charged; while SMS sending is not switched on a message is kept as live_blocked, never queued. Receiving: a text to your number lands in your SMS inbox and goes to your sms.received webhook; AI agents do not answer texts on their own." />
 
-## Send an appointment confirmation
+## Give an AI agent a message to send
 
-In the workspace, open **SMS → Appointment confirmations**. Set the default send time for the project. Open the booking agent’s **Tools → Send SMS → Appointment confirmations**, choose a published appointment template, enable confirmations and save. Include the booking date and time in each language you offer so the caller receives the details they agreed to. Each agent can use the workspace timing or choose its own. The SMS workspace shows which agents use the rule and their recent confirmations.
+Open the AI agent, choose **Tools → Send SMS**, and select **Add message**. Give the message a name the team will recognize, such as **Office directions**, and write the text the caller should receive. One AI agent can have several saved messages.
 
-When the calendar confirms a booking, the agent can offer to text the appointment details. A caller who agrees can receive one confirmation at the configured time. Declining the text leaves the booking in place. Use a phone number the customer can reach inside the template if you want to offer a callback.
+Choose **Send when** to describe what must happen on the call. Choose **Timing** to set when the text goes out once the caller has agreed. For example, a receptionist can send directions while the caller is still on the line, or a support agent can send a case reference when the call ends. You can also delay delivery after the call. A Flow can use the same saved message.
 
-Use **Preview sender** with a mobile number in international format and your confirmation text. The result shows the sender, number of SMS segments and estimated price for a configured route. Some networks replace the sender shown on the handset. Treat the displayed estimate as specific to that destination and text.
+| Start with | Example use |
+| --- | --- |
+| Blank message | Write a follow-up in your own words. |
+| Directions | Send the visitor your address and the entrance to use. |
+| Support reference | Share the caller’s case number from a trusted call field. |
+| Quote follow-up | Send a link to the caller’s issued quote when that link is available to the AI agent. |
+| Appointment confirmation | Send the date and time from a successful calendar booking. |
 
-The voice number and the SMS sender can differ. A destination may accept a brand name, require a registered sending number, or have no approved route for your workspace. US confirmations require an approved numeric sending route, such as a registered local number, verified toll-free number or approved short code. Where the workspace has no eligible sender, Skysay skips the text. You can check the outcome in **SMS → Appointment confirmations**. A submission acknowledgement and a carrier delivery report are separate events.
+A booking requires a calendar connection and a successful booking. You can send a fixed message such as directions without connecting a calendar. For a message with a case reference, quote link or other variable, make that value available through an eligible call field. If a required value is missing, Skysay skips the message. You can also enter your business address directly in the text.
+
+### What the caller experiences
+
+The AI agent offers to text the caller and asks for agreement to the specific message and number. For example, the AI agent might say, “Would you like me to text the office address to the number you’re calling from?” Agreeing to a booking or asking for a quote does not by itself authorize a text. A caller can decline and continue the conversation.
+
+### Check the sender and delivery
+
+Open **SMS → AI agent messages** to find the messages and their owning AI agents. Use **Preview sender** with the recipient’s international mobile number and your text to check the available sender, SMS segments and estimated charge. The voice number and SMS sender can differ. Some networks change the sender displayed on the phone.
+
+US delivery requires an approved numeric route, such as a registered local number, verified toll-free number or approved short code. Skysay skips a text when the workspace has no eligible sender or when the recipient has opted out. Activity shows submission and carrier-reported delivery separately.
 
 ## Send your first approved SMS
 
