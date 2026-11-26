@@ -14,7 +14,7 @@ agent can follow a thread without ever being able to send.
 
 Open the AI agent, choose **Tools → Send SMS**, open **AI agent messages**, and select **Add message**. Give the message a name the team will recognize, such as **Office directions**, and write the text the caller should receive. One AI agent can have several saved messages.
 
-Choose **Send when** to describe what must happen on the call. Choose **Timing** to set when the text goes out once the caller has agreed. For example, a receptionist can send directions while the caller is still on the line, or a support agent can send a case reference when the call ends. You can also delay delivery after the call. To use a message in Flow, choose **Flow reaches this action** as its condition. In the Flow editor, add an **Action**, choose **Send SMS**, and select that message by name. Publish the Flow when you want live calls to use it.
+Under **Offer this SMS when**, select one or more triggers. Any one can qualify the message. If two match, the agent offers the saved message once on that call. A decline ends that offer. Choose **Timing** to set when the text goes out once the caller has agreed. For example, a receptionist can send directions while the caller is still on the line, or a support agent can send a case reference when the call ends. You can also delay delivery after the call. To use a message in Flow, choose **Flow reaches this action** as one of its triggers. In the Flow editor, add an **Action**, choose **Send SMS**, and select that message by name. Publish the Flow when you want live calls to use it.
 
 | Start with | Example use |
 | --- | --- |
@@ -24,7 +24,16 @@ Choose **Send when** to describe what must happen on the call. Choose **Timing**
 | Quote follow-up | Send a link to the caller’s issued quote when that link is available to the AI agent. |
 | Appointment confirmation | Send the date and time from a successful calendar booking. |
 
-A booking requires a calendar connection and a successful booking. You can send a fixed message such as directions without connecting a calendar. For a message with a case reference, quote link or other variable, make that value available through an eligible call field. If a required value is missing, Skysay skips the message. You can also enter your business address directly in the text.
+Open the **?** beside a field to see its source and an example. The examples illustrate the format. Live messages use the value for the caller.
+
+| Message field | Where the value comes from | Example |
+| --- | --- | --- |
+| Business name | The organization name saved for this workspace. | Harbour Workshop |
+| Callback number | The business number the caller dialed inbound, or the number the agent called from outbound. | +1 202 555 0148 |
+| Appointment date, time and time zone | A confirmed calendar booking on this call. The date and time are shown in the appointment’s time zone and the message language. | 10:30 AM, Europe/Brussels |
+| A custom field such as quote link, directions or support reference | Declare the field under the agent’s **Variables**, or the published **Flow → Variables** for a workflow agent. Supply the value when starting an API call in `call_context`, in a campaign contact’s variables, or through the contact matched by inbound caller lookup. | A declared `support_reference` with the value `SUP-1048` |
+
+For example, a CRM starting an outbound call can pass `{"call_context":{"quote_link":"https://example.com/quotes/42"}}` after the agent declares `quote_link`. If the same directions apply to every customer, type the address directly in the message. A missing referenced value skips the message. Protected and keypad-only fields are unavailable for these messages. See [Call variables](/docs/call-variables#supply-the-values).
 
 ### What the caller experiences
 
