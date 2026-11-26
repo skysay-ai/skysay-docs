@@ -221,6 +221,14 @@ the same sentence `POST /v1/calls` would refuse with in `customer_reason`.
 The number's `allowed_agents` are not checked, because the preflight does not
 name an AI agent.
 
+The route and the tool read the same fields. Every top-level field you send
+is passed to the check, unless you send a `metadata` object, which is then
+passed as you sent it. So a workspace with calling rules gets its answer for
+the `project_id` and `external_reference` of the request, and an SMS check
+(`channel: "sms"`) that carries your own `campaign_id` label answers
+`needs_review` when the send itself would be held for its carrier
+registration check.
+
 It is a preflight, not a full admission: concurrency (the plan's and the
 number's `max_concurrent_calls`), maintenance windows and the wallet
 reservation are not checked. Spend caps are checked only against the
