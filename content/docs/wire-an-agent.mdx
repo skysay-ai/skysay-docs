@@ -1009,6 +1009,11 @@ application (for example an ARI `externalMedia` channel with
   playback commands with an error; the call ends with `ended_reason`
   `pbx_playback_refused`.
 - **Audio is μ-law at 8 kHz in 20 ms frames**, which is what `c(ulaw)` gives.
+- **One connection carries one call.** Your own client may leave
+  `channel_id` out of the events it sends, such as `MEDIA_MARK_PROCESSED`;
+  Skysay reads them as this call's. An event that names a different
+  `channel_id` than your `MEDIA_START` is ignored, so a mark it answers
+  counts as unanswered.
 
 Keep playback confirmation on: answer every playback mark, and do not use
 passthrough (`p`) or unbuffered mode (`u`). When your PBX does not confirm
