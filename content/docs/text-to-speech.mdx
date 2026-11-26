@@ -1,13 +1,14 @@
 ---
 title: Text to speech
-description: Turn up to 1,000 characters into a WAV with a managed Skysay voice, in the workspace or over the API, paid from your purchased balance.
+description: Turn up to 1,000 characters into a WAV with a managed Skysay voice, in the workspace or over the API, paid from your welcome credit or purchased balance.
 icon: VoiceSquare
 ---
 
 Turn text into a WAV file with a managed Skysay voice, without an agent or a
 call. Use the **Text to speech** screen in your workspace, or send one request
 to `POST /v1/text-to-speech`. Both are paid from your workspace's
-**purchased** balance; the welcome credit cannot pay for them.
+[welcome credit](/docs/billing#your-browser-testing-credit) first, then from
+its purchased balance.
 
 ## Generate in the workspace
 
@@ -24,7 +25,7 @@ lists only voices of the [models that support it](#models-and-languages).
    the price is cleared and you select **Get price** again.
 5. Select **Generate for …** to confirm. When the audio is ready you can play
    it, select **Download WAV**, or select **Generate another**. The panel shows
-   what was charged, for example "Charged $0.02 to your purchased balance."
+   what was charged, for example "Charged $0.02."
 
 For a Gemini voice the button reads **Generate for up to** a price, with
 "Maximum charge … You pay for actual usage." You are charged for what the
@@ -38,8 +39,9 @@ A walk-through, with made-up details:
 > Dental. We are closed on Friday 12 December. For urgent help, please call
 > 0161 555 0142." The counter shows 120 of 1000 characters. **Get price**
 > turns the button into **Generate for $0.02**. Sam selects it, but the
-> workspace has only its welcome credit, so the panel says "Your purchased
-> balance is too low." with a link to **Billing**. Sam tops up on Billing,
+> workspace has used up its welcome credit and has no purchased balance, so
+> the panel says "Your balance and welcome credit are too low." with a link
+> to **Billing**. Sam tops up on Billing,
 > comes back, picks the same voice and text and selects **Get price**. The
 > button reads **Check attempt**, because the refused attempt is still
 > remembered in this tab. Sam selects it, the button changes to
@@ -104,8 +106,8 @@ and the model's rate:
 
 ### How the charge works
 
-When you confirm, Skysay first holds the price from your purchased balance,
-then asks the provider for the audio:
+When you confirm, Skysay first holds the price from your welcome credit and
+purchased balance, then asks the provider for the audio:
 
 - **The audio is complete:** you are charged and any unused part of the hold
   is returned.
@@ -115,15 +117,26 @@ then asks the provider for the audio:
 
 A hold that is not settled within two minutes is returned automatically.
 
-### Purchased balance only
+### Welcome credit first, then purchased balance
 
-Text to speech uses **purchased** funds only. The
-[welcome credit](/docs/billing#your-browser-testing-credit) cannot pay for it.
+Text to speech uses the
+[welcome credit](/docs/billing#your-browser-testing-credit) first, the same
+way a browser test does, and your purchased balance for the rest. A failed or
+expired render returns its hold to where it came from.
 
-The price check does not look at your balance. A workspace with only welcome
-credit, or too little purchased balance, gets a price and is refused when it
-confirms: the panel says "Your purchased balance is too low." with a link to
-**Billing**. Add funds on Billing, come back, get a new price and confirm
+> Priya's workspace has $0.01 of welcome credit left and $10.00 purchased.
+> She generates a clip for $0.03. $0.01 comes from the welcome credit and
+> $0.02 from the purchased balance. Billing then shows no welcome credit and
+> $9.98 purchased.
+
+While your purchased balance is below zero, for example after a refund, the
+welcome credit cannot pay for a new generation. Settle the balance on
+**Billing** first.
+
+The price check does not look at your balance. A workspace whose welcome
+credit and purchased balance together cannot cover the price gets a price and
+is refused when it confirms: the panel says "Your balance and welcome credit
+are too low." with a link to **Billing**. Add funds on Billing, come back, get a new price and confirm
 again. A request your balance cannot hold is refused at once:
 [automatic recharge](/docs/billing#automatic-recharge) does not try your card
 for it, so top up first. For a Gemini voice, your balance must cover the
@@ -257,7 +270,7 @@ attempt ends.
 | --- | --- |
 | `400` | A field is missing or invalid, the project is not in your workspace, the model is not available for text to speech, the language is not available for that model, or the `Idempotency-Key` is missing or malformed. |
 | `401` | The API key is missing or invalid. |
-| `402` | Your purchased balance cannot cover the price: "Insufficient purchased wallet balance for synthesis." Add funds on **Billing**. |
+| `402` | Your welcome credit and purchased balance together cannot cover the price: "Insufficient wallet balance and welcome credit for synthesis." Add funds on **Billing**. |
 | `403` | The key was not granted `speech:write`. |
 | `409` | The `Idempotency-Key` was already used (see above), the voice does not speak that language, or the voice is no longer available (`speech_voice_unavailable`). |
 | `413` | The JSON body is larger than 16 KB. |
