@@ -4,7 +4,51 @@ description: Major Skysay releases, with links to the features and guides you ca
 icon: Journal
 ---
 
+## 26 November 2026
+
+### Professional yearly, and a Yearly | Monthly switch
+
+- The [pricing page](https://skysay.ai/pricing) and **Billing** show the plans **Yearly** or **Monthly**: a switch above the plans moves between the two, and it opens on **Yearly**.
+- Professional can now be bought yearly: $319.20 a month, billed $3,830.40 once a year, which saves $957.60. Paid monthly it stays $399 a month, with 150 calls a month either way.
+- **Get Starter yearly** (or monthly) and **Get Professional yearly** (or monthly) take you through sign-in to **Billing**, which opens on the side you chose; there choose **Choose yearly** or **Choose monthly** and pay through Stripe.
+- [Buy Starter or Professional](/docs/buy-a-plan#buy-starter) · [Choosing a plan](/docs/plans#choosing-a-plan)
+
+### Generated audio is kept for 30 days, and can be deleted
+
+- Clips on **Voices → Text to speech → Generated audio** are now kept for 30 days after they are generated, instead of 24 hours. Clips generated before this change keep the time they were given.
+- **Delete** on a clip's row removes it for everyone in the project at once; any member of the workspace can delete a clip, and the charge is not refunded.
+- [Generated audio](/docs/text-to-speech#generated-audio)
+
+### The outbound check reads the same fields over MCP and REST
+
+- `POST /v1/policies/authorize-outbound` and its MCP tool read the same fields: every top-level field you send is passed to the check, unless you send a `metadata` object, which is then passed as you sent it.
+- A workspace with calling rules gets its answer for the request's `project_id` and `external_reference`, and an SMS check that carries your own `campaign_id` answers `needs_review` when the send itself would be held for its carrier registration check.
+- [Check before you call](/docs/policy-and-outbound#check-before-you-call) · [Tool reference](/docs/tool-reference)
+
+### The tool reference follows the tools' own descriptions
+
+- The MCP tool reference now describes each tool in the same words as the tool itself, and has sections for call forwarding and for SIP connections.
+- [Tool reference](/docs/tool-reference)
+
+### A malformed price estimate answers 400
+
+- `POST /v1/pricing/estimate` now answers `400` with the field to fix, not `500`, when a number field holds a string or a negative value.
+- [API reference](/docs/api-reference)
+
 ## 25 November 2026
+
+### Text to speech in the workspace
+
+- Every member of a workspace can open **Voices → Text to speech**, type up to 1,000 characters, see the exact price with **Get price** and generate a WAV with a managed Skysay voice.
+- It is paid from your workspace's purchased balance; the welcome credit cannot pay for it.
+- `POST /v1/text-to-speech` does the same over the API, with a key that has been given `speech:write`.
+- [Generate in the workspace](/docs/text-to-speech#generate-in-the-workspace) · [Purchased balance only](/docs/text-to-speech#purchased-balance-only) · [Generate over the API](/docs/text-to-speech#generate-over-the-api)
+
+### Your workspace comes from signing in
+
+- On hosted Skysay your first sign-in creates your workspace, with you as its owner.
+- `POST /v1/organizations` without a key now answers `403`.
+- [Sign into your workspace](/docs/authentication#sign-into-your-workspace)
 
 ### Buy Professional on Billing
 
