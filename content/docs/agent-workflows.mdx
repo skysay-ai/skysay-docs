@@ -539,7 +539,7 @@ its own to edit, and nothing on the canvas or in the graph sets one.
 | **Receive caller speech** | **Voice → Transcriber** | Turns on the listener for the agent's spoken workflows. Turned off, the publish view shows **No voice input (text only)**: the workflow runs in Chat and Simulations but cannot make spoken calls. |
 | **Speech recognition model** | **Voice → Transcriber** | The listener, a model from the table in [Voice and turn-taking](#voice-and-turn-taking). |
 | **Caller languages** | **Voice → Transcriber** | Every language the workflow speaks, and every language the agent is set up to speak, must be in this list, and the model must accept each of them. The list offers every language Skysay lists for the model; the ones Skysay has tested with that model carry a **Tested by Skysay** badge. |
-| **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, in this workspace and project. |
+| **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, stored in any project of this workspace. |
 | **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
 | **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off. On the Standard engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
 
@@ -709,6 +709,53 @@ where it paused, so it is heard in full once and is not spoken again. The
 caller can answer as soon as it ends. Recognized words still cut the line off,
 as above. On GPT-Live, any caller sound long enough to interrupt still cuts the
 line off.
+
+### Delivery for a step's line
+
+An `ask`, `say` or `end` step can set `delivery` to one of the four
+[delivery profiles](/docs/delivery-profiles): `natural`, `lively`, `calm` or
+`precise`. It changes how that step's line is spoken, for that line only; the
+words stay exactly as you wrote them, and routing does not change. A step
+without `delivery` is spoken as workflow lines always are. For example, a
+payment reminder can say the amount due with `precise` and its hardship offer
+with `calm`:
+
+```json
+{
+  "id": "hardship_offer",
+  "type": "say",
+  "name": "Offer a payment plan",
+  "prompt": "If now is difficult, we can spread the amount over three months.",
+  "delivery": "calm",
+  "next": "ask_plan"
+}
+```
+
+Send the step in `workflow.steps` with `PATCH /v1/agents/{agent_id}/workflow`,
+then publish. In the editor, select the step and choose **Delivery**; **Usual
+delivery** removes it. Any other value is reported on the draft as
+`INVALID_STEP_DELIVERY`, and publishing is refused until it is corrected or
+cleared.
+
+Which voices apply it is the same table the agent's own delivery uses, read for
+the voice that speaks the line (with Follow Caller, each language's own voice):
+
+| Voice | What a step's delivery changes |
+| --- | --- |
+| ElevenLabs `eleven_flash_v2_5` | That request's voice settings: stability, similarity and speed. |
+| Gemini `gemini-3.8-flash-tts` and `gemini-3.8-flash-lite-tts` | A short style note sent beside the line, never as part of it. `natural` is the voice's own delivery. |
+| Soniox `tts-rt-v2` | That request's speaking rate. |
+| Fish Audio `s2-pro` and `s2.1-pro` | That request's speaking rate. `natural` is the voice's own delivery. |
+| Azure neural voices, GPT-Live 1.1 | Nothing yet: the line is spoken in the voice's usual delivery. |
+
+A step's delivery never stops a publish or a call. When the voice cannot apply
+it, the line is spoken in its usual delivery and the publish response's
+`warnings` include `STEP_DELIVERY_NOT_APPLIED`, naming the steps and the voice
+(`details.step_ids`, `details.provider`, `details.model`, and
+`details.language` when the agent follows the caller). The warning is in the
+API response to `POST /v1/agents/{agent_id}/workflow/publish`; the workflow
+editor does not show it yet. If you change the AI agent's voice later, calls
+keep working; publish the workflow again to see the warning for the new voice.
 
 ### When the caller isn't understood
 

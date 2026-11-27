@@ -4,7 +4,7 @@ description: Pay-as-you-go usage, a separate $5 browser-testing credit, and purc
 icon: CreditCard
 ---
 
-<Diagram name="call-funds-hold.svg" alt="A hosted call first holds its estimated cost from your funds, and holds another five minutes each time its funded time runs low; if no more time can be held the call ends as completed with funding_exhausted. When the call ends it is charged for its measured usage at its original prices and the unused part of the hold is returned; usage above the hold shows as payment due, and an ended call with no usage report after 24 hours has its hold returned without a charge, with one exception for workflow calls explained below. Browser tests do not renew; they keep their 180-second limit. Phone calls, numbers and SMS use purchased funds." />
+<Diagram name="call-funds-hold.svg" alt="A hosted call first holds its estimated cost from your funds, and holds another five minutes each time its funded time runs low; if no more time can be held the call ends as completed with funding_exhausted. When the call ends it is charged for its measured usage at its original prices and the unused part of the hold is returned; usage above the hold shows as payment due, and an ended call with no usage report after 24 hours has its hold returned without a charge, with one exception for workflow calls explained below. Browser tests do not renew; they keep their 180-second limit. Phone calls, numbers and SMS use purchased funds; an incoming call inside a plan's allowance holds nothing and its time renews without a hold." />
 
 ## Pay as you go
 
@@ -560,8 +560,11 @@ waiver of overrun charges or purchased-funds debt.
 
 A workspace on a plan (Starter, Professional or Scale) has a monthly allowance:
 minutes on Starter, calls on Professional and Scale. Each answered call counts
-once against the month it started in, on the terms your plan had when the
-call started.
+against the month it started in, on the terms your plan had when the call
+started: on Starter its billed minutes, rounded up; on Professional and Scale
+one call for up to 10 minutes of billed time, and one more for every further
+10 minutes it started, so a 27-minute call counts as 3 calls
+([How a long call counts](/docs/plans#how-a-long-call-counts)).
 
 - **Inside the allowance**, the AI agent's side of the call costs nothing:
   platform runtime, listening, the language model, the voice, the
@@ -573,18 +576,34 @@ call started.
   part of a call beyond the allowance: a 5-minute call with 2 minutes left is
   charged three fifths of its price. Professional and Scale charge their
   fixed price per extra call ($2.00 and $1.50) in place of the agent's side,
-  plus any outgoing carrier leg.
+  plus any outgoing carrier leg. A long call can be partly inside: a
+  27-minute call (3 calls) with 1 call left takes that call and is charged 2
+  extra calls, $4.00 on Professional and $3.00 on Scale.
 - One rented phone number is included, up to $10 a month of its price (see
   [Plans: one phone number included](/docs/plans#one-phone-number-included)).
   Other numbers, setup and registration fees, SMS and anything that is not an
   answered call are charged as on pay as you go. A call the platform ends because its agent produced
   nothing does not count; a call released without a charge still counts.
 
-Your balance still matters on a plan: every call needs a funded balance for
-its hold when it starts and while it runs, exactly as described above. The
-hold is returned at the end, in full when the call cost nothing. If a call
-costs more than its hold and your balance cannot cover the rest, the rest
-shows as **payment due**, as for any call.
+**An incoming call inside the allowance needs no balance.** When your plan
+has minutes or calls left as the call arrives, an incoming call to your AI
+agent (on your Skysay number, your own trunk or your PBX) is answered with no
+hold, even with an empty balance and automatic recharge off, and its funded
+time keeps renewing without a hold for as long as the call runs, up to the
+call's own maximum length. It is counted and charged at the end like any other
+call. Whether minutes or calls are left is checked when the call arrives:
+several calls arriving together on your last unit are all answered, and the
+ones beyond the allowance are charged as extras.
+
+Everything else needs a funded balance for its hold when it starts and while
+it runs, exactly as described above: outgoing calls, browser tests, phone
+backup and forwarding, and incoming calls once the month's allowance is used
+up. A hold is returned at the end, in full when the call cost nothing.
+
+When a call costs more than its hold (or than nothing, for an incoming call
+inside the allowance that goes past it) and your balance cannot cover the
+rest, the rest shows as **payment due**, as for any call. A later top-up does
+not collect it by itself.
 
 ## Where you see your plan
 
@@ -592,14 +611,17 @@ On a plan, **Billing → Plan & limits** shows:
 
 - the plan's name, where a workspace without a plan sees **Pay as you go**;
 - **Allowance**: the units used this month out of the allowance, for example
-  "212 of 300 minutes used", and the date the allowance resets. The month
-  starts on the day and time your plan started, in UTC, and resets every
-  month, also on a plan billed yearly;
+  "212 of 300 minutes used", or "3 of 150 calls used" after one 27-minute call
+  on Professional, and the date the allowance resets. The month starts on the
+  day and time your plan started, in UTC, and resets every month, also on a
+  plan billed yearly. The **?** beside **Plan & limits** says how your plan
+  counts a call;
 - **Extras this period**: what calls beyond the allowance were charged this
   month and actually paid. An amount still due is added once it is
   collected. The outgoing carrier leg is not an extra;
-- a reminder that the plan still needs a funded balance, because every call
-  places a hold when it starts.
+- a reminder that incoming calls inside the plan need no balance, while
+  outgoing calls hold an amount from it and calls beyond the allowance, phone
+  numbers and SMS are paid from it.
 
 These figures cover the whole workspace, whichever project is selected.
 
@@ -608,8 +630,9 @@ call's amounts:
 
 - **Covered by your plan**;
 - the part beyond the allowance and its charge, for example
-  "3 of 5 minutes beyond your allowance · $0.45" or
-  "1 call beyond your allowance · $2.00";
+  "3 of 5 minutes beyond your allowance · $0.45",
+  "1 call beyond your allowance · $2.00" or, for a 27-minute call with 1 call
+  left, "2 of 3 calls beyond your allowance · $4.00";
 - **Outbound carrier leg, not covered by plans**, with its charge;
 - **pending** while the call's usage is not final yet. A call is never shown
   as covered before its decision is made.
