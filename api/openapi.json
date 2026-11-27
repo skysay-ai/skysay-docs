@@ -6204,13 +6204,9 @@
         "type": "object"
       },
       "PhoneServer": {
+        "additionalProperties": false,
+        "description": "A new phone server reads not_tested. Any other field is refused.",
         "properties": {
-          "allowed_sip_ips": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
           "auth_mode": {
             "enum": [
               "ip_allowlist",
@@ -6219,18 +6215,11 @@
             ],
             "type": "string"
           },
-          "metadata": {
-            "type": "object"
-          },
           "name": {
             "description": "Customer-facing label, e.g. My phone server.",
             "type": "string"
           },
           "organization_id": {
-            "type": "string"
-          },
-          "password_reference": {
-            "description": "Reference to an external secret; plaintext passwords are not returned.",
             "type": "string"
           },
           "port": {
@@ -6260,6 +6249,41 @@
           "organization_id",
           "server_address"
         ],
+        "type": "object"
+      },
+      "PhoneServerUpdate": {
+        "additionalProperties": false,
+        "description": "Any change resets verification_status to not_tested. Any other field is refused.",
+        "properties": {
+          "auth_mode": {
+            "enum": [
+              "ip_allowlist",
+              "sip_credentials",
+              "ip_allowlist_and_credentials"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "server_address": {
+            "type": "string"
+          },
+          "transport": {
+            "enum": [
+              "udp",
+              "tcp",
+              "tls"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "PostCallAnalysis": {
@@ -20040,36 +20064,22 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneServerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Phone server"
           }
         },
         "summary": "Update one customer phone server",
-        "tags": [
-          "Self-hosting"
-        ]
-      }
-    },
-    "/v1/phone-servers/{phone_server_id}/test": {
-      "post": {
-        "operationId": "testPhoneServer",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "phone_server_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Verified phone server"
-          }
-        },
-        "summary": "Dry-run verify a customer phone server before assigning Number rules",
         "tags": [
           "Self-hosting"
         ]
