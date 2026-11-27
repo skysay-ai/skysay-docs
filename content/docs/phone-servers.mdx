@@ -1,20 +1,21 @@
 ---
 title: Test your phone system
-description: Add your own phone system (PBX) as a phone server and prove the connection with a test call that rings a phone and asks for a code.
+description: Add your own phone system (PBX) as a phone server and prove the connection with a test call that speaks a six-digit code to enter in the workspace.
 icon: Server
 ---
 
 A phone server is your own phone system, such as a 3CX, FreePBX, Asterisk or
 hosted PBX, that Skysay calls over SIP. You add it once, then prove the
-connection with a test call: Skysay rings an extension you name, shows you a
-code, and the person who answers types it on the keypad. When the code
-matches, the server reads **Verified**.
+connection with a test call: Skysay calls an extension you name, speaks a
+six-digit code twice once answered, and hangs up. You enter that code in the
+workspace within 5 minutes, and a match makes the server **Verified**.
 
-Verified means the connection works: Skysay reached a phone on your phone
-system. Skysay does not send a number's calls to a phone server yet, so the
-rule **Send the call to my phone server** cannot be saved, verified or not.
+Verified means the call reached a phone on that phone system and the person
+who answered passed the code on. Skysay does not send a number's calls to a
+phone server yet, so the rule **Send the call to my phone server** cannot be
+saved, verified or not.
 
-<Diagram name="phone-server-test-call.svg" alt="A phone server test call: you enter an extension in Settings and see a code once; Skysay calls that extension on your phone system, showing your Skysay number and playing nothing; your desk phone rings for up to 40 seconds, you answer and type the eight digits; Skysay listens on that call only and compares the digits with the code. A match makes the server verified. A refused, busy or unanswered call, or an answer by a menu or voicemail, leaves it not verified." />
+<Diagram name="phone-server-test-call.svg" alt="A phone server test call: you enter an extension in Settings and select Test call; Skysay calls that extension on your phone system showing your Skysay number and says nothing before answer; when answered within 40 seconds, Skysay speaks a six-digit code twice in the workspace's language and hangs up; you enter that code in Settings within 5 minutes with at most three wrong tries. A match makes the server verified; unanswered, ended early, three wrong codes or 5 minutes passed leave it not verified." />
 
 ## Add your phone system
 
@@ -44,57 +45,72 @@ to test.
 
 1. Under **Ring a phone**, enter the extension of a phone (3 to 20 digits),
    not a menu or voicemail.
-2. Select **Test call**. The workspace shows an eight-digit code, once.
-3. The phone rings for up to 40 seconds and shows your Skysay number. Answer
-   it and type the code on the keypad.
-4. The workspace reads **Verified** as soon as the digits match.
+2. Select **Test call**. The workspace never shows the code.
+3. Skysay calls that extension through the server's own connection, showing
+   the server's Skysay number, and rings for up to 40 seconds. Nothing is
+   said before the call is answered.
+4. Answer the phone and stay on the line: Skysay says a short message with a
+   six-digit code twice in the workspace's language (`en`, `et`, `de`, `es`,
+   `fr`, `ru`, `it`, or `ar`), then hangs up.
+5. Under step 3, **Answer the call and enter the code you hear**, enter the
+   six digits within 5 minutes (at most 3 wrong tries) and select
+   **Verify code**. When the code matches, the server reads **Verified**.
 
-Skysay plays nothing into the call. The code counts only when it arrives on
-the test call itself, as keypad presses sent as signalling (RFC 2833) or as
-tones in the audio; a code typed into the workspace or sent in a request does
-not count.
+If three wrong codes are entered, or 5 minutes pass without a match, the test
+ends and you start a new test call.
 
-> Lena adds pbx.acme.example, port 5060, UDP, login acme-in and its password,
-> and picks +1 555 0100. She allows calls from Skysay's address on her
-> phone system, enters extension 204 and selects **Test call**. The
-> workspace shows 4815 9203. Her desk phone rings, showing +1 555 0100;
-> she answers and types the eight digits. The workspace reads "Acme office
-> PBX: verified."
+> Lena adds `198.51.100.7`, port `5060`, UDP, login `acme-in` and its
+> password, and picks `+1 555 0100`. She allows calls from Skysay's addresses
+> on her phone system, enters extension `204` and selects **Test call**. The
+> workspace reads "Ringing the extension…" and shows no code. Her desk phone
+> rings, showing `+1 555 0100`. She answers and hears Skysay's message say
+> `481592` twice, then the call hangs up. Under **Answer the call and enter
+> the code you hear**, she enters `481592` and selects **Verify code**. The
+> workspace reads "Acme office PBX: verified."
 
 Right after you add a phone server, or when it was added more than a day ago
 and is not verified, the first test call can answer "We are preparing the
 connection to your phone system. Try again in a minute." Skysay's network
 then admits your phone system's address; try again a minute later.
 
-One test call runs at a time per phone server, and each phone server gets at
-most three an hour.
+One test call runs at a time per phone server, and at most three test calls
+run an hour per phone server and per phone system IP address.
 
 ## When a test fails
 
-| The workspace says | What happened | What to do |
-| --- | --- | --- |
-| The phone system did not put the call through | It refused the call, the extension does not exist, it was busy, or nobody answered within 40 seconds | Allow Skysay's address, check the extension, try again |
-| We did not hear the code. A menu or voicemail answered | The call was answered, but no matching code came back | Enter an extension that rings a phone, then type the code while the call is up |
-| Skysay could not place the test call | Skysay's side failed before it dialled | Try again in a minute |
-| The test call ended without a result | The test ran out of time without an answer from Skysay's side | Try again |
-| The phone server changed during the test | You saved a change while the call was running | Test it again |
+| The workspace says | API status and reason | What happened | What to do |
+| --- | --- | --- | --- |
+| Nobody answered the call | `failed` · `not_answered` | The phone system refused the call, the extension does not exist, it was busy, or nobody answered within 40 seconds | Allow Skysay's addresses, check the extension, and try again |
+| The call ended before the code was said | `failed` · `not_played` | The call was answered, but hung up before the code finished playing | Start a new test call, answer a phone, and stay on the line until the call hangs up |
+| Skysay could not place the test call | `failed` · `call_not_placed` | Skysay's side failed before it dialled | Try again in a minute |
+| The test call ended without a result | `failed` · `call_not_completed` | The test ran out of time without a final result from Skysay's side | Try again |
+| The phone server changed during the test | `failed` · `server_changed` | You saved a change while the test was running or waiting for the code | Test it again |
+| Three wrong codes were entered | `failed` · `wrong_code` | Three wrong six-digit codes were entered while the test was waiting for the code | Start a new test call |
+| A newer test call replaced this one | `failed` · `superseded` | A newer test call started for this phone server while this one was waiting for its code | Use the code from the newer test call instead |
+| The 5 minutes passed | `expired` · `code_not_entered` | Five minutes passed after the code was spoken without a matching code being entered | Start a new test call |
 
-> A menu answers: Lena enters extension 100, her main menu. It says "press 1
-> for sales" and takes the digits. The workspace: "We did not hear the code.
-> A menu or voicemail answered. Enter an extension that rings a phone, then
-> try again."
+> Hung up early: Lena answers extension `204`, hears the start of the
+> message, and hangs up before Skysay finishes speaking the code twice. The
+> workspace reads "The call ended before the code was said. Try again and
+> stay on the line."
 
-> Someone else's phone system: Max adds pbx.acme.example in his own workspace
-> and starts a test call. Acme's phone system does not know Max's number and
-> refuses the call. No phone of Max's rings, so he cannot type the code, and
-> his phone server stays **Not verified**.
+> Someone else's phone system: Max adds `198.51.100.7` in his own workspace
+> and starts a test call. The workspace shows him nothing and he hears
+> nothing. If Acme's phone system lets the call ring a desk phone, Skysay's
+> message says what the code is for and to hang up if they did not start the
+> test. Nobody passes the code on to Max, so his phone server stays
+> **Not verified**.
 
 ## What verified does and does not prove
 
-Verified means Skysay's test call reached your phone system and the code came
-back on that call. Skysay does not yet reject media sent to the test call from
-another address, so a test is not proof against someone who sends keypad
-tones to Skysay's side of the call from elsewhere.
+Verified means Skysay's test call reached a phone on that phone system, and
+the person who answered passed the code on to whoever entered it.
+
+It does not prove you administer the whole phone system: an extension that
+forwards outside, or a voicemail box someone else can open, can pass the
+code on too. Someone who adds another company's phone system and starts a
+test is shown nothing and hears nothing, and sending keypad tones or audio to
+Skysay's media ports changes nothing.
 
 What a verified phone server does today:
 
@@ -125,6 +141,11 @@ Changing only its name keeps it verified.
 - A phone server saved before IP addresses were required keeps its old text
   and asks for the IP address; it cannot be tested until you enter one.
 - A workspace can have up to 20 phone servers.
+- At most three test calls an hour to the same phone system IP address,
+  whichever workspace or phone server record starts them, alongside one
+  running test call at a time and three an hour per phone server.
+- Each test call rings for up to 40 seconds; once the code is spoken, you
+  have 5 minutes and at most 3 wrong tries to enter it.
 
 ## Over the API and MCP
 
@@ -133,14 +154,25 @@ Changing only its name keeps it verified.
 | Add | `POST /v1/phone-servers` | `create_phone_server` |
 | List | `GET /v1/phone-servers` | `list_phone_servers` |
 | Change | `PATCH /v1/phone-servers/{phone_server_id}` | — |
-| Test | `POST /v1/phone-servers/{phone_server_id}/test-calls` with `{"extension": "204"}` | `start_phone_server_test_call` |
+| Start a test call | `POST /v1/phone-servers/{phone_server_id}/test-calls` with `{"extension": "204"}` and optional `language` (`en`, `et`, `de`, `es`, `fr`, `ru`, `it`, or `ar`) | `start_phone_server_test_call` |
 | Read the test | `GET /v1/phone-servers/{phone_server_id}/test-calls/{test_call_id}` | `get_phone_server_test_call` |
+| Enter the code | `POST /v1/phone-servers/{phone_server_id}/test-calls/{test_call_id}/code` with `{"code": "123456"}` | `enter_phone_server_test_call_code` |
 
 Create and change take only the server's own fields: `name`,
 `server_address`, `port`, `transport`, `username`, `password` and
 `phone_number_id`. Anything else, such as a status, is refused with `400`.
 The record shows `password_set`, never the password, and `allow_calls_from`,
-the addresses to allow. Starting a test call returns the test and its `code`;
-reading it never returns the code. Adding and changing needs `numbers:write`,
-reading needs `numbers:read`. See the [API reference](/docs/api-reference)
-for the exact shapes.
+the addresses to allow.
+
+Starting or reading a test call never returns the code. Test status moves
+from `calling` to `awaiting_code` (with `tries_left` and `code_expires_at`),
+then `verified`, `failed` (with its `reason`), or `expired`
+(`code_not_entered`). Entering the code answers with the test and the
+server's verification state; a wrong code answers `400`
+`phone_server_code_wrong` with `tries_left`, entering too early answers `409`
+`phone_server_test_not_ready`, and entering after 5 minutes answers `409`
+`phone_server_code_expired`.
+
+Reading needs `numbers:read`; adding, changing, testing and entering the code
+need `numbers:write`. See the [API reference](/docs/api-reference) for the
+exact shapes.
