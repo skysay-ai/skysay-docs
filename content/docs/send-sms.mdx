@@ -10,6 +10,47 @@ agent can follow a thread without ever being able to send.
 
 <Diagram name="sms-paths.svg" alt="Sending: your app or AI client confirms the recipient, sender and text with a person, then Skysay checks the send like a call (the number, suspensions, destination countries) and passes it to the carrier, then reports its status and delivery events. A voice-only number, or one on a carrier Skysay doesn't send SMS through, is refused with a 400 before anything is stored or charged; while SMS sending is not switched on a message is kept as live_blocked, never queued. Receiving: a text to your number lands in your SMS inbox and goes to your sms.received webhook; AI agents do not answer texts on their own." />
 
+## Give an AI agent a message to send
+
+Open the AI agent, choose **Tools → Send SMS**, open **AI agent messages**, and select **Add message**. Give the message a name the team will recognize, such as **Office directions**, and write the text the caller should receive. One AI agent can have several saved messages.
+
+Under **Offer this SMS when**, select one or more triggers. Any one can qualify the message. If two match, the agent offers the saved message once on that call. A decline ends that offer. Choose **Timing** to set when the text goes out once the caller has agreed. For example, a receptionist can send directions while the caller is still on the line, or a support agent can send a case reference when the call ends. You can also delay delivery after the call. To use a message in Flow, choose **Flow reaches this action** as one of its triggers. In the Flow editor, add an **Action**, choose **Send SMS**, and select that message by name. Publish the Flow when you want live calls to use it.
+
+| Start with | Example use |
+| --- | --- |
+| Blank message | Write a follow-up in your own words. |
+| Directions | Send the visitor your address and the entrance to use. |
+| Support reference | Share the caller’s case number from a trusted call field. |
+| Quote follow-up | Send a link to the caller’s issued quote when that link is available to the AI agent. |
+| Appointment confirmation | Send the date and time from a successful calendar booking. |
+
+Open the **?** beside a field to see its source and an example. The examples illustrate the format. Live messages use the value for the caller.
+
+| Message field | Where the value comes from | Example |
+| --- | --- | --- |
+| Business name | The organization name saved for this workspace. | Harbour Workshop |
+| Callback number | The business number the caller dialed inbound, or the number the agent called from outbound. | +1 202 555 0148 |
+| Appointment date, time and time zone | A confirmed calendar booking on this call. The date and time are shown in the appointment’s time zone and the message language. | 10:30 AM, Europe/Brussels |
+| A custom field such as quote link, directions or support reference | Declare the field under the agent’s **Variables**, or the published **Flow → Variables** for a workflow agent. Supply the value when starting an API call in `call_context`, in a campaign contact’s variables, or through the contact matched by inbound caller lookup. | A declared `support_reference` with the value `SUP-1048` |
+
+For example, a CRM starting an outbound call can pass `{"call_context":{"quote_link":"https://example.com/quotes/42"}}` after the agent declares `quote_link`. If the same directions apply to every customer, type the address directly in the message. A missing referenced value skips the message. Protected and keypad-only fields are unavailable for these messages. See [Call variables](/docs/call-variables#supply-the-values).
+
+### What the caller experiences
+
+The AI agent offers to text the caller and asks for agreement to the specific message and number. For example, the AI agent might say, “Would you like me to text the office address to the number you’re calling from?” Agreeing to a booking or asking for a quote does not by itself authorize a text. A caller can decline and continue the conversation.
+
+The AI agent offers a saved message only on a call where the workspace has an eligible sender for the caller’s country; on any other call it does not offer the text, and a Flow’s **Send SMS** action follows its error path.
+
+### Check the sender and delivery
+
+Open **SMS → AI agent messages** to find the messages and their owning AI agents. Use **Preview sender** with the recipient’s international mobile number and your text to check the available sender, SMS segments and estimated charge. The voice number and SMS sender can differ. Some networks change the sender displayed on the phone.
+
+US delivery requires an approved numeric route, such as a registered local number, verified toll-free number or approved short code. Skysay skips a text when the workspace has no eligible sender or when the recipient has opted out. Activity shows submission and carrier-reported delivery separately.
+
+Skysay sets up the sender for each workspace and destination country. Until yours is set up, **Preview sender** answers “No eligible sender is available for this destination.” and the AI agent does not offer the message. Contact Skysay support to ask for a sender.
+
+For a message used in a live Flow, keep the text short enough to read aloud with the recipient’s number and the consent question. If the complete read-back is too long for one spoken turn, the Flow follows its error path and skips the send.
+
 ## Send your first approved SMS
 
 Start with an active number whose carrier connection actually supports outgoing
