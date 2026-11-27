@@ -21,8 +21,9 @@ rule **Send the call to my phone server** cannot be saved, verified or not.
 1. Open **Settings**, select **Show infrastructure settings**, and go to
    **Phone servers**.
 2. Select **Add phone server** and fill in:
-   - **Host**: a public host name or IPv4 address, such as `pbx.example.com`.
-     A private or local address is refused.
+   - **IP address**: the public IPv4 address of your phone system, such as
+     `198.51.100.7`. A domain name is not accepted, and a private, reserved
+     or carrier address is refused.
    - **Port**: `5060`, or a port from 1024 to 65535.
    - **Transport**: UDP or TCP. TLS is not supported.
    - **SIP login** and **Password**, only if your phone system asks Skysay to
@@ -110,13 +111,20 @@ A verified phone server holds for the address its test call reached and for
 its settings at the time. It reads **Not verified** again, and needs a new
 test call, when:
 
-- you change its host, port, transport, SIP login, password or number;
-- its host name now resolves to a different address (checked when you save,
-  and when you start a test call);
+- you change its IP address, port, transport, SIP login, password or number;
 - its Skysay number is released: the server then reads **Pick a number** until
   you choose another one.
 
 Changing only its name keeps it verified.
+
+## Limits
+
+- A phone server is reached at an IP address only. A phone system that needs
+  its domain name in the request (some hosted systems that serve many
+  customers on one address) is not supported yet.
+- A phone server saved before IP addresses were required keeps its old text
+  and asks for the IP address; it cannot be tested until you enter one.
+- A workspace can have up to 20 phone servers.
 
 ## Over the API and MCP
 
