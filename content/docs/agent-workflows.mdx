@@ -710,6 +710,53 @@ caller can answer as soon as it ends. Recognized words still cut the line off,
 as above. On GPT-Live, any caller sound long enough to interrupt still cuts the
 line off.
 
+### Delivery for a step's line
+
+An `ask`, `say` or `end` step can set `delivery` to one of the four
+[delivery profiles](/docs/delivery-profiles): `natural`, `lively`, `calm` or
+`precise`. It changes how that step's line is spoken, for that line only; the
+words stay exactly as you wrote them, and routing does not change. A step
+without `delivery` is spoken as workflow lines always are. For example, a
+payment reminder can say the amount due with `precise` and its hardship offer
+with `calm`:
+
+```json
+{
+  "id": "hardship_offer",
+  "type": "say",
+  "name": "Offer a payment plan",
+  "prompt": "If now is difficult, we can spread the amount over three months.",
+  "delivery": "calm",
+  "next": "ask_plan"
+}
+```
+
+Send the step in `workflow.steps` with `PATCH /v1/agents/{agent_id}/workflow`,
+then publish. In the editor, select the step and choose **Delivery**; **Usual
+delivery** removes it. Any other value is reported on the draft as
+`INVALID_STEP_DELIVERY`, and publishing is refused until it is corrected or
+cleared.
+
+Which voices apply it is the same table the agent's own delivery uses, read for
+the voice that speaks the line (with Follow Caller, each language's own voice):
+
+| Voice | What a step's delivery changes |
+| --- | --- |
+| ElevenLabs `eleven_flash_v2_5` | That request's voice settings: stability, similarity and speed. |
+| Gemini `gemini-3.8-flash-tts` and `gemini-3.8-flash-lite-tts` | A short style note sent beside the line, never as part of it. `natural` is the voice's own delivery. |
+| Soniox `tts-rt-v2` | That request's speaking rate. |
+| Fish Audio `s2-pro` and `s2.1-pro` | That request's speaking rate. `natural` is the voice's own delivery. |
+| Azure neural voices, GPT-Live 1.1 | Nothing yet: the line is spoken in the voice's usual delivery. |
+
+A step's delivery never stops a publish or a call. When the voice cannot apply
+it, the line is spoken in its usual delivery and the publish response's
+`warnings` include `STEP_DELIVERY_NOT_APPLIED`, naming the steps and the voice
+(`details.step_ids`, `details.provider`, `details.model`, and
+`details.language` when the agent follows the caller). The warning is in the
+API response to `POST /v1/agents/{agent_id}/workflow/publish`; the workflow
+editor does not show it yet. If you change the AI agent's voice later, calls
+keep working; publish the workflow again to see the warning for the new voice.
+
 ### When the caller isn't understood
 
 Sometimes the caller answers a question, but the workflow's listener recognises

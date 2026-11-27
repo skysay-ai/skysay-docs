@@ -8124,7 +8124,7 @@
             "type": "string"
           },
           "delivery": {
-            "description": "Optional delivery profile, the same value an agent stores in `voice_polish.delivery`. The preview applies exactly the provider settings a call with that profile would use; for a provider/model without a truthful control (Fish Audio, Azure) the audio is unchanged and the response reports `delivery_applied: false`. Text-to-speech only: GPT-Live 1.1 and Gemini Live ignore a valid profile, and Eleven Realtime refuses one with 400 voice_preview_unsupported.",
+            "description": "Optional delivery profile, the same value an agent stores in `voice_polish.delivery`. The preview applies exactly the provider settings a call with that profile would use; for a provider/model without a truthful control (Azure neural), or a profile that is the voice's own delivery (`natural` on Gemini 3.8 and Fish Audio), the audio is the unset request's and the response reports `delivery_applied: false`. Text-to-speech only: GPT-Live 1.1 and Gemini Live ignore a valid profile, and Eleven Realtime refuses one with 400 voice_preview_unsupported.",
             "enum": [
               "natural",
               "lively",
@@ -11843,6 +11843,16 @@
                             },
                             {
                               "properties": {
+                                "delivery": {
+                                  "description": "Optional on ask, say and end steps: how this step's line is spoken, overriding the agent's delivery for it. Applied where the voice has a control for it; any other voice speaks the line in its usual delivery and publishing warns. Omit for the usual delivery.",
+                                  "enum": [
+                                    "natural",
+                                    "lively",
+                                    "calm",
+                                    "precise"
+                                  ],
+                                  "type": "string"
+                                },
                                 "type": {
                                   "enum": [
                                     "ask",
