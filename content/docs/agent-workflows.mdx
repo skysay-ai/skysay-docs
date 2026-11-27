@@ -541,7 +541,7 @@ its own to edit, and nothing on the canvas or in the graph sets one.
 | **Caller languages** | **Voice → Transcriber** | Every language the workflow speaks, and every language the agent is set up to speak, must be in this list, and the model must accept each of them. The list offers every language Skysay lists for the model; the ones Skysay has tested with that model carry a **Tested by Skysay** badge. |
 | **Credential source** | **Voice → Transcriber** | **Skysay managed**, or **Your provider key**: an active speech-to-text key for the same provider, stored in any project of this workspace. |
 | **Additional silence (ms)** | **Tuning → Turn-taking** | How long to wait after the caller stops speaking before their turn is submitted: 300 to 3000 for a workflow. |
-| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off. On the Standard engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
+| **Minimum interruption speech (ms)** | **Tuning → Turn-taking** | How much caller sound it takes to stop a line being spoken: 0 to 1000 for a workflow. Shorter noise is ignored, and recognized words always cut the line off, except the [closing line](#the-closing-line-is-said-in-full). On the Standard engine, a longer sound first pauses the line; if the caller said no words (a cough or an "um"), the line continues from where it paused. |
 
 A published workflow keeps hearing callers through that setup. Publishing
 freezes a copy of the saved listener and timing into the version, so each
@@ -710,6 +710,22 @@ caller can answer as soon as it ends. Recognized words still cut the line off,
 as above. On GPT-Live, any caller sound long enough to interrupt still cuts the
 line off.
 
+### The closing line is said in full
+
+Once the workflow has ended, the agent says its closing line straight away and
+in full: the end step's farewell, or the goodbye line after a failed run (see
+[When a workflow run fails](#when-a-workflow-run-fails)). The caller cannot
+interrupt it. Words, a cough or a "hello?" do not cut it off or pause it, even
+when the caller is still talking as the workflow ends, and this is the same on
+every engine. When it has been said, the call ends as usual. On a call where
+[phone menu navigation](/docs/phone-menu-navigation) has the agent in a menu or
+waiting on hold, the closing line is said when that ends.
+
+Speech that starts after the workflow has ended is kept in the call recording,
+but it is not transcribed and nothing answers it. A caller who hangs
+up while the closing line plays still ends the call, with `ended_reason`
+`remote_party_disconnected`.
+
 ### Delivery for a step's line
 
 An `ask`, `say` or `end` step can set `delivery` to one of the four
@@ -806,8 +822,8 @@ happens, the run's `workflow.status` is `failed` and its `fail_reason` names
 the cause, for example `UNHEARD_REPEATS_EXHAUSTED`, `NO_WORDS_EXHAUSTED`,
 `MAX_VISITS_EXHAUSTED`, `MAX_TURNS_EXHAUSTED` or `TURN_TIMEOUT`.
 
-The agent then says the workflow's goodbye line once, in the call's language,
-and ends the call. The line is *"Sorry, I'm having trouble continuing this
+The agent then says the workflow's goodbye line once, in full, in the call's
+language, and ends the call. The line is *"Sorry, I'm having trouble continuing this
 call. Goodbye."*. It is rendered into each published language when you publish,
 like the apology above, and it is the only thing said after the failure: a line
 the failed turn would otherwise have said is not spoken. A run stopped by a
