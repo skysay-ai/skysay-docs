@@ -1,0 +1,146 @@
+---
+title: Test your phone system
+description: Add your own phone system (PBX) as a phone server and prove the connection with a test call that rings a phone and asks for a code.
+icon: Server
+---
+
+A phone server is your own phone system, such as a 3CX, FreePBX, Asterisk or
+hosted PBX, that Skysay calls over SIP. You add it once, then prove the
+connection with a test call: Skysay rings an extension you name, shows you a
+code, and the person who answers types it on the keypad. When the code
+matches, the server reads **Verified**.
+
+Verified means the connection works: Skysay reached a phone on your phone
+system. Skysay does not send a number's calls to a phone server yet, so the
+rule **Send the call to my phone server** cannot be saved, verified or not.
+
+<Diagram name="phone-server-test-call.svg" alt="A phone server test call: you enter an extension in Settings and see a code once; Skysay calls that extension on your phone system, showing your Skysay number and playing nothing; your desk phone rings for up to 40 seconds, you answer and type the eight digits; Skysay listens on that call only and compares the digits with the code. A match makes the server verified. A refused, busy or unanswered call, or an answer by a menu or voicemail, leaves it not verified." />
+
+## Add your phone system
+
+1. Open **Settings**, select **Show infrastructure settings**, and go to
+   **Phone servers**.
+2. Select **Add phone server** and fill in:
+   - **IP address**: the public IPv4 address of your phone system, such as
+     `198.51.100.7`. A domain name is not accepted, and a private, reserved
+     or carrier address is refused.
+   - **Port**: `5060`, or a port from 1024 to 65535.
+   - **Transport**: UDP or TCP. TLS is not supported.
+   - **SIP login** and **Password**, only if your phone system asks Skysay to
+     log in. The password is stored sealed and never shown again; leave it
+     empty on an edit to keep it.
+   - **Number your phone system sees**: one of your active Skysay numbers.
+     Every call Skysay makes to this phone system shows it.
+3. Select **Add phone server**.
+
+## Allow Skysay's calls
+
+Each phone server shows the addresses Skysay's calls come from, under
+**Allow our calls**. Allow them on your phone system, and route the number
+Skysay shows (or every caller from those addresses) to the extension you want
+to test.
+
+## Run the test call
+
+1. Under **Ring a phone**, enter the extension of a phone (3 to 20 digits),
+   not a menu or voicemail.
+2. Select **Test call**. The workspace shows an eight-digit code, once.
+3. The phone rings for up to 40 seconds and shows your Skysay number. Answer
+   it and type the code on the keypad.
+4. The workspace reads **Verified** as soon as the digits match.
+
+Skysay plays nothing into the call. The code counts only when it arrives on
+the test call itself, as keypad presses sent as signalling (RFC 2833) or as
+tones in the audio; a code typed into the workspace or sent in a request does
+not count.
+
+> Lena adds pbx.acme.example, port 5060, UDP, login acme-in and its password,
+> and picks +1 555 0100. She allows calls from Skysay's address on her
+> phone system, enters extension 204 and selects **Test call**. The
+> workspace shows 4815 9203. Her desk phone rings, showing +1 555 0100;
+> she answers and types the eight digits. The workspace reads "Acme office
+> PBX: verified."
+
+Right after you add a phone server, or when it was added more than a day ago
+and is not verified, the first test call can answer "We are preparing the
+connection to your phone system. Try again in a minute." Skysay's network
+then admits your phone system's address; try again a minute later.
+
+One test call runs at a time per phone server, and each phone server gets at
+most three an hour.
+
+## When a test fails
+
+| The workspace says | What happened | What to do |
+| --- | --- | --- |
+| The phone system did not put the call through | It refused the call, the extension does not exist, it was busy, or nobody answered within 40 seconds | Allow Skysay's address, check the extension, try again |
+| We did not hear the code. A menu or voicemail answered | The call was answered, but no matching code came back | Enter an extension that rings a phone, then type the code while the call is up |
+| Skysay could not place the test call | Skysay's side failed before it dialled | Try again in a minute |
+| The test call ended without a result | The test ran out of time without an answer from Skysay's side | Try again |
+| The phone server changed during the test | You saved a change while the call was running | Test it again |
+
+> A menu answers: Lena enters extension 100, her main menu. It says "press 1
+> for sales" and takes the digits. The workspace: "We did not hear the code.
+> A menu or voicemail answered. Enter an extension that rings a phone, then
+> try again."
+
+> Someone else's phone system: Max adds pbx.acme.example in his own workspace
+> and starts a test call. Acme's phone system does not know Max's number and
+> refuses the call. No phone of Max's rings, so he cannot type the code, and
+> his phone server stays **Not verified**.
+
+## What verified does and does not prove
+
+Verified means Skysay's test call reached your phone system and the code came
+back on that call. Skysay does not yet reject media sent to the test call from
+another address, so a test is not proof against someone who sends keypad
+tones to Skysay's side of the call from elsewhere.
+
+What a verified phone server does today:
+
+- Skysay sends it no calls. The rule **Send the call to my phone server** is
+  refused in the workspace, the API and MCP, verified or not.
+- On Numbers, a verified server is offered for that rule, and saving the rule
+  still fails.
+- Skysay's voice host keeps accepting calls from the server's address while
+  the server is verified, not only in the window after you save it.
+
+## When a server stops being verified
+
+A verified phone server holds for the address its test call reached and for
+its settings at the time. It reads **Not verified** again, and needs a new
+test call, when:
+
+- you change its IP address, port, transport, SIP login, password or number;
+- its Skysay number is released: the server then reads **Pick a number** until
+  you choose another one.
+
+Changing only its name keeps it verified.
+
+## Limits
+
+- A phone server is reached at an IP address only. A phone system that needs
+  its domain name in the request (some hosted systems that serve many
+  customers on one address) is not supported yet.
+- A phone server saved before IP addresses were required keeps its old text
+  and asks for the IP address; it cannot be tested until you enter one.
+- A workspace can have up to 20 phone servers.
+
+## Over the API and MCP
+
+| Step | REST | MCP tool |
+| --- | --- | --- |
+| Add | `POST /v1/phone-servers` | `create_phone_server` |
+| List | `GET /v1/phone-servers` | `list_phone_servers` |
+| Change | `PATCH /v1/phone-servers/{phone_server_id}` | — |
+| Test | `POST /v1/phone-servers/{phone_server_id}/test-calls` with `{"extension": "204"}` | `start_phone_server_test_call` |
+| Read the test | `GET /v1/phone-servers/{phone_server_id}/test-calls/{test_call_id}` | `get_phone_server_test_call` |
+
+Create and change take only the server's own fields: `name`,
+`server_address`, `port`, `transport`, `username`, `password` and
+`phone_number_id`. Anything else, such as a status, is refused with `400`.
+The record shows `password_set`, never the password, and `allow_calls_from`,
+the addresses to allow. Starting a test call returns the test and its `code`;
+reading it never returns the code. Adding and changing needs `numbers:write`,
+reading needs `numbers:read`. See the [API reference](/docs/api-reference)
+for the exact shapes.

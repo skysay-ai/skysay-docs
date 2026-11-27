@@ -6205,82 +6205,135 @@
       },
       "PhoneServer": {
         "additionalProperties": false,
-        "description": "A new phone server reads not_tested. Any other field is refused.",
+        "description": "A new phone server reads not_tested until a test call passes. Any other field is refused.",
         "properties": {
-          "auth_mode": {
-            "enum": [
-              "ip_allowlist",
-              "sip_credentials",
-              "ip_allowlist_and_credentials"
-            ],
-            "type": "string"
-          },
           "name": {
-            "description": "Customer-facing label, e.g. My phone server.",
+            "description": "Customer-facing label, e.g. Office phone system.",
+            "maxLength": 80,
             "type": "string"
           },
           "organization_id": {
             "type": "string"
           },
+          "password": {
+            "description": "Stored sealed, never returned.",
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string",
+            "writeOnly": true
+          },
+          "phone_number_id": {
+            "description": "The workspace's active Skysay number the phone system sees on every call.",
+            "type": "string"
+          },
           "port": {
             "default": 5060,
+            "description": "5060 or 1024-65535.",
             "type": "integer"
           },
           "project_id": {
             "type": "string"
           },
           "server_address": {
-            "description": "Hostname or public IP of the customer's phone server.",
+            "description": "The public IPv4 address of the customer's phone system (an IP address, not a domain name).",
             "type": "string"
           },
           "transport": {
+            "default": "udp",
             "enum": [
               "udp",
-              "tcp",
-              "tls"
+              "tcp"
             ],
             "type": "string"
           },
           "username": {
+            "description": "The phone system's SIP login, if it asks for one.",
             "type": "string"
           }
         },
         "required": [
           "organization_id",
-          "server_address"
+          "server_address",
+          "phone_number_id"
         ],
+        "type": "object"
+      },
+      "PhoneServerTestCall": {
+        "properties": {
+          "code": {
+            "description": "The eight digits to type on the keypad. Only in the response that starts the test call.",
+            "pattern": "^[0-9]{8}$",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "extension": {
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why a test failed: not_answered, code_not_heard, call_not_placed, call_not_completed, server_changed. Empty otherwise.",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "calling",
+              "verified",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "PhoneServerUpdate": {
         "additionalProperties": false,
-        "description": "Any change resets verification_status to not_tested. Any other field is refused.",
+        "description": "A change of address, port, transport, login, password or number makes the server not_tested again. Any other field is refused.",
         "properties": {
-          "auth_mode": {
-            "enum": [
-              "ip_allowlist",
-              "sip_credentials",
-              "ip_allowlist_and_credentials"
-            ],
+          "name": {
+            "maxLength": 80,
             "type": "string"
           },
-          "name": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string",
+            "writeOnly": true
+          },
+          "phone_number_id": {
             "type": "string"
           },
           "port": {
             "type": "integer"
           },
           "server_address": {
+            "description": "The public IPv4 address of the customer's phone system (an IP address, not a domain name).",
             "type": "string"
           },
           "transport": {
             "enum": [
               "udp",
-              "tcp",
-              "tls"
+              "tcp"
             ],
             "type": "string"
           },
           "username": {
+            "description": "Changing the username drops the stored password unless the same request sends the new one.",
             "type": "string"
           }
         },
@@ -20082,6 +20135,120 @@
         "summary": "Update one customer phone server",
         "tags": [
           "Self-hosting"
+        ]
+      }
+    },
+    "/v1/phone-servers/{phone_server_id}/test-calls": {
+      "post": {
+        "description": "Skysay calls the extension on your phone system through the server's own connection, showing the server's Skysay number, and returns an eight-digit code once. The person who answers types it on the keypad; a match makes the server verified for the address the call reached. Skysay plays nothing into the call: a menu or voicemail that answers fails the test. Allow calls from the server's allow_calls_from addresses first. One test at a time per server, at most three an hour.",
+        "operationId": "startPhoneServerTestCall",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "phone_server_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "extension": {
+                    "description": "The extension of a phone the test call rings.",
+                    "pattern": "^[0-9]{3,20}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "extension"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneServerTestCall"
+                }
+              }
+            },
+            "description": "The test call, with its code"
+          },
+          "404": {
+            "description": "No such phone server in your workspace"
+          },
+          "409": {
+            "description": "phone_server_edge_pending: Skysay is preparing the connection to your phone system; try again in a minute. phone_server_test_in_progress, phone_server_number_invalid (pick an active Skysay number), or the server's setup failed (its setup.reason)"
+          },
+          "429": {
+            "description": "phone_server_test_rate_limited or phone_server_test_busy, with retry_after_seconds"
+          },
+          "503": {
+            "description": "phone_server_tests_unavailable: test calls are not available yet"
+          }
+        },
+        "summary": "Start a phone server test call",
+        "tags": [
+          "Self-hosting"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
+        ]
+      }
+    },
+    "/v1/phone-servers/{phone_server_id}/test-calls/{test_call_id}": {
+      "get": {
+        "description": "A test call's outcome. The code is never returned here.",
+        "operationId": "getPhoneServerTestCall",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "phone_server_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "test_call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneServerTestCall"
+                }
+              }
+            },
+            "description": "The test call"
+          },
+          "404": {
+            "description": "No such phone server in your workspace"
+          }
+        },
+        "summary": "Get a phone server test call",
+        "tags": [
+          "Self-hosting"
+        ],
+        "x-required-scopes": [
+          "numbers:read"
         ]
       }
     },
