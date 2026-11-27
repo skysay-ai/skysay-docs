@@ -8,16 +8,36 @@ icon: Journal
 
 ### A delivery for one workflow step, on any voice
 
-- An `ask`, `say` or `end` step can set `delivery` to `natural`, `lively`, `calm` or `precise` for that step's line only.
-- It applies on ElevenLabs Flash v2.5, Gemini 3.8 Flash and Flash-Lite, Soniox and Fish Audio voices; any other voice speaks the line as usual, and publishing warns with `STEP_DELIVERY_NOT_APPLIED`.
-- Any other value is refused when you publish, with `INVALID_STEP_DELIVERY` naming the step.
+- An `ask`, `say` or `end` step can set `delivery` to `natural`, `lively`, `calm` or `precise`, the AI agent's delivery profiles, for that step's line only; in the editor, select the step and choose **Delivery**.
+- It applies on ElevenLabs Flash v2.5, Gemini 3.8 Flash and Flash-Lite, Soniox and Fish Audio voices.
+- Any other voice speaks the line in its usual delivery: a step's delivery never stops a publish or a call, and the API publish response warns with `STEP_DELIVERY_NOT_APPLIED`, naming the steps and the voice.
 - The AI agent's own delivery profile now also works on Fish Audio and Gemini 3.8 Flash and Flash-Lite voices; `natural` on those voices sends exactly the request sent before.
 - [Delivery for a step's line](/docs/agent-workflows#delivery-for-a-steps-line) · [What each provider honours](/docs/delivery-profiles#what-each-provider-honours)
 
-### A long call counts as more than one call on Professional and Scale
+### Send a saved SMS during or after a call
 
-- On Professional and Scale a call counts by its billed time, one call for each started 10 minutes: up to 10:00 is one call, 10:01 to 20:00 is two.
-- [How a long call counts](/docs/plans#how-a-long-call-counts)
+- Give an AI agent named messages for directions, support references, quote follow-ups and appointment confirmations, and choose the condition and send time.
+- Skysay sets up a sender for your workspace per destination country; until then the AI agent does not offer the message.
+- Follow each message's result in the SMS workspace.
+- [Send SMS from your AI agent](/docs/send-sms#give-an-ai-agent-a-message-to-send)
+
+### SMS statuses say what happened
+
+- In the SMS workspace a queued or sending message reads **Submitted**, a provider error reads **Outcome unknown**, and a message refused for insufficient balance reads **Rejected**.
+- Only a delivered message shows the green check.
+- [Read conversations](/docs/send-sms#read-conversations)
+
+### 28 more MCP tools, 148 in all
+
+- Numbers and account: `list_available_numbers`, `search_available_numbers`, `get_number`, `get_number_activation`, `list_number_requests`, `get_number_request`, `update_number_request` and `create_topup_checkout`, which opens a Stripe checkout and moves no money until a person pays.
+- Agents and calls: `send_agent_chat_turn`, `get_agent_post_call_extraction`, `set_agent_post_call_extraction`, `cancel_call`, `get_call_stats`, `get_call_events` and `get_call_post_call_extraction`.
+- Campaigns, SMS and knowledge: `get_campaign_results`, `list_campaign_contacts`, `resolve_campaign_review`, `start_campaign_test_call`, `list_messages`, `get_conversation`, `get_workspace_context` and `retry_knowledge_document`, among others.
+- [Tool reference](/docs/tool-reference) · [MCP](/docs/mcp)
+
+### A key without a workspace is refused on every assistant tool
+
+- A credential that belongs to no workspace is now refused by every MCP tool, as the REST routes already refused it; your workspace's own keys are unchanged.
+- [MCP](/docs/mcp)
 
 ### An AI agent can use a provider key from any project of its workspace
 
@@ -25,26 +45,22 @@ icon: Journal
 - `GET /v1/hosted-ai-credentials` without `project_id` lists the keys of the whole workspace; with it, that project's only.
 - [REST endpoints](/docs/rest-endpoints) · [API reference](/docs/api-reference)
 
-### Phone servers can no longer be marked verified by a request
+### A long call counts as more than one call on Professional and Scale
+
+- On Professional and Scale a call counts by its billed time, one call for each started 10 minutes: up to 10:00 is one call, 10:01 to 20:00 is two.
+- [How a long call counts](/docs/plans#how-a-long-call-counts)
+
+### Phone servers read not tested
 
 - A new phone server reads not tested, and a create or update that names its own status, SIP URI or metadata is refused with `400`.
 - The phone server check (`POST /v1/phone-servers/{phone_server_id}/test`, MCP `test_phone_server`) is removed; Skysay cannot verify a phone server yet, so a number cannot be sent to one for now.
 - [MCP](/docs/mcp#choose-who-answers-a-number) · [Tool reference](/docs/tool-reference) · [API reference](/docs/api-reference)
 
-### 28 more MCP tools
+### Three new Solutions pages
 
-- Numbers and account: `list_available_numbers`, `search_available_numbers`, `get_number`, `get_number_activation`, `list_number_requests`, `get_number_request`, `update_number_request` and `create_topup_checkout`, which opens a Stripe checkout and moves no money until a person pays.
-- Agents and calls: `send_agent_chat_turn`, `get_agent_post_call_extraction`, `set_agent_post_call_extraction`, `cancel_call`, `get_call_stats`, `get_call_events` and `get_call_post_call_extraction`.
-- Campaigns and SMS: `list_campaign_contacts`, `get_campaign_results`, `list_campaign_reviews`, `resolve_campaign_review`, `start_campaign_test_call`, `duplicate_campaign`, `get_conversation` and `list_messages`; `list_conversations` is now a bounded page.
-- Workspace and knowledge: `get_workspace_context`, `get_activation_state`, `delete_knowledge_base`, `delete_knowledge_document` and `retry_knowledge_document`.
-- An agent chat test (`send_agent_chat_turn`) and a knowledge test are free and limited to 20 a minute and 200 a day for each workspace; over the limit the answer is `429` with `Retry-After`.
-- [Tool reference](/docs/tool-reference) · [MCP](/docs/mcp)
-
-### SMS statuses say what happened
-
-- In the SMS workspace a queued or sending message reads **Submitted**, a provider error reads **Outcome unknown**, and a message refused for insufficient balance reads **Rejected**.
-- Only a delivered message shows the green check.
-- [Read conversations](/docs/send-sms#read-conversations)
+- New pages for hotels and resorts, for e-commerce stores, and for connecting AI voice agents to an existing PBX, in every language of the site.
+- PBX integrations is listed in the **Solutions** menu, and Hotels and resorts and E-commerce under Industries.
+- [Hotels and resorts](https://skysay.ai/solutions/hotels) · [E-commerce](https://skysay.ai/solutions/e-commerce) · [PBX integrations](https://skysay.ai/solutions/pbx-integrations)
 
 ## 26 November 2026
 
