@@ -8704,7 +8704,7 @@
     },
     "/mcp/openai": {
       "post": {
-        "description": "Streamable HTTP profile with the same protocols and calling tools as /mcp, but without create_wallet_topup. Top-ups are excluded from discovery and refused before execution regardless of credential permissions. OAuth grants use a separate /mcp/openai audience, cannot request wallet:write and cannot be used on /mcp or REST routes. Calls still require calls:write consent, workspace funds and normal outbound authorization. Existing full and read-only connectors are unchanged. GET and HEAD return 405.",
+        "description": "Streamable HTTP profile with the same protocols and calling tools as /mcp, but without create_wallet_topup and create_topup_checkout. Both payment tools are excluded from discovery and refused before execution regardless of credential permissions. OAuth grants use a separate /mcp/openai audience, cannot request wallet:write and cannot be used on /mcp or REST routes. Calls still require calls:write consent, workspace funds and normal outbound authorization. Existing full and read-only connectors are unchanged. GET and HEAD return 405.",
         "operationId": "callMcpOpenai",
         "responses": {
           "200": {
@@ -8762,6 +8762,9 @@
         "responses": {
           "200": {
             "description": "Activation state"
+          },
+          "400": {
+            "description": "project_id is not a project of this workspace"
           }
         },
         "summary": "Get live customer activation checklist and next action",
@@ -9593,7 +9596,7 @@
     },
     "/v1/agents/{agent_id}/chat-turns": {
       "post": {
-        "description": "A text chat test of the agent as a browser voice test would run it, minus audio: the same resolved configuration (system prompt, opening line, language profile, tools, attached knowledge, and for snapshot=draft the editor's unsaved overlay), the same built-in tool prompt appends and the same language directive the voice worker applies, answered by the agent's configured Gemini model. Stateless: send the transcript so far and the new caller_input; caller_input=null with an empty transcript asks for the opening line (the configured first message verbatim, or one generated from the instructions when none is configured). Tool policy: search_knowledge_base runs the real retrieval; end_call ends the chat (ended=true, ended_reason=end_call); every other tool -- send_sms, transfer_to_human, webhook, connection and legacy MCP allowlist tools -- is HELD: the model is told the action did not happen and the call is reported in events with disposition=held. Nothing is persisted and no call record is created. Platform-funded: no wallet reservation and no component charge (only the model ran); metering reports the model calls and tokens this turn consumed. Bounded: 2000 characters per message, 40 transcript lines (the chat ends with ended_reason=transcript_limit), 24000 transcript characters, 4 tool rounds per turn and a 20-second turn budget. Refused with 400 for an agent that has a conversation flow, is not hosted, not active, GPT-Live, bound to a customer-owned model credential, or has no instructions; when no platform model credential is configured; or when the model does not answer in time. An agent WITH a conversation flow is refused with 400 here (a call with it runs the flow, so a prompt-only answer would be one no call gives) and is tested through the workflow run routes instead.",
+        "description": "A text chat test of the agent as a browser voice test would run it, minus audio: the same resolved configuration (system prompt, opening line, language profile, tools, attached knowledge, and for snapshot=draft the editor's unsaved overlay), the same built-in tool prompt appends and the same language directive the voice worker applies, answered by the agent's configured Gemini model. Stateless: send the transcript so far and the new caller_input; caller_input=null with an empty transcript asks for the opening line (the configured first message verbatim, or one generated from the instructions when none is configured). Tool policy: search_knowledge_base runs the real retrieval; end_call ends the chat (ended=true, ended_reason=end_call); every other tool -- send_sms, transfer_to_human, webhook, connection and legacy MCP allowlist tools -- is HELD: the model is told the action did not happen and the call is reported in events with disposition=held. No transcript or call record is persisted; the only write is the workspace's chat test count. Platform-funded: no wallet reservation and no component charge (only the model ran); metering reports the model calls and tokens this turn consumed. Bounded: 2000 characters per message, 40 transcript lines (the chat ends with ended_reason=transcript_limit), 24000 transcript characters, 4 tool rounds per turn and a 20-second turn budget; draft instructions of at most 65,536 bytes, the limit of saved instructions. A workspace can send 20 turns a minute and 200 a UTC day: a turn over either is refused with 429 (chat_test_rate_limited or chat_test_daily_limit, with retry_after_seconds and Retry-After), is not counted and reaches no model. Refused with 400 for an agent that has a conversation flow, is not hosted, not active, GPT-Live, bound to a customer-owned model credential, or has no instructions; when no platform model credential is configured; or when the model does not answer in time. An agent WITH a conversation flow is refused with 400 here (a call with it runs the flow, so a prompt-only answer would be one no call gives) and is tested through the workflow run routes instead.",
         "operationId": "createAgentChatTurn",
         "parameters": [
           {
@@ -9678,6 +9681,9 @@
           },
           "404": {
             "description": "Agent not found (an agent in another workspace answers exactly as one that never existed)"
+          },
+          "429": {
+            "description": "The workspace sent 20 chat test turns this minute or 200 today; the turn is not counted"
           }
         },
         "summary": "Send one text turn to a prompt-driven hosted agent that has no conversation flow",
@@ -14472,7 +14478,7 @@
             "description": "Call stats"
           },
           "400": {
-            "description": "Missing/duplicate/malformed window, a malformed until, unknown agent_window, or more than 8 windows requested."
+            "description": "Missing/duplicate/malformed window, a malformed until, unknown agent_window, more than 8 windows requested, or a project_id that is not a project of this workspace."
           }
         },
         "security": [
@@ -18361,7 +18367,7 @@
     },
     "/v1/knowledge-bases/{knowledge_base_id}/test": {
       "post": {
-        "description": "Customer-initiated only. The route binds the bearer organization/project and path base, reuses production passage retrieval, then asks Gemini for a short grounded preview. It returns exact visible source excerpts with an answer, explicit not_found when evidence is absent, or unavailable; it never creates a call, billing entry, retrieval event, action, or model-selectable scope.",
+        "description": "Customer-initiated only. The route binds the bearer organization/project and path base, reuses production passage retrieval, then asks Gemini for a short grounded preview. It returns exact visible source excerpts with an answer, explicit not_found when evidence is absent, or unavailable; it never creates a call, billing entry, retrieval event, action, or model-selectable scope. A workspace can run 20 tests a minute and 200 a UTC day: a test over either is refused with 429 (knowledge_test_rate_limited or knowledge_test_daily_limit, with retry_after_seconds and Retry-After), is not counted and reaches no provider.",
         "operationId": "testKnowledgeBase",
         "parameters": [
           {
@@ -18386,6 +18392,9 @@
         "responses": {
           "200": {
             "description": "Grounded answer and source excerpts, explicit not_found, or safe unavailable outcome"
+          },
+          "429": {
+            "description": "The workspace ran 20 knowledge tests this minute or 200 today; the test is not counted"
           }
         },
         "summary": "Test one grounded answer against a private knowledge base",
