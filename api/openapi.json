@@ -6259,11 +6259,15 @@
         "type": "object"
       },
       "PhoneServerTestCall": {
+        "additionalProperties": false,
         "properties": {
-          "code": {
-            "description": "The eight digits to type on the keypad. Only in the response that starts the test call.",
-            "pattern": "^[0-9]{8}$",
-            "type": "string"
+          "code_expires_at": {
+            "description": "Deadline to enter the spoken code (5 minutes after it played). Present while status is awaiting_code.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at": {
             "format": "date-time",
@@ -6286,19 +6290,154 @@
           "id": {
             "type": "string"
           },
+          "language": {
+            "description": "Language Skysay speaks the six-digit code in.",
+            "enum": [
+              "ar",
+              "de",
+              "en",
+              "es",
+              "et",
+              "fr",
+              "it",
+              "ru"
+            ],
+            "type": "string"
+          },
           "reason": {
-            "description": "Why a test failed: not_answered, code_not_heard, call_not_placed, call_not_completed, server_changed. Empty otherwise.",
+            "description": "Why a test failed or expired: not_answered, not_played, call_not_placed, call_not_completed, server_changed, wrong_code, code_not_entered, superseded. Empty otherwise.",
             "type": "string"
           },
           "status": {
             "enum": [
               "calling",
+              "awaiting_code",
               "verified",
-              "failed"
+              "failed",
+              "expired"
             ],
             "type": "string"
+          },
+          "tries_left": {
+            "description": "Remaining code-entry tries before the test fails. Present while status is awaiting_code.",
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
           }
         },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "extension",
+          "language",
+          "created_at",
+          "expires_at",
+          "finished_at"
+        ],
+        "type": "object"
+      },
+      "PhoneServerTestCallVerification": {
+        "additionalProperties": false,
+        "properties": {
+          "code_expires_at": {
+            "description": "Deadline to enter the spoken code (5 minutes after it played). Present while status is awaiting_code.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "extension": {
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "description": "Language Skysay speaks the six-digit code in.",
+            "enum": [
+              "ar",
+              "de",
+              "en",
+              "es",
+              "et",
+              "fr",
+              "it",
+              "ru"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why a test failed or expired: not_answered, not_played, call_not_placed, call_not_completed, server_changed, wrong_code, code_not_entered, superseded. Empty otherwise.",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "calling",
+              "awaiting_code",
+              "verified",
+              "failed",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "tries_left": {
+            "description": "Remaining code-entry tries before the test fails. Present while status is awaiting_code.",
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "verification_status": {
+            "description": "The phone server's current verification state. verified means the test call reached that phone system and the person who answered passed the code on; it does not make send_to_my_phone_server usable.",
+            "enum": [
+              "not_tested",
+              "verified",
+              "needs_number"
+            ],
+            "type": "string"
+          },
+          "verified_address": {
+            "description": "The IPv4 address verified by the test call, or empty when not verified.",
+            "type": "string"
+          },
+          "verified_at": {
+            "description": "When the phone server was verified, or null when not verified.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "extension",
+          "language",
+          "created_at",
+          "expires_at",
+          "finished_at",
+          "verification_status",
+          "verified_address",
+          "verified_at"
+        ],
         "type": "object"
       },
       "PhoneServerUpdate": {
@@ -20187,7 +20326,7 @@
     },
     "/v1/phone-servers/{phone_server_id}/test-calls": {
       "post": {
-        "description": "Skysay calls the extension on your phone system through the server's own connection, showing the server's Skysay number, and returns an eight-digit code once. The person who answers types it on the keypad; a match makes the server verified for the address the call reached. Skysay plays nothing into the call: a menu or voicemail that answers fails the test. Allow calls from the server's allow_calls_from addresses first. One test at a time per server, at most three an hour.",
+        "description": "Skysay calls the extension on your phone system through the server's trunk, presenting the server's Skysay number. When answered, Skysay speaks a six-digit code twice in the chosen language (default en) and hangs up; the code is never returned here. The person who answered passes the code on to enter with POST /v1/phone-servers/{phone_server_id}/test-calls/{test_call_id}/code within 5 minutes, with at most 3 wrong tries. Status moves from calling to awaiting_code (with tries_left and code_expires_at), then verified, failed (with its reason) or expired. Verified means the call reached that phone system and the person who answered passed the code on; it does not make the number rule send_to_my_phone_server usable (that stays locked). Allow calls from the server's allow_calls_from addresses first. One active call at a time per server, at most three an hour.",
         "operationId": "startPhoneServerTestCall",
         "parameters": [
           {
@@ -20209,6 +20348,21 @@
                     "description": "The extension of a phone the test call rings.",
                     "pattern": "^[0-9]{3,20}$",
                     "type": "string"
+                  },
+                  "language": {
+                    "default": "en",
+                    "description": "Language Skysay speaks the six-digit code in. Default: en.",
+                    "enum": [
+                      "ar",
+                      "de",
+                      "en",
+                      "es",
+                      "et",
+                      "fr",
+                      "it",
+                      "ru"
+                    ],
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -20229,7 +20383,10 @@
                 }
               }
             },
-            "description": "The test call, with its code"
+            "description": "The test call (never returns the spoken code)"
+          },
+          "400": {
+            "description": "phone_server_extension_invalid, phone_server_language_invalid, or unsupported request field"
           },
           "404": {
             "description": "No such phone server in your workspace"
@@ -20255,7 +20412,7 @@
     },
     "/v1/phone-servers/{phone_server_id}/test-calls/{test_call_id}": {
       "get": {
-        "description": "A test call's outcome. The code is never returned here.",
+        "description": "Read a test call's state: calling, awaiting_code (with tries_left and code_expires_at), verified, failed (with its reason) or expired (reason code_not_entered). Never returns the spoken code.",
         "operationId": "getPhoneServerTestCall",
         "parameters": [
           {
@@ -20296,6 +20453,82 @@
         ],
         "x-required-scopes": [
           "numbers:read"
+        ]
+      }
+    },
+    "/v1/phone-servers/{phone_server_id}/test-calls/{test_call_id}/code": {
+      "post": {
+        "description": "Enter the six-digit code spoken on a phone server test call while the test is awaiting_code (within 5 minutes, at most 3 wrong tries). Returns the test call and the server's verification state; never returns or echoes the code. A match marks the server verified for the address the call reached \u2014 meaning the call reached that phone system and the person who answered passed the code on \u2014 without making the number rule send_to_my_phone_server usable (that stays locked).",
+        "operationId": "enterPhoneServerTestCallCode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "phone_server_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "test_call_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "description": "The six digits spoken on the test call.",
+                    "pattern": "^[0-9]{6}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneServerTestCallVerification"
+                }
+              }
+            },
+            "description": "The verified test call and the phone server's verification state"
+          },
+          "400": {
+            "description": "phone_server_code_invalid (missing/extra field or not six ASCII digits), or phone_server_code_wrong with tries_left (the third wrong try closes the test as failed with reason wrong_code)"
+          },
+          "404": {
+            "description": "No such phone server or test call in your workspace"
+          },
+          "409": {
+            "description": "phone_server_test_not_ready (still calling), phone_server_code_expired, phone_server_changed, or phone_server_test_closed"
+          },
+          "503": {
+            "description": "phone_server_tests_unavailable: test calls are not available yet"
+          }
+        },
+        "summary": "Enter a phone server test call code",
+        "tags": [
+          "Self-hosting"
+        ],
+        "x-required-scopes": [
+          "numbers:write"
         ]
       }
     },
