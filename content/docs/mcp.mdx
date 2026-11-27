@@ -476,8 +476,9 @@ the normal customer configuration loop without switching to REST:
    component-metered choices. Pass `voice_frontend: "gpt_live"` on
    `create_agent` or `set_agent_voice_stack` to select GPT-Live 1.1; omit it to
    keep Standard.
-2. Call `create_agent`, then use `list_agents` for a bounded newest-first page
-   or `get_agent` for one current safe agent projection.
+2. Call `get_workspace_context` for the workspace's project ids, then
+   `create_agent` in one of them. Use `list_agents` for a bounded newest-first
+   page or `get_agent` for one current safe agent projection.
 3. Use `update_agent` for the ordinary mutable fields and
    `set_agent_voice_stack` to publish a selected stack. Read the published
    configuration back with `get_agent_voice_stack`.
@@ -596,8 +597,10 @@ same operations as the REST API. The permissions are `knowledge:read`, plus
 
 `list_knowledge_bases`, `get_knowledge_base`, `get_knowledge_document_text`
 and `update_knowledge_base` (rename) complete the set. Every knowledge tool
-takes `project_id`, as the REST routes do. Deleting, replacing and retrying
-documents stay in the workspace and the REST API.
+takes `project_id`, as the REST routes do. `delete_knowledge_document` and
+`delete_knowledge_base` remove a document or a whole base, and
+`retry_knowledge_document` processes a failed document again. Replacing an
+unreadable file stays in the workspace and the REST API.
 
 What it looks like for a customer:
 

@@ -18,6 +18,8 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | --- | --- | --- |
 | `account_overview` | `account:read` | Bounded workspace summary: wallet, usage totals with up to 10 line items, and for agents, numbers, number requests, calls and SMS conversations a `total` with up to 5 newest previews and the `list_tool` that pages them. Never includes SMS message content. See [Bounded results and paging](/docs/mcp#bounded-results-and-paging). |
 | `list_audio_environments` | `account:read` | Read the immutable versioned ambience catalogue (including Off). It has the same result and scope as `GET /v1/audio-environments`; it never contacts a provider or changes a selection. |
+| `get_workspace_context` | `account:read` | The workspace your credential belongs to and a page of its projects (id, name, environment), oldest first (`limit` 1–100, default 50; `offset`). Tools that ask for `project_id` take one of these ids; it works before the workspace has any agent. |
+| `get_activation_state` | `account:read` | The workspace's set-up checklist: eight steps, whether each is done, and the next step with what to do. With `project_id`, agents, numbers, number orders, SMS conversations and calls are counted for that project only. |
 | `create_wallet_topup` | `wallet:write` | Initiate an explicitly owner-approved purchased-wallet top-up for the authenticated workspace: return a direct Stripe Checkout URL, or use a compatible wallet’s approved shared payment token. Permission alone approves no payment; see [funding paths and limits](/docs/billing#adding-funds-through-mcp). Absent from the read-only connector. |
 
 ## Coverage & catalog
@@ -46,6 +48,9 @@ under `_meta["ai.skysay/required_scopes"]`, with alternatives under
 | `preview_voice` | `agents:write` | Explicit bounded, rate-limited provider/BYOK Listen action; may have provider and safe state effects, so it is not read-only. |
 | `get_agent_variables` | `agents:read` | Read an AI agent's [call variables](/docs/call-variables) config with its `revision` and `schema_hash`; the same answer as `GET /v1/agents/{agent_id}/variables`. |
 | `set_agent_variables` | `agents:write` | Replace an AI agent's whole call variables config, checked and republished at once. Send `base_revision` to be refused rather than overwrite a newer write. A refused config returns `error.body.issues`. |
+| `get_agent_post_call_extraction` | `agents:read` | Read an AI agent's [result fields](/docs/post-call-results): the schema of what is written down after each of its calls, and whether it is on. |
+| `set_agent_post_call_extraction` | `agents:write` | Set or switch off an AI agent's result fields, the same as `PATCH /v1/agents/{agent_id}/post-call-extraction`: 1 to 24 scalar fields, a new schema version for later calls; the active schema sent again changes nothing. |
+| `send_agent_chat_turn` | `agents:write` | Send one text message to a hosted AI agent and read its reply, as the workspace's chat test does: the agent as a call would run it, without audio. Each turn runs the agent's model at Skysay's cost and is meant for a few test messages: a workspace can send 20 turns a minute and 200 a day. Nothing is saved and no call is made; tools other than knowledge search and `end_call` are held, not performed. |
 
 ## PBX connection keys
 
@@ -124,6 +129,10 @@ See [PBX connection keys](/docs/wire-an-agent#pbx-connection-keys).
 | `get_call_transcript` | `recordings:read` | Get transcript turns. |
 | `get_call_summary` | `recordings:read` | Get the call's [AI summary](/docs/call-summaries): summary, follow-up, goal met and sentiment, each an AI estimate. |
 | `create_outbound_call` | `calls:write` | Request a policy-gated phone call from one of the workspace's numbers. The answer is the call record with its current status; it does not wait for the call to end. |
+| `cancel_call` | `calls:write` | Cancel an outbound call before it is dialled: queued, waiting while live calling is switched off, or held for review. A queued call's reserved credit is released. Refused once a call is being dialled, live or ended; hang up a live call with `hangup_call`. |
+| `get_call_stats` | `calls:read` | Call totals over up to 8 date windows from the whole history (calls, answered, failed, talk time, spend), each window `<key>:<since>`, with an optional per-agent breakdown of one window, the same as `GET /v1/calls/stats`. |
+| `get_call_events` | `calls:read` | One page of a call's event log, oldest first (`limit` 1–1000, default 200); continue with `after` set to `page.next_cursor` while `page.has_more` is true. The same events as `GET /v1/calls/{call_id}/events`. |
+| `get_call_post_call_extraction` | `recordings:read` | What a call wrote down in its AI agent's result fields, with the evidence it rests on. |
 
 ## Contacts
 
@@ -160,12 +169,15 @@ Every knowledge tool takes `project_id`. See [fill and test a knowledge base](/d
 | `get_knowledge_base` | `knowledge:read` | One knowledge base. |
 | `list_knowledge_documents` | `knowledge:read` | A page of a base's documents with each one's state (`processing`, `ready`, `failed`). |
 | `get_knowledge_document_text` | `knowledge:read` | A page of one document's extracted text (`limit` up to 50,000 characters). |
-| `test_knowledge_base` | `knowledge:read` | Ask a base one question; returns the grounded answer and its sources. Saves nothing. |
+| `test_knowledge_base` | `knowledge:read` | Ask a base one question; returns the grounded answer and its sources. Saves nothing. A workspace can run 20 tests a minute and 200 a day. |
 | `get_agent_knowledge_bases` | `agents:read`, `knowledge:read` | Which bases an AI agent searches. |
 | `create_knowledge_base` | `knowledge:write` | Create an empty base in a project. |
 | `update_knowledge_base` | `knowledge:write` | Rename a base. |
 | `add_knowledge_document` | `knowledge:write` | Add up to 80,000 characters of text as one `.txt` or Markdown document; it becomes searchable when ready. Identical text returns the existing document. |
 | `set_agent_knowledge_bases` | `agents:write`, `knowledge:write` | Replace the list of bases an AI agent searches (at most 20; `[]` clears it). |
+| `delete_knowledge_base` | `knowledge:write` | Delete a base and its documents: detached from every AI agent and no longer searchable at once, its files removed in the background. Cannot be undone. |
+| `delete_knowledge_document` | `knowledge:write` | Delete one document: no longer searchable at once, its file removed in the background. Cannot be undone. |
+| `retry_knowledge_document` | `knowledge:write` | Process a document again whose state is retryable (or a ready one whose extracted text is missing or damaged). An unreadable file is replaced in the workspace or over the REST API instead. |
 
 ## Simulations Lab
 
